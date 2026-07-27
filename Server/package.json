@@ -1,0 +1,14 @@
+{
+  "name": "third-library-loop-server",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "3rdLibraryLoop Server - SKILL 选择器 Agent 及相关服务",
+  "main": "server.js",
+  "scripts": {
+    "test:selector": "node Agent/SkillSelector/__tests__/run-sample.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "openai": "^4.67.0"
+  }
+}
