@@ -40,9 +40,7 @@ flowchart TD
 | [index.js](index.js) | 模块统一导出 |
 | [llm/llmClient.js](llm/llmClient.js) | LLM 客户端（百炼 OpenAI 兼容，glm-5.1），提供 `chat()` / `chatJSON()` |
 | [scanner/skillScanner.js](scanner/skillScanner.js) | 扫描 SKILL 目录，解析 `SKILL.md` frontmatter，产出 `SkillMeta[]` |
-| [matcher/fuzzyMatcher.js](matcher/fuzzyMatcher.js) | 模糊匹配工具：单路 BM25 召回 + legacy fallback，返回 topK 候选 |
-| [matcher/bm25.js](matcher/bm25.js) | 纯 JS BM25 实现（k1=1.5, b=0.75），无 SQLite 依赖 |
-| [matcher/tokenizer.js](matcher/tokenizer.js) | 统一分词器（英文停用词过滤 + 中文虚词切分） |
+| [matcher/fuzzyMatcher.js](matcher/fuzzyMatcher.js) | 模糊匹配工具（合并模块）：分词器 + 纯 JS BM25 + 单路召回编排 + legacy fallback |
 | [llm/reactSteps.js](llm/reactSteps.js) | 两个 Reason 步骤封装：`analyzeTask` / `rankSkills` |
 | [llm/prompts.js](llm/prompts.js) | prompt 模板 + `renderTemplate` 占位符替换 |
 | [types.js](types.js) | 数据结构 JSDoc 契约（`SkillMeta` / `TaskAnalysis` / `SkillSelection`） |

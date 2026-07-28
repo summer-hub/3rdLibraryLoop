@@ -23,9 +23,7 @@ SkillSelector/
 │   ├── prompts.js        # prompt 模板 + renderTemplate
 │   └── reactSteps.js     # 两个 Reason 步骤封装（analyzeTask / rankSkills）
 ├── matcher/
-│   ├── fuzzyMatcher.js   # 模糊匹配工具（单路 BM25 + fallback），召回 topK 候选
-│   ├── bm25.js           # 纯 JS BM25 实现
-│   └── tokenizer.js      # 中英文分词器
+│   └── fuzzyMatcher.js   # 模糊匹配工具（分词器 + BM25 + 召回编排，合并模块）
 ├── scanner/
 │   └── skillScanner.js   # SKILL 目录扫描 + frontmatter 解析 → SkillMeta[]
 └── __tests__/
