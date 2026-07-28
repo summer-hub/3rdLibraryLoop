@@ -13,7 +13,7 @@ flowchart TD
     Scan -->|SkillMeta[]| R1
 
     subgraph R1["Reason #1 — 任务拆解"]
-        R1a["llmClient 调用 glm-5.1"]
+        R1a["llmClient 调用 glm-5-1"]
         R1b["输出 TaskAnalysis: keywords / intent / constraints / techStack"]
         R1a --> R1b
     end
@@ -24,7 +24,7 @@ flowchart TD
     TopK --> R2
 
     subgraph R2["Reason #2 — 排序筛选"]
-        R2a["llmClient 调用 glm-5.1"]
+        R2a["llmClient 调用 glm-5-1"]
         R2b["输出 ranked: 每项含 score + reason"]
         R2a --> R2b
     end
@@ -38,14 +38,12 @@ flowchart TD
 |------|------|
 | [core/Agent.js](core/Agent.js) | 对外导出的 `Agent` 类，`selectSkill(task, skillDirectory)` 主入口，编排 ReAct 流程 |
 | [index.js](index.js) | 模块统一导出 |
-| [llm/llmClient.js](llm/llmClient.js) | LLM 客户端（百炼 OpenAI 兼容，glm-5.1），提供 `chat()` / `chatJSON()` |
+| [llm/llmClient.js](llm/llmClient.js) | LLM 客户端（百炼 OpenAI 兼容，glm-5-1），提供 `chat()` / `chatJSON()` |
 | [scanner/skillScanner.js](scanner/skillScanner.js) | 扫描 SKILL 目录，解析 `SKILL.md` frontmatter，产出 `SkillMeta[]` |
-| [matcher/fuzzyMatcher.js](matcher/fuzzyMatcher.js) | 模糊匹配工具：单路 BM25 召回 + legacy fallback，返回 topK 候选 |
-| [matcher/bm25.js](matcher/bm25.js) | 纯 JS BM25 实现（k1=1.5, b=0.75），无 SQLite 依赖 |
-| [matcher/tokenizer.js](matcher/tokenizer.js) | 统一分词器（英文停用词过滤 + 中文虚词切分） |
+| [matcher/fuzzyMatcher.js](matcher/fuzzyMatcher.js) | 模糊匹配工具（合并模块）：分词器 + 纯 JS BM25 + 单路召回编排 + legacy fallback |
 | [llm/reactSteps.js](llm/reactSteps.js) | 两个 Reason 步骤封装：`analyzeTask` / `rankSkills` |
 | [llm/prompts.js](llm/prompts.js) | prompt 模板 + `renderTemplate` 占位符替换 |
-| [types.js](types.js) | 数据结构 JSDoc 契约（`SkillMeta` / `TaskAnalysis` / `SkillSelection`） |
+| [types.js](types.js) | 数据结构 JSDoc 契约（`SkillMeta` / `TaskAnalysis` / `SkillSelection`；本地保留，不提交远端） |
 | [__tests__/](__tests__/) | 自测脚本 |
 
 ## 工作流
@@ -56,7 +54,7 @@ flowchart TD
 
 ### Reason #1：LLM 拆解任务
 
-`reactSteps.analyzeTask(llm, task)` 调用 glm-5.1，将具体事项拆解为结构化的 `TaskAnalysis`：
+`reactSteps.analyzeTask(llm, task)` 调用 glm-5-1，将具体事项拆解为结构化的 `TaskAnalysis`：
 
 ```json
 {
@@ -75,7 +73,7 @@ BM25 全零分（无任何 token 重叠）时，回退到 legacy 子串匹配，
 
 ### Reason #2：LLM 排序筛选
 
-`reactSteps.rankSkills(llm, task, analysis, candidates)` 把 topK 候选的简表（id / name / description / category / language）发给 glm-5.1，让 LLM 对每个候选评分（0-100）并排序，选出最佳 SKILL。
+`reactSteps.rankSkills(llm, task, analysis, candidates)` 把 topK 候选的简表（id / name / description / category / language）发给 glm-5-1，让 LLM 对每个候选评分（0-100）并排序，选出最佳 SKILL。
 
 ### 返回结果
 
@@ -100,7 +98,7 @@ BM25 全零分（无任何 token 重叠）时，回退到 legacy 子串匹配，
 ```env
 DASHSCOPE_API_KEY=your_api_key_here
 LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-LLM_MODEL=glm-5.1
+LLM_MODEL=glm-5-1
 ```
 
 ### 2. 安装依赖
@@ -176,7 +174,7 @@ compatibility: 适用于任意托管在 Git 仓库的 C/C++ 开源库。
 import { Agent, LLMClient } from './Agent/SkillSelector/index.js';
 
 const customLLM = new LLMClient({
-  model: 'glm-5.1',
+  model: 'glm-5-1',
   temperature: 0.1,
 });
 const agent = new Agent({ llm: customLLM });
@@ -217,11 +215,11 @@ SELECTOR_TOP_K=10
 | `LLM_BASE_URL` | OpenAI 兼容端点 | `https://dashscope.aliyuncs.com/compatible-mode/v1` |
 | `LLM_MODEL` | 模型名 | `glm-5-1` |
 | `LLM_TEMPERATURE` | 采样温度 | `0.2` |
-| `LLM_MAX_TOKENS` | 最大 token 数 | `2048` |
+| `LLM_MAX_TOKENS` | 最大 token 数 | `1024` |
 | `LLM_ENABLE_THINKING` | 是否开启 GLM 思考模式 | `false` |
 | `SELECTOR_TOP_K` | 模糊匹配召回数量 | `5` |
 | `SELECTOR_HIT_THRESHOLD` | 命中阈值（top1 >= 此值才算命中） | `60` |
-| `FALLBACK_MODEL` | 连续 529 过载时切换的备用模型 | — |
+| `FALLBACK_MODEL` | 连续 3 次 529 过载时切换的备用模型 | — |
 
 ## 设计原则
 

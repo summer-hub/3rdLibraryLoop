@@ -41,3 +41,6 @@ build/
 # Database files
 *.sqlite
 *.db-journal
+
+# 类型契约（本地保留，不提交远端）
+Server/Agent/SkillSelector/types.js

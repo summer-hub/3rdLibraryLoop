@@ -15,9 +15,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { tokenize, normalizeList } from '../matcher/tokenizer.js';
-import { BM25, bm25Scores } from '../matcher/bm25.js';
-import { fuzzyMatch } from '../matcher/fuzzyMatcher.js';
+import { tokenize, normalizeList, BM25, bm25Scores, fuzzyMatch } from '../matcher/fuzzyMatcher.js';
 import { parseFrontmatter, scanSkills } from '../scanner/skillScanner.js';
 import { isTransientError, retryDelay } from '../llm/llmClient.js';
 import { renderTemplate } from '../llm/prompts.js';
