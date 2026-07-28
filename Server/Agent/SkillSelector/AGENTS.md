@@ -6,7 +6,7 @@
 
 采用 **ReAct（Reason + Act）** 设计模式，分三步完成：
 
-1. **Reason #1 — 任务拆解**：LLM（百炼 / glm-5.1）分析任务，产出 `keywords / intent / constraints / techStack`，作为模糊匹配的输入。
+1. **Reason #1 — 任务拆解**：LLM（百炼 / glm-5-1）分析任务，产出 `keywords / intent / constraints / techStack`，作为模糊匹配的输入。
 2. **Act — 模糊匹配**：本地模糊匹配工具根据上一步输出，在候选 SKILL 池中召回最匹配的 top5。
 3. **Reason #2 — 排序筛选**：LLM 对 5 个候选 SKILL 评分排序，选出最佳 SKILL。
 
@@ -15,11 +15,11 @@
 ```
 SkillSelector/
 ├── index.js              # 模块统一导出
-├── types.js              # 数据结构 JSDoc 契约（SkillMeta / TaskAnalysis / SkillSelection）
+├── types.js              # 数据结构 JSDoc 契约（本地保留，不提交远端，已加入 .gitignore）
 ├── core/
 │   └── Agent.js          # 对外导出的 Agent 类，selectSkill(task, skillDirectory) 主入口
 ├── llm/
-│   ├── llmClient.js      # LLM 客户端（百炼 OpenAI 兼容，glm-5.1）
+│   ├── llmClient.js      # LLM 客户端（百炼 OpenAI 兼容，glm-5-1）
 │   ├── prompts.js        # prompt 模板 + renderTemplate
 │   └── reactSteps.js     # 两个 Reason 步骤封装（analyzeTask / rankSkills）
 ├── matcher/
@@ -55,7 +55,7 @@ console.log(result.trace);           // ReAct 每步留痕
 
 ```js
 new Agent({
-  llm: new LLMClient({ model: 'glm-5.1' }),  // 注入自定义 LLM 客户端
+  llm: new LLMClient({ model: 'glm-5-1' }),  // 注入自定义 LLM 客户端
   matcher: customMatcher,                      // 注入自定义模糊匹配实现
   topK: 5,                                     // 召回候选数量
 });
@@ -86,11 +86,11 @@ new Agent({
 | `LLM_BASE_URL` | OpenAI 兼容端点 | `https://dashscope.aliyuncs.com/compatible-mode/v1` |
 | `LLM_MODEL` | 模型名 | `glm-5-1` |
 | `LLM_TEMPERATURE` | 采样温度 | `0.2` |
-| `LLM_MAX_TOKENS` | 最大 token | `2048` |
+| `LLM_MAX_TOKENS` | 最大 token | `1024` |
 | `LLM_ENABLE_THINKING` | 是否开启 GLM 思考模式 | `false` |
 | `SELECTOR_TOP_K` | 模糊匹配召回数量 | `5` |
 | `SELECTOR_HIT_THRESHOLD` | 命中阈值（top1 >= 此值才算命中） | `60` |
-| `FALLBACK_MODEL` | 连续 529 过载时切换的备用模型 | - |
+| `FALLBACK_MODEL` | 连续 3 次 529 过载时切换的备用模型 | - |
 
 ## 设计原则
 
