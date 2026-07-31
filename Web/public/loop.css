@@ -333,15 +333,23 @@ html, body {
 .graph-toolbar h3 { font-size: 13px; }
 .graph-toolbar .toolbar-actions { margin-left: auto; display: flex; gap: 6px; }
 .graph-toolbar button { padding: 4px 10px; font-size: 11px; }
+.zoom-display {
+    font-size: 11px; font-weight: 600; color: var(--text);
+    min-width: 38px; text-align: center; user-select: none;
+}
 .graph-canvas-wrap {
     flex: 1;
-    overflow: auto;
+    overflow: hidden;
     position: relative;
     background: var(--bg);
     background-image: radial-gradient(circle, #d2d2d7 1px, transparent 1px);
     background-size: 20px 20px;
+    cursor: grab;
 }
-.graph-svg { display: block; min-width: 100%; min-height: 100%; }
+.graph-canvas-wrap.panning { cursor: grabbing; }
+.graph-canvas-wrap.node-drag { cursor: move; }
+.graph-svg { display: block; width: 100%; height: 100%; }
+.graph-viewport { transform-origin: 0 0; }
 .graph-empty {
     display: flex;
     align-items: center;
@@ -353,6 +361,11 @@ html, body {
 .node-group { cursor: pointer; transition: opacity 0.2s; }
 .node-group:hover .node-rect { stroke-width: 2.5; }
 .node-group.selected .node-rect { stroke: var(--blue); stroke-width: 3; }
+.node-group.dragging .node-rect { filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2)); }
+.node-drag-handle {
+    fill: var(--text3); opacity: 0.4; cursor: move; rx: 2;
+}
+.node-group:hover .node-drag-handle { opacity: 0.8; }
 .node-rect { stroke: var(--border); stroke-width: 1.5; rx: 8; }
 .node-rect.pending { fill: #f5f5f7; stroke: var(--gray); }
 .node-rect.ready { fill: var(--blue-light); stroke: var(--blue); }

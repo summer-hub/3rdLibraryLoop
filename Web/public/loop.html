@@ -61,13 +61,29 @@
                         <h3>🔀 步骤编排图</h3>
                         <span class="muted" style="font-size:11px;" id="graphHint"></span>
                         <div class="toolbar-actions">
-                            <button class="secondary sm" id="btnGraphFit">📐 自适应</button>
-                            <button class="secondary sm" id="btnGraphRefresh">🔄 刷新</button>
+                            <button class="secondary sm" id="btnGraphZoomOut" title="缩小">🔍−</button>
+                            <span class="zoom-display" id="zoomDisplay">100%</span>
+                            <button class="secondary sm" id="btnGraphZoomIn" title="放大">🔍+</button>
+                            <button class="secondary sm" id="btnGraphFit" title="自适应">📐 自适应</button>
+                            <button class="secondary sm" id="btnGraphRefresh" title="刷新">🔄 刷新</button>
                         </div>
                     </div>
                     <div class="graph-canvas-wrap" id="graphCanvas">
                         <div class="graph-empty" id="graphEmpty">请先选择一个大循环任务</div>
-                        <svg class="graph-svg" id="graphSvg" style="display:none;"></svg>
+                        <svg class="graph-svg" id="graphSvg" style="display:none;">
+                            <defs>
+                                <marker id="arrow-success" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#34c759" />
+                                </marker>
+                                <marker id="arrow-fail" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#ff3b30" />
+                                </marker>
+                                <marker id="arrow-depend" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#aeaeb2" />
+                                </marker>
+                            </defs>
+                            <g class="graph-viewport" id="graphViewport"></g>
+                        </svg>
                     </div>
                 </div>
                 <div class="detail-panel">

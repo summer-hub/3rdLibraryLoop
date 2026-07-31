@@ -17,7 +17,9 @@ var State = {
     activeDetailTab: 'detail', brainPlan: null,
     sseSource: null, pollTimer: null, convPollTimer: null,
     activeMainTab: 'rounds',
-    graphNodes: [], graphEdges: [], nodePositions: {}
+    graphNodes: [], graphEdges: [], nodePositions: {},
+    graphTransform: { scale: 1, tx: 0, ty: 0 },
+    graphInteract: null
 };
 
 /* ─── 工具函数 ──────────────────────────────────────────────────────── */
@@ -275,33 +277,148 @@ function renderGraph() {
     svg.style.display='block'; empty.style.display='none';
     var maxX=0,maxY=0; for (var id in State.nodePositions) { var p=State.nodePositions[id]; if(p.x+p.w>maxX)maxX=p.x+p.w; if(p.y+p.h>maxY)maxY=p.y+p.h; }
     var w=maxX+60, h=maxY+60;
-    svg.setAttribute('width',w); svg.setAttribute('height',h); svg.setAttribute('viewBox','0 0 '+w+' '+h);
+    svg.setAttribute('viewBox','0 0 '+w+' '+h);
+    svg.setAttribute('preserveAspectRatio','xMinYMin meet');
     var c='';
     State.graphEdges.forEach(function(e) {
         var f=State.nodePositions[e.from], t=State.nodePositions[e.to]; if(!f||!t) return;
         var x1=f.cx, y1=f.y+f.h, x2=t.cx, y2=t.y, dy=y2-y1, my=y1+dy/2;
         var path='M '+x1+' '+y1+' C '+x1+' '+my+', '+x2+' '+my+', '+x2+' '+y2;
         var cls=e.type==='success'?'success':e.type==='fail'?'fail':'depend';
-        var sc=e.type==='success'?'#34c759':e.type==='fail'?'#ff3b30':'#aeaeb2';
-        c += '<path class="edge-line '+cls+'" d="'+path+'" />';
-        c += '<polygon points="'+x2+','+y2+' '+(x2-3)+','+(y2-6)+' '+(x2+3)+','+(y2-6)+'" fill="'+sc+'" />';
+        var mk=e.type==='success'?'url(#arrow-success)':e.type==='fail'?'url(#arrow-fail)':'url(#arrow-depend)';
+        c += '<path class="edge-line '+cls+'" d="'+path+'" marker-end="'+mk+'" />';
         c += '<text class="edge-label" x="'+((x1+x2)/2)+'" y="'+(my-3)+'" text-anchor="middle">'+escapeHtml(e.label)+'</text>';
     });
     State.graphNodes.forEach(function(n) {
         var p=State.nodePositions[n.id]; if(!p) return;
         var sel=String(State.selectedStepId)===n.id, st=n.status||'pending';
         var rt=n.retryCount>0?'🔄 '+n.retryCount+'/'+n.maxRetries:'';
-        c += '<g class="node-group '+(sel?'selected':'')+'" onclick="selectStep(\''+escapeHtml(n.id)+'\')">';
+        c += '<g class="node-group '+(sel?'selected':'')+'" data-step-id="'+escapeHtml(n.id)+'" onclick="selectStep(\''+escapeHtml(n.id)+'\')">';
         c += '<rect class="node-rect '+st+'" x="'+p.x+'" y="'+p.y+'" width="'+p.w+'" height="'+p.h+'" rx="8" />';
         if (st==='running') c += '<rect class="running-ring" x="'+p.x+'" y="'+p.y+'" width="'+p.w+'" height="'+p.h+'" rx="8" fill="none" stroke="#ff9500" stroke-width="2.5" stroke-dasharray="8,4" />';
+        c += '<rect class="node-drag-handle" x="'+(p.x+p.w-18)+'" y="'+(p.y+6)+'" width="12" height="6" />';
         c += '<text class="node-text node-id" x="'+(p.x+10)+'" y="'+(p.y+22)+'">步骤 '+escapeHtml(n.stepId)+'</text>';
         c += '<text class="node-text node-status" x="'+(p.x+10)+'" y="'+(p.y+38)+'">'+statusLabel(n.status)+'</text>';
         if (rt) c += '<text class="node-text node-retry" x="'+(p.x+10)+'" y="'+(p.y+52)+'">'+rt+'</text>';
         c += '<text class="node-text node-retry" x="'+(p.x+10)+'" y="'+(p.y+68)+'">'+escapeHtml(truncate(n.taskDescription,18))+'</text>';
         c += '</g>';
     });
-    svg.innerHTML=c;
+    var vp=$('graphViewport');
+    if (vp) vp.innerHTML=c; else { svg.innerHTML='<g class="graph-viewport" id="graphViewport">'+c+'</g>'; }
+    applyGraphTransform();
     $('graphHint').textContent = State.graphNodes.length+' 个步骤, '+State.graphEdges.length+' 条关系';
+}
+
+/* ─── 图表交互：缩放 / 平移 / 节点拖拽 ────────────────────────────────── */
+function applyGraphTransform() {
+    var vp=$('graphViewport'); if(!vp) return;
+    var t=State.graphTransform;
+    vp.setAttribute('transform','translate('+t.tx+','+t.ty+') scale('+t.scale+')');
+    var zd=$('zoomDisplay'); if(zd) zd.textContent=Math.round(t.scale*100)+'%';
+}
+
+function graphZoomBy(factor, cx, cy) {
+    var t=State.graphTransform, svg=$('graphSvg'); if(!svg) return;
+    var rect=svg.getBoundingClientRect();
+    if(cx==null) cx=rect.width/2;
+    if(cy==null) cy=rect.height/2;
+    var vb=svg.viewBox.baseVal, sx=vb.width/rect.width, sy=vb.height/rect.height;
+    var s=Math.max(sx,sy);
+    var oldScale=t.scale;
+    var newScale=Math.max(0.2, Math.min(3, oldScale*factor));
+    if(newScale===oldScale) return;
+    var wx=cx*s, wy=cy*s;
+    t.tx=wx-(wx-t.tx)*(newScale/oldScale);
+    t.ty=wy-(wy-t.ty)*(newScale/oldScale);
+    t.scale=newScale;
+    applyGraphTransform();
+}
+
+function graphResetTransform() {
+    State.graphTransform={scale:1,tx:0,ty:0};
+    applyGraphTransform();
+}
+
+function graphFitToView() {
+    var svg=$('graphSvg'); if(!svg||State.graphNodes.length===0) return;
+    var rect=svg.getBoundingClientRect(); if(rect.width===0) return;
+    var maxX=0,maxY=0;
+    for(var id in State.nodePositions){var p=State.nodePositions[id];if(p.x+p.w>maxX)maxX=p.x+p.w;if(p.y+p.h>maxY)maxY=p.y+p.h;}
+    var vbW=parseFloat(svg.getAttribute('viewBox').split(' ')[2])||maxX+60;
+    var vbH=parseFloat(svg.getAttribute('viewBox').split(' ')[3])||maxY+60;
+    var pad=30, fitScale=Math.min((rect.width-2*pad)/vbW, (rect.height-2*pad)/vbH, 1);
+    fitScale=Math.max(0.2,fitScale);
+    State.graphTransform={scale:fitScale,tx:pad,ty:pad};
+    applyGraphTransform();
+}
+
+function initGraphInteraction() {
+    var canvas=$('graphCanvas'), svg=$('graphSvg');
+    if(!canvas||!svg) return;
+    var st=null;
+
+    function getSvgPoint(e) {
+        var rect=svg.getBoundingClientRect();
+        var vb=svg.viewBox.baseVal, s=Math.max(vb.width/rect.width, vb.height/rect.height);
+        return { x:(e.clientX-rect.left)*s, y:(e.clientY-rect.top)*s };
+    }
+
+    canvas.addEventListener('wheel',function(e){
+        e.preventDefault();
+        if(State.graphNodes.length===0) return;
+        var pt=getSvgPoint(e);
+        var factor=e.deltaY<0?1.1:0.9;
+        graphZoomBy(factor, pt.x, pt.y);
+    },{passive:false});
+
+    canvas.addEventListener('mousedown',function(e){
+        if(State.graphNodes.length===0) return;
+        var pt=getSvgPoint(e);
+        var target=e.target;
+        var nodeG=null;
+        while(target&&target!==canvas){ if(target.classList&&target.classList.contains('node-group')){nodeG=target;break;} target=target.parentNode; }
+        var isDragHandle=e.target.classList&&e.target.classList.contains('node-drag-handle');
+        if(nodeG&&(isDragHandle||e.shiftKey)) {
+            var sid=nodeG.getAttribute('data-step-id');
+            var pos=State.nodePositions[sid]; if(!pos) return;
+            st={mode:'node',stepId:sid,startX:pt.x,startY:pt.y,origX:pos.x,origY:pos.y};
+            canvas.classList.add('node-drag'); nodeG.classList.add('dragging');
+        } else {
+            st={mode:'pan',startX:pt.x,startY:pt.y,origTx:State.graphTransform.tx,origTy:State.graphTransform.ty};
+            canvas.classList.add('panning');
+        }
+    });
+
+    document.addEventListener('mousemove',function(e){
+        if(!st) return;
+        var pt=getSvgPoint(e);
+        if(st.mode==='pan') {
+            State.graphTransform.tx=st.origTx+(pt.x-st.startX);
+            State.graphTransform.ty=st.origTy+(pt.y-st.startY);
+            applyGraphTransform();
+        } else if(st.mode==='node') {
+            var pos=State.nodePositions[st.stepId]; if(!pos) return;
+            var dx=pt.x-st.startX, dy=pt.y-st.startY;
+            pos.x=st.origX+dx; pos.y=st.origY+dy;
+            pos.cx=pos.x+pos.w/2; pos.cy=pos.y+pos.h/2;
+            renderGraph();
+            var vp=$('graphViewport'); if(vp) vp.setAttribute('transform','translate('+State.graphTransform.tx+','+State.graphTransform.ty+') scale('+State.graphTransform.scale+')');
+        }
+    });
+
+    document.addEventListener('mouseup',function(){
+        if(!st) return;
+        if(st.mode==='node') {
+            var ng=canvas.querySelector('.node-group.dragging');
+            if(ng) ng.classList.remove('dragging');
+        }
+        canvas.classList.remove('panning','node-drag');
+        st=null;
+    });
+
+    canvas.addEventListener('contextmenu',function(e){
+        if(State.graphNodes.length>0) e.preventDefault();
+    });
 }
 
 /* ─── 步骤选择 & 详情面板 ────────────────────────────────────────────── */
@@ -617,8 +734,11 @@ $('btnLoopRefresh').onclick=function(){if(State.selectedTaskId)loadAllData(State
 $('modalClose').onclick=closeModal;
 $('modalOverlay').onclick=function(e){if(e.target===$('modalOverlay'))closeModal();};
 $('advancedToggle').onclick=function(){$('advancedSection').classList.toggle('show');$('advancedToggle').classList.toggle('open');};
-$('btnGraphFit').onclick=function(){var c=$('graphCanvas');c.scrollLeft=0;c.scrollTop=0;};
+$('btnGraphFit').onclick=graphFitToView;
+$('btnGraphZoomIn').onclick=function(){graphZoomBy(1.2);};
+$('btnGraphZoomOut').onclick=function(){graphZoomBy(0.83);};
 $('btnGraphRefresh').onclick=function(){if(State.selectedTaskId)loadOrchestratorProgress(State.selectedTaskId);};
+initGraphInteraction();
 
 // 暴露给 onclick 内联调用
 window.selectLoop=selectLoop;
