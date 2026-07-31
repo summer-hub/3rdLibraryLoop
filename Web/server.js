@@ -71,7 +71,7 @@ const server = http.createServer((req, res) => {
     }
 
     // ─── 静态文件托管 ─────────────────────────────────────────────────
-    let filePath = path.join(__dirname, 'public', pathname === '/' ? 'index.html' : pathname);
+    let filePath = path.join(__dirname, 'public', pathname === '/' ? 'loop.html' : pathname);
     // 防止路径穿越
     if (!filePath.startsWith(path.join(__dirname, 'public'))) {
         res.writeHead(403);

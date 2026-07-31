@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Loop - 大循环控制台</title>
+    <link rel="stylesheet" href="loop.css">
+</head>
+<body>
+
+<div class="app-header">
+    <h1>🔁 AI Loop 大循环控制台</h1>
+    <button class="health-btn" id="healthBtn">
+        <span class="health-dot unknown" id="healthDot"></span>
+        <span id="healthText">检测中</span>
+    </button>
+</div>
+
+<div class="app-body">
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>📋 大循环任务 <span class="count-badge" id="loopCount">0</span></h2>
+            <button class="new-task-btn" id="btnNewLoop">🚀 启动大循环</button>
+            <input class="search-box" id="loopSearch" placeholder="搜索任务 ID..." />
+        </div>
+        <div class="task-list" id="loopList">
+            <div class="detail-empty">加载中...</div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="loop-overview" id="loopOverview" style="display:none;">
+            <div class="title-row">
+                <h2 id="ovTaskId">—</h2>
+                <span class="status-badge idle" id="ovStatus">—</span>
+                <div class="task-controls">
+                    <button class="danger sm" id="btnLoopAbort" disabled>⏹ 终止循环</button>
+                    <button class="secondary sm" id="btnLoopRefresh">🔄 刷新</button>
+                </div>
+            </div>
+            <div class="desc" id="ovDesc">—</div>
+            <div class="stats-row" id="ovStats"></div>
+        </div>
+
+        <div class="main-tabs" id="mainTabs">
+            <div class="main-tab active" data-tab="rounds">🔄 循环轮次</div>
+            <div class="main-tab" data-tab="orchestrator">🔀 编排详情</div>
+            <div class="main-tab" data-tab="brain">🧠 Brain 拆解</div>
+        </div>
+
+        <div class="tab-content active" id="tabRounds">
+            <div class="rounds-section" id="roundsSection">
+                <div class="rounds-empty">请从左侧选择一个大循环任务，或点击「启动大循环」</div>
+            </div>
+        </div>
+
+        <div class="tab-content" id="tabOrchestrator">
+            <div class="graph-detail-split">
+                <div class="graph-section">
+                    <div class="graph-toolbar">
+                        <h3>🔀 步骤编排图</h3>
+                        <span class="muted" style="font-size:11px;" id="graphHint"></span>
+                        <div class="toolbar-actions">
+                            <button class="secondary sm" id="btnGraphFit">📐 自适应</button>
+                            <button class="secondary sm" id="btnGraphRefresh">🔄 刷新</button>
+                        </div>
+                    </div>
+                    <div class="graph-canvas-wrap" id="graphCanvas">
+                        <div class="graph-empty" id="graphEmpty">请先选择一个大循环任务</div>
+                        <svg class="graph-svg" id="graphSvg" style="display:none;"></svg>
+                    </div>
+                </div>
+                <div class="detail-panel">
+                    <div class="detail-tabs">
+                        <div class="detail-tab active" data-tab="detail">📋 详情</div>
+                        <div class="detail-tab" data-tab="conversation">💬 对话</div>
+                        <div class="detail-tab" data-tab="control">⚡ 控制</div>
+                        <div class="detail-tab" data-tab="files">📁 文件</div>
+                    </div>
+                    <div class="detail-content" id="detailContent">
+                        <div class="detail-empty">请选择一个步骤节点</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-content" id="tabBrain">
+            <div class="brain-section" id="brainSection">
+                <div class="rounds-empty">请先选择一个大循环任务</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="newLoopOverlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>🚀 启动大循环</h3>
+            <button class="modal-close" id="newLoopClose">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>任务描述 *</label>
+                <textarea class="large" id="newLoopDesc" placeholder="输入自然语言任务描述..."></textarea>
+                <div class="hint">Brain 将自动拆解为步骤，Orchestrator 执行后 TestCheck 审核准出，未通过则自动重规划</div>
+            </div>
+            <div class="form-group">
+                <label>验收标准（可选）</label>
+                <textarea id="newLoopCriteria" placeholder="输入自定义验收标准..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>最大循环次数</label>
+                <input id="newLoopMaxLoops" type="number" min="1" max="10" value="3">
+                <div class="hint">达到最大次数仍未通过准出审核则标记为失败</div>
+            </div>
+            <div class="advanced-toggle" id="advancedToggle">高级选项</div>
+            <div class="advanced-section" id="advancedSection">
+                <div class="form-group">
+                    <label>任务 ID（可选）</label>
+                    <input id="newLoopTaskId" placeholder="留空则自动生成 task_xxx">
+                </div>
+                <div class="form-group">
+                    <label>SKILL 目录（可选）</label>
+                    <input id="newLoopSkillDir" placeholder="留空则使用默认 SKILL 目录">
+                </div>
+                <div class="form-group">
+                    <label>工作目录（可选）</label>
+                    <input id="newLoopTaskDir" placeholder="留空则自动生成 task/{taskId}">
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="secondary" id="btnNewLoopCancel">取消</button>
+            <button class="primary" id="btnNewLoopSubmit">🚀 启动大循环</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="modalTitle">—</h3>
+            <button class="modal-close" id="modalClose">✕</button>
+        </div>
+        <div class="modal-body"><pre id="modalContent"></pre></div>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="loop.js"></script>
+</body>
+</html>

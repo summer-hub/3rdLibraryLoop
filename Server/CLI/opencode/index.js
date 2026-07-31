@@ -292,8 +292,6 @@ class OpenCodeCLI {
      */
     async startSession(title, prompt) {
         this._log('info', `startSession title="${title}"`);
-        this._log('info', `  prompt 长度: ${prompt ? prompt.length : 0} 字符`);
-        this._log('info', `  prompt: ${prompt}`);
         try {
             const session = await this.client.session.create({ body: { title } });
             const sessionId = session.data.id;

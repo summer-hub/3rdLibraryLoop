@@ -8,6 +8,8 @@ import SseHub from './sse/SseHub.js';
 import FlexRunnerController from './controllers/FlexRunnerController.js';
 import OrchestratorController from './controllers/OrchestratorController.js';
 import BrainController from './controllers/BrainController.js';
+import LoopEngineController from './controllers/LoopEngineController.js';
+import { TestCheck } from '../TestCheck/index.js';
 import { createStorage } from '../DbUse/index.js';
 
 /**
@@ -66,7 +68,25 @@ export async function createServer(options = {}) {
     const skillDirectory = path.resolve(__dirname, '..', 'Skills');
     const brainController = new BrainController({
         sseHub,
+        storage,
         orchestratorController,
+        skillDirectory
+    });
+
+    // TestCheck 准出审核引擎（需单例，复用 LLM 连接和 SkillSelector）
+    const testCheck = new TestCheck({
+        sseHub,
+        storage,
+        skillDirectory
+    });
+
+    // LoopEngineController 管理大循环实例（需单例，依赖 Brain + Orchestrator + TestCheck）
+    const loopEngineController = new LoopEngineController({
+        sseHub,
+        storage,
+        brainController,
+        orchestratorController,
+        testCheck,
         skillDirectory
     });
 
@@ -77,6 +97,8 @@ export async function createServer(options = {}) {
         flexRunnerController,
         orchestratorController,
         brainController,
+        testCheck,
+        loopEngineController,
         skillDirectory
     };
 

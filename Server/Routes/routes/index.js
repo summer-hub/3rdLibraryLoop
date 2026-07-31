@@ -3,6 +3,7 @@ import { createStreamRouter } from './stream.js';
 import { createFlexRunnerRouter } from './flexrunner.js';
 import { createOrchestratorRouter } from './orchestrator.js';
 import { createBrainRouter } from './brain.js';
+import { createLoopEngineRouter } from './loopengine.js';
 
 /**
  * 路由组装器 — 将各业务域路由组合到主路由器
@@ -36,6 +37,9 @@ export function registerRoutes(router, dependencies) {
 
     // ─── Brain 任务拆解 ──────────────────────────────────────────────
     router.use('/api/brain', createBrainRouter(dependencies));
+
+    // ─── LoopEngine 大循环协调引擎 ────────────────────────────────────
+    router.use('/api/loopengine', createLoopEngineRouter(dependencies));
 }
 
 export default registerRoutes;
