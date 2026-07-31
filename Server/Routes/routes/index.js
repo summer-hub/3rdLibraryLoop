@@ -1,7 +1,8 @@
 import { createHealthRouter } from './health.js';
 import { createStreamRouter } from './stream.js';
-// 新增模块时在此 import，例如：
-// import { createTaskRouter } from './task.js';
+import { createFlexRunnerRouter } from './flexrunner.js';
+import { createOrchestratorRouter } from './orchestrator.js';
+import { createBrainRouter } from './brain.js';
 
 /**
  * 路由组装器 — 将各业务域路由组合到主路由器
@@ -26,6 +27,15 @@ export function registerRoutes(router, dependencies) {
 
     // ─── SSE 实时推送 ──────────────────────────────────────────────────
     router.use('/stream', createStreamRouter(dependencies));
+
+    // ─── FlexRunner 测试 ─────────────────────────────────────────────
+    router.use('/api/flexrunner', createFlexRunnerRouter(dependencies));
+
+    // ─── Orchestrator 编排器 ──────────────────────────────────────────
+    router.use('/api/orchestrator', createOrchestratorRouter(dependencies));
+
+    // ─── Brain 任务拆解 ──────────────────────────────────────────────
+    router.use('/api/brain', createBrainRouter(dependencies));
 }
 
 export default registerRoutes;

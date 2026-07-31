@@ -70,7 +70,9 @@ new CLIController(type, options)
 | `listSessions()` | `Array<object>` | 列出所有 Session |
 | `getSession(sessionId)` | `object` | 获取指定 Session 详情 |
 | `startSession(title, prompt?)` | `{ sessionId, action, message }` | 创建 Session，可选附带初始 prompt |
-| `sendMessage(sessionId, message)` | `{ success, response? }` | 向 Session 发送消息 |
+| `sendMessage(sessionId, message)` | `{ success, response? }` | 向 Session 发送消息（异步 fire-and-forget，不等 AI 回复） |
+| `sendAndWaitMessage(sessionId, message)` | `{ success, response, content }` | 发送消息并**同步等待 AI 回复完成**后返回内容 |
+| `injectPrompt(sessionId, message)` | `{ success }` | 向 Session 注入上下文（**不触发 AI 响应**，仅 opencode 支持） |
 | `checkSessionStatus(sessionId)` | `{ status, lastMessage?, stalled?, stallDurationMs?, hasNewMessage? }` | 查询状态 + 卡死检测 |
 | `getSessionMessages(sessionId)` | `Array<object>` | 拉取远端消息历史（同时归档） |
 | `getLiveMessages(sessionId)` | `Array<{id?,role,content,finish?,timestamp?}>` | 实时查看当前对话消息（运行中安全调用，不写入存档） |
@@ -98,6 +100,8 @@ new CLIController(type, options)
 3. **消息归档策略** — `sendMessage` 不在本地归档用户消息，统一由 `getSessionMessages` 从远端全量拉取后归档，用 opencode 消息 `id` 去重，避免重复。状态检查时只做卡死检测，不归档消息（防止 `limit=1` 只拿到 assistant 回复导致 user/assistant 顺序错乱）。
 4. **状态映射** — opencode 原始状态 `{type: "busy"|"retry"|"idle"}` 映射为统一状态：`busy`/`retry` → `running`，`idle` → `idle`，其他 → `unknown`。完成判定：`info.finish === 'stop'` 且含 text part → `completed`。
 5. **初始 prompt** — `startSession` 传入 prompt 时用 `promptAsync` 异步发送（await 发送完成但不等回复），立即返回 sessionId 供上层轮询。
+6. **同步等待回复（sendAndWaitMessage）** — 使用 `session.prompt()`（同步版本，URL `/session/{id}/message`），发送消息后阻塞等待 AI 生成完整回复，返回 `{ info: AssistantMessage, parts: Part[] }`。与 `sendMessage`（`promptAsync` fire-and-forget）互补：简单问答场景可直接拿到结果，复杂长任务仍用 `sendMessage` + 轮询。
+7. **上下文注入（injectPrompt）** — 利用 opencode SDK `noReply: true` 能力，将文本作为 UserMessage 注入对话历史但不触发 AI 响应。适用于对话过程中动态补充上下文、规则、指令。Copilot SDK 不支持此能力（`sendAndWait` 始终触发回复），调用会抛出 not-supported 错误。
 6. **实时消息查看** — `getLiveMessages` 从远端拉取全量消息并用 `_toArchiveMessage` 转为精简格式返回，**不写入本地存档**，适用于对话进行中查看「目前聊了什么」，不影响后续归档去重。
 7. **对话导出** — `exportSession` 流程：① 远端拉全量消息 → ② `archive.appendMessages` 增量归档（去重补档，运行中也能持久化已有消息）→ ③ 读本地归档按 `seq` 排序 → ④ 按 `format` 返回。`json` 返回 `{ sessionId, meta, messages }`，`markdown` 调用 `_toMarkdown` 渲染为带元信息头的对话文档。
 

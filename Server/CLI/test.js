@@ -135,6 +135,17 @@ async function main() {
     const followUp = '请再说一句关于天气的话。';
     const sendResult = await cli.sendMessage(sessionId, followUp);
 
+    // ─── injectPrompt (注入上下文，不触发 AI 响应) ───────────────────────
+    sub('6a. injectPrompt(sessionId, message) — 注入上下文');
+
+    const injectText = '【补充规则】后续回复请始终以"好的，"开头。';
+    try {
+        const injectResult = await cli.injectPrompt(sessionId, injectText);
+        printResult('injectPrompt', injectResult);
+    } catch (err) {
+        printError('injectPrompt', err);
+    }
+
     // ─── getLiveMessages (对话运行中实时查看) ─────────────────────────────
     sub('6b. getLiveMessages(sessionId) — 对话运行中实时查看');
 
@@ -153,6 +164,19 @@ async function main() {
         maxWaitMs: 90_000,
         intervalMs: 3000
     });
+
+    // ─── sendAndWaitMessage (同步等待 AI 回复) ───────────────────────────
+    sub('7a. sendAndWaitMessage(sessionId, message) — 同步等待 AI 回复');
+
+    const syncQuestion = '请用一句话介绍鸿蒙系统。';
+    try {
+        const syncResult = await cli.sendAndWaitMessage(sessionId, syncQuestion);
+        console.log(`\n  ✅ AI 回复 (同步等待):`);
+        console.log(`  ${syncResult.content}`);
+        console.log(`  finish: ${syncResult.response?.info?.finish ?? 'N/A'}`);
+    } catch (err) {
+        printError('sendAndWaitMessage', err);
+    }
 
     // ─── getSessionMessages ───────────────────────────────────────────────
     sub('8. getSessionMessages(sessionId)');

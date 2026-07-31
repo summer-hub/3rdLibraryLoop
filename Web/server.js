@@ -64,8 +64,8 @@ const server = http.createServer((req, res) => {
     const url = new URL(req.url, `http://localhost:${PORT}`);
     const pathname = url.pathname;
 
-    // ─── 反向代理 /api/* 到后端 ────────────────────────────────────────
-    if (pathname.startsWith('/api/')) {
+    // ─── 反向代理 /api/* 和 /stream/* 到后端 ─────────────────────────
+    if (pathname.startsWith('/api/') || pathname.startsWith('/stream')) {
         proxyToBackend(req, res, BACKEND);
         return;
     }

@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Loop - Brain 任务拆解台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #f0f0f5;
+            --card: #ffffff;
+            --border: #d2d2d7;
+            --text: #1d1d1f;
+            --text2: #86868b;
+            --blue: #0071e3;
+            --blue-hover: #0077ed;
+            --green: #34c759;
+            --red: #ff3b30;
+            --orange: #ff9500;
+            --yellow: #ffd60a;
+            --code-bg: #f5f5f7;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid var(--border);
+        }
+        .header h1 { font-size: 22px; }
+        .nav-tabs { display: flex; gap: 8px; }
+        .nav-tab {
+            padding: 8px 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--card);
+            cursor: pointer;
+            font-size: 13px;
+            text-decoration: none;
+            color: var(--text);
+            transition: all 0.2s;
+        }
+        .nav-tab:hover { border-color: var(--blue); color: var(--blue); }
+        .nav-tab.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+        .health-btn {
+            padding: 8px 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--card);
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .health-btn:hover { border-color: var(--blue); color: var(--blue); }
+        .health-dot {
+            display: inline-block;
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+        .health-dot.ok { background: var(--green); }
+        .health-dot.error { background: var(--red); }
+        .health-dot.unknown { background: var(--text2); }
+
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+            padding: 20px;
+        }
+        .card.full { grid-column: 1 / -1; }
+        .card h2 {
+            font-size: 15px;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card h2 .icon { font-size: 18px; }
+
+        .form-row { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+        .form-group { flex: 1; min-width: 200px; }
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--text2);
+            margin-bottom: 4px;
+        }
+        .form-group label .req { color: var(--red); }
+        input, textarea, select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: inherit;
+            outline: none;
+            transition: border 0.2s;
+        }
+        input:focus, textarea:focus, select:focus { border-color: var(--blue); }
+        textarea { resize: vertical; min-height: 60px; font-family: "SF Mono", Monaco, monospace; }
+
+        .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        button.primary { background: var(--blue); color: #fff; }
+        button.primary:hover:not(:disabled) { background: var(--blue-hover); }
+        button.success { background: var(--green); color: #fff; }
+        button.success:hover:not(:disabled) { background: #2bb24c; }
+        button.warn { background: var(--orange); color: #fff; }
+        button.warn:hover:not(:disabled) { background: #e68400; }
+        button.danger { background: var(--red); color: #fff; }
+        button.danger:hover:not(:disabled) { background: #d62d20; }
+        button.secondary {
+            background: var(--card);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        button.secondary:hover:not(:disabled) { border-color: var(--blue); color: var(--blue); }
+        button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge.ok { background: #d4f4dd; color: #1a7a31; }
+        .badge.error { background: #fde0e0; color: #c41e1a; }
+        .badge.warn { background: #fff0d4; color: #b07d00; }
+        .badge.info { background: #d4e5ff; color: #1957c4; }
+        .badge.idle { background: #e8e8ed; color: var(--text2); }
+        .badge.running { background: #d4e5ff; color: #1957c4; }
+        .badge.completed { background: #d4f4dd; color: #1a7a31; }
+        .badge.failed { background: #fde0e0; color: #c41e1a; }
+        .badge.pending { background: #e8e8ed; color: var(--text2); }
+
+        .output {
+            margin-top: 12px;
+            padding: 12px;
+            background: var(--code-bg);
+            border-radius: 8px;
+            font-family: "SF Mono", Monaco, monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            max-height: 500px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .output:empty::before { content: "等待操作..."; color: var(--text2); }
+
+        .plan-list { display: flex; flex-direction: column; gap: 6px; }
+        .plan-item {
+            padding: 10px 12px;
+            background: var(--code-bg);
+            border-radius: 6px;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .plan-item:hover { background: #e8e8ed; }
+        .plan-item.active { border-color: var(--blue); background: #e8f0ff; }
+        .plan-item .info { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .plan-item .desc { color: var(--text2); font-size: 11px; }
+
+        .step-flow {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .step-node {
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 12px;
+            border: 2px solid var(--border);
+            background: var(--card);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s;
+        }
+        .step-node.pending { border-color: var(--border); opacity: 0.7; }
+        .step-node.ready { border-color: var(--yellow); background: #fffef0; }
+        .step-node.running { border-color: var(--blue); background: #f0f6ff; animation: pulse 1.5s infinite; }
+        .step-node.completed { border-color: var(--green); background: #f0fff4; }
+        .step-node.failed { border-color: var(--red); background: #fff0f0; }
+        .step-node.skipped { border-color: var(--text2); opacity: 0.5; }
+        .step-node.blocked { border-color: var(--orange); background: #fff8f0; }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(0,113,227,0.2); }
+            50% { box-shadow: 0 0 0 6px rgba(0,113,227,0); }
+        }
+
+        .step-node .step-id {
+            font-weight: 700;
+            font-size: 14px;
+            min-width: 32px;
+            text-align: center;
+        }
+        .step-node .step-desc { flex: 1; }
+        .step-node .step-meta { display: flex; flex-direction: column; gap: 2px; font-size: 10px; color: var(--text2); text-align: right; }
+
+        .step-edges {
+            padding-left: 20px;
+            font-size: 11px;
+            color: var(--text2);
+            display: flex;
+            gap: 16px;
+        }
+        .step-edge .label { color: var(--text2); }
+        .step-edge .next { color: var(--green); }
+        .step-edge .fail { color: var(--red); }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .stat-box {
+            text-align: center;
+            padding: 8px;
+            border-radius: 6px;
+            background: var(--code-bg);
+        }
+        .stat-box .num { font-size: 20px; font-weight: 700; }
+        .stat-box .lbl { font-size: 10px; color: var(--text2); }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 24px;
+            width: 900px;
+            max-width: 90vw;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .modal-header h3 { font-size: 16px; }
+        .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text2); }
+        .modal-body { flex: 1; overflow-y: auto; }
+        .modal-body pre {
+            font-family: "SF Mono", Monaco, monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .log-stream { max-height: 200px; overflow-y: auto; }
+        .log-line {
+            padding: 2px 0;
+            font-family: "SF Mono", Monaco, monospace;
+            font-size: 11px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .log-line.info { color: var(--text); }
+        .log-line.warn { color: var(--orange); }
+        .log-line.error { color: var(--red); }
+        .log-line.success { color: var(--green); }
+
+        .kv-grid { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 12px; }
+        .kv-grid .k { color: var(--text2); }
+        .kv-grid .v { font-family: "SF Mono", Monaco, monospace; word-break: break-all; }
+        .muted { color: var(--text2); }
+        .mb-8 { margin-bottom: 8px; }
+        .mt-8 { margin-top: 8px; }
+        .mt-12 { margin-top: 12px; }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <div class="header">
+        <h1>🧠 Brain 任务拆解台</h1>
+        <div class="nav-tabs">
+            <a href="/" class="nav-tab">FlexRunner 测试台</a>
+            <a href="/brain.html" class="nav-tab active">Brain 拆解台</a>
+        </div>
+        <button class="health-btn" id="healthBtn">
+            <span class="health-dot unknown" id="healthDot"></span>
+            <span id="healthText">检测服务状态</span>
+        </button>
+    </div>
+
+    <div class="grid">
+
+        <!-- 1. 任务输入 -->
+        <div class="card full">
+            <h2><span class="icon">📝</span> 自然语言任务输入</h2>
+            <div class="form-group mb-8">
+                <label>任务描述 <span class="req">*</span> — 用自然语言描述要完成的高层任务</label>
+                <textarea id="taskDescription" rows="4" placeholder="例如：对 libcurl 进行鸿蒙化可行性分析，包括源码分析、接口分析、编译验证，最终生成分析报告"></textarea>
+            </div>
+            <div class="form-group mb-8">
+                <label>验收标准（可选） — 描述任务完成时需满足的标准，留空则由 AI 自动生成</label>
+                <textarea id="acceptanceCriteria" rows="3" placeholder="例如：① 生成 analysis-report.md 分析报告且非空；② 报告包含源码结构、依赖分析、接口兼容性三个章节；③ 编译验证结果明确（通过/不通过）"></textarea>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>任务 ID（可选，留空自动生成）</label>
+                    <input id="taskId" placeholder="自动生成">
+                </div>
+                <div class="form-group">
+                    <label>工作目录（可选）</label>
+                    <input id="taskDir" placeholder="自动生成">
+                </div>
+                <div class="form-group">
+                    <label>SKILL 目录（可选）</label>
+                    <input id="skillDirectory" placeholder="默认使用系统配置">
+                </div>
+            </div>
+            <div class="btn-group mt-12">
+                <button class="primary" id="btnPlan">🔍 拆解任务</button>
+                <button class="success" id="btnPlanAndExecute">🚀 拆解并执行</button>
+                <button class="secondary" id="btnFillExample">填充示例</button>
+            </div>
+        </div>
+
+        <!-- 2. 拆解结果 -->
+        <div class="card">
+            <h2><span class="icon">📋</span> 拆解结果</h2>
+            <div id="planResult">
+                <div class="muted" style="font-size:12px;">尚未拆解任务...</div>
+            </div>
+        </div>
+
+        <!-- 3. 编排进度 -->
+        <div class="card">
+            <h2><span class="icon">📊</span> 编排进度</h2>
+            <div id="orchProgress">
+                <div class="muted" style="font-size:12px;">尚未启动编排...</div>
+            </div>
+            <div class="btn-group mt-12" id="orchControls" style="display:none;">
+                <button class="secondary" id="btnOrchProgress">刷新进度</button>
+                <button class="warn" id="btnOrchPause">暂停</button>
+                <button class="secondary" id="btnOrchResume">继续</button>
+                <button class="danger" id="btnOrchAbort">终止</button>
+            </div>
+        </div>
+
+        <!-- 4. 步骤流程图 -->
+        <div class="card full">
+            <h2><span class="icon">🔗</span> 步骤流程图</h2>
+            <div class="step-flow" id="stepFlow">
+                <div class="muted" style="font-size:12px;">拆解任务后显示步骤依赖图...</div>
+            </div>
+        </div>
+
+        <!-- 5. 历史计划列表 -->
+        <div class="card">
+            <h2>
+                <span class="icon">📚</span> 历史拆解计划
+                <button class="secondary" id="btnRefreshPlans" style="margin-left:auto;padding:4px 10px;font-size:11px;">刷新</button>
+            </h2>
+            <div class="plan-list" id="planList">
+                <div class="muted" style="font-size:12px;">点击刷新加载历史计划...</div>
+            </div>
+        </div>
+
+        <!-- 5b. 历史编排任务 -->
+        <div class="card">
+            <h2>
+                <span class="icon">🗂️</span> 历史编排任务
+                <button class="secondary" id="btnRefreshOrchTasks" style="margin-left:auto;padding:4px 10px;font-size:11px;">刷新</button>
+            </h2>
+            <div class="plan-list" id="orchTaskList">
+                <div class="muted" style="font-size:12px;">加载中...</div>
+            </div>
+        </div>
+
+        <!-- 6. 执行日志 -->
+        <div class="card">
+            <h2>
+                <span class="icon">📜</span> 执行日志
+                <button class="secondary" id="btnClearLog" style="margin-left:auto;padding:4px 10px;font-size:11px;">清空</button>
+            </h2>
+            <div class="log-stream" id="logStream"></div>
+        </div>
+
+    </div>
+</div>
+
+<!-- JSON 查看模态框 -->
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="modalTitle">详情</h3>
+            <button class="modal-close" id="modalClose">✕</button>
+        </div>
+        <div class="modal-body"><pre id="modalContent"></pre></div>
+    </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+const API = {
+    async post(url, body) {
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        return resp.json();
+    },
+    async get(url) {
+        const resp = await fetch(url);
+        return resp.json();
+    }
+};
+
+let currentPlanId = '';
+let currentTaskId = '';
+let progressTimer = null;
+let sseSource = null;
+
+// ─── 日志 ──────────────────────────────────────────────────────────────
+
+function log(level, msg) {
+    const stream = $('logStream');
+    const line = document.createElement('div');
+    line.className = `log-line ${level}`;
+    const time = new Date().toLocaleTimeString('zh-CN');
+    line.textContent = `[${time}] ${msg}`;
+    stream.appendChild(line);
+    stream.scrollTop = stream.scrollHeight;
+}
+function clearLog() { $('logStream').innerHTML = ''; }
+
+// ─── 健康检查 ──────────────────────────────────────────────────────────
+
+async function checkHealth() {
+    const dot = $('healthDot');
+    const text = $('healthText');
+    dot.className = 'health-dot unknown';
+    text.textContent = '检测中...';
+    try {
+        const data = await API.get('/api/health');
+        if (data.status === 'ok') {
+            dot.className = 'health-dot ok';
+            text.textContent = '服务正常';
+        } else {
+            dot.className = 'health-dot error';
+            text.textContent = '服务异常';
+        }
+    } catch {
+        dot.className = 'health-dot error';
+        text.textContent = '后端不可达';
+    }
+}
+
+// ─── 任务拆解 ──────────────────────────────────────────────────────────
+
+function getTaskInput() {
+    return {
+        taskDescription: $('taskDescription').value.trim(),
+        acceptanceCriteria: $('acceptanceCriteria').value.trim() || undefined,
+        taskId: $('taskId').value.trim() || undefined,
+        taskDir: $('taskDir').value.trim() || undefined,
+        skillDirectory: $('skillDirectory').value.trim() || undefined
+    };
+}
+
+async function planTask() {
+    const input = getTaskInput();
+    if (!input.taskDescription) {
+        log('error', '请输入任务描述');
+        return;
+    }
+    log('info', `开始拆解任务: ${input.taskDescription.substring(0, 50)}...`);
+    $('btnPlan').disabled = true;
+    $('btnPlanAndExecute').disabled = true;
+    try {
+        const data = await API.post('/api/brain/plan', input);
+        if (data.status === 'ok') {
+            const plan = data.plan;
+            currentPlanId = plan.planId;
+            currentTaskId = plan.taskDef.taskId;
+            log('success', `拆解完成: planId=${plan.planId}, 步骤数=${plan.taskDef.steps.length}`);
+            renderPlan(plan);
+            renderStepFlow(plan.taskDef.steps, null);
+        } else {
+            log('error', `拆解失败: ${data.error || data.message}`);
+        }
+    } catch (err) {
+        log('error', `请求失败: ${err.message}`);
+    } finally {
+        $('btnPlan').disabled = false;
+        $('btnPlanAndExecute').disabled = false;
+    }
+}
+
+async function planAndExecute() {
+    const input = getTaskInput();
+    if (!input.taskDescription) {
+        log('error', '请输入任务描述');
+        return;
+    }
+    log('info', '拆解任务并提交执行...');
+    $('btnPlan').disabled = true;
+    $('btnPlanAndExecute').disabled = true;
+    try {
+        const data = await API.post('/api/brain/plan-and-execute', input);
+        if (data.status === 'ok') {
+            const plan = data.plan;
+            currentPlanId = plan.planId;
+            currentTaskId = plan.taskDef.taskId;
+            log('success', `已拆解并提交执行: taskId=${plan.taskDef.taskId}`);
+            renderPlan(plan);
+            renderStepFlow(plan.taskDef.steps, null);
+            $('orchControls').style.display = 'flex';
+            // 开始轮询编排进度
+            startProgressPolling(plan.taskDef.taskId);
+            // 订阅 SSE
+            subscribeSSE(plan.taskDef.taskId);
+        } else {
+            log('error', `操作失败: ${data.error || data.message}`);
+        }
+    } catch (err) {
+        log('error', `请求失败: ${err.message}`);
+    } finally {
+        $('btnPlan').disabled = false;
+        $('btnPlanAndExecute').disabled = false;
+    }
+}
+
+// ─── 渲染拆解结果 ──────────────────────────────────────────────────────
+
+function renderPlan(plan) {
+    const valid = plan.validation?.valid;
+    const html = `
+        <div class="kv-grid mb-8">
+            <div class="k">Plan ID</div><div class="v">${plan.planId}</div>
+            <div class="k">Task ID</div><div class="v">${plan.taskDef.taskId}</div>
+            <div class="k">步骤数</div><div class="v">${plan.taskDef.steps.length}</div>
+            <div class="k">校验</div><div class="v">${valid ? '<span class="badge ok">通过</span>' : '<span class="badge error">未通过</span>'}</div>
+            <div class="k">创建时间</div><div class="v">${plan.createdAt}</div>
+        </div>
+        <div class="form-group mb-8">
+            <label>任务意图</label>
+            <div style="font-size:12px;padding:8px;background:var(--code-bg);border-radius:6px;">${escapeHtml(plan.analysis?.intent || '')}</div>
+        </div>
+        <div class="form-row mb-8">
+            <div class="form-group">
+                <label>领域</label>
+                <input value="${escapeHtml(plan.analysis?.domain || '')}" readonly>
+            </div>
+            <div class="form-group">
+                <label>复杂度</label>
+                <input value="${escapeHtml(plan.analysis?.complexity || '')}" readonly>
+            </div>
+        </div>
+        <div class="form-row mb-8">
+            <div class="form-group">
+                <label>关键词</label>
+                <input value="${escapeHtml((plan.analysis?.keywords || []).join(', '))}" readonly>
+            </div>
+            <div class="form-group">
+                <label>技术栈</label>
+                <input value="${escapeHtml((plan.analysis?.techStack || []).join(', '))}" readonly>
+            </div>
+        </div>
+        ${plan.userAcceptanceCriteria ? `
+        <div class="form-group mb-8">
+            <label>用户验收标准</label>
+            <div style="font-size:12px;padding:8px;background:var(--code-bg);border-radius:6px;white-space:pre-wrap;">${escapeHtml(plan.userAcceptanceCriteria)}</div>
+        </div>` : ''}
+        ${(plan.analysis?.acceptanceCriteria?.length || plan.taskDef?.acceptanceCriteria?.length) ? `
+        <div class="form-group mb-8">
+            <label>任务级验收标准 <span class="badge info">${(plan.taskDef?.acceptanceCriteria || plan.analysis?.acceptanceCriteria || []).length} 条</span></label>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+                ${(plan.taskDef?.acceptanceCriteria || plan.analysis?.acceptanceCriteria || []).map(ac => `
+                <div style="font-size:11px;padding:8px 10px;background:var(--code-bg);border-radius:6px;border-left:3px solid var(--blue);">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                        <span class="badge info" style="font-size:10px;">${ac.id}</span>
+                        <span class="badge ${ac.type === 'output' ? 'ok' : ac.type === 'quality' ? 'info' : 'pending'}" style="font-size:10px;">${ac.type}</span>
+                    </div>
+                    <div style="margin-bottom:4px;">${escapeHtml(ac.criterion)}</div>
+                    <div style="color:var(--text2);font-size:10px;">验证: ${escapeHtml(ac.verification)}</div>
+                </div>
+                `).join('')}
+            </div>
+        </div>` : ''}
+        ${!valid && plan.validation?.issues?.length ? `
+        <div class="output" style="color:var(--red);">
+校验问题:
+${plan.validation.issues.map(i => `  - ${i}`).join('\n')}
+        </div>` : ''}
+        <div class="btn-group mt-12">
+            <button class="secondary" onclick="showPlanJSON('${plan.planId}')">查看任务 JSON</button>
+            ${valid ? `<button class="success" onclick="executePlan('${plan.planId}')">🚀 提交执行</button>` : ''}
+        </div>
+    `;
+    $('planResult').innerHTML = html;
+}
+
+// ─── 提交执行（先拆解后执行） ────────────────────────────────────────
+
+async function executePlan(planId) {
+    if (!planId) {
+        log('error', '缺少 planId');
+        return;
+    }
+    log('info', `正在加载计划 ${planId} 并提交执行...`);
+    try {
+        // 获取完整计划数据
+        const planData = await API.get(`/api/brain/plan?planId=${planId}`);
+        if (planData.status !== 'ok' || !planData.plan?.taskDef) {
+            log('error', `获取计划失败: ${planData.error || planData.message}`);
+            return;
+        }
+        const taskDef = planData.plan.taskDef;
+
+        // 调用 Orchestrator load 加载任务
+        const loadRes = await API.post('/api/orchestrator/load', taskDef);
+        if (loadRes.status !== 'ok') {
+            log('error', `加载任务失败: ${loadRes.error || loadRes.message}`);
+            return;
+        }
+        log('success', `任务已加载: taskId=${taskDef.taskId}`);
+
+        // 调用 Orchestrator start 启动执行
+        const startRes = await API.post('/api/orchestrator/start', { taskId: taskDef.taskId });
+        if (startRes.status !== 'ok') {
+            log('error', `启动执行失败: ${startRes.error || startRes.message}`);
+            return;
+        }
+
+        currentTaskId = taskDef.taskId;
+        log('success', `编排已启动: taskId=${taskDef.taskId}`);
+
+        // 显示编排控制按钮
+        $('orchControls').style.display = 'flex';
+        // 开始轮询编排进度
+        startProgressPolling(taskDef.taskId);
+        // 订阅 SSE
+        subscribeSSE(taskDef.taskId);
+    } catch (err) {
+        log('error', `请求失败: ${err.message}`);
+    }
+}
+
+// ─── 渲染步骤流程图 ────────────────────────────────────────────────────
+
+function renderStepFlow(steps, progressSteps) {
+    if (!steps || steps.length === 0) {
+        $('stepFlow').innerHTML = '<div class="muted" style="font-size:12px;">无步骤数据</div>';
+        return;
+    }
+
+    // 如果有进度数据，合并状态
+    const statusMap = {};
+    if (progressSteps) {
+        for (const s of progressSteps) {
+            statusMap[String(s.stepId)] = s;
+        }
+    }
+
+    const html = steps.map(step => {
+        const status = statusMap[String(step.stepId)];
+        const statusClass = status ? status.status : 'pending';
+        const retryInfo = status ? `重试 ${status.retryCount}/${step.maxRetries}` : '';
+        const timeInfo = status ?
+            `${status.startTime ? status.startTime.split('T')[1]?.split('.')[0] : '—'} → ${status.endTime ? status.endTime.split('T')[1]?.split('.')[0] : '—'}` : '';
+
+        const criteriaHtml = (step.acceptanceCriteria && step.acceptanceCriteria.length > 0)
+            ? `<div class="step-criteria" style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">
+                <div style="font-size:10px;color:var(--text2);font-weight:600;">验收标准 (${step.acceptanceCriteria.length})</div>
+                ${step.acceptanceCriteria.map(ac => `
+                <div style="font-size:10px;padding:4px 8px;background:rgba(0,122,255,0.06);border-radius:4px;border-left:2px solid var(--blue);">
+                    <span class="badge info" style="font-size:9px;padding:1px 4px;">${ac.id}</span>
+                    <span style="margin-left:4px;">${escapeHtml(ac.criterion)}</span>
+                    ${ac.verification ? `<div style="color:var(--text2);margin-top:2px;margin-left:4px;">验证: ${escapeHtml(ac.verification)}</div>` : ''}
+                </div>`).join('')}
+               </div>`
+            : '';
+
+        return `
+            <div class="step-node ${statusClass}">
+                <div class="step-id">${step.stepId}</div>
+                <div class="step-desc">${escapeHtml(step.taskDescription)}</div>
+                <div class="step-meta">
+                    ${status ? `<span class="badge ${statusClass}">${status.status}</span>` : '<span class="badge pending">pending</span>'}
+                    ${retryInfo ? `<span>${retryInfo}</span>` : ''}
+                    ${timeInfo ? `<span>${timeInfo}</span>` : ''}
+                </div>
+                ${criteriaHtml}
+            </div>
+            <div class="step-edges">
+                <span class="step-edge"><span class="label">依赖:</span> ${step.dependId || '无(入口)'}</span>
+                <span class="step-edge"><span class="label">成功→</span> <span class="next">${step.nextStepId || '结束'}</span></span>
+                <span class="step-edge"><span class="label">失败→</span> <span class="fail">${step.failStepId || '终止'}</span></span>
+            </div>
+        `;
+    }).join('');
+
+    $('stepFlow').innerHTML = html;
+}
+
+// ─── 编排进度 ──────────────────────────────────────────────────────────
+
+function startProgressPolling(taskId) {
+    if (progressTimer) clearInterval(progressTimer);
+    fetchProgress(taskId);
+    progressTimer = setInterval(() => fetchProgress(taskId), 3000);
+}
+
+function stopProgressPolling() {
+    if (progressTimer) {
+        clearInterval(progressTimer);
+        progressTimer = null;
+    }
+}
+
+async function fetchProgress(taskId) {
+    const tid = taskId || currentTaskId;
+    if (!tid) return;
+    try {
+        const data = await API.get(`/api/orchestrator/progress?taskId=${tid}`);
+        if (data.status === 'ok') {
+            renderProgress(data.progress);
+            // 如果已完成，停止轮询
+            const status = data.progress.status;
+            if (['completed', 'failed', 'aborted', 'deadlocked'].includes(status)) {
+                stopProgressPolling();
+                log('info', `编排已结束: ${status}`);
+            }
+        }
+    } catch (err) {
+        // 静默失败，不打日志
+    }
+}
+
+function renderProgress(progress) {
+    const s = progress.stats || {};
+    const html = `
+        <div class="stats-grid">
+            <div class="stat-box"><div class="num" style="color:var(--text2)">${s.total || 0}</div><div class="lbl">总步骤</div></div>
+            <div class="stat-box"><div class="num" style="color:var(--green)">${s.completed || 0}</div><div class="lbl">已完成</div></div>
+            <div class="stat-box"><div class="num" style="color:var(--blue)">${s.running || 0}</div><div class="lbl">执行中</div></div>
+            <div class="stat-box"><div class="num" style="color:var(--red)">${s.failed || 0}</div><div class="lbl">失败</div></div>
+        </div>
+        <div class="kv-grid">
+            <div class="k">Task ID</div><div class="v">${progress.taskId}</div>
+            <div class="k">状态</div><div class="v"><span class="badge ${progress.status}">${progress.status}</span></div>
+            <div class="k">当前步骤</div><div class="v">${progress.currentStepId || '—'}</div>
+            <div class="k">开始时间</div><div class="v">${progress.startTime || '—'}</div>
+            <div class="k">结束时间</div><div class="v">${progress.endTime || '—'}</div>
+            ${progress.error ? `<div class="k">错误</div><div class="v" style="color:var(--red)">${escapeHtml(progress.error)}</div>` : ''}
+        </div>
+    `;
+    $('orchProgress').innerHTML = html;
+
+    // 更新步骤流程图的状态
+    if (currentPlanId) {
+        const plan = window._currentPlanSteps;
+        if (plan) {
+            renderStepFlow(plan, progress.steps);
+        }
+    }
+
+    // 如果有步骤数据但还没有流程图，用 progress 的 steps 渲染
+    if (!$('stepFlow').querySelector('.step-node') && progress.steps) {
+        const steps = progress.steps.map(s => ({
+            stepId: s.stepId,
+            taskDescription: s.taskDescription,
+            dependId: s.dependId,
+            nextStepId: s.nextStepId,
+            failStepId: s.failStepId,
+            maxRetries: s.maxRetries
+        }));
+        renderStepFlow(steps, progress.steps);
+    }
+}
+
+// ─── 编排控制 ──────────────────────────────────────────────────────────
+
+async function orchControl(action) {
+    if (!currentTaskId) { log('error', '无当前任务'); return; }
+    log('info', `发送编排控制: ${action}`);
+    try {
+        const data = await API.post(`/api/orchestrator/${action}`, { taskId: currentTaskId });
+        log(data.status === 'ok' ? 'success' : 'error', data.message);
+        if (data.progress) renderProgress(data.progress);
+    } catch (err) {
+        log('error', `请求失败: ${err.message}`);
+    }
+}
+
+// ─── SSE 订阅 ──────────────────────────────────────────────────────────
+
+function subscribeSSE(taskId) {
+    if (sseSource) sseSource.close();
+    try {
+        sseSource = new EventSource(`/stream/tasks/${taskId}`);
+        sseSource.addEventListener('orch:step:status', (e) => {
+            const data = JSON.parse(e.data);
+            log('info', `步骤 ${data.stepId} → ${data.status}${data.error ? ' (' + data.error + ')' : ''}`);
+        });
+        sseSource.addEventListener('orch:step:detail', (e) => {
+            const data = JSON.parse(e.data);
+            log(data.success ? 'success' : 'warn',
+                `步骤 ${data.stepId} 第${data.attempt}次: ${data.success ? '成功' : '失败'}`);
+        });
+        sseSource.addEventListener('orch:task:complete', (e) => {
+            const data = JSON.parse(e.data);
+            log('success', `编排完成: ${data.status}`);
+            stopProgressPolling();
+        });
+        sseSource.addEventListener('orch:task:error', (e) => {
+            const data = JSON.parse(e.data);
+            log('error', `编排错误: ${data.error}`);
+        });
+        sseSource.addEventListener('brain:plan:start', (e) => {
+            log('info', 'Brain 开始拆解...');
+        });
+        sseSource.addEventListener('brain:plan:complete', (e) => {
+            const data = JSON.parse(e.data);
+            log('success', `Brain 拆解完成: ${data.taskDef.steps.length} 步骤`);
+        });
+        sseSource.onerror = () => {
+            // SSE 断开自动重连由 EventSource 处理
+        };
+        log('info', `已订阅 SSE: /stream/tasks/${taskId}`);
+    } catch (err) {
+        log('warn', `SSE 订阅失败: ${err.message}`);
+    }
+}
+
+// ─── 历史计划 ──────────────────────────────────────────────────────────
+
+async function listPlans() {
+    try {
+        const data = await API.get('/api/brain/plans');
+        const list = $('planList');
+        if (data.count === 0) {
+            list.innerHTML = '<div class="muted" style="font-size:12px;">暂无历史计划</div>';
+            return;
+        }
+        list.innerHTML = data.plans.map(p => `
+            <div class="plan-item ${p.planId === currentPlanId ? 'active' : ''}" onclick="loadPlanDetail('${p.planId}')">
+                <div class="info">
+                    <strong>${p.planId}</strong>
+                    <span class="desc">${escapeHtml(p.taskDescription.substring(0, 60))}...</span>
+                </div>
+                <div>
+                    ${p.valid ? '<span class="badge ok">有效</span>' : '<span class="badge error">无效</span>'}
+                    <span class="badge info">${p.stepCount}步</span>
+                </div>
+            </div>
+        `).join('');
+        log('info', `加载 ${data.count} 个历史计划`);
+    } catch (err) {
+        log('error', `请求失败: ${err.message}`);
+    }
+}
+
+async function loadPlanDetail(planId) {
+    try {
+        const data = await API.get(`/api/brain/plan?planId=${planId}`);
+        if (data.status === 'ok') {
+            const plan = data.plan;
+            currentPlanId = plan.planId;
+            currentTaskId = plan.taskDef?.taskId;
+            window._currentPlanSteps = plan.taskDef?.steps;
+            renderPlan(plan);
+            renderStepFlow(plan.taskDef?.steps, null);
+            log('info', `已加载计划: ${planId}`);
+            listPlans();
+
+            // 自动检查是否有对应的编排执行状态
+            const taskId = plan.taskDef?.taskId;
+            if (taskId) {
+                try {
+                    const orchData = await API.get(`/api/orchestrator/progress?taskId=${taskId}`);
+                    if (orchData.status === 'ok' && orchData.progress) {
+                        const prog = orchData.progress;
+                        renderProgress(prog);
+                        window._currentPlanSteps = plan.taskDef?.steps;
+                        renderStepFlow(plan.taskDef?.steps, prog.steps);
+                        if (['running', 'loaded'].includes(prog.status)) {
+                            $('orchControls').style.display = 'flex';
+                            startProgressPolling(taskId);
+                            subscribeSSE(taskId);
+                        } else {
+                            $('orchControls').style.display = 'flex';
+                        }
+                        log('info', `关联编排状态: ${prog.status}`);
+                    }
+                } catch (_) { /* 无编排记录，忽略 */ }
+            }
+        } else {
+            log('error', data.error);
+        }
+    } catch (err) {
+        log('error', `请求失败: ${err.message}`);
+    }
+}
+
+// ─── 历史编排任务 ──────────────────────────────────────────────────────
+
+async function listOrchTasks() {
+    try {
+        const data = await API.get('/api/orchestrator/tasks');
+        const list = $('orchTaskList');
+        if (!data.tasks || data.tasks.length === 0) {
+            list.innerHTML = '<div class="muted" style="font-size:12px;">暂无编排任务</div>';
+            return;
+        }
+        list.innerHTML = data.tasks.map(t => {
+            const stats = t.stats || {};
+            const statusBadge = `<span class="badge ${t.status}">${t.status}</span>`;
+            const stepInfo = `${stats.completed || 0}/${stats.total || 0} 步完成`;
+            const errInfo = t.error ? `<div style="font-size:10px;color:var(--red);margin-top:2px;">${escapeHtml(t.error.substring(0, 80))}</div>` : '';
+            return `
+                <div class="plan-item" onclick="loadOrchTask('${t.taskId}')">
+                    <div class="info">
+                        <strong>${t.taskId}</strong>
+                        <span class="desc">${stepInfo}</span>
+                        ${errInfo}
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;">
+                        ${statusBadge}
+                        ${t.endTime ? `<span style="font-size:10px;color:var(--text2);">${t.endTime.split('T')[0]}</span>` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (err) {
+        log('error', `加载编排任务列表失败: ${err.message}`);
+    }
+}
+
+async function loadOrchTask(taskId) {
+    try {
+        const data = await API.get(`/api/orchestrator/progress?taskId=${taskId}`);
+        if (data.status === 'ok' && data.progress) {
+            const progress = data.progress;
+            currentTaskId = taskId;
+            $('orchControls').style.display = 'flex';
+            renderProgress(progress);
+            // 用 progress 中的 steps 渲染流程图
+            window._currentPlanSteps = null;
+            if (progress.steps) {
+                const steps = progress.steps.map(s => ({
+                    stepId: s.stepId,
+                    taskDescription: s.taskDescription,
+                    dependId: s.dependId,
+                    nextStepId: s.nextStepId,
+                    failStepId: s.failStepId,
+                    maxRetries: s.maxRetries,
+                    acceptanceCriteria: s.acceptanceCriteria || []
+                }));
+                renderStepFlow(steps, progress.steps);
+            }
+            // 如果任务仍在运行，继续轮询
+            if (['running', 'loaded'].includes(progress.status)) {
+                startProgressPolling(taskId);
+                subscribeSSE(taskId);
+            }
+            log('info', `已加载编排任务: ${taskId} (${progress.status})`);
+        } else {
+            log('error', data.error || '加载失败');
+        }
+    } catch (err) {
+        log('error', `请求失败: ${err.message}`);
+    }
+}
+
+// ─── 辅助 ──────────────────────────────────────────────────────────────
+
+function showPlanJSON(planId) {
+    // 从当前已渲染的数据中获取
+    const modal = $('modalOverlay');
+    $('modalTitle').textContent = '任务 JSON';
+    // 重新请求获取完整数据
+    API.get(`/api/brain/plan?planId=${planId}`).then(data => {
+        if (data.status === 'ok') {
+            $('modalContent').textContent = JSON.stringify(data.plan.taskDef, null, 2);
+            modal.classList.add('show');
+        }
+    });
+}
+
+function showModal(title, content) {
+    $('modalTitle').textContent = title;
+    $('modalContent').textContent = content;
+    $('modalOverlay').classList.add('show');
+}
+function closeModal() { $('modalOverlay').classList.remove('show'); }
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function fillExample() {
+    $('taskDescription').value = '对 libcurl 进行鸿蒙化可行性分析：git clone 源码仓库，扫描源码结构、依赖、平台相关代码及构建系统，分析接口兼容性，验证编译可行性，最终生成标准化分析报告';
+    $('acceptanceCriteria').value = '① 生成 analysis-report.md 分析报告且非空\n② 报告包含源码结构、依赖分析、接口兼容性、编译验证四个章节\n③ 编译验证结果明确（通过/不通过），不通过时列出具体错误\n④ 接口兼容性分析覆盖主要公开 API';
+    $('taskId').value = '';
+    $('taskDir').value = '';
+    $('skillDirectory').value = '';
+    log('info', '已填充示例任务');
+}
+
+// ─── 事件绑定 ──
+$('healthBtn').addEventListener('click', checkHealth);
+$('btnPlan').addEventListener('click', planTask);
+$('btnPlanAndExecute').addEventListener('click', planAndExecute);
+$('btnFillExample').addEventListener('click', fillExample);
+$('btnRefreshPlans').addEventListener('click', listPlans);
+$('btnRefreshOrchTasks').addEventListener('click', listOrchTasks);
+$('btnClearLog').addEventListener('click', clearLog);
+$('btnOrchProgress').addEventListener('click', () => fetchProgress());
+$('btnOrchPause').addEventListener('click', () => orchControl('pause'));
+$('btnOrchResume').addEventListener('click', () => orchControl('resume'));
+$('btnOrchAbort').addEventListener('click', () => orchControl('abort'));
+$('modalClose').addEventListener('click', closeModal);
+$('modalOverlay').addEventListener('click', (e) => { if (e.target === $('modalOverlay')) closeModal(); });
+
+window.showPlanJSON = showPlanJSON;
+window.loadPlanDetail = loadPlanDetail;
+window.executePlan = executePlan;
+window.loadOrchTask = loadOrchTask;
+
+checkHealth();
+listPlans();
+listOrchTasks();
+log('info', 'Brain 任务拆解台已就绪');
+</script>
+</body>
+</html>

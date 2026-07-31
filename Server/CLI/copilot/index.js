@@ -256,6 +256,46 @@ class CopilotCLI {
     }
 
     /**
+     * 向指定 Session 发送消息并同步等待 AI 回复完成
+     *
+     * Copilot SDK 的 sendAndWait 本身就是同步等待模式，因此直接复用 sendMessage
+     * 的实现（两者行为一致：发送 → 等待 AI 回复 → 返回内容）。
+     *
+     * @param {string} sessionId
+     * @param {string} message
+     * @returns {Promise<{ success: boolean, response?: string, content: string }>}
+     */
+    async sendAndWaitMessage(sessionId, message) {
+        // Copilot 的 sendMessage 本身就是同步等待模式，直接委派
+        const result = await this.sendMessage(sessionId, message);
+        return {
+            success: result.success,
+            response: result.response,
+            content: result.response || ''
+        };
+    }
+
+    /**
+     * 向指定 Session 注入提示词/上下文（不触发 AI 响应）
+     *
+     * ⚠️ Copilot SDK 不原生支持 noReply 模式（sendAndWait 始终等待 AI 回复），
+     * 此方法会抛出 not-supported 错误。调用方应先通过 getType() 判断
+     * 当前 CLI 类型，仅对 opencode 使用 injectPrompt。
+     *
+     * @param {string} sessionId
+     * @param {string} message - 要注入的提示词/上下文
+     * @throws {Error} Copilot SDK 不支持此能力
+     */
+    async injectPrompt(sessionId, message) {
+        this._log('warn', `injectPrompt id=${sessionId} — Copilot SDK 不支持 noReply 模式`);
+        throw new Error(
+            `injectPrompt is not supported by Copilot SDK: ` +
+            `Copilot's sendAndWait always triggers AI response. ` +
+            `Use opencode CLI type for context injection.`
+        );
+    }
+
+    /**
      * 创建新 Session，可选附带初始提示词
      *
      * 与 OpenCodeCLI 保持一致：若传入 prompt，则以 fire-and-forget 方式在后台异步执行，
@@ -325,7 +365,6 @@ class CopilotCLI {
      * @returns {{ status: string, lastMessage?: object }}
      */
     async checkSessionStatus(sessionId) {
-        this._log('info', `checkSessionStatus id=${sessionId}`);
         const record = this.sessions.get(sessionId);
         if (!record) {
             return { status: 'unknown' };

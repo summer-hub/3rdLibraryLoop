@@ -42,9 +42,10 @@
 import StorageManager from './StorageManager.js';
 import SessionStore from './stores/SessionStore.js';
 import TaskStepStore from './stores/TaskStepStore.js';
+import TaskExecutionStore from './stores/TaskExecutionStore.js';
 import MessageArchive from './MessageArchive.js';
 
-export { StorageManager, SessionStore, TaskStepStore, MessageArchive };
+export { StorageManager, SessionStore, TaskStepStore, TaskExecutionStore, MessageArchive };
 export { default as BaseAdapter } from './adapters/BaseAdapter.js';
 export { default as JsonAdapter } from './adapters/JsonAdapter.js';
 export { default as JsonlAdapter } from './adapters/JsonlAdapter.js';
@@ -57,6 +58,7 @@ export { default as FileAdapter } from './adapters/FileAdapter.js';
 export const SubDirs = Object.freeze({
     SESSION: 'Session',
     TASK_STEP: 'TaskStep',
+    TASK: 'task',
     ARTIFACTS: 'Artifacts'
 });
 
@@ -70,6 +72,7 @@ export const SubDirs = Object.freeze({
  *   manager: StorageManager,
  *   sessionStore: () => SessionStore,
  *   taskStepStore: () => TaskStepStore,
+ *   taskExecStore: () => TaskExecutionStore,
  *   messageArchive: () => MessageArchive,
  *   file: (subDir?: string) => import('./adapters/FileAdapter.js').default,
  *   json: (subDir: string) => import('./adapters/JsonAdapter.js').default,
@@ -83,7 +86,7 @@ export function createStorage(options = {}) {
     const stallThresholdMs = options.stallThresholdMs;
 
     // 懒初始化的 Store 实例（首次调用时创建，复用同一适配器实例）
-    let _sessionStore, _taskStepStore, _messageArchive;
+    let _sessionStore, _taskStepStore, _taskExecStore, _messageArchive;
 
     return {
         manager,
@@ -108,6 +111,16 @@ export function createStorage(options = {}) {
                 });
             }
             return _taskStepStore;
+        },
+
+        /** 任务执行记录（JSON 文件，db/task/{taskId}/stepid_{stepId}.json） */
+        taskExecStore() {
+            if (!_taskExecStore) {
+                _taskExecStore = new TaskExecutionStore({
+                    json: manager.json(SubDirs.TASK)
+                });
+            }
+            return _taskExecStore;
         },
 
         /** MessageArchive 兼容门面（供 CLI 适配器直接使用） */

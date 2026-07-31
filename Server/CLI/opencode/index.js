@@ -190,6 +190,102 @@ class OpenCodeCLI {
     }
 
     /**
+     * 向指定 Session 发送消息并同步等待 AI 回复完成
+     *
+     * 使用 opencode SDK 的 session.prompt()（同步版本），发送消息后阻塞等待
+     * AI 生成完整回复，然后直接返回 AssistantMessage 及其 parts。
+     *
+     * 与 sendMessage 的区别：
+     *   sendMessage       → promptAsync，发送后立即返回，不等 AI 回复（fire-and-forget）
+     *   sendAndWaitMessage → prompt，发送后等待 AI 回复完成再返回
+     *
+     * 适用场景：
+     *   - 需要立即获取 AI 回复内容，不适合轮询等待
+     *   - 简单问答、单轮对话
+     *   - 调用方需要同步拿到结果继续处理
+     *
+     * ⚠️ 注意：AI 回复可能耗时较长（几十秒到几分钟），调用方需设置合理的超时。
+     *
+     * @param {string} sessionId
+     * @param {string} message - 发送的消息
+     * @returns {Promise<{ success: boolean, response: object, content: string }>}
+     *   response: opencode 返回的完整 AssistantMessage（含 info + parts）
+     *   content: AI 回复的文本内容（从 parts 中提取拼接）
+     */
+    async sendAndWaitMessage(sessionId, message) {
+        this._log('info', `sendAndWaitMessage id=${sessionId}`);
+        this._log('info', `  message (前100字): ${message.slice(0, 100)}${message.length > 100 ? '...' : ''}`);
+        try {
+            const result = await this.client.session.prompt({
+                path: { id: sessionId },
+                body: {
+                    parts: [{ type: 'text', text: message }],
+                    noReply: false
+                },
+                url: `/session/${sessionId}/message`
+            });
+            const assistantMsg = result.data;
+            // 从 parts 中提取文本内容
+            const textParts = (assistantMsg.parts || []).filter(p => p.type === 'text');
+            const content = textParts.map(p => p.text).join('\n');
+            this._log('info',
+                `sendAndWaitMessage 成功 id=${sessionId}, ` +
+                `回复长度=${content.length}字, finish=${assistantMsg.info?.finish ?? 'N/A'}`);
+            // 用户消息 + AI 回复均不由这里归档，统一由 getSessionMessages
+            // 从远端拉取归档，确保用 opencode id 去重
+            return {
+                success: true,
+                response: assistantMsg,
+                content
+            };
+        } catch (error) {
+            this._log('error', `sendAndWaitMessage 失败 id=${sessionId}: ${error.message}`);
+            throw new Error(`Failed to send and wait message: ${error.message}`);
+        }
+    }
+
+    /**
+     * 向指定 Session 注入提示词/上下文（不触发 AI 响应）
+     *
+     * 利用 opencode SDK 的 noReply: true 能力，将文本作为 UserMessage
+     * 注入对话历史，但不会触发 AI 生成回复。
+     *
+     * 适用场景：
+     *   - 对话过程中动态补充上下文、规则、指令
+     *   - 插件向会话注入参考信息，不打断当前 AI 任务
+     *   - 追加系统级约束（如代码规范、输出格式要求）
+     *
+     * 与 sendMessage 的区别：
+     *   sendMessage   → noReply: false，发送后 AI 会生成回复
+     *   injectPrompt  → noReply: true，仅注入上下文，AI 不回复
+     *
+     * @param {string} sessionId
+     * @param {string} message - 要注入的提示词/上下文
+     * @returns {Promise<{ success: boolean }>}
+     */
+    async injectPrompt(sessionId, message) {
+        this._log('info', `injectPrompt id=${sessionId}`);
+        this._log('info', `  message (前100字): ${message.slice(0, 100)}${message.length > 100 ? '...' : ''}`);
+        try {
+            await this.client.session.promptAsync({
+                path: { id: sessionId },
+                body: {
+                    parts: [{ type: 'text', text: message }],
+                    noReply: true
+                },
+                url: `/session/${sessionId}/prompt_async`
+            });
+            // 注入的上下文消息不由这里归档，统一由 getSessionMessages
+            // 从远端拉取归档，确保用 opencode id 去重
+            this._log('info', `injectPrompt 成功 id=${sessionId}（已注入上下文，不触发 AI 响应）`);
+            return { success: true };
+        } catch (error) {
+            this._log('error', `injectPrompt 失败 id=${sessionId}: ${error.message}`);
+            throw new Error(`Failed to inject prompt: ${error.message}`);
+        }
+    }
+
+    /**
      * 创建新 Session，可选附带初始提示词
      * @param {string} title  - Session 标题
      * @param {string} [prompt] - 初始提示词（可选）
@@ -197,6 +293,7 @@ class OpenCodeCLI {
     async startSession(title, prompt) {
         this._log('info', `startSession title="${title}"`);
         this._log('info', `  prompt 长度: ${prompt ? prompt.length : 0} 字符`);
+        this._log('info', `  prompt: ${prompt}`);
         try {
             const session = await this.client.session.create({ body: { title } });
             const sessionId = session.data.id;
@@ -245,7 +342,6 @@ class OpenCodeCLI {
      * @returns {{ status: 'completed'|'running'|'unknown', lastMessage?: object }}
      */
     async checkSessionStatus(sessionId) {
-        this._log('debug', `checkSessionStatus id= ${sessionId}`);
         try {
             // ── 快路径：先查 session.status()，busy/retry 时直接返回 running，不拉消息 ──
             // session.status() 返回 {[id]: {type: "busy"|"idle"|"retry"}}，极轻量
@@ -292,6 +388,8 @@ class OpenCodeCLI {
                     lastMessageId: this._msgDedupeKey(lastMessage),
                     status: 'error'
                 }).catch(() => {});
+                // 错误结束时也自动归档全量消息
+                await this._autoArchive(sessionId, 'error');
                 return { status: 'error', error: lastMessage.info.error, lastMessage };
             }
 
@@ -303,9 +401,7 @@ class OpenCodeCLI {
 
             const status = isCompleted ? 'completed' : 'running';
 
-            // 只做状态检查和卡死检测，不在此处归档消息。
-            // 消息归档统一由 getSessionMessages 按远端顺序全量拉取，
-            // 避免 limit=1 只拿到 assistant 回复导致 user/assistant 顺序错乱。
+            // 状态检查 + 卡死检测
             const dedupeKey = this._msgDedupeKey(lastMessage);
             const checkRes = await this.archive.recordCheck(sessionId, {
                 lastMessageId: dedupeKey,
@@ -317,6 +413,11 @@ class OpenCodeCLI {
             if (checkRes.stalled) {
                 this._log('warn',
                     `checkSessionStatus: 检测到停滞 id=${sessionId}, 已 ${Math.round((checkRes.stallDurationMs || 0) / 1000)}s 无新响应`);
+            }
+
+            // session 完成时自动归档全量消息（写入 .jsonl）
+            if (isCompleted) {
+                await this._autoArchive(sessionId, 'completed');
             }
 
             return {
@@ -373,6 +474,34 @@ class OpenCodeCLI {
             finish: msg.info?.finish ?? null,
             timestamp
         };
+    }
+
+    /**
+     * 自动归档 — session 完成或出错时全量拉取消息并写入 .jsonl
+     *
+     * checkSessionStatus 平时只用 limit=1 查状态（不归档），
+     * 但当检测到 session 已结束（completed / error）时，
+     * 应自动全量拉取消息归档，确保 .jsonl 文件生成。
+     *
+     * 归档采用 appendMessages 增量去重，重复调用安全无副作用。
+     *
+     * @param {string} sessionId
+     * @param {'completed'|'error'} reason - 触发归档的原因
+     * @private
+     */
+    async _autoArchive(sessionId, reason) {
+        try {
+            const messages = await this.client.session.messages({ path: { id: sessionId } });
+            const data = messages.data || [];
+            const archRes = await this.archive.appendMessages(
+                sessionId,
+                data.map(m => this._toArchiveMessage(m))
+            );
+            this._log('info',
+                `自动归档 id=${sessionId} reason=${reason} — appended=${archRes.appended} skipped=${archRes.skipped}`);
+        } catch (e) {
+            this._log('warn', `自动归档失败 id=${sessionId} reason=${reason}: ${e.message}`);
+        }
     }
 
     /**

@@ -118,6 +118,36 @@ class CLIController {
     }
 
     /**
+     * 向 Session 发送消息并同步等待 AI 回复完成
+     *
+     * 发送消息后阻塞等待 AI 生成完整回复，然后返回回复内容。
+     * 与 sendMessage（异步 fire-and-forget）不同，此方法会等到 AI 回复完成。
+     *
+     * @param {string} sessionId
+     * @param {string} message
+     * @returns {Promise<{ success: boolean, response: object|string, content: string }>}
+     */
+    async sendAndWaitMessage(sessionId, message) {
+        return this.adapter.sendAndWaitMessage(sessionId, message);
+    }
+
+    /**
+     * 向 Session 注入提示词/上下文（不触发 AI 响应）
+     *
+     * 利用 opencode SDK 的 noReply: true 能力，将文本注入对话历史
+     * 但不触发 AI 生成回复。适用于对话过程中动态补充上下文、规则、指令。
+     *
+     * ⚠️ 仅 opencode 适配器支持此能力；copilot 适配器会抛出 not-supported 错误。
+     *
+     * @param {string} sessionId
+     * @param {string} message  - 要注入的提示词/上下文
+     * @returns {Promise<{ success: boolean }>}
+     */
+    async injectPrompt(sessionId, message) {
+        return this.adapter.injectPrompt(sessionId, message);
+    }
+
+    /**
      * 创建新 Session，可选附带初始提示词
      * @param {string} title    - Session 标题
      * @param {string} [prompt] - 初始提示词（可选）

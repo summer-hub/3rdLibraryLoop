@@ -1,8 +1,14 @@
 import http from 'node:http';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Router } from './router/Router.js';
 import { registerRoutes } from './routes/index.js';
 import { CLIController } from '../CLI/cli.js';
 import SseHub from './sse/SseHub.js';
+import FlexRunnerController from './controllers/FlexRunnerController.js';
+import OrchestratorController from './controllers/OrchestratorController.js';
+import BrainController from './controllers/BrainController.js';
+import { createStorage } from '../DbUse/index.js';
 
 /**
  * Server —— HTTP 服务入口
@@ -43,11 +49,35 @@ export async function createServer(options = {}) {
     // ─── 组装共享依赖（单例，所有 Controller 复用）────────────────────
     const cliInstance = cli || new CLIController(cliType, cliOptions);
     const sseHub = new SseHub();
+    const storage = createStorage();
+
+    // FlexRunnerController 是有状态的（管理多个 FlexRunner 实例），需单例
+    const flexRunnerController = new FlexRunnerController();
+
+    // OrchestratorController 同样有状态（管理多个编排器实例），需单例
+    const orchestratorController = new OrchestratorController({
+        sseHub,
+        storage,
+        flexRunnerFactory: null
+    });
+
+    // BrainController 管理 Brain 拆解实例（需单例，复用 LLM 连接）
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    const skillDirectory = path.resolve(__dirname, '..', 'Skills');
+    const brainController = new BrainController({
+        sseHub,
+        orchestratorController,
+        skillDirectory
+    });
 
     const dependencies = {
         cli: cliInstance,
-        sseHub
-        // taskStepStore: ...,   // 未来：TaskStepStore 单例
+        sseHub,
+        storage,
+        flexRunnerController,
+        orchestratorController,
+        brainController,
+        skillDirectory
     };
 
     // ─── 初始化路由器并注册路由 ────────────────────────────────────────
@@ -72,20 +102,40 @@ export async function createServer(options = {}) {
 
     return new Promise((resolve, reject) => {
         server.on('error', reject);
-        server.listen(port, '127.0.0.1', () => {
+        server.listen(port, '127.0.0.1', async () => {
             console.log(`[Server] 服务已启动: http://127.0.0.1:${port}`);
             console.log(`[Server] 已注册路由:`);
             for (const route of router.routes) {
                 console.log(`  ${route.method.padEnd(6)} ${route.path}`);
             }
+
+            // ─── 从磁盘恢复持久化的编排任务 ────────────────────────────
+            try {
+                const { restored, failed } = await orchestratorController.restoreFromDisk();
+                if (restored.length > 0) {
+                    console.log(`[Server] 已恢复 ${restored.length} 个编排任务: ${restored.join(', ')}`);
+                }
+                if (failed.length > 0) {
+                    console.warn(`[Server] ${failed.length} 个编排任务恢复失败: ${failed.join(', ')}`);
+                }
+            } catch (err) {
+                console.warn(`[Server] 恢复编排任务异常: ${err.message}`);
+            }
+
             resolve(server);
         });
 
-        // ─── 优雅关闭：释放 SSE 连接 ────────────────────────────────────
+        // ─── 优雅关闭：释放 SSE 连接 + 存储连接 ──────────────────────────
         const shutdown = () => {
             console.log('[Server] 正在关闭...');
             sseHub.destroy();
-            server.close(() => process.exit(0));
+            server.close(() => {
+                if (storage && typeof storage.close === 'function') {
+                    storage.close().finally(() => process.exit(0));
+                } else {
+                    process.exit(0);
+                }
+            });
         };
         process.on('SIGINT', shutdown);
         process.on('SIGTERM', shutdown);
