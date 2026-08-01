@@ -51,6 +51,7 @@ try {
 let _CLIController = null;
 let _SkillSelectorAgent = null;
 let _createStorage = null;
+let _KnowledgeManager = null;
 
 async function _loadCLIController() {
     if (!_CLIController) {
@@ -74,6 +75,14 @@ async function _loadCreateStorage() {
         _createStorage = mod.createStorage;
     }
     return _createStorage;
+}
+
+async function _loadKnowledgeManager() {
+    if (!_KnowledgeManager) {
+        const mod = await import('../Knowledge/index.js');
+        _KnowledgeManager = mod.KnowledgeManager;
+    }
+    return _KnowledgeManager;
 }
 
 // ─── 常量 ────────────────────────────────────────────────────────────────────
@@ -144,7 +153,10 @@ class FlexRunner {
     /** @type {number} 下一步骤 ID（0 = 无下一步） */
     #nextStepId = 0;
 
-    /** @type {number} 当前已执行到的步骤序号 */
+    /** @type {number} 大循环索引（0=首轮），由 LoopEngine 传递 */
+    #bigLoopIndex = 0;
+
+    /** @type {number} 当前已执行到的步骤序号（单步内重试计数） */
     #executeStep = 0;
 
     /** @type {string} 最新结果文件路径 */
@@ -163,6 +175,9 @@ class FlexRunner {
 
     /** @type {ReturnType<createStorage>|null} */
     #storage = null;
+
+    /** @type {import('../Knowledge/KnowledgeManager.js').default|null} */
+    #knowledgeManager = null;
 
     /** @type {boolean} 是否已初始化 */
     #initialized = false;
@@ -221,6 +236,8 @@ class FlexRunner {
     get dependId() { return this.#dependId; }
     /** @returns {number} */
     get nextStepId() { return this.#nextStepId; }
+    /** @returns {number} 大循环索引（0=首轮） */
+    get bigLoopIndex() { return this.#bigLoopIndex; }
     /** @returns {number} */
     get executeStep() { return this.#executeStep; }
     /** @returns {string} */
@@ -269,9 +286,11 @@ class FlexRunner {
             stepId,
             dependId,
             nextStepId,
+            bigLoopIndex,
             cli,
             skillSelector,
             storage,
+            knowledgeManager,
             pollIntervalMs
         } = params;
 
@@ -285,9 +304,23 @@ class FlexRunner {
             throw new Error(`FlexRunner.initContext: stepId 必须为正整数，当前值: ${stepId}`);
         }
 
+        // ── 初始化内部依赖（支持注入，便于测试；未注入时惰性加载） ──
+        // 先初始化 storage，因为 taskDir 的 fallback 需要用到 storage.manager.rootDir
+        if (storage) {
+            this.#storage = storage;
+        } else {
+            const createStorage = await _loadCreateStorage();
+            this.#storage = createStorage();
+        }
+
         // ── 设置私有变量 ──
         this.#taskId = String(taskId);
-        this.#taskDir = taskDir || path.resolve(process.cwd(), 'tasks', this.#taskId);
+        // taskDir 默认为 db/task/{taskId}（与 storage.json('task') 同目录）
+        const _rootDir = this.#storage?.manager?.rootDir;
+        this.#taskDir = taskDir ||
+            (_rootDir
+                ? path.resolve(_rootDir, 'task', this.#taskId)
+                : path.resolve(process.cwd(), 'db', 'task', this.#taskId));
         this.#skillDirectory = skillDirectory || '';
         this.#taskDescription = taskDescription || '';
         this.#inputReport = inputReport || '';
@@ -295,6 +328,7 @@ class FlexRunner {
         this.#stepId = numStepId;
         this.#dependId = Number(dependId) || 0;
         this.#nextStepId = Number(nextStepId) || 0;
+        this.#bigLoopIndex = Number(bigLoopIndex) || 0;
         this.#executeStep = 0;
         this.#retryTimes = 0;
         this.#startTime = null;
@@ -308,7 +342,7 @@ class FlexRunner {
             ? pollIntervalMs
             : POLL_INTERVAL_MS;
 
-        // ── 初始化内部依赖（支持注入，便于测试；未注入时惰性加载） ──
+        // ── 初始化其他内部依赖（支持注入，便于测试；未注入时惰性加载） ──
         if (cli) {
             this.#cli = cli;
         } else {
@@ -323,11 +357,13 @@ class FlexRunner {
             this.#skillSelector = new SkillSelectorAgent();
         }
 
-        if (storage) {
-            this.#storage = storage;
+        // 知识沉淀管理器（支持注入，便于测试；未注入时惰性加载 + init）
+        if (knowledgeManager) {
+            this.#knowledgeManager = knowledgeManager;
         } else {
-            const createStorage = await _loadCreateStorage();
-            this.#storage = createStorage();
+            const KnowledgeManager = await _loadKnowledgeManager();
+            this.#knowledgeManager = new KnowledgeManager();
+            await this.#knowledgeManager.init();
         }
 
         this.#initialized = true;
@@ -341,16 +377,17 @@ class FlexRunner {
      * 以 loopCount 区分。
      *
      * 流程：
-     *   1. matchSkill     → 匹配最佳 Skill
+     *   1. matchSkill     → 匹配最佳 Skill（未匹配到时返回 null，降级为无 SKILL 模式）
      *   2. invokeSkill    → 通过 opencode 执行 Skill，生成 result .md 文件
+     *      （skillDir 为 null 时，基于任务描述本身直接执行，不使用 SKILL）
      *      （第 N 次执行时，自动收集历史 result/summary .md 作为上下文）
      *   3. checkResult    → 读取 result .md，判断成功/失败
      *   4. persistKnowledge → 读取 Summary .md，持久化经验
      *   5. 返回 { resultPath, success, nextStepId }
      *
-     * 文件命名（按循环次数区分）：
-     *   - 结果文件: stepId{actualStepId}_result_{loopCount}.md
-     *   - 摘要文件: stepId{actualStepId}_Summary_{loopCount}.md
+     * 文件命名（按大循环轮次 + 步骤内重试次数区分）：
+     *   - 结果文件: stepId{actualStepId}_loop{bigLoopIndex}_result_{retryCount}.md
+     *   - 摘要文件: stepId{actualStepId}_loop{bigLoopIndex}_Summary_{retryCount}.md
      *
      * 控制信号（pause/resume/abort）在步骤边界检查，非实时。
      *
@@ -392,14 +429,14 @@ class FlexRunner {
                 });
             }
 
-            // ── 构建文件路径 ──
+            // ── 构建文件路径（按大循环轮次区分，避免跨轮覆盖） ──
             resultPath = path.join(
                 this.#taskDir,
-                `stepId${this.#stepId}_result_${loopCount}.md`
+                `stepId${this.#stepId}_loop${this.#bigLoopIndex}_result_${loopCount}.md`
             );
             const summaryFilePath = path.join(
                 this.#taskDir,
-                `stepId${this.#stepId}_Summary_${loopCount}.md`
+                `stepId${this.#stepId}_loop${this.#bigLoopIndex}_Summary_${loopCount}.md`
             );
 
             // ── 收集历史执行文档（第 N 次执行时传入之前的结果/摘要） ──
@@ -489,9 +526,16 @@ class FlexRunner {
      *   Act:       模糊匹配召回 topK 候选
      *   Reason #2: LLM 评分排序 → 选出最佳
      *
+     * 匹配失败时的策略：
+     *   - SKILL 目录为空或未找到任何 SKILL → 返回 null（降级为无 SKILL 执行）
+     *   - 模糊匹配未召回任何候选 → 返回 null
+     *   - top1 分数低于命中阈值 → 返回 null
+     *   - 匹配结果缺少目录路径 → 返回 null
+     *   调用方（executeStart）收到 null 后将以无 SKILL 模式继续向下执行。
+     *
      * @param {string} taskDescription - 任务描述字符串
      * @param {string} skillDirectory - SKILL 目录路径
-     * @returns {Promise<string>} 最适合的 SKILL 目录绝对路径
+     * @returns {Promise<string|null>} 最适合的 SKILL 目录绝对路径；未匹配到时返回 null
      */
     async matchSkill(taskDescription, skillDirectory) {
         this._ensureInitialized();
@@ -500,21 +544,30 @@ class FlexRunner {
             throw new Error('FlexRunner.matchSkill: taskDescription 不能为空');
         }
         if (!skillDirectory) {
-            throw new Error('FlexRunner.matchSkill: skillDirectory 不能为空');
+            this._log('warn', 'matchSkill: skillDirectory 为空，将以无 SKILL 模式执行');
+            return null;
         }
 
         this._log('info', `matchSkill 开始 — task: "${taskDescription.slice(0, 80)}…"`);
 
-        const selection = await this.#skillSelector.selectSkill(taskDescription, skillDirectory);
+        let selection;
+        try {
+            selection = await this.#skillSelector.selectSkill(taskDescription, skillDirectory);
+        } catch (err) {
+            this._log('warn', `matchSkill: SkillSelector 执行异常 — ${err.message}，将以无 SKILL 模式执行`);
+            return null;
+        }
 
         if (!selection || !selection.best) {
-            throw new Error('FlexRunner.matchSkill: 未匹配到任何合适的 Skill');
+            this._log('warn', `matchSkill: 未匹配到任何合适的 Skill（topScore=${selection?.topScore ?? 0}），将以无 SKILL 模式执行`);
+            return null;
         }
 
         // 优先使用 SkillSelection.skillPath，回退到 SkillMeta.skillPath
         const bestDir = selection.skillPath || selection.best.skillPath;
         if (!bestDir) {
-            throw new Error('FlexRunner.matchSkill: 匹配结果缺少 Skill 目录路径');
+            this._log('warn', 'matchSkill: 匹配结果缺少 Skill 目录路径，将以无 SKILL 模式执行');
+            return null;
         }
 
         this._log('info', `matchSkill 完成 — 最佳 Skill: ${selection.best.name} (${bestDir})`);
@@ -522,20 +575,21 @@ class FlexRunner {
     }
 
     /**
-     * invokeSkill — 通过 opencode cli 执行选定的 Skill。
+     * invokeSkill — 通过 opencode cli 执行选定的 Skill（或无 SKILL 直接执行）。
      *
      * 流程：
      *   1. 创建 opencode Session（标题=taskId+stepId+loopCount）
      *   2. 发送初始 prompt（任务描述 + SKILL 目录 + 报告路径 + 结果/摘要文件路径）
+     *      — skillDir 为 null 时，prompt 不包含 SKILL 目录，改为基于任务描述直接执行
      *   3. 轮询 Session 状态直到完成或超时
      *   4. 记录 sessionId
      *
      * opencode 执行过程中会固定生成：
-     *   - resultFilePath:  stepId{actualStepId}_result_{loopCount}.md
-     *   - summaryFilePath: stepId{actualStepId}_Summary_{loopCount}.md
+     *   - resultFilePath:  stepId{actualStepId}_loop{bigLoopIndex}_result_{retryCount}.md
+     *   - summaryFilePath: stepId{actualStepId}_loop{bigLoopIndex}_Summary_{retryCount}.md
      *
      * @param {string} taskDescription   - 任务描述字符串
-     * @param {string} skillDir          - 选定的 SKILL 目录路径
+     * @param {string|null} skillDir     - 选定的 SKILL 目录路径；null 表示无 SKILL 模式
      * @param {string} [reportPath]      - 输入报告路径（可选）
      * @param {object} [filePaths]       - 结果/摘要文件路径
      * @param {string} [filePaths.resultFilePath]  - 结果文件输出路径
@@ -548,11 +602,10 @@ class FlexRunner {
         if (!taskDescription) {
             throw new Error('FlexRunner.invokeSkill: taskDescription 不能为空');
         }
-        if (!skillDir) {
-            throw new Error('FlexRunner.invokeSkill: skillDir 不能为空');
-        }
+        // skillDir 允许为 null：未匹配到 SKILL 时以无 SKILL 模式执行
 
-        this._log('info', `invokeSkill 开始 — skillDir: ${skillDir}`);
+        const modeLabel = skillDir ? 'SKILL 模式' : '无 SKILL 模式';
+        this._log('info', `invokeSkill 开始 — ${modeLabel}${skillDir ? `: ${skillDir}` : ''}`);
 
         try {
             // ── 1. 健康检查 ──
@@ -563,11 +616,12 @@ class FlexRunner {
             }
 
             // ── 2. 构建 prompt（含历史执行文档） ──
-            const title = `task=${this.#taskId}|step=${this.#stepId}|loop=${this.#executeStep}`;
+            const title = `task=${this.#taskId}|step=${this.#stepId}|bigLoop=${this.#bigLoopIndex}|retry=${this.#executeStep}`;
             const prompt = this._buildPrompt(taskDescription, skillDir, reportPath, filePaths);
 
             // ── 3. 创建 Session 并发送初始 prompt ──
-            const { sessionId } = await this.#cli.startSession(title, prompt);
+            // 指定工作目录为 taskDir，确保 opencode session 的文件操作（git clone 等）在 db/task/{taskId}/ 下执行
+            const { sessionId } = await this.#cli.startSession(title, prompt, { cwd: this.#taskDir });
             this.#sessionId = sessionId;
             this._log('info', `Session 已创建: ${sessionId}`);
 
@@ -589,10 +643,19 @@ class FlexRunner {
     /**
      * persistKnowledge — 读取摘要文件，将有效经验存入任务。
      *
-     * 读取 Summary .md 文件内容，将其作为经验知识记录到 TaskStepStore。
-     * 摘要文件包含本次执行的关键信息、结论和可复用经验。
+     * 读取 Summary .md 文件内容，将其作为经验知识记录到 TaskStepStore，
+     * 并登记到知识沉淀系统（KnowledgeManager）。
      *
-     * 当前实现：读取文件内容并记录到步骤记录中（后续可扩展为知识库存储）。
+     * 判断逻辑：
+     *   - 有 SKILL 模式：Summary .md 由 SKILL 指令保证生成，存在则登记。
+     *   - 无 SKILL 模式：提示词中要求 AI 自行判断是否有有价值经验，
+     *     有则生成 Summary .md，无则不生成。文件不存在时跳过登记。
+     *
+     * 流程：
+     *   1. 检查 summaryFilePath 对应的文件是否存在（不存在 → 跳过，返回 false）
+     *   2. 读取文件内容，持久化到步骤记录（knowledgeSummary 字段）
+     *   3. 调用 KnowledgeManager.addExperience() 登记到知识沉淀系统
+     *
      * 静默失败：持久化失败不影响主流程。
      *
      * @param {string} summaryFilePath - 摘要文件路径
@@ -606,17 +669,55 @@ class FlexRunner {
             return false;
         }
 
+        // ── 检查经验文档是否存在 ──
+        // 无 SKILL 模式下，AI 可能判断无有价值经验而不生成 Summary 文件，
+        // 此时跳过知识沉淀登记。
+        let exists = false;
+        try {
+            await fs.access(summaryFilePath);
+            exists = true;
+        } catch {
+            exists = false;
+        }
+
+        if (!exists) {
+            this._log('info', `persistKnowledge: 经验文档不存在，跳过知识沉淀登记 — ${summaryFilePath}`);
+            return false;
+        }
+
         try {
             const content = await fs.readFile(summaryFilePath, 'utf-8');
             this._log('info', `persistKnowledge: 已读取摘要文件 (${content.length} 字符)`);
 
-            // 将摘要内容持久化到步骤记录
+            // 1. 将摘要内容持久化到步骤记录
             await this._persistStep({ knowledgeSummary: content });
-
             this._log('info', 'persistKnowledge: 经验已持久化到步骤记录');
+
+            // 2. 登记到知识沉淀系统
+            if (this.#knowledgeManager) {
+                // 避免重复登记：先检查是否已存在
+                const existing = await this.#knowledgeManager.findByDocPath(summaryFilePath);
+                if (existing) {
+                    this._log('info', `persistKnowledge: 经验已登记过，跳重复登记 — id: ${existing.id}`);
+                } else {
+                    const record = await this.#knowledgeManager.addExperience({
+                        docPath: summaryFilePath,
+                        taskId: this.#taskId,
+                        stepId: this.#stepId,
+                        bigLoopIndex: this.#bigLoopIndex,
+                        retryCount: this.#executeStep,
+                        skillDir: this.#matchedSkillDir,
+                        taskDescription: this.#taskDescription
+                    });
+                    this._log('info', `persistKnowledge: 经验已登记到知识沉淀系统 — id: ${record.id}`);
+                }
+            } else {
+                this._log('warn', 'persistKnowledge: KnowledgeManager 未初始化，跳过知识沉淀登记');
+            }
+
             return true;
         } catch (err) {
-            this._log('warn', `persistKnowledge: 读取摘要文件失败: ${summaryFilePath} — ${err.message}`);
+            this._log('warn', `persistKnowledge: 处理摘要文件失败: ${summaryFilePath} — ${err.message}`);
             return false;
         }
     }
@@ -869,10 +970,11 @@ class FlexRunner {
     }
 
     /**
-     * 将当前步骤的执行状态持久化到 db/task/{taskId}/stepid_{stepId}.json。
+     * 将当前步骤的执行状态持久化到 db/task/{taskId}/stepid_{stepId}_loop{L}.json。
      *
      * 在执行过程的关键节点（开始、匹配后、会话创建后、结束、终止）被调用，
      * 增量更新记录文件，方便外部追踪任务执行进度。
+     * 按大循环轮次独立存储，避免跨轮覆盖。
      *
      * 静默失败：持久化不影响主流程，仅记录 warn 日志。
      *
@@ -888,6 +990,7 @@ class FlexRunner {
                 stepId: this.#stepId,
                 dependId: this.#dependId,
                 nextStepId: this.#nextStepId,
+                bigLoopIndex: this.#bigLoopIndex,
                 taskDescription: this.#taskDescription,
                 skillDirectory: this.#skillDirectory,
                 inputReport: this.#inputReport,
@@ -899,7 +1002,7 @@ class FlexRunner {
                 startTime: this.#startTime,
                 endTime: this.#endTime,
                 ...patch
-            });
+            }, this.#bigLoopIndex);
         } catch (err) {
             this._log('warn', `_persistStep: 步骤记录持久化失败: ${err.message}`);
         }
@@ -919,55 +1022,103 @@ class FlexRunner {
      */
     _buildPrompt(taskDescription, skillDir, reportPath, filePaths = {}) {
         const parts = [
-            `## 任务描述\n${taskDescription}`,
-            `## SKILL 目录\n${skillDir}`
+            `## 任务描述\n${taskDescription}`
         ];
-        if (reportPath) {
-            parts.push(`## 输入报告路径\n${reportPath}`);
+
+        // 工作目录：告知 AI 当前工作目录路径，所有文件操作（git clone、读写文件等）均在此目录下执行
+        if (this.#taskDir) {
+            parts.push(`## 工作目录\n${this.#taskDir}\n\n所有文件操作（git clone、读写文件等）请在此目录下执行。`);
         }
-        if (filePaths.resultFilePath) {
-            parts.push(`## 结果文件输出路径\n${filePaths.resultFilePath}`);
-        }
-        if (filePaths.summaryFilePath) {
-            parts.push(`## 摘要文件输出路径\n${filePaths.summaryFilePath}`);
-        }
-        // 历史结果文档（第 N 次执行时传入之前的 result .md）
-        if (filePaths.historyDocs && filePaths.historyDocs.length > 0) {
-            const historyLines = filePaths.historyDocs.map(
-                (doc) => `### ${doc.type} (loop=${doc.loop})\n路径: ${doc.path}\n\n${doc.content}`
+
+        if (skillDir) {
+            // ── 有 SKILL：按照 SKILL 指令执行 ──
+            parts.push(`## SKILL 目录\n${skillDir}`);
+            if (reportPath) {
+                parts.push(`## 输入报告路径\n${reportPath}`);
+            }
+            if (filePaths.resultFilePath) {
+                parts.push(`## 结果文件输出路径\n${filePaths.resultFilePath}`);
+            }
+            if (filePaths.summaryFilePath) {
+                parts.push(`## 摘要文件输出路径\n${filePaths.summaryFilePath}`);
+            }
+            // 历史结果文档（第 N 次执行时传入之前的 result .md）
+            if (filePaths.historyDocs && filePaths.historyDocs.length > 0) {
+                const historyLines = filePaths.historyDocs.map(
+                    (doc) => `### ${doc.type === 'prevLoopResult' ? `上一轮大循环结果 (bigLoop=${doc.loop})` : `本轮重试结果 (retry=${doc.loop})`}\n路径: ${doc.path}\n\n${doc.content}`
+                );
+                parts.push(`## 历史执行文档\n\n${historyLines.join('\n\n---\n\n')}`);
+            }
+            parts.push(
+                '请按照 SKILL 中的指令执行任务。',
+                '执行完成后，请将结果写入上述"结果文件输出路径"，并在"摘要文件输出路径"写入摘要。',
+                '结果文件需包含 `## 执行状态` 字段（值为 `成功` 或 `失败`），用于判断执行结果。'
             );
-            parts.push(`## 历史执行文档\n\n${historyLines.join('\n\n---\n\n')}`);
+        } else {
+            // ── 无 SKILL：基于任务描述本身直接执行 ──
+            if (reportPath) {
+                parts.push(`## 输入报告路径\n${reportPath}`);
+            }
+            if (filePaths.resultFilePath) {
+                parts.push(`## 结果文件输出路径\n${filePaths.resultFilePath}`);
+            }
+            if (filePaths.summaryFilePath) {
+                parts.push(`## 摘要文件输出路径（可选）\n${filePaths.summaryFilePath}`);
+            }
+            // 历史结果文档（第 N 次执行时传入之前的 result .md）
+            if (filePaths.historyDocs && filePaths.historyDocs.length > 0) {
+                const historyLines = filePaths.historyDocs.map(
+                    (doc) => `### ${doc.type === 'prevLoopResult' ? `上一轮大循环结果 (bigLoop=${doc.loop})` : `本轮重试结果 (retry=${doc.loop})`}\n路径: ${doc.path}\n\n${doc.content}`
+                );
+                parts.push(`## 历史执行文档\n\n${historyLines.join('\n\n---\n\n')}`);
+            }
+            parts.push(
+                '本次任务未匹配到专用 SKILL，请直接基于上述任务描述执行任务。',
+                '执行完成后，请将结果写入上述"结果文件输出路径"。',
+                '结果文件需包含 `## 执行状态` 字段（值为 `成功` 或 `失败`），用于判断执行结果。',
+                '',
+                '## 经验沉淀判断（重要）',
+                '执行完成后，请评估本次执行是否产生了**有价值的、可复用的经验总结**。',
+                '判断标准：',
+                '- 本次执行中发现了关键的踩坑点、解决方案、最佳实践或可复用的模式',
+                '- 这些经验对未来类似的任务有明确的参考价值',
+                '- 不是简单的执行流水账或重复的通用知识',
+                '',
+                '如果存在有价值的经验，请将经验总结写入上述"摘要文件输出路径"（如果路径已提供），',
+                '摘要文件应包含：关键发现、踩坑记录、解决方案、可复用建议等。',
+                '',
+                '如果没有有价值的经验可沉淀（如任务过于简单、未发现新的经验），则**不需要生成摘要文件**。',
+                '请勿创建空文件或无实质内容的摘要文件。'
+            );
         }
-        parts.push(
-            '请按照 SKILL 中的指令执行任务。',
-            '执行完成后，请将结果写入上述"结果文件输出路径"，并在"摘要文件输出路径"写入摘要。',
-            '结果文件需包含 `## 执行状态` 字段（值为 `成功` 或 `失败`），用于判断执行结果。'
-        );
         return parts.join('\n\n');
     }
 
     /**
-     * 收集当前 loopCount 之前生成的历史结果文档。
+     * 收集历史结果文档，供 _buildPrompt 使用。
      *
-     * 扫描 taskDir 目录，匹配 `stepId{actualStepId}_result_{n}.md`（n < loopCount），
-     * 读取文件内容，返回结构化数组供 _buildPrompt 使用。
-     * 仅收集 result .md，不收集 Summary。
+     * 收集范围：
+     *   1. 当前大循环轮次内，本次执行之前的重试结果（retry < loopCount）
+     *      文件名: stepId{n}_loop{L}_result_{R}.md（R < loopCount）
+     *   2. 上一轮大循环的最后一次结果（bigLoopIndex > 0 时）
+     *      文件名: stepId{n}_loop{L-1}_result_{*}.md（取最大 R）
      *
      * 静默失败：文件不存在或读取异常时跳过，不影响主流程。
      *
-     * @param {number} loopCount - 当前循环次数（收集 n < loopCount 的文件）
+     * @param {number} loopCount - 当前步骤内重试次数（收集 R < loopCount 的文件）
      * @returns {Promise<Array<{type: string, loop: number, path: string, content: string}>>}
      * @private
      */
     async _collectHistoryDocs(loopCount) {
-        if (loopCount === 0) return [];
-
-        const prefix = `stepId${this.#stepId}`;
         const docs = [];
+        const prefix = `stepId${this.#stepId}`;
 
+        // ── 1. 收集当前大循环内的重试历史 ──
         for (let n = 0; n < loopCount; n++) {
-            // result .md（仅收集结果文件，不收集 Summary）
-            const resultPath = path.join(this.#taskDir, `${prefix}_result_${n}.md`);
+            const resultPath = path.join(
+                this.#taskDir,
+                `${prefix}_loop${this.#bigLoopIndex}_result_${n}.md`
+            );
             try {
                 const content = await fs.readFile(resultPath, 'utf-8');
                 docs.push({ type: 'result', loop: n, path: resultPath, content });
@@ -976,8 +1127,32 @@ class FlexRunner {
             }
         }
 
+        // ── 2. 收集上一轮大循环的最后一次结果（跨轮历史） ──
+        if (this.#bigLoopIndex > 0) {
+            const prevLoop = this.#bigLoopIndex - 1;
+            // 从高到低尝试查找上一轮最后一次重试的结果文件
+            for (let r = this.#maxRetries; r >= 0; r--) {
+                const prevPath = path.join(
+                    this.#taskDir,
+                    `${prefix}_loop${prevLoop}_result_${r}.md`
+                );
+                try {
+                    const content = await fs.readFile(prevPath, 'utf-8');
+                    docs.push({
+                        type: 'prevLoopResult',
+                        loop: prevLoop,
+                        path: prevPath,
+                        content
+                    });
+                    break; // 只取最新的一次
+                } catch {
+                    // 文件不存在，继续尝试更小的 r
+                }
+            }
+        }
+
         if (docs.length > 0) {
-            this._log('info', `_collectHistoryDocs: 收集到 ${docs.length} 份历史结果文档（loop 0~${loopCount - 1}）`);
+            this._log('info', `_collectHistoryDocs: 收集到 ${docs.length} 份历史结果文档`);
         }
 
         return docs;

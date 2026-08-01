@@ -151,16 +151,18 @@ class CLIController {
      * 创建新 Session，可选附带初始提示词
      * @param {string} title    - Session 标题
      * @param {string} [prompt] - 初始提示词（可选）
+     * @param {object} [options]
+     * @param {string} [options.cwd] - 工作目录（指定后 opencode session 的文件操作在此目录下执行）
      * @returns {Promise<{ sessionId: string, action: string, message: string }>}
      */
-    async startSession(title, prompt) {
+    async startSession(title, prompt, options = {}) {
         // 记录 Session 调用次数（异步执行，不影响主流程）
         StatsService.incrementSessionCount().catch(err => {
             // 统计失败不影响正常业务，仅记录日志
             console.warn('[CLIController] Session 统计记录失败:', err.message);
         });
         
-        return this.adapter.startSession(title, prompt);
+        return this.adapter.startSession(title, prompt, options);
     }
 
     /**

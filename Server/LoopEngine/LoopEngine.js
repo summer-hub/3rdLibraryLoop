@@ -195,9 +195,9 @@ class LoopEngine {
         const taskId = params.taskId || _generateTaskId();
         const skillDir = params.skillDirectory || this.skillDirectory;
 
-        // 解析 taskDir
+        // 解析 taskDir：与 JSON 状态文件（storage.json('task')）保持同一目录 db/task/{taskId}
         const taskDir = params.taskDir ||
-            path.resolve(this.storage.manager.rootDir, '..', 'task', taskId);
+            path.resolve(this.storage.manager.rootDir, 'task', taskId);
 
         const channel = taskId;
         const startTime = nowCST();
@@ -620,10 +620,18 @@ class LoopEngine {
      *
      * 文件布局：
      *   db/task/{taskId}/
-     *     ├── brain.json              ← Brain 拆解计划
-     *     ├── orchestration.json      ← Orchestrator 编排状态
-     *     ├── loop.json               ← LoopEngine 大循环状态（本方法写入）
-     *     ├── testcheck_loop0.json    ← 各轮审核结果
+     *     ├── brain.json                    ← Brain 拆解计划（最新快照）
+     *     ├── brain_loop0.json               ← 各轮 Brain 计划（独立保留）
+     *     ├── brain_loop1.json
+     *     ├── orchestration.json             ← Orchestrator 编排状态（最新快照）
+     *     ├── orchestration_loop0.json       ← 各轮编排状态（独立保留）
+     *     ├── orchestration_loop1.json
+     *     ├── stepid_1_loop0.json            ← 各轮步骤执行记录（独立保留）
+     *     ├── stepid_1_loop1.json
+     *     ├── stepId1_loop0_result_0.md      ← 各轮步骤结果文件（独立保留）
+     *     ├── stepId1_loop1_result_0.md
+     *     ├── loop.json                      ← LoopEngine 大循环状态（本方法写入）
+     *     ├── testcheck_loop0.json           ← 各轮审核结果
      *     └── ...
      *
      * @param {LoopContext} ctx

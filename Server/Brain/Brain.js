@@ -131,7 +131,7 @@ export class Brain {
         const taskId = options.taskId || _generateTaskId();
         const skillDir = options.skillDirectory || this.skillDirectory;
         const taskDir = options.taskDir ||
-            path.resolve(this.storage.manager.rootDir, '..', 'task', taskId);
+            path.resolve(this.storage.manager.rootDir, 'task', taskId);
         const userCriteria = options.acceptanceCriteria || '';
 
         this._status = BrainStatus.ANALYZING;
@@ -165,6 +165,8 @@ export class Brain {
                 taskDir,
                 skillDirectory: skillDir,
                 acceptanceCriteria: analysis.acceptanceCriteria || [],
+                // 大循环索引（首轮=0），传递给 Orchestrator/FlexRunner 用于区分各轮产物文件
+                loopCount: 0,
                 steps: rawSteps.map(s => ({
                     stepId: s.stepId,
                     taskDescription: s.taskDescription,
@@ -268,7 +270,7 @@ export class Brain {
         const planId = _generatePlanId();
         const skillDir = options.skillDirectory || this.skillDirectory;
         const taskDir = options.taskDir ||
-            path.resolve(this.storage.manager.rootDir, '..', 'task', taskId);
+            path.resolve(this.storage.manager.rootDir, 'task', taskId);
         const userCriteria = options.acceptanceCriteria || '';
         const loopCount = options.loopCount || 1;
 
@@ -334,6 +336,8 @@ export class Brain {
                 taskDir,
                 skillDirectory: skillDir,
                 acceptanceCriteria: analysis.acceptanceCriteria || [],
+                // 大循环索引，传递给 Orchestrator/FlexRunner 用于区分各轮产物文件
+                loopCount,
                 steps: rawSteps.map(s => ({
                     stepId: s.stepId,
                     taskDescription: s.taskDescription,
@@ -881,7 +885,8 @@ ${skillInstructions}
      *     ├── brain.json               ← 最新计划快照（= 最后一轮的 brain_loop{n}）
      *     ├── testcheck_loop0.json     ← 第 0 轮审核结果（TestCheck 写入）
      *     ├── testcheck_loop1.json     ← 第 1 轮审核结果
-     *     ├── stepid_1.json            ← 步骤执行记录（Orchestrator 执行时写入）
+     *     ├── stepid_1_loop0.json      ← 第 0 轮步骤执行记录（FlexRunner 写入）
+     *     ├── stepid_1_loop1.json      ← 第 1 轮步骤执行记录
      *     └── ...
      *
      * @param {BrainPlan} plan

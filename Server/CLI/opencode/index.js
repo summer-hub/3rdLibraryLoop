@@ -289,13 +289,22 @@ class OpenCodeCLI {
      * 创建新 Session，可选附带初始提示词
      * @param {string} title  - Session 标题
      * @param {string} [prompt] - 初始提示词（可选）
+     * @param {object} [options]
+     * @param {string} [options.cwd] - 工作目录（通过 opencode session.create 的 query.directory 设定）
      */
-    async startSession(title, prompt) {
-        this._log('info', `startSession title="${title}"`);
+    async startSession(title, prompt, options = {}) {
+        const cwd = options.cwd;
+        this._log('info', `startSession title="${title}"${cwd ? ` cwd="${cwd}"` : ''}`);
         try {
-            const session = await this.client.session.create({ body: { title } });
+            // opencode SDK session.create 支持 query.directory 参数，
+            // 用于指定该 Session 的工作目录（git clone、文件读写等操作均在此目录下执行）
+            const createParams = { body: { title } };
+            if (cwd) {
+                createParams.query = { directory: cwd };
+            }
+            const session = await this.client.session.create(createParams);
             const sessionId = session.data.id;
-            this._log('info', `Session 已创建 id=${sessionId}`);
+            this._log('info', `Session 已创建 id=${sessionId}${cwd ? ` directory="${cwd}"` : ''}`);
 
             // 初始化存档元信息
             await this.archive.patchMeta(sessionId, {

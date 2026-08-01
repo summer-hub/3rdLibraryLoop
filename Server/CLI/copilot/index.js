@@ -303,8 +303,9 @@ class CopilotCLI {
      *
      * @param {string} title    - Session 标题
      * @param {string} [prompt] - 初始提示词（可选）
+     * @param {object} [options] - 可选参数（copilot 适配器暂不支持 cwd，忽略此参数）
      */
-    async startSession(title, prompt) {
+    async startSession(title, prompt, options = {}) {
         this._log('info', `startSession title="${title}"`);
         this._log('info', `  prompt 长度: ${prompt ? prompt.length : 0} 字符`);
 

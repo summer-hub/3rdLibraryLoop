@@ -53,15 +53,17 @@ export async function createServer(options = {}) {
     const sseHub = new SseHub();
     const storage = createStorage();
 
-    // FlexRunnerController 是有状态的（管理多个 FlexRunner 实例），需单例
-    const flexRunnerController = new FlexRunnerController();
-
     // OrchestratorController 同样有状态（管理多个编排器实例），需单例
     const orchestratorController = new OrchestratorController({
         sseHub,
         storage,
         flexRunnerFactory: null
     });
+
+    // FlexRunnerController 是有状态的（管理多个 FlexRunner 实例），需单例。
+    // 注入 orchestratorController 使其能查找编排器创建的 FlexRunner 实例。
+    // 注入 storage 使其在没有活跃 runner 时能直接读取 session 归档。
+    const flexRunnerController = new FlexRunnerController({ orchestratorController, storage });
 
     // BrainController 管理 Brain 拆解实例（需单例，复用 LLM 连接）
     const __dirname = path.dirname(fileURLToPath(import.meta.url));

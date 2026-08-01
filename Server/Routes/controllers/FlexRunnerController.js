@@ -19,11 +19,20 @@ import path from 'node:path';
  *   - 列出任务步骤记录
  */
 class FlexRunnerController {
-    constructor() {
+    /**
+     * @param {object} [deps] - 共享依赖
+     * @param {object} [deps.orchestratorController] - OrchestratorController 实例（用于从编排器中查找 FlexRunner）
+     * @param {object} [deps.storage] - Storage 实例（用于在没有活跃 runner 时直接读取 session 归档）
+     */
+    constructor(deps = {}) {
         /** @type {Map<string, FlexRunner>} key = `${taskId}::${stepId}` */
         this._runners = new Map();
         /** @type {Map<string, {logs:string[], status:string}>} key = taskId */
         this._taskLogs = new Map();
+        /** @type {object|null} OrchestratorController 实例 */
+        this._orchestratorController = deps.orchestratorController || null;
+        /** @type {object|null} Storage 实例 */
+        this._storage = deps.storage || null;
     }
 
     // ─── 辅助方法 ──────────────────────────────────────────────────────
@@ -37,14 +46,51 @@ class FlexRunnerController {
 
     /**
      * 获取已有实例，不存在则报错。
+     *
+     * 查找顺序：
+     *   1. 本地 _runners Map（通过 /init 注册的实例）
+     *   2. OrchestratorController 中编排器步骤节点的 _runner（编排执行时创建的实例）
      */
     _getRunner(taskId, stepId) {
+        // 1. 本地 Map
         const key = this._key(taskId, stepId);
-        const runner = this._runners.get(key);
-        if (!runner) {
-            throw new Error(`未找到任务实例: taskId=${taskId}, stepId=${stepId}，请先初始化`);
+        const localRunner = this._runners.get(key);
+        if (localRunner) return localRunner;
+
+        // 2. 从 OrchestratorController 的编排器实例中查找
+        if (this._orchestratorController) {
+            const runner = this._orchestratorController.getStepRunner(taskId, stepId);
+            if (runner) return runner;
         }
-        return runner;
+
+        throw new Error(`未找到任务实例: taskId=${taskId}, stepId=${stepId}，请先初始化或执行编排`);
+    }
+
+    /**
+     * 在没有活跃 FlexRunner 实例时，从编排器步骤元信息中提取 sessionId，
+     * 然后直接读取本地 session 归档返回消息列表。
+     *
+     * 用于服务重启后（runner 不在内存中）仍能查看已完成步骤的对话记录。
+     *
+     * @param {string} taskId
+     * @param {number} stepId
+     * @returns {Promise<{sessionId:string, messages:Array, meta:object|null}|null>}
+     */
+    async _readSessionArchiveFromStep(taskId, stepId) {
+        if (!this._orchestratorController || !this._storage) return null;
+
+        const stepInfo = this._orchestratorController.getStepInfo(taskId, stepId);
+        if (!stepInfo || !stepInfo.sessionId) return null;
+
+        const sessionId = stepInfo.sessionId;
+        const sessionStore = this._storage.sessionStore();
+
+        const [meta, messages] = await Promise.all([
+            sessionStore.readMeta(sessionId).catch(() => null),
+            sessionStore.readMessages(sessionId).catch(() => [])
+        ]);
+
+        return { sessionId, messages, meta };
     }
 
     /**
@@ -196,6 +242,8 @@ class FlexRunnerController {
     /**
      * GET /api/flexrunner/status?taskId=xxx&stepId=yyy
      * 查询 FlexRunner 实例状态
+     *
+     * 如果本地无实例，尝试从编排器恢复步骤状态后返回。
      */
     async status(req, res) {
         const taskId = req.query.taskId;
@@ -204,14 +252,23 @@ class FlexRunnerController {
         let runner;
         try {
             runner = this._getRunner(taskId, stepId);
+            res.json({
+                status: 'ok',
+                runner: this._runnerToJSON(runner),
+            });
         } catch (err) {
+            // 编排器中存在该任务但步骤已结束（runner 未存活），返回步骤元信息
+            if (this._orchestratorController) {
+                const stepInfo = this._orchestratorController.getStepInfo(taskId, stepId);
+                if (stepInfo) {
+                    return res.json({
+                        status: 'ok',
+                        runner: { ...stepInfo, initialized: false },
+                    });
+                }
+            }
             return res.error(404, err.message);
         }
-
-        res.json({
-            status: 'ok',
-            runner: this._runnerToJSON(runner),
-        });
     }
 
     /**
@@ -226,17 +283,45 @@ class FlexRunnerController {
         try {
             runner = this._getRunner(taskId, stepId);
         } catch (err) {
+            // 没有活跃 runner（如服务重启后从磁盘恢复的任务），
+            // 尝试从编排器步骤元信息中获取 sessionId 并读取本地归档
+            const archive = await this._readSessionArchiveFromStep(taskId, stepId);
+            if (archive) {
+                return res.json({
+                    status: 'ok',
+                    sessionId: archive.sessionId,
+                    count: archive.messages.length,
+                    messages: archive.messages,
+                });
+            }
             return res.error(404, err.message);
         }
 
-        const messages = await runner.getLiveMessages();
-
-        res.json({
-            status: 'ok',
-            sessionId: runner.sessionId,
-            count: messages.length,
-            messages,
-        });
+        // 有活跃 runner，优先从远端拉取实时消息
+        try {
+            const messages = await runner.getLiveMessages();
+            return res.json({
+                status: 'ok',
+                sessionId: runner.sessionId,
+                count: messages.length,
+                messages,
+            });
+        } catch (liveErr) {
+            // 远端不可用（opencode 服务关闭/session 过期），回退到本地归档
+            const sessionId = runner.sessionId;
+            if (sessionId && this._storage) {
+                const sessionStore = this._storage.sessionStore();
+                const messages = await sessionStore.readMessages(sessionId).catch(() => []);
+                return res.json({
+                    status: 'ok',
+                    sessionId,
+                    count: messages.length,
+                    messages,
+                    warning: '远端不可用，已回退到本地归档',
+                });
+            }
+            return res.error(500, `获取实时消息失败: ${liveErr.message}`);
+        }
     }
 
     /**
@@ -323,17 +408,47 @@ class FlexRunnerController {
         try {
             runner = this._getRunner(taskId, stepId);
         } catch (err) {
+            // 没有活跃 runner，从编排器步骤元信息获取 sessionId 并读取本地归档
+            const archive = await this._readSessionArchiveFromStep(taskId, stepId);
+            if (archive) {
+                return res.json({
+                    status: 'ok',
+                    sessionId: archive.sessionId,
+                    meta: archive.meta,
+                    messages: archive.messages,
+                });
+            }
             return res.error(404, err.message);
         }
 
-        const jsonStr = await runner.getSessionContent();
-        const data = JSON.parse(jsonStr);
+        try {
+            const jsonStr = await runner.getSessionContent();
+            const data = JSON.parse(jsonStr);
 
-        res.json({
-            status: 'ok',
-            sessionId: runner.sessionId,
-            ...data,
-        });
+            res.json({
+                status: 'ok',
+                sessionId: runner.sessionId,
+                ...data,
+            });
+        } catch (err) {
+            // runner 存在但读取失败，尝试直接从本地归档恢复
+            const sessionId = runner.sessionId;
+            if (sessionId && this._storage) {
+                const sessionStore = this._storage.sessionStore();
+                const [meta, messages] = await Promise.all([
+                    sessionStore.readMeta(sessionId).catch(() => null),
+                    sessionStore.readMessages(sessionId).catch(() => [])
+                ]);
+                return res.json({
+                    status: 'ok',
+                    sessionId,
+                    meta,
+                    messages,
+                    warning: '已回退到本地归档',
+                });
+            }
+            return res.error(500, `获取会话内容失败: ${err.message}`);
+        }
     }
 
     /**
@@ -382,24 +497,38 @@ class FlexRunnerController {
         const { resultFilePath } = body;
 
         let runner;
+        let filePath = resultFilePath || null;
+
         try {
             runner = this._getRunner(taskId, stepId);
+            if (!filePath) filePath = runner.resultPath;
         } catch (err) {
-            return res.error(404, err.message);
+            // 没有活跃 runner（磁盘恢复的任务），从编排器步骤元信息获取 resultPath
+            if (this._orchestratorController) {
+                const stepInfo = this._orchestratorController.getStepInfo(taskId, stepId);
+                if (stepInfo && stepInfo.resultPath) {
+                    filePath = stepInfo.resultPath;
+                }
+            }
+            if (!filePath) {
+                return res.error(404, err.message);
+            }
         }
 
-        const filePath = resultFilePath || runner.resultPath;
         if (!filePath) {
             return res.error(400, 'resultFilePath 为空且实例无记录的 resultPath');
         }
 
-        const success = await runner.checkResult(filePath);
-
-        // 尝试读取文件内容
+        // 读取文件内容并解析执行状态
         let content = null;
+        let success = false;
         try {
             content = await fs.readFile(filePath, 'utf-8');
-        } catch { /* 文件可能不存在 */ }
+            const match = content.match(/##\s*执行状态\s*\n\s*(成功|失败)/i);
+            success = match ? match[1] === '成功' : false;
+        } catch {
+            /* 文件可能不存在 */
+        }
 
         res.json({
             status: 'ok',
@@ -422,9 +551,23 @@ class FlexRunnerController {
 
         // 从已注册的实例中查找该 taskId 的所有 step
         const stepList = [];
+        const seenStepKeys = new Set();
         for (const [key, runner] of this._runners) {
             if (runner.taskId === taskId) {
                 stepList.push(this._runnerToJSON(runner));
+                seenStepKeys.add(this._key(runner.taskId, runner.stepId));
+            }
+        }
+
+        // 从 OrchestratorController 补充编排器管理的步骤（覆盖编排执行创建的实例）
+        if (this._orchestratorController) {
+            const orchSteps = this._orchestratorController.getTaskSteps(taskId);
+            for (const s of orchSteps) {
+                const k = this._key(taskId, s.stepId);
+                if (!seenStepKeys.has(k)) {
+                    stepList.push(s);
+                    seenStepKeys.add(k);
+                }
             }
         }
 

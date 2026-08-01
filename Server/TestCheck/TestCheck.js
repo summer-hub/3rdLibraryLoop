@@ -194,7 +194,7 @@ class TestCheck {
         }
 
         const skillDir = params.skillDirectory || this.skillDirectory;
-        const workDir = taskDir || path.resolve(this.storage.manager.rootDir, '..', 'task', taskId);
+        const workDir = taskDir || path.resolve(this.storage.manager.rootDir, 'task', taskId);
 
         const channel = taskId;
         const checkId = _generateCheckId(taskId, loopCount);
@@ -413,8 +413,8 @@ class TestCheck {
         const title = `testcheck|task=${workDir.split('/').pop()}|loop=${loopCount}`;
         const prompt = this._buildPrompt(taskDescription, skillDir, reportPath, summaryPath, workDir);
 
-        // 创建 Session
-        const { sessionId } = await cli.startSession(title, prompt);
+        // 创建 Session（指定工作目录为 workDir，确保 opencode session 的文件操作在任务目录下执行）
+        const { sessionId } = await cli.startSession(title, prompt, { cwd: workDir });
         this._log('info', `审核 Session 已创建: ${sessionId}`);
 
         // 轮询等待完成
@@ -627,11 +627,13 @@ ${reportContent || '（审核报告为空，无法判断）'}
      *
      * 与 Brain / Orchestrator 的持久化目录结构保持一致：
      *   db/task/{taskId}/
-     *     ├── brain.json                    ← Brain 拆解计划
-     *     ├── orchestration.json            ← Orchestrator 编排状态
+     *     ├── brain.json                    ← Brain 拆解计划（最新快照）
+     *     ├── brain_loop0.json               ← 各轮 Brain 计划
+     *     ├── orchestration.json             ← Orchestrator 编排状态（最新快照）
+     *     ├── orchestration_loop0.json       ← 各轮编排状态
+     *     ├── stepid_1_loop0.json            ← 各轮步骤执行记录
      *     ├── testcheck_loop0.json          ← 第 0 次循环准出审核（本方法写入）
      *     ├── testcheck_loop1.json          ← 第 1 次循环准出审核
-     *     ├── stepid_1.json                 ← 步骤执行记录
      *     └── ...
      *
      * @param {string} taskId

@@ -64,6 +64,69 @@ class OrchestratorController {
         });
     }
 
+    // ─── 供 FlexRunnerController 跨域查询 ──────────────────────────────
+
+    /**
+     * 获取编排器中某步骤关联的 FlexRunner 实例。
+     *
+     * 编排执行时，Orchestrator 在步骤节点上创建 FlexRunner 并挂载到 node._runner。
+     * 此方法供 FlexRunnerController 查找由编排器创建（而非通过 /api/flexrunner/init 注册）的实例，
+     * 使前端的对话/控制/文件操作能正确路由到编排执行中的实例。
+     *
+     * @param {string} taskId
+     * @param {string|number} stepId
+     * @returns {object|null} FlexRunner 实例（可能为 null 表示步骤未执行或已结束且实例未存活）
+     */
+    getStepRunner(taskId, stepId) {
+        let orch;
+        try {
+            orch = this._getOrchestrator(taskId);
+        } catch {
+            return null;
+        }
+        const node = orch.getNode(stepId);
+        if (!node) return null;
+        return node._runner || null;
+    }
+
+    /**
+     * 获取编排器中某步骤的元信息（即使 FlexRunner 实例已不可用）。
+     *
+     * 用于步骤执行结束后，前端仍能查询到步骤的最终状态、sessionId、resultPath 等。
+     *
+     * @param {string} taskId
+     * @param {string|number} stepId
+     * @returns {object|null} 步骤的 JSON 快照
+     */
+    getStepInfo(taskId, stepId) {
+        let orch;
+        try {
+            orch = this._getOrchestrator(taskId);
+        } catch {
+            return null;
+        }
+        const node = orch.getNode(stepId);
+        if (!node) return null;
+        return node.toJSON();
+    }
+
+    /**
+     * 获取编排器中某任务的所有步骤元信息列表。
+     *
+     * @param {string} taskId
+     * @returns {object[]} 步骤 JSON 快照数组（空数组表示任务不存在或无步骤）
+     */
+    getTaskSteps(taskId) {
+        let orch;
+        try {
+            orch = this._getOrchestrator(taskId);
+        } catch {
+            return [];
+        }
+        const progress = orch.getProgress();
+        return progress.steps || [];
+    }
+
     // ─── HTTP Handlers ─────────────────────────────────────────────────
 
     /**

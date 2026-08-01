@@ -89,6 +89,8 @@ class Orchestrator {
         this._taskDir = '';
         /** @type {string} */
         this._skillDirectory = '';
+        /** @type {number} 大循环索引（0=首轮），用于区分各轮产物文件 */
+        this._loopCount = 0;
         /** @type {OrchestratorStatus} */
         this._status = OrchestratorStatus.IDLE;
         /** @type {string|null} */
@@ -182,8 +184,15 @@ class Orchestrator {
         }
 
         this._taskId = String(taskDef.taskId);
-        this._taskDir = taskDef.taskDir || path.resolve(process.cwd(), 'tasks', this._taskId);
+        // taskDir 默认为 db/task/{taskId}（与 storage.json('task') 同目录）
+        const _rootDir = this.storage?.manager?.rootDir;
+        this._taskDir = taskDef.taskDir ||
+            (_rootDir
+                ? path.resolve(_rootDir, 'task', this._taskId)
+                : path.resolve(process.cwd(), 'db', 'task', this._taskId));
         this._skillDirectory = taskDef.skillDirectory || '';
+        // 大循环索引（0=首轮），从 taskDef 读取，用于区分各轮产物文件
+        this._loopCount = Number(taskDef.loopCount) || 0;
         this._nodes.clear();
         this._entryStepIds = [];
 
@@ -543,7 +552,9 @@ class Orchestrator {
             skillDirectory: node.skillDirectory,
             taskDir: node.taskDir,
             inputReport,
-            maxRetries: node.maxRetries
+            maxRetries: node.maxRetries,
+            // 大循环索引，传递给 FlexRunner 用于区分各轮产物文件
+            bigLoopIndex: this._loopCount
         });
         return runner;
     }
@@ -728,6 +739,7 @@ class Orchestrator {
 
         return {
             taskId: this._taskId,
+            loopCount: this._loopCount,
             status: this._status,
             startTime: this._startTime,
             endTime: this._endTime,
@@ -752,6 +764,7 @@ class Orchestrator {
         return {
             taskId: runner.taskId,
             stepId: runner.stepId,
+            bigLoopIndex: runner.bigLoopIndex,
             executeStep: runner.executeStep,
             retryTimes: runner.retryTimes,
             maxRetries: runner.maxRetries,
@@ -797,6 +810,7 @@ class Orchestrator {
             taskId: this._taskId,
             taskDir: this._taskDir,
             skillDirectory: this._skillDirectory,
+            loopCount: this._loopCount,
             status: this._status,
             startTime: this._startTime,
             endTime: this._endTime,
@@ -810,17 +824,22 @@ class Orchestrator {
     }
 
     /**
-     * 持久化当前编排状态到 db/task/{taskId}/orchestration.json
+     * 持久化当前编排状态到 db/task/{taskId}/orchestration_loop{L}.json
+     * 同时写入最新快照 db/task/{taskId}/orchestration.json（兼容恢复逻辑）
      * @private
      */
     async _persistState() {
         if (!this.storage || !this._taskId) return;
         // 串行化：将本次写入追加到 _persistChain 末尾，确保同一时刻只有一个 writeFile 在执行。
-        // 防止并发写入同一 orchestration.json 时因 O_TRUNC 截断产生损坏的 JSON。
+        // 防止并发写入同一文件时因 O_TRUNC 截断产生损坏的 JSON。
         const run = async () => {
             try {
                 const state = this.getPersistableState();
-                await this.storage.json('task').write(`${this._taskId}/orchestration`, state);
+                const json = this.storage.json('task');
+                // 按大循环轮次独立保存（保留历史）
+                await json.write(`${this._taskId}/orchestration_loop${this._loopCount}`, state);
+                // 同时写入最新快照（兼容已有 load/restore 逻辑）
+                await json.write(`${this._taskId}/orchestration`, state);
             } catch (err) {
                 this._log('warn', `_persistState 失败: ${err.message}`);
             }
@@ -849,6 +868,7 @@ class Orchestrator {
         this._taskId = String(state.taskId);
         this._taskDir = state.taskDir || '';
         this._skillDirectory = state.skillDirectory || '';
+        this._loopCount = Number(state.loopCount) || 0;
         this._startTime = state.startTime || null;
         this._endTime = state.endTime || null;
         this._error = state.error || null;

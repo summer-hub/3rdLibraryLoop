@@ -27,8 +27,12 @@ import FlexRunnerController from '../controllers/FlexRunnerController.js';
  */
 export function createFlexRunnerRouter(dependencies) {
     // FlexRunnerController 是有状态的（管理多个实例），
-    // 使用 dependencies 中的共享实例，或自行创建单例
-    const controller = dependencies.flexRunnerController || new FlexRunnerController();
+    // 使用 dependencies 中的共享实例，或自行创建单例。
+    // 传入 orchestratorController 以支持从编排器查找 FlexRunner 实例。
+    const controller = dependencies.flexRunnerController || new FlexRunnerController({
+        orchestratorController: dependencies.orchestratorController || null,
+        storage: dependencies.storage || null
+    });
 
     const router = new Router();
 

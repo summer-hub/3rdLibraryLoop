@@ -43,15 +43,22 @@ class TaskExecutionStore {
 
     /**
      * 生成步骤记录的存储 key。
-     * JsonAdapter 会在 key 后追加 .json，最终文件为 {rootDir}/{taskId}/stepid_{stepId}.json
+     * JsonAdapter 会在 key 后追加 .json，最终文件为：
+     *   - 有 loopCount: {rootDir}/{taskId}/stepid_{stepId}_loop{L}.json
+     *   - 无 loopCount: {rootDir}/{taskId}/stepid_{stepId}.json（向后兼容）
      *
      * @param {string} taskId
      * @param {string} stepId
-     * @returns {string} storage key，如 "task-001/stepid_step-1"
+     * @param {number} [loopCount] - 大循环索引（可选）
+     * @returns {string} storage key
      * @private
      */
-    _key(taskId, stepId) {
-        return `${taskId}/stepid_${stepId}`;
+    _key(taskId, stepId, loopCount) {
+        const base = `${taskId}/stepid_${stepId}`;
+        if (loopCount != null && Number.isFinite(Number(loopCount))) {
+            return `${base}_loop${loopCount}`;
+        }
+        return base;
     }
 
     // ─── 读写 ──────────────────────────────────────────────────────────────────
@@ -61,10 +68,11 @@ class TaskExecutionStore {
      * @param {string} taskId
      * @param {string} stepId
      * @param {object} data - 步骤记录
+     * @param {number} [loopCount] - 大循环索引（可选，传入时按轮次独立存储）
      * @returns {Promise<object>} 写入的数据
      */
-    async writeStep(taskId, stepId, data) {
-        return this.json.write(this._key(taskId, stepId), {
+    async writeStep(taskId, stepId, data, loopCount) {
+        return this.json.write(this._key(taskId, stepId, loopCount), {
             ...data,
             taskId,
             stepId,
@@ -76,10 +84,11 @@ class TaskExecutionStore {
      * 读取步骤执行记录。
      * @param {string} taskId
      * @param {string} stepId
+     * @param {number} [loopCount] - 大循环索引（可选）
      * @returns {Promise<object|null>} 步骤记录，不存在时返回 null
      */
-    async readStep(taskId, stepId) {
-        return this.json.read(this._key(taskId, stepId));
+    async readStep(taskId, stepId, loopCount) {
+        return this.json.read(this._key(taskId, stepId, loopCount));
     }
 
     /**
@@ -89,12 +98,13 @@ class TaskExecutionStore {
      * @param {string} taskId
      * @param {string} stepId
      * @param {object} patch - 要合并的字段
+     * @param {number} [loopCount] - 大循环索引（可选，传入时按轮次独立存储）
      * @returns {Promise<object>} 合并后的完整记录
      */
-    async patchStep(taskId, stepId, patch) {
-        const existing = await this.readStep(taskId, stepId) ?? {};
+    async patchStep(taskId, stepId, patch, loopCount) {
+        const existing = await this.readStep(taskId, stepId, loopCount) ?? {};
         const next = { ...existing, ...patch };
-        return this.writeStep(taskId, stepId, next);
+        return this.writeStep(taskId, stepId, next, loopCount);
     }
 
     /**
