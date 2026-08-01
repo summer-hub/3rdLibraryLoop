@@ -1,0 +1,16 @@
+{
+  "name": "doc-search-engine",
+  "version": "1.0.0",
+  "description": "本地文档检索引擎 - 基于 FTS5 全文检索与 Rerank 重排序",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "scripts": {
+    "test": "echo \"TODO: add tests\" && exit 0"
+  },
+  "dependencies": {
+    "jieba-wasm": "^2.4.0"
+  }
+}
