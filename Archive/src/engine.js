@@ -13,7 +13,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { DEFAULT_CATALOGS, INDEX_VERSION, DEFAULT_DATA_DIR } from './constants.js';
+import { DEFAULT_CATALOGS, INDEX_VERSION, DEFAULT_DATA_DIR, GIT_WARN_BYTES } from './constants.js';
 import { resolveRuntimePaths } from './utils/paths.js';
 import PathSafety, { PathSafetyError } from './utils/path-safety.js';
 import { acquireLock } from './utils/lock.js';
@@ -307,9 +307,37 @@ export default class DocSearchEngine {
 
       const stats = await this.indexManager.getStats();
       await this.indexState.markBuilt(stats.segmentCount);
+
+      // 重建后自动 VACUUM 回收碎片空间
+      await this.backend.vacuum();
     } finally {
       await release();
     }
+  }
+
+  /**
+   * 压缩数据库（VACUUM），回收删除/更新产生的碎片空间。
+   * 建议在批量删除文档后手动调用。
+   * @returns {Promise<void>}
+   */
+  async vacuum() {
+    this.assertReady();
+    const release = await acquireLock(this.paths.lockPath);
+    try {
+      await this.backend.vacuum();
+    } finally {
+      await release();
+    }
+  }
+
+  /**
+   * 将 WAL 日志合并回主库文件（checkpoint）。
+   * 确保 git 提交的 .db 文件包含所有最新写入。
+   * @returns {Promise<void>}
+   */
+  async checkpoint() {
+    this.assertReady();
+    await this.backend.checkpoint();
   }
 
   /**
@@ -326,6 +354,7 @@ export default class DocSearchEngine {
         indexVersion: INDEX_VERSION,
         lastBuiltAt: null,
         isWriting: false,
+        dbSizeWarning: false,
       };
     }
 
@@ -348,6 +377,7 @@ export default class DocSearchEngine {
       indexVersion: INDEX_VERSION,
       lastBuiltAt: meta?.builtAt ?? null,
       isWriting: false,
+      dbSizeWarning: dbSizeBytes >= GIT_WARN_BYTES,
     };
   }
 

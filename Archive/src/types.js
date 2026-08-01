@@ -82,4 +82,5 @@
  * @property {string} indexVersion
  * @property {number|null} lastBuiltAt
  * @property {boolean} isWriting
+ * @property {boolean} dbSizeWarning — DB 大小超过 GIT_WARN_BYTES 时为 true
  */

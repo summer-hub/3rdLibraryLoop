@@ -21,6 +21,9 @@ export const INDEX_VERSION = '1.0.0';
 /** 索引数据库大小上限（字节） */
 export const INDEX_DB_MAX_BYTES = 48 * 1024 * 1024;
 
+/** Git 提交警告阈值（字节），超过此值在 getStatus 中提醒 */
+export const GIT_WARN_BYTES = 8 * 1024 * 1024;
+
 /* ── 查询限制 ── */
 /** 原始查询字符串最大长度 */
 export const QUERY_MAX_RAW_CHARS = 200;

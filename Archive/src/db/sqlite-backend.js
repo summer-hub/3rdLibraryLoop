@@ -263,10 +263,47 @@ export default class SqliteBackend {
   }
 
   /**
+   * 执行 VACUUM 压缩数据库，回收碎片空间。
+   *
+   * 删除/更新文档会产生空闲页（freelist），VACUUM 重建数据库文件，
+   * 消除碎片，保持文件紧凑。适合在批量删除或 rebuildIndex 后调用。
+   *
+   * @returns {Promise<void>}
+   */
+  async vacuum() {
+    if (!this.writeDb) return;
+    // VACUUM 不能在事务中执行
+    this.writeDb.exec('VACUUM;');
+  }
+
+  /**
+   * 将 WAL 日志合并回主数据库文件（checkpoint）。
+   *
+   * WAL 模式下写入先进入 -wal 文件，checkpoint 后才合并到 .db。
+   * 关闭连接前调用可确保 .db 文件包含最新数据，
+   * 这对 git 提交尤为重要——避免提交的 .db 缺少近期写入。
+   *
+   * @returns {Promise<void>}
+   */
+  async checkpoint() {
+    if (!this.writeDb) return;
+    // TRUNCATE 模式：合并 WAL 到主库并截断 WAL 文件
+    this.writeDb.exec('PRAGMA wal_checkpoint(TRUNCATE);');
+  }
+
+  /**
    * 关闭所有数据库连接，释放资源。
+   * 关闭前执行 checkpoint 确保 WAL 数据合并到主库文件。
    * @returns {Promise<void>}
    */
   async close() {
+    if (this.writeDb) {
+      try {
+        await this.checkpoint();
+      } catch {
+        // checkpoint 失败不影响关闭
+      }
+    }
     this.writeDb?.close();
     this.readCache?.db.close();
     this.writeDb = null;

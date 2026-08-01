@@ -9,9 +9,6 @@ data/.index/search.db-shm
 # 写锁文件
 data/.index/write.lock
 
-# ─── 旧 demo 数据（已迁移到 data/） ────────
-demo-data/
-
 # ─── OS / IDE ──────────────────────────────
 .DS_Store
 *.swp
