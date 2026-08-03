@@ -8,6 +8,8 @@
     "test:selector": "node Agent/SkillSelector/__tests__/run-sample.js"
   },
   "dependencies": {
+    "@github/copilot-sdk": "^1.0.8",
+    "@opencode-ai/sdk": "^1.18.10",
     "dotenv": "^17.4.2",
     "openai": "^4.67.0"
   }

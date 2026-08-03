@@ -621,8 +621,9 @@ class FlexRunner {
 
             // ── 3. 创建 Session 并发送初始 prompt ──
             // 指定工作目录为 taskDir，确保 opencode session 的文件操作（git clone 等）在 db/task/{taskId}/ 下执行
-            const { sessionId } = await this.#cli.startSession(title, prompt, { cwd: this.#taskDir });
-            this.#sessionId = sessionId;
+            // const { sessionId } = await this.#cli.startSession(title, prompt, { cwd: this.#taskDir });
+            const { sessionId } = await this.#cli.startSession(title, prompt);
+            this.#sessionId = sessionId
             this._log('info', `Session 已创建: ${sessionId}`);
 
             // ── 4. 轮询等待执行完成 ──
