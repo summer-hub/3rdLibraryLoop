@@ -106,6 +106,14 @@ MCP/
       "headers": {
         "Authorization": "Bearer test-secret"
       }
+    },
+    "gitcode": {
+      "type": "remote",
+      "enabled": true,
+      "url": "https://api.gitcode.com/mcp-server/v1/mcp",
+      "headers": {
+        "Authorization": "Bearer <你的GITCODE个人访问令牌>"
+      }
     }
   },
   "scriptsDir": "./scripts",
