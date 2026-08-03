@@ -98,7 +98,8 @@ export class SkillExecutor {
         const prompt = this.buildSkillPrompt(skillDir, workDir, resultFilePath, contextSections);
 
         // ── 3. 创建 Session 并发送 prompt ──
-        const { sessionId } = await cli.startSession(title, prompt, { cwd: workDir });
+        // const { sessionId } = await cli.startSession(title, prompt, { cwd: workDir });
+        const { sessionId } = await cli.startSession(title, prompt);
 
         // ── 4. 轮询等待完成 ──
         const completed = await this.pollSession(cli, sessionId);
