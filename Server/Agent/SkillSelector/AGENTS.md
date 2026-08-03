@@ -44,8 +44,10 @@ const result = await agent.selectSkill('分析 libcurl 的鸿蒙化可行性', '
 
 console.log(result.best.name);       // 最佳 SKILL 名称（未命中时 best 为 null）
 console.log(result.best.dirName);     // 最佳 SKILL 目录名
-console.log(result.hit);            // 检索是否命中阈值
+console.log(result.hit);            // 检索是否命中（top1>=阈值 且 top1-top2 分差>=10）
 console.log(result.skillPath);       // best 的绝对目录路径
+console.log(result.topScore);        // top1 分数
+console.log(result.scoreGap);        // top1-top2 分差（<10 时判定不确定）
 console.log(result.ranked);          // 排序列表 [{ skill, score, dimensions, reason }]
 console.log(result.analysis);        // 任务拆解
 console.log(result.trace);           // ReAct 每步留痕
@@ -89,7 +91,7 @@ new Agent({
 | `LLM_MAX_TOKENS` | 最大 token | `1024` |
 | `LLM_ENABLE_THINKING` | 是否开启 GLM 思考模式 | `false` |
 | `SELECTOR_TOP_K` | 模糊匹配召回数量 | `5` |
-| `SELECTOR_HIT_THRESHOLD` | 命中阈值（top1 >= 此值才算命中） | `60` |
+| `SELECTOR_HIT_THRESHOLD` | 命中阈值（top1>=此值且分差>=10 才命中） | `70` |
 | `FALLBACK_MODEL` | 连续 3 次 529 过载时切换的备用模型 | - |
 
 ## 设计原则
