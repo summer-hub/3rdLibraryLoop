@@ -22,15 +22,16 @@ compatibility: 适用于任意需要多步骤执行的 AI Loop 任务，要求�
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | `taskDescription` | string | 是 | 自然语言任务描述 |
-| `acceptanceCriteria` | string | 否 | 用户提供的验收标准（自然语言），未提供时由 LLM 自动生成 |
-| `analysis` | object | 否 | 任务分析结果（intent, domain, keywords, constraints, techStack, acceptanceCriteria） |
+| `analysis` | object | 是 | 任务分析结果（intent, domain, keywords, constraints, techStack, acceptanceCriteria） |
+| `resultFilePath` | string | 是 | 拆解结果 JSON 输出路径 |
+| `context` | object | 否 | 重规划上下文（仅重规划时提供，含 failedCriteria、improvementSuggestions 等） |
 | `skillDirectory` | string | 否 | SKILL 目录路径（用于参考已有 SKILL 列表） |
 
 ---
 
 ## 输出产物
 
-JSON 格式的步骤列表，每个步骤包含验收标准：
+将拆解结果以 JSON 格式写入 `resultFilePath` 指定的路径，每个步骤包含验收标准：
 
 ```json
 {
@@ -226,6 +227,50 @@ failStepId → 失败后跳转到哪个步骤（0 = 失败即终止）
   → 成功: 终止
   → 失败: 终止
 ```
+
+---
+
+## 输出要求
+
+### 结果文件格式
+
+将拆解结果以 JSON 格式写入 `resultFilePath` 指定的路径。
+
+结果文件为纯 JSON（不含 markdown 代码块标记，不含任何非 JSON 内容）：
+
+```json
+{
+  "steps": [
+    {
+      "stepId": 1,
+      "taskDescription": "步骤的具体描述",
+      "dependId": 0,
+      "nextStepId": 2,
+      "failStepId": 0,
+      "maxRetries": 3,
+      "acceptanceCriteria": [
+        {
+          "id": "ac1_1",
+          "criterion": "该步骤的验收标准描述",
+          "type": "output",
+          "verification": "验证方式描述",
+          "taskACIds": ["ac1"]
+        }
+      ]
+    }
+  ]
+}
+```
+
+### 重规划时的额外要求
+
+当提供了 `context`（重规划场景）时，拆解需要额外考虑：
+
+1. **针对未满足的标准** — 调整相关步骤的任务描述，使其更明确
+2. **增加验证步骤** — 强化对失败点的验证
+3. **考虑改进建议** — 新增必要的步骤
+4. **保持依赖关系合理** — 步骤间依赖关系需逻辑自洽
+5. **步骤 ID 重新编号** — 从 1 开始重新编号
 
 ---
 

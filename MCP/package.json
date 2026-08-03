@@ -1,0 +1,19 @@
+{
+  "name": "mcp-gateway",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "MCP Gateway Server — 聚合下游 MCP Server 工具 + 可扩展脚本执行",
+  "main": "src/index.js",
+  "bin": {
+    "mcp-gateway": "src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js --config config.json",
+    "dev": "node src/index.js --config config.json"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "chokidar": "^4.0.0"
+  }
+}

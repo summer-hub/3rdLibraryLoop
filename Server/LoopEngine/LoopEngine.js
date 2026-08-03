@@ -246,6 +246,9 @@ class LoopEngine {
                     error: null
                 };
 
+                // 立即将 round 加入 ctx.rounds，使前端轮询能实时看到各阶段进度
+                ctx.rounds.push(round);
+
                 try {
                     // ── 阶段 1：Brain 拆解 / 重规划 ──
                     ctx.status = LoopStatus.PLANNING;
@@ -280,7 +283,6 @@ class LoopEngine {
                         this._log('info', `✅ 第 ${loopNum + 1} 轮准出审核通过，大循环结束`);
                         ctx.status = LoopStatus.PASSED;
                         round.endTime = nowCST();
-                        ctx.rounds.push(round);
                         break;
                     }
 
@@ -293,13 +295,11 @@ class LoopEngine {
                     // 单轮异常不中断整个大循环，继续下一轮（除非是 abort）
                     if (ctx.aborted) {
                         round.endTime = nowCST();
-                        ctx.rounds.push(round);
                         break;
                     }
                 }
 
                 round.endTime = nowCST();
-                ctx.rounds.push(round);
                 ctx.currentLoop++;
 
                 this._emit(channel, SSE_EVENT.LOOP_ROUND_END, {

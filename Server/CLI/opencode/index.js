@@ -1,4 +1,6 @@
 import { createOpencodeClient } from '@opencode-ai/sdk';
+import fs from 'node:fs';
+import path from 'node:path';
 import MessageArchive from '../../DbUse/MessageArchive.js';
 import { nowCST } from '../../library/cstTime.js';
 
@@ -295,6 +297,26 @@ class OpenCodeCLI {
     async startSession(title, prompt, options = {}) {
         const cwd = options.cwd;
         this._log('info', `startSession title="${title}"${cwd ? ` cwd="${cwd}"` : ''}`);
+
+        // 前置检查：如果指定了 cwd，确保目录存在
+        // opencode session.create 不会检查目录是否存在，但 promptAsync 时会
+        // realPath 检查，目录不存在时静默失败（返回 204，tokens=0+0）。
+        if (cwd) {
+            try {
+                const stats = fs.statSync(cwd);
+                if (!stats.isDirectory()) {
+                    throw new Error(`cwd 不是目录: ${cwd}`);
+                }
+            } catch (statErr) {
+                if (statErr.code === 'ENOENT') {
+                    this._log('info', `startSession: cwd 不存在，自动创建 ${cwd}`);
+                    fs.mkdirSync(cwd, { recursive: true });
+                } else {
+                    throw new Error(`startSession: cwd 检查失败: ${statErr.message}`);
+                }
+            }
+        }
+
         try {
             // opencode SDK session.create 支持 query.directory 参数，
             // 用于指定该 Session 的工作目录（git clone、文件读写等操作均在此目录下执行）

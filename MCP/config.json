@@ -1,0 +1,24 @@
+{
+  "downstreamServers": {
+    "kb-server": {
+      "type": "remote",
+      "enabled": true,
+      "url": "https://mcp.huaness.tech/mcp",
+      "headers": {
+        "Authorization": "Bearer test-secret"
+      }
+    }
+  },
+  "scriptsDir": "./scripts",
+  "scripts": {
+    "enabled": true,
+    "hotReload": true,
+    "timeout": 30000,
+    "allowedExtensions": [".sh", ".py", ".js"]
+  },
+  "gateway": {
+    "name": "mcp-gateway",
+    "version": "1.0.0",
+    "transport": "stdio"
+  }
+}
