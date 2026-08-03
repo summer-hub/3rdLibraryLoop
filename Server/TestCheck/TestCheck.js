@@ -414,7 +414,8 @@ class TestCheck {
         const prompt = this._buildPrompt(taskDescription, skillDir, reportPath, summaryPath, workDir);
 
         // 创建 Session（指定工作目录为 workDir，确保 opencode session 的文件操作在任务目录下执行）
-        const { sessionId } = await cli.startSession(title, prompt, { cwd: workDir });
+        // const { sessionId } = await cli.startSession(title, prompt, { cwd: workDir });
+        const { sessionId } = await cli.startSession(title, prompt);
         this._log('info', `审核 Session 已创建: ${sessionId}`);
 
         // 轮询等待完成

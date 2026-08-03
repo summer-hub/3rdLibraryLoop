@@ -1,6 +1,6 @@
 import http from 'node:http';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Router } from './router/Router.js';
 import { registerRoutes } from './routes/index.js';
 import { CLIController } from '../CLI/cli.js';
@@ -167,7 +167,7 @@ export async function createServer(options = {}) {
 }
 
 // ─── 直接运行入口 ──────────────────────────────────────────────────────────
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     const args = process.argv.slice(2);
     const portIdx = args.indexOf('--port');
     const typeIdx = args.indexOf('--type');
