@@ -112,10 +112,14 @@ export class Agent {
       };
     }
 
-    // ─── 命中阈值判定：top1 分数 >= 阈值才算命中 ───
+    // ─── 命中阈值判定：top1 分数 >= 阈值 且 top1-top2 分差足够大才算命中 ───
     // ranked 已按 score 降序，ranked[0] 是最高分候选
     const topScore = ranked.length > 0 ? ranked[0].score : 0;
-    const hit = topScore >= this.hitThreshold;
+    const secondScore = ranked.length > 1 ? ranked[1].score : 0;
+    const scoreGap = topScore - secondScore;
+    // 分差过小（<10）说明 top1 不显著优于 top2，判定为不确定
+    const isAmbiguous = ranked.length > 1 && scoreGap < 10;
+    const hit = topScore >= this.hitThreshold && !isAmbiguous;
 
     // 确定 best：命中时取最高分 SKILL，未命中时为 null（调用方据此走兜底流程）
     let best = null;
@@ -141,6 +145,8 @@ export class Agent {
       hit,
       // top1 分数（便于调用方了解置信度，未召回为 0）
       topScore,
+      // top1-top2 分差（<10 时判定为不确定，hit=false）
+      scoreGap,
       ranked,
       analysis,
       trace,

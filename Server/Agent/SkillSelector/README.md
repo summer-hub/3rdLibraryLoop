@@ -79,10 +79,11 @@ BM25 全零分（无任何 token 重叠）时，回退到 legacy 子串匹配，
 
 ```js
 {
-  best: SkillMeta|null,        // 最佳 SKILL（未命中阈值时为 null）
+  best: SkillMeta|null,        // 最佳 SKILL（未命中阈值/分差过小时为 null）
   skillPath: string|null,      // best 的绝对目录路径（未命中为 null）
-  hit: boolean,                // 检索是否命中阈值
+  hit: boolean,                // 检索是否命中（top1>=阈值 且 top1-top2 分差>=10）
   topScore: number,            // top1 分数
+  scoreGap: number,            // top1-top2 分差（<10 时判定不确定，hit=false）
   ranked: [{ skill, score, dimensions, reason }],  // top5 排序结果
   analysis: TaskAnalysis,       // 任务拆解
   trace: [...]                 // ReAct 每步留痕
@@ -218,7 +219,7 @@ SELECTOR_TOP_K=10
 | `LLM_MAX_TOKENS` | 最大 token 数 | `1024` |
 | `LLM_ENABLE_THINKING` | 是否开启 GLM 思考模式 | `false` |
 | `SELECTOR_TOP_K` | 模糊匹配召回数量 | `5` |
-| `SELECTOR_HIT_THRESHOLD` | 命中阈值（top1 >= 此值才算命中） | `60` |
+| `SELECTOR_HIT_THRESHOLD` | 命中阈值（top1>=此值且分差>=10 才命中） | `70` |
 | `FALLBACK_MODEL` | 连续 3 次 529 过载时切换的备用模型 | — |
 
 ## 设计原则
