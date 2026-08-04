@@ -27,9 +27,9 @@ async function _loadCLIController() {
 }
 
 /** 轮询间隔（ms） */
-const POLL_INTERVAL_MS = 3000;
+const POLL_INTERVAL_MS = 5000;
 /** 轮询超时（ms），单次 SKILL 执行最多等待 10 分钟 */
-const POLL_TIMEOUT_MS = 10 * 60 * 1000;
+const POLL_TIMEOUT_MS = 30 * 60 * 1000;
 
 export { POLL_INTERVAL_MS, POLL_TIMEOUT_MS };
 

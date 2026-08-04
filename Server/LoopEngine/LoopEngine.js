@@ -533,8 +533,8 @@ class LoopEngine {
      * @private
      */
     async _waitForOrchestrator(taskId, orch) {
-        const POLL_MS = 3000;
-        const TIMEOUT_MS = 30 * 60 * 1000; // 30 分钟超时
+        const POLL_MS = 5000;
+        const TIMEOUT_MS = 120 * 60 * 1000; // 120 分钟超时
         const deadline = Date.now() + TIMEOUT_MS;
 
         while (Date.now() < deadline) {

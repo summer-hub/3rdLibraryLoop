@@ -107,10 +107,10 @@ const StepStatus = Object.freeze({
 const DEFAULT_MAX_RETRIES = 5;
 
 /** 轮询间隔（ms），用于等待 opencode session 执行完成 */
-const POLL_INTERVAL_MS = 3000;
+const POLL_INTERVAL_MS = 5000;
 
 /** 轮询超时（ms），单个步骤最多等待 10 分钟 */
-const POLL_TIMEOUT_MS = 10 * 60 * 1000;
+const POLL_TIMEOUT_MS = 30 * 60 * 1000;
 
 // ─── FlexRunner 类 ──────────────────────────────────────────────────────────
 
@@ -1043,12 +1043,14 @@ class FlexRunner {
             if (filePaths.summaryFilePath) {
                 parts.push(`## 摘要文件输出路径\n${filePaths.summaryFilePath}`);
             }
-            // 历史结果文档（第 N 次执行时传入之前的 result .md）
+            // 历史结果文档路径（第 N 次执行时传入之前的 result .md 路径，不传内容）
             if (filePaths.historyDocs && filePaths.historyDocs.length > 0) {
                 const historyLines = filePaths.historyDocs.map(
-                    (doc) => `### ${doc.type === 'prevLoopResult' ? `上一轮大循环结果 (bigLoop=${doc.loop})` : `本轮重试结果 (retry=${doc.loop})`}\n路径: ${doc.path}\n\n${doc.content}`
+                    (doc) => `- 本轮重试结果 (retry=${doc.loop}): ${doc.path}`
                 );
-                parts.push(`## 历史执行文档\n\n${historyLines.join('\n\n---\n\n')}`);
+                parts.push(
+                    `## 历史执行文档路径\n\n以下为本轮大循环中之前重试的结果文件路径，请自行读取参考：\n${historyLines.join('\n')}`
+                );
             }
             parts.push(
                 '请按照 SKILL 中的指令执行任务。',
@@ -1066,12 +1068,14 @@ class FlexRunner {
             if (filePaths.summaryFilePath) {
                 parts.push(`## 摘要文件输出路径（可选）\n${filePaths.summaryFilePath}`);
             }
-            // 历史结果文档（第 N 次执行时传入之前的 result .md）
+            // 历史结果文档路径（第 N 次执行时传入之前的 result .md 路径，不传内容）
             if (filePaths.historyDocs && filePaths.historyDocs.length > 0) {
                 const historyLines = filePaths.historyDocs.map(
-                    (doc) => `### ${doc.type === 'prevLoopResult' ? `上一轮大循环结果 (bigLoop=${doc.loop})` : `本轮重试结果 (retry=${doc.loop})`}\n路径: ${doc.path}\n\n${doc.content}`
+                    (doc) => `- 本轮重试结果 (retry=${doc.loop}): ${doc.path}`
                 );
-                parts.push(`## 历史执行文档\n\n${historyLines.join('\n\n---\n\n')}`);
+                parts.push(
+                    `## 历史执行文档路径\n\n以下为本轮大循环中之前重试的结果文件路径，请自行读取参考：\n${historyLines.join('\n')}`
+                );
             }
             parts.push(
                 '本次任务未匹配到专用 SKILL，请直接基于上述任务描述执行任务。',
@@ -1096,64 +1100,39 @@ class FlexRunner {
     }
 
     /**
-     * 收集历史结果文档，供 _buildPrompt 使用。
+     * 收集当前大循环内的历史结果文档路径，供 _buildPrompt 使用。
      *
-     * 收集范围：
-     *   1. 当前大循环轮次内，本次执行之前的重试结果（retry < loopCount）
-     *      文件名: stepId{n}_loop{L}_result_{R}.md（R < loopCount）
-     *   2. 上一轮大循环的最后一次结果（bigLoopIndex > 0 时）
-     *      文件名: stepId{n}_loop{L-1}_result_{*}.md（取最大 R）
+     * 收集范围：仅当前大循环轮次内，本次执行之前的重试结果（retry < loopCount）
+     *   文件名: stepId{n}_loop{L}_result_{R}.md（R < loopCount）
      *
-     * 静默失败：文件不存在或读取异常时跳过，不影响主流程。
+     * 注意：不再收集上一轮大循环的结果，且只收集文件路径不读取内容。
+     *
+     * 静默失败：文件不存在时跳过，不影响主流程。
      *
      * @param {number} loopCount - 当前步骤内重试次数（收集 R < loopCount 的文件）
-     * @returns {Promise<Array<{type: string, loop: number, path: string, content: string}>>}
+     * @returns {Promise<Array<{type: string, loop: number, path: string}>>}
      * @private
      */
     async _collectHistoryDocs(loopCount) {
         const docs = [];
         const prefix = `stepId${this.#stepId}`;
 
-        // ── 1. 收集当前大循环内的重试历史 ──
+        // ── 收集当前大循环内的重试历史（仅路径，不读取内容） ──
         for (let n = 0; n < loopCount; n++) {
             const resultPath = path.join(
                 this.#taskDir,
                 `${prefix}_loop${this.#bigLoopIndex}_result_${n}.md`
             );
             try {
-                const content = await fs.readFile(resultPath, 'utf-8');
-                docs.push({ type: 'result', loop: n, path: resultPath, content });
+                await fs.access(resultPath);
+                docs.push({ type: 'result', loop: n, path: resultPath });
             } catch {
                 // 文件不存在，跳过
             }
         }
 
-        // ── 2. 收集上一轮大循环的最后一次结果（跨轮历史） ──
-        if (this.#bigLoopIndex > 0) {
-            const prevLoop = this.#bigLoopIndex - 1;
-            // 从高到低尝试查找上一轮最后一次重试的结果文件
-            for (let r = this.#maxRetries; r >= 0; r--) {
-                const prevPath = path.join(
-                    this.#taskDir,
-                    `${prefix}_loop${prevLoop}_result_${r}.md`
-                );
-                try {
-                    const content = await fs.readFile(prevPath, 'utf-8');
-                    docs.push({
-                        type: 'prevLoopResult',
-                        loop: prevLoop,
-                        path: prevPath,
-                        content
-                    });
-                    break; // 只取最新的一次
-                } catch {
-                    // 文件不存在，继续尝试更小的 r
-                }
-            }
-        }
-
         if (docs.length > 0) {
-            this._log('info', `_collectHistoryDocs: 收集到 ${docs.length} 份历史结果文档`);
+            this._log('info', `_collectHistoryDocs: 收集到 ${docs.length} 份历史结果文档路径`);
         }
 
         return docs;

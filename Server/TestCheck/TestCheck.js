@@ -75,8 +75,8 @@ const SSE_EVENT = Object.freeze({
 /** 轮询间隔（ms），等待审核 Skill 执行完成 */
 const POLL_INTERVAL_MS = 3000;
 
-/** 轮询超时（ms），审核最多等待 10 分钟 */
-const POLL_TIMEOUT_MS = 10 * 60 * 1000;
+/** 轮询超时（ms），审核最多等待 30 分钟 */
+const POLL_TIMEOUT_MS = 30 * 60 * 1000;
 
 // ─── TestCheck 类 ────────────────────────────────────────────────────────────
 
