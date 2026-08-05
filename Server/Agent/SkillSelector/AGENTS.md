@@ -7,7 +7,7 @@
 采用 **ReAct（Reason + Act）** 设计模式，分三步完成：
 
 1. **Reason #1 — 任务拆解**：LLM（百炼 / glm-5-1）分析任务，产出 `keywords / intent / constraints / techStack`，作为模糊匹配的输入。prompt 强制保留"准出审核/验收测试"等动作类型词，避免被技术细节淹没。
-2. **Act — 模糊匹配**：本地模糊匹配工具根据上一步输出，在候选 SKILL 池中召回最匹配的 top5。BM25 打分时对动作类型词加权（见 `utils/actionWords.js`），使意向词主导排名。
+2. **Act — 模糊匹配**：本地模糊匹配工具根据上一步输出，在候选 SKILL 池中召回最匹配的 top5。SKILL 文档索引 = metadata×3 + 正文前 2500 字符；BM25 打分含分数归一化、name 精确匹配 bonus、动作词加权（见 `utils/actionWords.js`），使意向词主导排名。
 3. **Reason #2 — 排序筛选**：LLM 对 5 个候选 SKILL 评分排序，选出最佳 SKILL。
 
 ## 目录结构
@@ -24,12 +24,13 @@ SkillSelector/
 │   └── reactSteps.js     # 两个 Reason 步骤封装（analyzeTask / rankSkills）
 ├── matcher/
 │   └── fuzzyMatcher.js   # 模糊匹配工具（分词器 + BM25 + 召回编排，合并模块）
-│                          # BM25 query 侧对动作词加权展开
+│                          # BM25 query 侧对动作词加权展开 + 分数归一化 + name bonus
 ├── utils/
 │   └── actionWords.js    # 动作类型词表中心（ACTION_WORDS / ACTION_WORD_WEIGHT / isActionWord）
 │                          # 供 fuzzyMatcher.js 加权、prompts.js 示例共用
 ├── scanner/
 │   └── skillScanner.js   # SKILL 目录扫描 + frontmatter 解析 → SkillMeta[]
+│                          # searchableText = metadata×3 + 正文前 2500 字符
 └── __tests__/
     ├── run-sample.js      # 端到端自测脚本
     └── test-pure-logic.js # 纯逻辑单测（不依赖 LLM/网络）
@@ -109,5 +110,7 @@ new Agent({
 ## 匹配质量优化注意点
 
 - **提示词保留动作词**：`TASK_ANALYSIS_PROMPT` 强制 LLM 拆解时保留"准出审核/验收测试"等意向关键词，避免冗长任务描述导致丢词。
+- **searchableText 文档侧加权**：`skillScanner._buildSearchableText` 构建索引 = metadata 字段×3 + 正文前 2500 字符，保证 frontmatter 匹配主导，正文补充语义。
+- **BM25 分数归一化 + name bonus**：`fuzzyMatcher` raw 分 ÷ max(3, 原始 query token 数)，跨查询可比、阈值判定稳定；query 关键词与 skill.name 精确匹配时 ×1.15。
 - **BM25 动作词加权**：`fuzzyMatcher` query 侧对动作词重复 `ACTION_WORD_WEIGHT` 次（默认 3），归一化分母用展开前原始 token 数，使动作词主导排名，避免被高频技术词挤出 TopK。
 - **新增动作词**：匹配新动作类型时，把词加入 `utils/actionWords.js` 的 `ACTION_WORDS`，并同步 `TASK_ANALYSIS_PROMPT` 的动作词示例，确保 LLM 产出能被 `isActionWord` 识别。

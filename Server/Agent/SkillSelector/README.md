@@ -51,7 +51,7 @@ flowchart TD
 
 ### 步骤 0：扫描 SKILL 目录
 
-`skillScanner.scanSkills(skillDirectory)` 遍历目录下每个子目录，读取 `SKILL.md`，解析 YAML frontmatter（`name` / `description` / `metadata` 含 `version` / `category` / `language` 等），产出 `SkillMeta[]`。每个 `SkillMeta` 含 `searchableText`（name + description + category + language 拼成的小写串），供 BM25 打分用。
+`skillScanner.scanSkills(skillDirectory)` 遍历目录下每个子目录，读取 `SKILL.md`，解析 YAML frontmatter（`name` / `description` / `metadata` 含 `version` / `category` / `language` 等），产出 `SkillMeta[]`。每个 `SkillMeta` 含 `searchableText`（= name + description + category + language 等 metadata 字段×3 + 正文前 2500 字符拼成的小写串），供 BM25 打分用。metadata 权重放大保证 frontmatter 匹配占主导，正文纳入覆盖 description 未提及的语义。
 
 ### Reason #1：LLM 拆解任务
 
@@ -70,7 +70,11 @@ flowchart TD
 
 `fuzzyMatcher.fuzzyMatch(analysis, skills, { topK })` 用 `keywords` + `intent` 分词后作为查询，对每个 SKILL 的 `searchableText` 做 BM25 打分，按分数降序取 topK 候选。
 
-**动作词加权**：query 侧的动作类型词（`utils/actionWords.js` 的 `ACTION_WORDS`，如"准出审核/验收测试"）会被重复 `ACTION_WORD_WEIGHT`（默认 3）次，等价于打分时权重×3，使意向词主导排名，避免被高频技术词（覆盖率/xts/demo）把真正匹配动作的 SKILL 挤出 TopK。归一化分母用展开前的原始 token 数，保证加权增益不被抵消。
+关键打分策略：
+
+- **分数归一化**：raw 分 ÷ max(3, 原始 query token 数)，使分数落在合理区间、跨查询可比，减少 LLM 排序阶段的阈值判定不稳定。
+- **name 精确匹配 bonus**：query keywords 中任一词与 skill.name 精确匹配时 score ×1.15。
+- **动作词加权**：query 侧的动作类型词（`utils/actionWords.js` 的 `ACTION_WORDS`，如"准出审核/验收测试"）会被重复 `ACTION_WORD_WEIGHT`（默认 3）次，等价于打分时权重×3，使意向词主导排名，避免被高频技术词（覆盖率/xts/demo）把真正匹配动作的 SKILL 挤出 TopK。归一化分母用展开前的原始 token 数，保证加权增益不被抵消。
 
 BM25 全零分（无任何 token 重叠）时，回退到 legacy 子串匹配，保证不返回空。
 
@@ -238,5 +242,6 @@ SELECTOR_TOP_K=10
 SKILL 召回经历了以下演进，共同保证 AcceptanceCheckSkill 等动作匹配类 SKILL 能被精准召回：
 
 1. **提示词保留动作词**（`TASK_ANALYSIS_PROMPT`）：强制 LLM 拆解时保留"准出审核/验收测试"等意向关键词，解决任务描述冗长时丢词问题。
-2. **searchableText 文档侧加权**（`skillScanner._buildSearchableText`）：metadata 字段×3 放大、正文前 2500 字符纳入索引，提升 SKILL 文档匹配质量。
-3. **BM25 query 侧动作词加权**（`fuzzyMatcher`）：动作类型词权重×3，解决动作词被高频技术词淹没、目标 SKILL 被挤出 TopK 的问题。
+2. **searchableText 文档侧加权**（`skillScanner._buildSearchableText`）：索引 = metadata 字段×3 + 正文前 2500 字符，提升 SKILL 文档匹配质量。
+3. **BM25 分数归一化 + name bonus**（`fuzzyMatcher`）：raw 分 ÷ max(3, 原始 query token 数) 使跨查询可比、阈值判定稳定；query 关键词与 skill.name 精确匹配时 ×1.15。
+4. **BM25 query 侧动作词加权**（`fuzzyMatcher`）：动作类型词权重×3，解决动作词被高频技术词淹没、目标 SKILL 被挤出 TopK 的问题。
