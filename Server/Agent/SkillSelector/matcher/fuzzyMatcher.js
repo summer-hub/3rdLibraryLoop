@@ -21,6 +21,8 @@
 // 第 1 段：分词器（原 tokenizer.js）
 // ════════════════════════════════════════════════════════════════════════
 
+import { isActionWord, ACTION_WORD_WEIGHT } from '../utils/actionWords.js';
+
 // ─── 英文停用词（参考 engine.py 的 _STOPWORDS）─────────────────────────────────
 const STOPWORDS = new Set([
   // engine.py 的停用词
@@ -289,9 +291,30 @@ export async function fuzzyMatch(analysis, skills, options = {}) {
   const docs = skills.map((s) => tokenize(s.searchableText || ''));
 
   // ─── Phase A：单路 BM25 打分 ──────────────────────────────────────────────────
-  const query = [...keywords, ...intentTokens];
+  // 动作词加权：把动作类型词重复 ACTION_WORD_WEIGHT 次，等价于打分时权重×N，
+  // 使"验收测试/准出审核"等意向词主导排名，避免被高频技术词（覆盖率/xts/demo）淹没。
+  const query = [];
+  const rawQueryTokens = keywords.length + intentTokens.length; // 展开前的原始 token 数
+  for (const kw of keywords) {
+    query.push(kw);
+    if (isActionWord(kw)) {
+      for (let i = 0; i < ACTION_WORD_WEIGHT - 1; i++) query.push(kw);
+    }
+  }
+  for (const t of intentTokens) {
+    query.push(t);
+    if (isActionWord(t)) {
+      for (let i = 0; i < ACTION_WORD_WEIGHT - 1; i++) query.push(t);
+    }
+  }
+
   const bm25 = new BM25(docs);
-  const scores = bm25.scores(query);
+  const rawScores = bm25.scores(query);
+
+  // 分数归一化：raw / max(3, 原始 query token 数)
+  // 注意分母用展开前的 token 数，避免动作词展开导致分母变大而抵消加权增益
+  const queryTokenCount = Math.max(3, rawQueryTokens);
+  const scores = rawScores.map((s) => s / queryTokenCount);
 
   // 检查 BM25 是否全零（无任何 token 重叠）→ 回退到 legacy 子串匹配
   const hasAnyScore = scores.some((s) => s > 0);
@@ -300,7 +323,16 @@ export async function fuzzyMatch(analysis, skills, options = {}) {
     candidates = _legacySubstringMatch(analysis, skills).slice(0, topK);
   } else {
     candidates = skills
-      .map((skill, i) => ({ skill, score: scores[i] || 0 }))
+      .map((skill, i) => {
+        let score = scores[i] || 0;
+        // name 精确匹配 bonus：query keywords 中任一词与 skill.name 精确匹配时 ×1.15
+        const skillName = (skill.name || '').toLowerCase();
+        const hasNameMatch = keywords.some((kw) => kw && skillName === kw);
+        if (hasNameMatch && score > 0) {
+          score = score * 1.15;
+        }
+        return { skill, score };
+      })
       .sort((a, b) => b.score - a.score)
       .slice(0, topK);
   }

@@ -169,6 +169,8 @@ export async function scanSkills(skillDirectory) {
  */
 function _buildSkillMeta(dirName, dirPath, skillMdPath, fm, md) {
   const metadata = (fm.metadata && typeof fm.metadata === 'object') ? fm.metadata : {};
+  // 提取 frontmatter 之后的正文，截取前 2500 字符参与模糊匹配
+  const bodyText = md.replace(/^---[\s\S]*?---/, '').trim().slice(0, 2500);
   // 计算正文长度（frontmatter 之后的内容），用于评估 SKILL 复杂度
   const bodyLength = md.replace(/^---[\s\S]*?---/, '').length;
 
@@ -185,8 +187,9 @@ function _buildSkillMeta(dirName, dirPath, skillMdPath, fm, md) {
     category: metadata.category || '',
     // 兼容两种字段命名：language 或 language-support
     language: metadata.language || metadata['language-support'] || '',
-    // 候选关键词：name + description + category + language 拼成小写串，便于模糊匹配打分
-    searchableText: _buildSearchableText(fm.name, fm.description, metadata),
+    // 可搜索文本：metadata×3 权重放大 + 正文前 2500 字符
+    searchableText: _buildSearchableText(fm.name, fm.description, metadata, bodyText),
+    bodyText,
     bodyLength,
     hasReferences: false, // 在 scanSkills 后置检测，见下
     hasScripts: false,
@@ -195,17 +198,32 @@ function _buildSkillMeta(dirName, dirPath, skillMdPath, fm, md) {
 
 /**
  * 构建用于模糊匹配的可搜索文本（小写）
+ *
+ * 策略（参考 BearCode 的 BM25 lite）：
+ *   - metadata 字段（name+description+category+language+harmonyos-support+compatibility）
+ *     权重放大 3 倍，确保 frontmatter 匹配占主导
+ *   - 正文前 2500 字符参与索引，覆盖 description 未提及的语义
+ *
+ * @param {string} name
+ * @param {string} description
+ * @param {object} metadata
+ * @param {string} [bodyText=''] - SKILL.md 正文前 2500 字符
+ * @returns {string} 小写拼接文本
  * @private
  */
-function _buildSearchableText(name, description, metadata) {
-  const parts = [
+function _buildSearchableText(name, description, metadata, bodyText = '') {
+  const metaParts = [
     name,
     description,
     metadata.category,
     metadata.language || metadata['language-support'],
     metadata['harmonyos-support'],
-  ].filter(Boolean);
-  return parts.join(' ').toLowerCase();
+    metadata.compatibility || '',
+  ].filter(Boolean).join(' ');
+
+  // metadata 权重放大 3 倍，正文权重 1 倍
+  const metaWeighted = [metaParts, metaParts, metaParts].join(' ');
+  return (metaWeighted + ' ' + bodyText).toLowerCase();
 }
 
 export default { scanSkills, parseFrontmatter };
