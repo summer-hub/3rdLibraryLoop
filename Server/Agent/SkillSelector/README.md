@@ -40,9 +40,10 @@ flowchart TD
 | [index.js](index.js) | 模块统一导出 |
 | [llm/llmClient.js](llm/llmClient.js) | LLM 客户端（百炼 OpenAI 兼容，glm-5-1），提供 `chat()` / `chatJSON()` |
 | [scanner/skillScanner.js](scanner/skillScanner.js) | 扫描 SKILL 目录，解析 `SKILL.md` frontmatter，产出 `SkillMeta[]` |
-| [matcher/fuzzyMatcher.js](matcher/fuzzyMatcher.js) | 模糊匹配工具（合并模块）：分词器 + 纯 JS BM25 + 单路召回编排 + legacy fallback |
+| [matcher/fuzzyMatcher.js](matcher/fuzzyMatcher.js) | 模糊匹配工具（合并模块）：分词器 + 纯 JS BM25 + 单路召回编排 + legacy fallback；BM25 query 侧对动作词加权 |
+| [utils/actionWords.js](utils/actionWords.js) | 动作类型词表中心（`ACTION_WORDS` / `ACTION_WORD_WEIGHT` / `isActionWord`），供 fuzzyMatcher 加权与 prompts 示例共用 |
 | [llm/reactSteps.js](llm/reactSteps.js) | 两个 Reason 步骤封装：`analyzeTask` / `rankSkills` |
-| [llm/prompts.js](llm/prompts.js) | prompt 模板 + `renderTemplate` 占位符替换 |
+| [llm/prompts.js](llm/prompts.js) | prompt 模板 + `renderTemplate` 占位符替换（`TASK_ANALYSIS_PROMPT` 含动作词提取约束） |
 | [types.js](types.js) | 数据结构 JSDoc 契约（`SkillMeta` / `TaskAnalysis` / `SkillSelection`；本地保留，不提交远端） |
 | [__tests__/](__tests__/) | 自测脚本 |
 
@@ -54,7 +55,7 @@ flowchart TD
 
 ### Reason #1：LLM 拆解任务
 
-`reactSteps.analyzeTask(llm, task)` 调用 glm-5-1，将具体事项拆解为结构化的 `TaskAnalysis`：
+`reactSteps.analyzeTask(llm, task)` 调用 glm-5-1，将具体事项拆解为结构化的 `TaskAnalysis`。`TASK_ANALYSIS_PROMPT` 通过规则化约束 + few-shot 示例，强制 LLM 保留"准出审核/验收测试/可行性分析/代码生成"等**动作类型词**（避免被冗长技术细节淹没），并让 `intent` 以动词开头点明动作类型：
 
 ```json
 {
@@ -68,6 +69,8 @@ flowchart TD
 ### Act：模糊匹配召回
 
 `fuzzyMatcher.fuzzyMatch(analysis, skills, { topK })` 用 `keywords` + `intent` 分词后作为查询，对每个 SKILL 的 `searchableText` 做 BM25 打分，按分数降序取 topK 候选。
+
+**动作词加权**：query 侧的动作类型词（`utils/actionWords.js` 的 `ACTION_WORDS`，如"准出审核/验收测试"）会被重复 `ACTION_WORD_WEIGHT`（默认 3）次，等价于打分时权重×3，使意向词主导排名，避免被高频技术词（覆盖率/xts/demo）把真正匹配动作的 SKILL 挤出 TopK。归一化分母用展开前的原始 token 数，保证加权增益不被抵消。
 
 BM25 全零分（无任何 token 重叠）时，回退到 legacy 子串匹配，保证不返回空。
 
@@ -228,3 +231,12 @@ SELECTOR_TOP_K=10
 - **可替换**：`LLMClient` 和 `matcher` 均支持注入 mock / 自定义实现
 - **可测试**：纯逻辑自测不依赖 LLM 和网络，完整自测验证端到端流程
 - **零原生依赖**：BM25 用纯 JS 实现，不依赖 SQLite / 原生编译模块
+- **动作词集中管理**：动作类型词表集中在 `utils/actionWords.js`，prompt 示例与 BM25 加权共用同一来源，避免词表漂移
+
+## 匹配质量优化（演进记录）
+
+SKILL 召回经历了以下演进，共同保证 AcceptanceCheckSkill 等动作匹配类 SKILL 能被精准召回：
+
+1. **提示词保留动作词**（`TASK_ANALYSIS_PROMPT`）：强制 LLM 拆解时保留"准出审核/验收测试"等意向关键词，解决任务描述冗长时丢词问题。
+2. **searchableText 文档侧加权**（`skillScanner._buildSearchableText`）：metadata 字段×3 放大、正文前 2500 字符纳入索引，提升 SKILL 文档匹配质量。
+3. **BM25 query 侧动作词加权**（`fuzzyMatcher`）：动作类型词权重×3，解决动作词被高频技术词淹没、目标 SKILL 被挤出 TopK 的问题。

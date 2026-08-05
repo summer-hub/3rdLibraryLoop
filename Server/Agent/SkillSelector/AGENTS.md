@@ -6,8 +6,8 @@
 
 采用 **ReAct（Reason + Act）** 设计模式，分三步完成：
 
-1. **Reason #1 — 任务拆解**：LLM（百炼 / glm-5-1）分析任务，产出 `keywords / intent / constraints / techStack`，作为模糊匹配的输入。
-2. **Act — 模糊匹配**：本地模糊匹配工具根据上一步输出，在候选 SKILL 池中召回最匹配的 top5。
+1. **Reason #1 — 任务拆解**：LLM（百炼 / glm-5-1）分析任务，产出 `keywords / intent / constraints / techStack`，作为模糊匹配的输入。prompt 强制保留"准出审核/验收测试"等动作类型词，避免被技术细节淹没。
+2. **Act — 模糊匹配**：本地模糊匹配工具根据上一步输出，在候选 SKILL 池中召回最匹配的 top5。BM25 打分时对动作类型词加权（见 `utils/actionWords.js`），使意向词主导排名。
 3. **Reason #2 — 排序筛选**：LLM 对 5 个候选 SKILL 评分排序，选出最佳 SKILL。
 
 ## 目录结构
@@ -20,10 +20,14 @@ SkillSelector/
 │   └── Agent.js          # 对外导出的 Agent 类，selectSkill(task, skillDirectory) 主入口
 ├── llm/
 │   ├── llmClient.js      # LLM 客户端（百炼 OpenAI 兼容，glm-5-1）
-│   ├── prompts.js        # prompt 模板 + renderTemplate
+│   ├── prompts.js        # prompt 模板 + renderTemplate（TASK_ANALYSIS_PROMPT 含动作词约束）
 │   └── reactSteps.js     # 两个 Reason 步骤封装（analyzeTask / rankSkills）
 ├── matcher/
 │   └── fuzzyMatcher.js   # 模糊匹配工具（分词器 + BM25 + 召回编排，合并模块）
+│                          # BM25 query 侧对动作词加权展开
+├── utils/
+│   └── actionWords.js    # 动作类型词表中心（ACTION_WORDS / ACTION_WORD_WEIGHT / isActionWord）
+│                          # 供 fuzzyMatcher.js 加权、prompts.js 示例共用
 ├── scanner/
 │   └── skillScanner.js   # SKILL 目录扫描 + frontmatter 解析 → SkillMeta[]
 └── __tests__/
@@ -100,3 +104,10 @@ new Agent({
 - **低耦合**：模块间仅通过明确接口通信，`core/Agent.js` 只做编排，不写 prompt 细节、不碰 fs、不碰 HTTP
 - **可替换**：模糊匹配支持通过 `createFuzzyMatcher` / 构造函数注入自定义算法（向量检索 / BM25 / LLM 打分）
 - **可测试**：`LLMClient` / `matcher` 均支持注入 mock
+- **动作词集中管理**：动作类型词表集中在 `utils/actionWords.js`，prompt 示例与 BM25 加权共用同一来源，避免词表漂移
+
+## 匹配质量优化注意点
+
+- **提示词保留动作词**：`TASK_ANALYSIS_PROMPT` 强制 LLM 拆解时保留"准出审核/验收测试"等意向关键词，避免冗长任务描述导致丢词。
+- **BM25 动作词加权**：`fuzzyMatcher` query 侧对动作词重复 `ACTION_WORD_WEIGHT` 次（默认 3），归一化分母用展开前原始 token 数，使动作词主导排名，避免被高频技术词挤出 TopK。
+- **新增动作词**：匹配新动作类型时，把词加入 `utils/actionWords.js` 的 `ACTION_WORDS`，并同步 `TASK_ANALYSIS_PROMPT` 的动作词示例，确保 LLM 产出能被 `isActionWord` 识别。

@@ -52,6 +52,7 @@ let _CLIController = null;
 let _SkillSelectorAgent = null;
 let _createStorage = null;
 let _KnowledgeManager = null;
+let _McpToolGuide = null;
 
 async function _loadCLIController() {
     if (!_CLIController) {
@@ -83,6 +84,14 @@ async function _loadKnowledgeManager() {
         _KnowledgeManager = mod.KnowledgeManager;
     }
     return _KnowledgeManager;
+}
+
+async function _loadMcpToolGuide() {
+    if (!_McpToolGuide) {
+        const mod = await import('../library/McpToolGuide.js');
+        _McpToolGuide = mod.McpToolGuide;
+    }
+    return _McpToolGuide;
 }
 
 // ─── 常量 ────────────────────────────────────────────────────────────────────
@@ -179,6 +188,9 @@ class FlexRunner {
     /** @type {import('../Knowledge/KnowledgeManager.js').default|null} */
     #knowledgeManager = null;
 
+    /** @type {import('../library/McpToolGuide.js').default|null} */
+    #mcpToolGuide = null;
+
     /** @type {boolean} 是否已初始化 */
     #initialized = false;
 
@@ -269,6 +281,7 @@ class FlexRunner {
      * @param {SkillSelectorAgent} [params.skillSelector] - 注入自定义 Skill 选择器
      * @param {ReturnType<createStorage>} [params.storage] - 注入自定义存储层
      * @param {number} [params.pollIntervalMs] - 轮询间隔 ms（默认 3000）
+     * @param {string} [params.mcpConfigPath] - MCP config.json 路径（默认自动推导）
      * @returns {Promise<void>}
      */
     async initContext(params = {}) {
@@ -291,7 +304,8 @@ class FlexRunner {
             skillSelector,
             storage,
             knowledgeManager,
-            pollIntervalMs
+            pollIntervalMs,
+            mcpConfigPath
         } = params;
 
         if (!taskId) {
@@ -365,6 +379,10 @@ class FlexRunner {
             this.#knowledgeManager = new KnowledgeManager();
             await this.#knowledgeManager.init();
         }
+
+        // MCP 工具引导（支持注入；未注入时惰性加载，用 mcpConfigPath 或默认路径）
+        const McpToolGuide = await _loadMcpToolGuide();
+        this.#mcpToolGuide = new McpToolGuide(mcpConfigPath);
 
         this.#initialized = true;
     }
@@ -1096,6 +1114,15 @@ class FlexRunner {
                 '请勿创建空文件或无实质内容的摘要文件。'
             );
         }
+
+        // ── MCP 工具引导：提醒 AI 主动使用 MCP Gateway 提供的工具 ──
+        if (this.#mcpToolGuide) {
+            const toolGuide = this.#mcpToolGuide.buildToolGuide();
+            if (toolGuide) {
+                parts.push(toolGuide);
+            }
+        }
+
         return parts.join('\n\n');
     }
 

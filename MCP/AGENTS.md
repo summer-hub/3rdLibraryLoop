@@ -160,6 +160,66 @@ node src/index.js --config /path     # 指定配置文件
 }
 ```
 
+## 与 3rdLibraryLoop Server 集成
+
+### opencode 自动发现
+
+opencode 全局配置 `opencode.jsonc` 已配置 MCP Gateway（local 模式），opencode 启动时自动 spawn Gateway 进程，并通过 MCP 协议 `tools/list` 发现全部工具。AI 本身已知每个工具的精确名称、描述和参数 schema，无需 Server 侧重复维护工具清单。
+
+```jsonc
+// ~/.config/opencode/opencode.jsonc
+{
+  "mcp": {
+    "mcp-gateway": {
+      "type": "local",
+      "command": ["node", "D:/code/3rdLibraryLoop/MCP/src/index.js", "--config", "D:/code/3rdLibraryLoop/MCP/config.json"],
+      "enabled": true
+    }
+  }
+}
+```
+
+### Server 侧工具引导（McpToolGuide）
+
+Server 通过 `Server/library/McpToolGuide.js` 从 `MCP/config.json` 读取下游 Server 名称 + 扫描 `MCP/scripts/` 解析 `@tool` 注释，动态生成引导性 prompt 段落，提醒 AI 主动使用 MCP 工具。
+
+- **折中方式**：prompt 只写引导性文字（"你有 kb-server 知识库搜索、gitcode 仓库操作等工具可用"），不列具体工具名和参数。工具发现交给 opencode MCP 协议。
+- **数据驱动**：新增/删除下游 Server 只改 `config.json`，新增/删除脚本只改 `scripts/` 目录，prompt 自动更新，无需改代码。
+- **不缓存**：每次构建 prompt 都重新读取 `config.json` + 扫描 `scripts/`，确保新增工具即时被发现。读取开销很小。
+- **静默失败**：配置文件不存在或读取异常时返回空字符串，不影响主流程。
+
+集成点：FlexRunner `_buildPrompt()` 末尾调用 `mcpToolGuide.buildToolGuide()`，非空时追加到 prompt。
+
+### 时序注意事项
+
+| 新增类型 | McpToolGuide 发现 | Gateway 发现 | opencode AI 可调用 |
+|---------|------------------|-------------|-------------------|
+| 新脚本 | 即时（下次 buildToolGuide） | 即时（chokidar 热加载） | 需 opencode 重新 tools/list |
+| 新下游 Server | 即时（下次 buildToolGuide） | 需重启 Gateway | 需重启 opencode |
+
+新增脚本无风险；新增下游 Server 需重启 opencode 才能让 AI 真正调用。
+
+### kb-server search_knowledge 返回结构（已验证）
+
+```json
+{
+  "query": "ArkTS",
+  "category": null,
+  "total": 3,
+  "results": [
+    {
+      "id": "msc1tmugast1uzqv",
+      "title": "条目标题",
+      "snippet": "正文摘要片段",
+      "category": "patterns/arkts",
+      "score": 12.19
+    }
+  ]
+}
+```
+
+AI 可根据 `score` 字段（BM25 相关性分数）自行判断相关性，决定是否采用检索到的经验。
+
 ## 编码规范
 
 - **ESM 模块**：统一使用 `import/export`，文件扩展名 `.js`
