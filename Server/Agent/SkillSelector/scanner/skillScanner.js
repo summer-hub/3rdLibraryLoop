@@ -187,6 +187,8 @@ function _buildSkillMeta(dirName, dirPath, skillMdPath, fm, md) {
     category: metadata.category || '',
     // 兼容两种字段命名：language 或 language-support
     language: metadata.language || metadata['language-support'] || '',
+    // 触发场景声明：优先取 frontmatter 的 metadata.useWhen，否则从 description 的 "use when" 段解析
+    useWhen: metadata.useWhen || _extractUseWhen(fm.description || ''),
     // 可搜索文本：metadata×3 权重放大 + 正文前 2500 字符
     searchableText: _buildSearchableText(fm.name, fm.description, metadata, bodyText),
     bodyText,
@@ -194,6 +196,35 @@ function _buildSkillMeta(dirName, dirPath, skillMdPath, fm, md) {
     hasReferences: false, // 在 scanSkills 后置检测，见下
     hasScripts: false,
   };
+}
+
+/**
+ * 从 description 中解析 "use when..." 触发场景段
+ *
+ * 规范格式（见 skill-generator）：description = {做什么}. Use when {什么时候用}. {关键词}.
+ * 兼容多种写法：
+ *   - "Use when 需要评估...覆盖率。"          → "需要评估...覆盖率"
+ *   - "use when auditing README/API docs..." → "auditing README/API docs"
+ *   - "USE FOR: 鸿蒙三方库接口提取..."         → "鸿蒙三方库接口提取..."
+ * 解析失败（无 use when 段）返回空字符串，不阻塞。
+ *
+ * @param {string} description
+ * @returns {string}
+ * @private
+ */
+function _extractUseWhen(description) {
+  if (!description) return '';
+  // 优先匹配 "use when" / "use for" 之后的内容，取到句子结束（句号/分号/换行）
+  const m = description.match(/(?:use\s+when|use\s+for)\s*[：:，,]?\s*(.+?)(?:[。；;]|$)/i);
+  if (m && m[1]) {
+    return m[1].trim();
+  }
+  // 兼容中文散文式："当...时调用" / "当...时使用"
+  const cn = description.match(/当(.+?)(?:时调用|时使用)/);
+  if (cn && cn[1]) {
+    return cn[1].trim();
+  }
+  return '';
 }
 
 /**

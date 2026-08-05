@@ -17,7 +17,7 @@ import { TASK_ANALYSIS_PROMPT, SKILL_RANKING_PROMPT, renderTemplate } from './pr
  * Reason #1：任务拆解
  * @param {object} llm - LLMClient 实例（需提供 chatJSON）
  * @param {string} task - 具体事项
- * @returns {Promise<object>} TaskAnalysis: { intent, keywords[], constraints[], techStack[] }
+ * @returns {Promise<object>} TaskAnalysis: { intent, keywords[], constraints[], techStack[], whenToUse }
  */
 export async function analyzeTask(llm, task) {
   if (!task) throw new Error('analyzeTask: task 不能为空');
@@ -31,6 +31,7 @@ export async function analyzeTask(llm, task) {
     keywords: _toArray(result.keywords),
     constraints: _toArray(result.constraints),
     techStack: _toArray(result.techStack),
+    whenToUse: typeof result.whenToUse === 'string' ? result.whenToUse : '',
   };
 }
 
@@ -64,6 +65,7 @@ export async function rankSkills(llm, task, analysis, candidates) {
         `id: ${skill.dirName}`,
         `name: ${skill.name || ''}`,
         `description: ${skill.description || ''}`,
+        `useWhen: ${skill.useWhen || '(无)'}`,
         `category: ${skill.category || ''}`,
         `language: ${skill.language || ''}`,
       ].filter(Boolean);
@@ -75,6 +77,7 @@ export async function rankSkills(llm, task, analysis, candidates) {
   const prompt = renderTemplate(SKILL_RANKING_PROMPT, {
     TASK: task,
     ANALYSIS: analysisText,
+    WHEN_TO_USE: analysis?.whenToUse || '（未拆解出触发场景）',
     CANDIDATES: candidatesText,
   });
 
