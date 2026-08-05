@@ -93,7 +93,7 @@ new Agent({
 | `LLM_BASE_URL` | OpenAI 兼容端点 | `https://dashscope.aliyuncs.com/compatible-mode/v1` |
 | `LLM_MODEL` | 模型名 | `glm-5-1` |
 | `LLM_TEMPERATURE` | 采样温度 | `0.2` |
-| `LLM_MAX_TOKENS` | 最大 token | `1024` |
+| `LLM_MAX_TOKENS` | 最大 token | `2048` |
 | `LLM_ENABLE_THINKING` | 是否开启 GLM 思考模式 | `false` |
 | `SELECTOR_TOP_K` | 模糊匹配召回数量 | `5` |
 | `SELECTOR_HIT_THRESHOLD` | 命中阈值（top1>=此值且分差>=10 才命中） | `70` |
