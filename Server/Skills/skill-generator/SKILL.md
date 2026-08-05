@@ -1,6 +1,6 @@
 ---
 name: skill-generator
-description: 按照Agent Skills规范生成高质量的SKILL，自动调用MCP脚本与鸿蒙知识库补充能力，生成渐进式披露结构（SKILL.md+references+assets+scripts），并在结尾沉淀经验总结。当需要创建新SKILL、规范化已有SKILL、或为某个重复性任务封装可复用技能时使用。
+description: 按照Agent Skills规范生成高质量的SKILL，自动调用MCP脚本与鸿蒙知识库补充能力，生成渐进式披露结构（SKILL.md+references+assets+scripts）。当需要创建新SKILL、规范化已有SKILL、或为某个重复性任务封装可复用技能时使用。
 license: Apache-2.0
 compatibility: 需要MCP Gateway运行中（脚本工具+知识库工具），需要文件写入权限到Server/Skills目录
 metadata:
@@ -12,7 +12,7 @@ metadata:
 # Skill Generator — SKILL 生成器
 
 本技能用于**按规范生成新SKILL**。它不是一个简单的模板填充器，而是一个结构化生成流程：
-理解需求 → 检索MCP能力 → 查询知识库 → 编写SKILL.md → 拆分references → 沉淀经验。
+理解需求 → 检索MCP能力 → 查询知识库 → 编写SKILL.md → 拆分references。
 
 > ⚠️ **核心原则：生成的每个SKILL必须同时满足规范合规、渐进式披露、MCP能力复用三条底线。**
 
@@ -51,7 +51,7 @@ Phase 5: references/assets/scripts 拆分（渐进式披露）
     ↓
 Phase 6: 规范合规性自检
     ↓
-Phase 7: 经验沉淀判断与输出
+Phase 7: 最终输出
 ```
 
 ---
@@ -331,44 +331,7 @@ bash {outputDir}/scripts/validate-skill.sh {outputDir}
 
 ---
 
-## Phase 7：经验沉淀判断与输出
-
-### 7.1 经验沉淀判断
-
-生成SKILL后，评估是否有**可沉淀的经验总结**：
-
-| 判断条件 | 沉淀动作 |
-|----------|----------|
-| 在生成过程中发现了新的鸿蒙坑/模式 | 写入经验总结文档 |
-| 知识库查询发现了非通用的最佳实践 | 写入经验总结文档 |
-| MCP工具使用有非显然的注意事项 | 写入经验总结文档 |
-| SKILL设计中有可复用的结构模式 | 写入经验总结文档 |
-| 以上都不满足 | 跳过沉淀 |
-
-### 7.2 经验总结文档格式
-
-若有沉淀价值，在SKILL的 `references/` 下创建 `LESSONS_LEARNED.md`：
-
-```markdown
-# 经验总结：{主题}
-
-## 背景
-{什么场景下发现的}
-
-## 关键发现
-- {发现1}
-- {发现2}
-
-## 最佳实践
-- {实践1}
-- {实践2}
-
-## 注意事项
-- {注意1}
-- {注意2}
-```
-
-### 7.3 最终输出
+## Phase 7：最终输出
 
 确认输出目录包含所有文件：
 
@@ -379,8 +342,7 @@ bash {outputDir}/scripts/validate-skill.sh {outputDir}
 │   ├── SKILL_SPEC.md
 │   ├── MCP_TOOL_DISCOVERY.md
 │   ├── KB_QUERY_GUIDE.md
-│   ├── COMPLIANCE_CHECKLIST.md
-│   └── LESSONS_LEARNED.md      # （如有沉淀价值）
+│   └── COMPLIANCE_CHECKLIST.md
 ├── assets/                     # ✅ 模板资源
 │   └── SKILL_TEMPLATE.md
 └── scripts/                    # ✅ 校验脚本
@@ -392,4 +354,3 @@ bash {outputDir}/scripts/validate-skill.sh {outputDir}
 - frontmatter 摘要（name、description）
 - 引用的MCP工具列表
 - 融合的知识库要点
-- 是否沉淀了经验总结
