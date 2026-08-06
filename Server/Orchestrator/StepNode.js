@@ -30,7 +30,7 @@ export const NodeStatus = Object.freeze({
  * @property {number|string} [dependId=0]  - 依赖步骤 ID（0 或 null = 无依赖，首个步骤）
  * @property {number|string} [nextStepId=0]- 成功后下一步骤 ID（0 = 无后续，结束）
  * @property {number|string} [failStepId=0]- 失败后指向步骤 ID（0 = 失败即终止）
- * @property {number}        [maxRetries=5]- 最大重试次数
+ * @property {number}        [maxRetries=3]- 最大重试次数
  * @property {string}        [skillDirectory] - SKILL 目录路径
  * @property {string}        [taskDir]     - 工作目录
  * @property {string}        [inputReport] - 输入报告路径
@@ -63,7 +63,7 @@ class StepNode {
         this.dependId = config.dependId != null ? String(config.dependId) : '0';
         this.nextStepId = config.nextStepId != null ? String(config.nextStepId) : '0';
         this.failStepId = config.failStepId != null ? String(config.failStepId) : '0';
-        this.maxRetries = typeof config.maxRetries === 'number' ? config.maxRetries : 5;
+        this.maxRetries = typeof config.maxRetries === 'number' ? config.maxRetries : 3;
         this.skillDirectory = config.skillDirectory || '';
         this.taskDir = config.taskDir || '';
         this.inputReport = config.inputReport || '';
@@ -123,9 +123,13 @@ class StepNode {
 
     // ─── 状态变更 ──────────────────────────────────────────────────────
 
-    /** 标记为就绪（依赖已满足） */
+    /** 标记为就绪（依赖已满足）。
+     *  允许从 PENDING（初始）/ COMPLETED（成功）/ FAILED（失败）重新进入 READY，
+     *  以支持 failStepId 修复步骤被重复执行（不清空历史结果，由 markRunning/markFinished 自然更新）。 */
     markReady() {
-        if (this.status === NodeStatus.PENDING) {
+        if (this.status === NodeStatus.PENDING ||
+            this.status === NodeStatus.COMPLETED ||
+            this.status === NodeStatus.FAILED) {
             this.status = NodeStatus.READY;
         }
     }

@@ -26,7 +26,7 @@
  *   taskDir: '/workspace/tasks/task-001',
  *   skillDirectory: '/workspace/Server/Skills',
  *   taskDescription: '分析 libcurl 的鸿蒙化可行性',
- *   maxRetries: 5
+ *   maxRetries: 3
  * });
  * const ok = await runner.executeStart();
  */
@@ -113,7 +113,7 @@ const StepStatus = Object.freeze({
 });
 
 /** 默认最大重试次数 */
-const DEFAULT_MAX_RETRIES = 5;
+const DEFAULT_MAX_RETRIES = 3;
 
 /** 轮询间隔（ms），用于等待 opencode session 执行完成 */
 const POLL_INTERVAL_MS = 5000;
@@ -161,6 +161,9 @@ class FlexRunner {
 
     /** @type {number} 下一步骤 ID（0 = 无下一步） */
     #nextStepId = 0;
+
+    /** @type {number} 失败跳转步骤 ID（0 = 失败即终止） */
+    #failStepId = 0;
 
     /** @type {number} 大循环索引（0=首轮），由 LoopEngine 传递 */
     #bigLoopIndex = 0;
@@ -248,6 +251,8 @@ class FlexRunner {
     get dependId() { return this.#dependId; }
     /** @returns {number} */
     get nextStepId() { return this.#nextStepId; }
+    /** @returns {number} */
+    get failStepId() { return this.#failStepId; }
     /** @returns {number} 大循环索引（0=首轮） */
     get bigLoopIndex() { return this.#bigLoopIndex; }
     /** @returns {number} */
@@ -273,10 +278,11 @@ class FlexRunner {
      * @param {string} [params.skillDirectory] - SKILL 目录路径
      * @param {string} [params.taskDescription] - 任务描述
      * @param {string} [params.inputReport]   - 输入报告路径
-     * @param {number} [params.maxRetries]    - 最大重试次数（默认 5）
+     * @param {number} [params.maxRetries]    - 最大重试次数（默认 3）
      * @param {number} [params.stepId]        - 当前步骤 ID（正整数，必填）
      * @param {number} [params.dependId]      - 依赖步骤 ID（0 = 无依赖）
      * @param {number} [params.nextStepId]    - 下一步骤 ID（0 = 无下一步）
+     * @param {number} [params.failStepId]    - 失败跳转步骤 ID（0 = 失败即终止）
      * @param {CLIController} [params.cli]    - 注入自定义 CLI 控制器（测试用）
      * @param {SkillSelectorAgent} [params.skillSelector] - 注入自定义 Skill 选择器
      * @param {ReturnType<createStorage>} [params.storage] - 注入自定义存储层
@@ -299,6 +305,7 @@ class FlexRunner {
             stepId,
             dependId,
             nextStepId,
+            failStepId,
             bigLoopIndex,
             cli,
             skillSelector,
@@ -342,6 +349,7 @@ class FlexRunner {
         this.#stepId = numStepId;
         this.#dependId = Number(dependId) || 0;
         this.#nextStepId = Number(nextStepId) || 0;
+        this.#failStepId = Number(failStepId) || 0;
         this.#bigLoopIndex = Number(bigLoopIndex) || 0;
         this.#executeStep = 0;
         this.#retryTimes = 0;
@@ -517,8 +525,8 @@ class FlexRunner {
         // 递增执行计数，供下一次调用使用
         this.#executeStep++;
 
-        // 成功 → nextStepId；失败 → dependId（回到依赖步骤重试）
-        const nextStepId = success ? this.#nextStepId : this.#dependId;
+        // 成功 → nextStepId；失败 → failStepId（与 Orchestrator 的失败流转语义对齐）
+        const nextStepId = success ? this.#nextStepId : this.#failStepId;
 
         return { resultPath, success, nextStepId };
     }
@@ -1009,6 +1017,7 @@ class FlexRunner {
                 stepId: this.#stepId,
                 dependId: this.#dependId,
                 nextStepId: this.#nextStepId,
+                failStepId: this.#failStepId,
                 bigLoopIndex: this.#bigLoopIndex,
                 taskDescription: this.#taskDescription,
                 skillDirectory: this.#skillDirectory,

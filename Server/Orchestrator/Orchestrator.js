@@ -3,9 +3,9 @@
  *
  * 接收一段规定好任务的 JSON（taskId + 多个 step），按照依赖关系编排执行：
  *   - 无依赖的步骤并行执行
- *   - 成功 → nextStepId，失败 → failStepId
+ *   - 成功 → nextStepId，失败 → failStepId（未达 maxRetries 时跳到修复步骤）
  *   - 将前一步的结果报告路径传递给后续步骤
- *   - 循环检测：防止 nextStepId/failStepId 指向链形成无限循环
+ *   - 全局执行上限 GLOBAL_EXEC_LIMIT 兜底，防止链路形成无限循环
  *   - 死锁检测：所有步骤在等待但无人可执行时终止
  *   - 实时进度推送：通过 SseHub 向前端广播状态变更
  *   - 未执行步骤支持配置修改
@@ -163,7 +163,7 @@ class Orchestrator {
      *         dependId: 0,       // 0 = 无依赖（入口步骤）
      *         nextStepId: 2,     // 成功后指向
      *         failStepId: 3,     // 失败后指向（0 = 失败即终止）
-     *         maxRetries: 5,
+     *         maxRetries: 3,
      *         skillDirectory: '...',  // 可选，覆盖全局
      *         taskDir: '...',         // 可选，覆盖全局
      *         inputReport: '...'      // 可选，初始输入报告
@@ -345,7 +345,7 @@ class Orchestrator {
      *   2. 并行执行（无依赖或依赖已完成）
      *   3. 等待执行完成
      *   4. 根据成功/失败更新后续步骤的就绪状态
-     *   5. 循环检测
+     *   5. 全局执行上限 GLOBAL_EXEC_LIMIT 兜底
      *   6. 若无 READY 也无 RUNNING → 结束
      *
      * @private
@@ -389,14 +389,14 @@ class Orchestrator {
     }
 
     /**
-     * 执行单个步骤节点（含重试逻辑）。
+     * 执行单个步骤节点（单次执行，不再原地重试）。
      *
      * 流程：
      *   1. 创建 FlexRunner 实例并 initContext
-     *   2. 调用 executeStart，失败时按 maxRetries 重试
+     *   2. 调用 executeStart 单次执行
      *   3. 成功 → 标记 COMPLETED，激活 nextStepId
-     *   4. 失败（重试耗尽）→ 标记 FAILED，激活 failStepId（若有）
-     *   5. 循环检测：如果后续步骤已在执行路径中，标记 BLOCKED
+     *   4. 失败 → 已达 maxRetries 则终止流程；否则激活 failStepId（允许重复执行修复步骤）
+     *   5. 无 failStepId → 链终止
      *
      * @param {StepNode} node
      * @private
@@ -405,20 +405,10 @@ class Orchestrator {
         this._globalExecCount++;
         this._currentStepId = node.stepId;
 
-        // 循环检测：如果该步骤已在执行路径中出现过，标记为阻塞
-        const pathKey = `${this._taskId}:${node.stepId}`;
-        if (this._execPathTrace.has(pathKey)) {
-            node.markBlocked(`循环检测：步骤 ${node.stepId} 已在执行路径中出现过`);
-            this._log('warn', `循环检测触发: stepId=${node.stepId}`);
-            this._emitStepStatus(node);
-            return;
-        }
-        this._execPathTrace.add(pathKey);
-
         // 获取前置步骤的结果报告路径（传递给当前步骤）
         const inputReport = this._resolveInputReport(node);
 
-        // 标记为执行中（仅设置状态供 SSE 推送，retryCount 在循环内递增）
+        // 标记为执行中（仅设置状态供 SSE 推送，retryCount 在 markRunning 中递增）
         node.status = NodeStatus.RUNNING;
         this._emitStepStatus(node);
 
@@ -432,36 +422,27 @@ class Orchestrator {
             const runner = await this._createFlexRunner(node, inputReport);
             node._runner = runner;
 
-            // 重试循环：每次迭代调用 markRunning() 递增 retryCount
-            while (node.canRetry && !this._aborted) {
-                node.markRunning();
+            // 单次执行（不再原地重试）。
+            // 失败后由 _activateNextStep 跳转 failStepId（未达 maxRetries），
+            // 或终止流程（已达 maxRetries）。每次调用 markRunning() 递增 retryCount，
+            // 用于累计该步骤的总运行次数（maxRetries 上限判定）。
+            node.markRunning();
 
-                this._log('info', `执行步骤 ${node.stepId}（第 ${node.retryCount} 次）`);
+            this._log('info', `执行步骤 ${node.stepId}（第 ${node.retryCount} 次）`);
 
-                const result = await runner.executeStart();
-                resultPath = result.resultPath;
-                success = result.success;
+            const result = await runner.executeStart();
+            resultPath = result.resultPath;
+            success = result.success;
 
-                // 推送执行细节
-                this._emit(SSE_EVENT.STEP_DETAIL, {
-                    stepId: node.stepId,
-                    attempt: node.retryCount,
-                    success,
-                    resultPath,
-                    sessionId: runner.sessionId,
-                    runner: this._runnerBrief(runner)
-                });
-
-                if (success) break;
-
-                // 失败但还能重试 → 继续
-                if (!success && node.canRetry) {
-                    this._log('warn', `步骤 ${node.stepId} 第 ${node.retryCount} 次失败，将重试`);
-                    continue;
-                }
-                // 失败且不可重试 → 退出循环
-                break;
-            }
+            // 推送执行细节
+            this._emit(SSE_EVENT.STEP_DETAIL, {
+                stepId: node.stepId,
+                attempt: node.retryCount,
+                success,
+                resultPath,
+                sessionId: runner.sessionId,
+                runner: this._runnerBrief(runner)
+            });
 
             sessionId = runner.sessionId;
         } catch (err) {
@@ -479,12 +460,17 @@ class Orchestrator {
             return;
         }
 
-        // 激活后续步骤
         if (success) {
+            // 成功 → 走 nextStepId
             this._activateNextStep(node, node.nextStepId);
         } else {
-            if (node.failStepId !== '0') {
-                this._activateNextStep(node, node.failStepId);
+            // 失败 → 已达本步骤自己的 maxRetries 上限则终止整个流程
+            if (node.retryCount >= node.maxRetries) {
+                this._log('warn',
+                    `步骤 ${node.stepId} 失败且达到 maxRetries=${node.maxRetries}，终止流程`);
+            } else if (node.failStepId !== '0') {
+                // 未达上限 → 立即跳 failStepId（允许重复执行已 completed/failed 修复步骤）
+                this._activateNextStep(node, node.failStepId, { allowCompleted: true });
             } else {
                 this._log('warn', `步骤 ${node.stepId} 失败且无 failStepId，链终止`);
             }
@@ -500,17 +486,29 @@ class Orchestrator {
      * @param {string} nextStepId    - 下一步骤 ID
      * @private
      */
-    _activateNextStep(fromNode, nextStepId) {
+    _activateNextStep(fromNode, nextStepId, { allowCompleted = false } = {}) {
         if (nextStepId === '0' || !this._nodes.has(nextStepId)) {
             return;
         }
 
         const nextNode = this._nodes.get(nextStepId);
-        if (!nextNode || !nextNode.isPending) {
+        if (!nextNode) {
+            return;
+        }
+
+        // nextStepId 成功路径：仅激活待执行节点（PENDING/READY）
+        if (!allowCompleted && !nextNode.isPending) {
             // 已执行或运行中，不重复激活
             return;
         }
 
+        // failStepId 修复路径：允许重复执行已 completed/failed 节点，
+        // 但跳过正在运行/已就绪（避免重复入队）
+        if (allowCompleted && (nextNode.isRunning || nextNode.status === NodeStatus.READY)) {
+            return;
+        }
+
+        // 不清空历史结果；运行时状态由 markRunning/markFinished 自然更新
         nextNode.markReady();
         // 传递前置步骤的结果报告路径
         if (fromNode.resultPath) {
@@ -554,6 +552,7 @@ class Orchestrator {
             stepId: Number(node.stepId) || 0,
             dependId: Number(node.dependId) || 0,
             nextStepId: Number(node.nextStepId) || 0,
+            failStepId: Number(node.failStepId) || 0,
             taskDescription: node.taskDescription,
             skillDirectory: node.skillDirectory,
             taskDir: node.taskDir,

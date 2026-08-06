@@ -241,7 +241,7 @@ function buildGraphData() {
     var p = State.orchProgress;
     if (!p || !p.steps || p.steps.length===0) { State.graphNodes=[]; State.graphEdges=[]; return; }
     State.graphNodes = p.steps.map(function(s) {
-        return { id: String(s.stepId), stepId: s.stepId, status: s.status||'pending', retryCount: s.retryCount||0, maxRetries: s.maxRetries||5,
+        return { id: String(s.stepId), stepId: s.stepId, status: s.status||'pending', retryCount: s.retryCount||0, maxRetries: s.maxRetries||3,
             taskDescription: s.taskDescription||'', dependId: String(s.dependId||'0'), nextStepId: String(s.nextStepId||'0'), failStepId: String(s.failStepId||'0'),
             sessionId: s.sessionId||'', resultPath: s.resultPath||'', error: s.error||'', startTime: s.startTime, endTime: s.endTime, history: s.history||[],
             canRetry: s.canRetry!==false, skillDirectory: s.skillDirectory||'', taskDir: s.taskDir||'', inputReport: s.inputReport||'' };
@@ -441,7 +441,7 @@ function renderDetailTab(step) {
         '<div class="k">步骤 ID</div><div class="v">'+escapeHtml(step.stepId)+'</div>'+
         '<div class="k">状态</div><div class="v"><span class="status-badge '+st+'">'+statusLabel(st)+'</span></div>'+
         '<div class="k">可重试</div><div class="v">'+(cr?'✅ 是':'❌ 否')+'</div>'+
-        '<div class="k">重试次数</div><div class="v">'+(step.retryCount||0)+' / '+(step.maxRetries||5)+'</div>'+
+        '<div class="k">重试次数</div><div class="v">'+(step.retryCount||0)+' / '+(step.maxRetries||3)+'</div>'+
         '<div class="k">开始时间</div><div class="v">'+formatTime(step.startTime)+'</div>'+
         '<div class="k">结束时间</div><div class="v">'+formatTime(step.endTime)+'</div>'+
         '<div class="k">Session</div><div class="v">'+escapeHtml(step.sessionId||'(无)')+'</div>'+

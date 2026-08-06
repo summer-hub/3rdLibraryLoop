@@ -72,7 +72,7 @@ Server/Routes/
       "taskDescription": "生成报告",
       "nextStepId": 3,
       "failStepId": 4,
-      "maxRetries": 5
+      "maxRetries": 3
     },
     {
       "stepId": 3,

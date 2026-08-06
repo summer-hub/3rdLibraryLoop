@@ -136,6 +136,7 @@ class McpToolGuide {
      */
     _serverHint(name, conf) {
         // 已知的下游 Server 给出更友好的描述
+        // FIXME: 后续需要根据实际情况修改
         const known = {
             'kb-server': '知识库搜索（全文检索，返回带相关性分数的条目）。测试阶段只允许查询，禁止调用 create_entry、update_entry、delete_entry',
             'gitcode': 'GitCode 平台仓库操作'

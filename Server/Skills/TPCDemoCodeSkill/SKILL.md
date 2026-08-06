@@ -683,29 +683,15 @@ private async requestNeededPermissions(): Promise<boolean> {
 
 生成所有文件后，执行以下检查：
 
-#### 4.1 修复 build-profile.json5 配置
+#### 4.1 工程迁移（migrate.cjs）
 
-三方库源码的 `build-profile.json5` 中 SDK 版本配置经常不兼容当前构建环境，需统一修正：
+三方库源码多为历史工程，`build-profile.json5` 的 SDK 版本配置、hvigor 文件、oh-package.json5 等经常不兼容当前构建环境。使用 `migrate.cjs` 脚本一次性完成华为官方 Manual Migration 全流程迁移。
 
-1. `read_file` 读取 `{{sourcePath}}/build-profile.json5`
-2. 查找 `"products"` 数组中每个产品的 `compileSdkVersion`，统一替换为以下配置：
+1. 执行迁移脚本：
 
-```json5
-"products": [
-  {
-    "name": "default",
-    "signingConfig": "default",
-    "compatibleSdkVersion": "5.0.4(16)",
-    "targetSdkVersion": "5.0.4(16)",
-    "runtimeOS": "HarmonyOS"
-  }
-]
+```powershell
+node {{skillDir}}/scripts/migrate.cjs --source {{sourcePath}}
 ```
-
-> 注意：保留原有的 `"name"` 和 `"signingConfig"` 字段值不变；若为多产品配置，每个产品都应用相同的 SDK 版本修正。
-> 同时删除 `compileSdkVersion` 字段（若存在），因为已由 `targetSdkVersion` 替代。
-
-3. `replace_string_in_file` 或 `write_file` 重新写入修正后的 `build-profile.json5`
 
 #### 4.2 编译验证（5 轮修复策略）
 
@@ -713,16 +699,6 @@ private async requestNeededPermissions(): Promise<boolean> {
 > 编译是验证生成代码质量的**唯一方式**，
 > 因此源库问题也必须尝试修复——否则隐藏的生成代码错误会传给下游。
 > 源库修复仅限**机械性**操作（SDK 版本、依赖、构建配置），不改源库业务逻辑。
-
-##### 编译前预检：hvigor 版本兼容性
-
-1. `read_file` 读取 `{{sourcePath}}/hvigor/hvigor-config.json5`，提取 `hvigorVersion` 和 `@ohos/hvigor-ohos-plugin` 版本号
-2. 运行 `devecocli --version` 获取 DevEco Studio 内置 hvigor 版本信息
-3. 比较插件版本与 DevEco Studio 内置 hvigor 的主版本号：
-   - 若插件版本 major < DevEco hvigor major（如 4.x vs 6.x）→ **跳过编译验证**，在报告中标注"项目结构迁移"，直接跳转 4.3 代码规范自查
-   - 若版本兼容 → 继续执行首次编译
-
-> ⚠️ **跳过编译的原因**：hvigor 插件跨大版本不兼容时，Agent 会尝试 patch pnpm 缓存中的插件源码（如 `error-url.js`、`generate-loader-json.js`），每次 patch 触发大量文件读写权限请求，导致整个工作流被阻塞。此类问题需要项目结构迁移，非机械性操作可修复，应直接写入报告由用户处理。
 
 ##### 首次编译
 
@@ -777,13 +753,7 @@ powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -Cmd "
 | hvigorfile.ts 缺失 | `git submodule update --init --recursive` | ✅ |
 | 源库 ArkTS 类型错误 | 修正类型注解/补充 @Observed | ⚠️ 仅机械性 |
 | 源库业务逻辑错误 | 不修复，标注 | ❌ |
-| **hvigor 插件版本不兼容 / 项目结构迁移** | **跳过编译，写入报告** | **❌** |
 
-> **判定规则**：构建日志出现以下任一模式时，判定为"项目结构迁移"，**立即终止修复循环**：
-> - `The project structure and configuration need to be upgraded`
-> - `Cannot find module '@ohos/hvigor/src/base/`（插件引用了 hvigor 内部模块路径，该路径在新版 hvigor 中不存在）
-> - `is not the correct JSON/JSON5 format` 且错误路径包含 `@ohos/hvigor-ohos-plugin`（插件版本与 hvigor 解析器不兼容）
-> - `hvigor-config.json5` 中配置的 `@ohos/hvigor-ohos-plugin` 版本与 DevEco Studio 内置 `@ohos/hvigor` 版本跨大版本（如 4.x vs 6.x）
 
 3. 重新编译：
 
@@ -796,8 +766,6 @@ powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -Cmd "
 **终止判定（立即退出循环）**：
 
 若构建日志中出现以下任一模式，**立即终止修复循环**，不再尝试后续轮次，直接跳转 4.3 代码规范自查：
-- `The project structure and configuration need to be upgraded`
-- `Cannot find module '@ohos/hvigor/src/base/`
 - 连续 2 轮出现的错误均为源库不可修复错误（❌ 行）
 
 终止后在报告中标注编译跳过原因和修复建议。
@@ -890,8 +858,8 @@ powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -Cmd "
 {编译结果：通过 / 存在警告（已修复） / ⚠️ 已跳过}
 
 （若跳过，需附以下信息：）
-- 跳过原因：{如"源库 hvigor-ohos-plugin@4.0.2 与 DevEco Studio 内置 hvigor@6.24.3 不兼容，需项目结构迁移"}
-- 修复建议：在 DevEco Studio 中打开工程，使用 IDE 的迁移工具升级项目结构
+- 跳过原因：
+- 修复建议：
 
 ### 验证步骤
 1. 在 DevEco Studio 中打开工程，运行到鸿蒙设备
