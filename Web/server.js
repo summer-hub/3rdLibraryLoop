@@ -70,6 +70,22 @@ const server = http.createServer((req, res) => {
         return;
     }
 
+    // ─── 知识导入页面路由 ─────────────────────────────────────────────
+    // /knowledge → knowledge.html（支持子路径如 /knowledge/detail 等）
+    if (pathname === '/knowledge' || pathname.startsWith('/knowledge/')) {
+        const filePath = path.join(__dirname, 'public', 'knowledge.html');
+        fs.readFile(filePath, (err, data) => {
+            if (err) {
+                res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+                res.end('Not Found');
+                return;
+            }
+            res.writeHead(200, { 'Content-Type': MIME['.html'] });
+            res.end(data);
+        });
+        return;
+    }
+
     // ─── 静态文件托管 ─────────────────────────────────────────────────
     let filePath = path.join(__dirname, 'public', pathname === '/' ? 'loop.html' : pathname);
     // 防止路径穿越

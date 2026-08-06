@@ -4,6 +4,7 @@ import { createFlexRunnerRouter } from './flexrunner.js';
 import { createOrchestratorRouter } from './orchestrator.js';
 import { createBrainRouter } from './brain.js';
 import { createLoopEngineRouter } from './loopengine.js';
+import { createKnowledgeRouter } from './knowledge.js';
 
 /**
  * 路由组装器 — 将各业务域路由组合到主路由器
@@ -40,6 +41,9 @@ export function registerRoutes(router, dependencies) {
 
     // ─── LoopEngine 大循环协调引擎 ────────────────────────────────────
     router.use('/api/loopengine', createLoopEngineRouter(dependencies));
+
+    // ─── Knowledge 知识导入与查询 ─────────────────────────────────────
+    router.use('/api/knowledge', createKnowledgeRouter(dependencies));
 }
 
 export default registerRoutes;

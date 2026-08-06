@@ -24,6 +24,11 @@
     "timeout": 30000,
     "allowedExtensions": [".sh", ".py", ".js"]
   },
+  "knowledgeBase": {
+    "enabled": true,
+    "enginePath": "../Archive/src/index.js",
+    "dataDir": "../Archive/data"
+  },
   "gateway": {
     "name": "mcp-gateway",
     "version": "1.0.0",

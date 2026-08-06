@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "private": true,
-  "description": "MCP Gateway Server — 聚合下游 MCP Server 工具 + 可扩展脚本执行",
+  "description": "MCP Gateway Server — 聚合下游 MCP Server 工具 + 可扩展脚本执行 + 本地知识库检索",
   "main": "src/index.js",
   "bin": {
     "mcp-gateway": "src/index.js"
@@ -15,5 +15,8 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "chokidar": "^4.0.0"
+  },
+  "optionalDependencies": {
+    "jieba-wasm": "^2.4.0"
   }
 }

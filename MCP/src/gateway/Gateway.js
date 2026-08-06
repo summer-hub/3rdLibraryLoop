@@ -42,6 +42,7 @@ import MCPClientPool from '../client/MCPClientPool.js';
 import ScriptRegistry from '../registry/ScriptRegistry.js';
 import ScriptExecutor from '../executor/ScriptExecutor.js';
 import ToolRegistry from '../registry/ToolRegistry.js';
+import KBToolProvider from '../library/KBToolProvider.js';
 import { createLogger } from '../library/logger.js';
 
 const log = createLogger('Gateway');
@@ -72,6 +73,11 @@ class MCPGateway {
         );
         this._scriptExecutor = new ScriptExecutor(config.scripts.timeout);
         this._toolRegistry = new ToolRegistry();
+
+        // 知识库工具提供者（可选，配置未启用时为 null）
+        this._kbProvider = config.knowledgeBase && config.knowledgeBase.enabled
+            ? new KBToolProvider(config.knowledgeBase)
+            : null;
     }
 
     // ─── 生命周期 ──────────────────────────────────────────────────────────────
@@ -96,6 +102,11 @@ class MCPGateway {
             await this._loadScripts();
         }
 
+        // Step 2.5: 注册知识库工具（惰性初始化，注册时不启动引擎）
+        if (this._kbProvider) {
+            this._loadKnowledgeBaseTools();
+        }
+
         // Step 3: 注册所有工具到 MCP Server
         this._registerAllTools();
 
@@ -106,7 +117,8 @@ class MCPGateway {
         log.info('Gateway 已启动 (stdio)', {
             tools: this._toolRegistry.size(),
             downstream: this._clientPool.getConnectedNames(),
-            scripts: this._scriptRegistry.size()
+            scripts: this._scriptRegistry.size(),
+            knowledgeBase: this._kbProvider ? 'enabled' : 'disabled'
         });
     }
 
@@ -117,6 +129,9 @@ class MCPGateway {
     async shutdown() {
         log.info('Gateway 关闭中...');
         await this._scriptRegistry.stopWatch();
+        if (this._kbProvider) {
+            await this._kbProvider.shutdown();
+        }
         await this._clientPool.disconnectAll();
         try {
             await this._server.close();
@@ -208,6 +223,22 @@ class MCPGateway {
                 this._server.sendToolListChanged();
             });
         }
+    }
+
+    // ─── 知识库工具 ─────────────────────────────────────────────────────────────
+
+    /**
+     * 注册知识库工具到 ToolRegistry。
+     * 引擎采用惰性初始化——注册时仅注册工具定义，
+     * 首次调用工具时才真正启动 DocSearchEngine。
+     * @private
+     */
+    _loadKnowledgeBaseTools() {
+        const tools = this._kbProvider.getTools();
+        for (const tool of tools) {
+            this._toolRegistry.register(tool);
+        }
+        log.info(`知识库工具已注册`, { count: tools.length });
     }
 
     // ─── 工具注册 ──────────────────────────────────────────────────────────────

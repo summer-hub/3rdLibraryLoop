@@ -39,11 +39,30 @@
  */
 
 /**
+ * 知识库 catalog 配置（与 Archive CatalogConfig 对应）。
+ * @typedef {Object} KBCatalogConfig
+ * @property {string} id            - 目录标识，如 'guides'
+ * @property {string} title         - 目录中文名
+ * @property {number} [searchBoost] - 搜索权重倍数（>1 提升）
+ * @property {boolean} [tailInGlobalSearch] - 全局搜索时是否排到尾部
+ */
+
+/**
+ * 知识库配置。
+ * @typedef {Object} KnowledgeBaseConfig
+ * @property {boolean} enabled          - 是否启用知识库工具
+ * @property {string} enginePath       - Archive 引擎入口路径（ESM import 路径）
+ * @property {string} dataDir          - 知识库数据根目录（文档 + 索引）
+ * @property {KBCatalogConfig[]} [catalogs] - 目录配置（不传使用 Archive 默认）
+ */
+
+/**
  * Gateway 总配置。
  * @typedef {Object} GatewayConfig
  * @property {Object<string, DownstreamServerConfig>} downstreamServers - 下游 Server 配置
  * @property {string} scriptsDir        - 脚本目录路径
  * @property {ScriptsConfig} scripts    - 脚本功能配置
+ * @property {KnowledgeBaseConfig} [knowledgeBase] - 知识库配置（可选）
  * @property {{ name: string, version: string, transport: 'stdio' }} gateway - Gateway 元信息
  */
 

@@ -66,13 +66,15 @@ export function loadConfig(configPath) {
         downstreamServers: _normalizeDownstreamServers(parsed.downstreamServers),
         scriptsDir: _normalizeScriptsDir(parsed.scriptsDir, absPath),
         scripts: { ...DEFAULT_SCRIPTS_CONFIG, ...(parsed.scripts || {}) },
+        knowledgeBase: _normalizeKnowledgeBase(parsed.knowledgeBase, absPath),
         gateway: { ...DEFAULT_GATEWAY_META, ...(parsed.gateway || {}) }
     };
 
     log.info('配置加载完成', {
         downstreamCount: Object.keys(config.downstreamServers).length,
         scriptsDir: config.scriptsDir,
-        scriptsEnabled: config.scripts.enabled
+        scriptsEnabled: config.scripts.enabled,
+        kbEnabled: config.knowledgeBase ? config.knowledgeBase.enabled : false
     });
 
     return config;
@@ -140,6 +142,48 @@ function _normalizeScriptsDir(raw, configPath) {
     const fallback = resolve(dirname(configPath), 'scripts');
     if (!raw) return fallback;
     return isAbsolute(raw) ? raw : resolve(dirname(configPath), raw);
+}
+
+/**
+ * 规范化知识库配置。
+ * 未配置时返回 null（不启用）。配置后解析相对路径并补全默认值。
+ * @param {Object} [raw]
+ * @param {string} configPath - 配置文件绝对路径（用于解析相对路径）
+ * @returns {import('../types.js').KnowledgeBaseConfig | null}
+ * @private
+ */
+function _normalizeKnowledgeBase(raw, configPath) {
+    if (!raw || typeof raw !== 'object') return null;
+
+    const enabled = raw.enabled !== false;
+
+    // enginePath: Archive 引擎入口路径，相对路径基于配置文件目录解析
+    let enginePath = raw.enginePath;
+    if (!enginePath) {
+        log.warn('knowledgeBase.enginePath 未指定，知识库工具将无法加载');
+        enginePath = '';
+    } else if (!isAbsolute(enginePath)) {
+        enginePath = resolve(dirname(configPath), enginePath);
+    }
+
+    // dataDir: 知识库数据目录，相对路径基于配置文件目录解析
+    let dataDir = raw.dataDir;
+    if (!dataDir) {
+        log.warn('knowledgeBase.dataDir 未指定，使用引擎内置默认路径');
+        dataDir = '';
+    } else if (!isAbsolute(dataDir)) {
+        dataDir = resolve(dirname(configPath), dataDir);
+    }
+
+    // catalogs: 目录配置（透传，不校验细节）
+    const catalogs = Array.isArray(raw.catalogs) ? raw.catalogs : undefined;
+
+    return {
+        enabled,
+        enginePath,
+        dataDir,
+        catalogs,
+    };
 }
 
 export default loadConfig;

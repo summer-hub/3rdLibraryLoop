@@ -11,6 +11,8 @@ import BrainController from './controllers/BrainController.js';
 import LoopEngineController from './controllers/LoopEngineController.js';
 import { TestCheck } from '../TestCheck/index.js';
 import { createStorage } from '../DbUse/index.js';
+import { KnowledgeManager } from '../Knowledge/index.js';
+import KnowledgeImportController from './controllers/KnowledgeImportController.js';
 
 /**
  * Server —— HTTP 服务入口
@@ -92,6 +94,19 @@ export async function createServer(options = {}) {
         skillDirectory
     });
 
+    // KnowledgeManager 知识沉淀管理器（需单例，知识导入复用）
+    const knowledgeManager = new KnowledgeManager();
+    await knowledgeManager.init();
+
+    // KnowledgeImportController 知识导入控制器（需单例，复用 CLI + KnowledgeManager）
+    const knowledgeImportController = new KnowledgeImportController({
+        cli: cliInstance,
+        storage,
+        skillDirectory,
+        knowledgeManager,
+        sseHub
+    });
+
     const dependencies = {
         cli: cliInstance,
         sseHub,
@@ -101,6 +116,8 @@ export async function createServer(options = {}) {
         brainController,
         testCheck,
         loopEngineController,
+        knowledgeManager,
+        knowledgeImportController,
         skillDirectory
     };
 
