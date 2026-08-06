@@ -125,7 +125,7 @@ class FlexRunnerController {
      * 初始化一个 FlexRunner 实例
      *
      * Body: {
-     *   taskId, stepId, dependId, nextStepId, taskDescription,
+     *   taskId, stepId, dependId, nextStepId, failStepId, taskDescription,
      *   skillDirectory, taskDir, inputReport, maxRetries
      * }
      */
@@ -149,6 +149,7 @@ class FlexRunnerController {
             stepId,
             dependId: Number(body.dependId) || 0,
             nextStepId: Number(body.nextStepId) || 0,
+            failStepId: Number(body.failStepId) || 0,
             taskDescription: body.taskDescription || '',
             skillDirectory: body.skillDirectory || '',
             taskDir: body.taskDir || '',

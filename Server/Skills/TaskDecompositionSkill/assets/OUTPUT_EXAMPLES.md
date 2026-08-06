@@ -15,7 +15,7 @@
       "dependId": 0,
       "nextStepId": 2,
       "failStepId": 0,
-      "maxRetries": 2,
+      "maxRetries": 3,
       "acceptanceCriteria": [
         {
           "id": "ac1_1",
@@ -39,7 +39,7 @@
       "dependId": 1,
       "nextStepId": 3,
       "failStepId": 4,
-      "maxRetries": 2,
+      "maxRetries": 3,
       "acceptanceCriteria": [
         {
           "id": "ac2_1",
@@ -87,7 +87,7 @@
       "dependId": 3,
       "nextStepId": 3,
       "failStepId": 5,
-      "maxRetries": 2,
+      "maxRetries": 3,
       "acceptanceCriteria": [
         {
           "id": "ac4_1",
@@ -104,7 +104,7 @@
       "dependId": 3,
       "nextStepId": 0,
       "failStepId": 0,
-      "maxRetries": 1,
+      "maxRetries": 3,
       "acceptanceCriteria": [
         {
           "id": "ac5_1",
@@ -139,7 +139,7 @@
       "dependId": 0,
       "nextStepId": 2,
       "failStepId": 0,
-      "maxRetries": 2,
+      "maxRetries": 3,
       "acceptanceCriteria": [
         {
           "id": "ac1_1",
@@ -156,7 +156,7 @@
       "dependId": 1,
       "nextStepId": 4,
       "failStepId": 5,
-      "maxRetries": 2,
+      "maxRetries": 3,
       "acceptanceCriteria": [
         {
           "id": "ac2_1",
@@ -180,7 +180,7 @@
       "dependId": 1,
       "nextStepId": 4,
       "failStepId": 5,
-      "maxRetries": 2,
+      "maxRetries": 3,
       "acceptanceCriteria": [
         {
           "id": "ac3_1",
@@ -204,7 +204,7 @@
       "dependId": 2,
       "nextStepId": 0,
       "failStepId": 0,
-      "maxRetries": 1,
+      "maxRetries": 3,
       "acceptanceCriteria": [
         {
           "id": "ac4_1",
@@ -251,7 +251,7 @@
       "dependId": 0,
       "nextStepId": 2,
       "failStepId": 0,
-      "maxRetries": 2,
+      "maxRetries": 3,
       "acceptanceCriteria": [
         {
           "id": "ac1_1",
@@ -268,7 +268,7 @@
       "dependId": 1,
       "nextStepId": 3,
       "failStepId": 0,
-      "maxRetries": 1,
+      "maxRetries": 3,
       "acceptanceCriteria": [
         {
           "id": "ac2_1",
@@ -285,7 +285,7 @@
       "dependId": 2,
       "nextStepId": 0,
       "failStepId": 0,
-      "maxRetries": 1,
+      "maxRetries": 3,
       "acceptanceCriteria": [
         {
           "id": "ac3_1",

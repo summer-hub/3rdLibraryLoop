@@ -76,7 +76,7 @@ Server/FlexRunner/
 
 | 常量 | 默认值 | 说明 |
 |------|------|------|
-| `DEFAULT_MAX_RETRIES` | `5` | 默认最大重试次数 |
+| `DEFAULT_MAX_RETRIES` | `3` | 默认最大重试次数 |
 | `POLL_INTERVAL_MS` | `3000` | 轮询间隔（ms） |
 | `POLL_TIMEOUT_MS` | `600000` | 单步轮询超时 10 分钟 |
 
@@ -104,7 +104,7 @@ new FlexRunner(config?)
 | `skillDirectory` | `string` | | SKILL 目录路径 |
 | `taskDescription` | `string` | | 任务描述 |
 | `inputReport` | `string` | | 输入报告路径 |
-| `maxRetries` | `number` | | 最大重试次数（默认 5） |
+| `maxRetries` | `number` | | 最大重试次数（默认 3） |
 | `dependId` | `number` | | 依赖步骤 ID（0 = 无依赖） |
 | `nextStepId` | `number` | | 下一步骤 ID（0 = 无下一步） |
 | `cli` | `CLIController` | | 注入自定义 CLI 控制器（测试用） |
@@ -273,7 +273,7 @@ await runner.initContext({
     taskDir: '/workspace/tasks/task-001',
     skillDirectory: '/workspace/Server/Skills',
     taskDescription: '分析 libcurl 的鸿蒙化可行性',
-    maxRetries: 5,
+    maxRetries: 3,
     dependId: 0,
     nextStepId: 2
 });

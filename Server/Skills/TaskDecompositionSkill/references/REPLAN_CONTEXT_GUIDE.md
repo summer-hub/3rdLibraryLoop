@@ -79,7 +79,7 @@ LoopEngine 大循环:
 |------|------|------|
 | SKILL 匹配失败 | 步骤描述无法匹配到执行 SKILL | 调整 taskDescription 措辞 |
 | 环境问题 | 执行环境不具备 | 记录为约束条件 |
-| 重试不足 | maxRetries 过低 | 提高 maxRetries |
+| 重试不足 | maxRetries 低于 3 | 统一为 3 |
 
 ---
 
@@ -96,7 +96,7 @@ failureAnalysis:
 adjustmentStrategy:
   "1. 新增步骤0：安装鸿蒙 NDK 和构建依赖
    2. 原步骤1 dependId 改为指向新步骤
-   3. 编译步骤 maxRetries 从 2 提高到 3
+   3. 编译步骤 maxRetries 统一为 3
    4. ac2_1 verification 补充具体编译命令"
 ```
 
