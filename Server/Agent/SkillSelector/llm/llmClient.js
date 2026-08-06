@@ -36,7 +36,7 @@ export class LLMClient {
    * @param {string} [options.baseURL]        - 兼容端点，默认读 process.env.LLM_BASE_URL
    * @param {string} [options.model]          - 模型名，默认读 process.env.LLM_MODEL 或 'glm-5.1'
    * @param {number} [options.temperature]    - 默认读 process.env.LLM_TEMPERATURE 或 0.2
-   * @param {number} [options.maxTokens]      - 默认读 process.env.LLM_MAX_TOKENS 或 1024
+   * @param {number} [options.maxTokens]      - 默认读 process.env.LLM_MAX_TOKENS 或 2048
    * @param {string} [options.fallbackModel]  - 备用模型名，默认读 process.env.FALLBACK_MODEL
    * @param {OpenAI}  [options.client]        - 注入自定义 openai 实例（用于测试）
    */
@@ -52,7 +52,7 @@ export class LLMClient {
     this.model = options.model || process.env.LLM_MODEL || 'glm-5.1';
     this.fallbackModel = options.fallbackModel || process.env.FALLBACK_MODEL || '';
     this.temperature = options.temperature ?? _envFloat('LLM_TEMPERATURE', 0.2);
-    this.maxTokens = options.maxTokens ?? _envInt('LLM_MAX_TOKENS', 1024);
+    this.maxTokens = options.maxTokens ?? _envInt('LLM_MAX_TOKENS', 2048);
     // GLM 系列默认开启思考模式（会显著增加延迟）；这两个 ReAct 步骤无需深度思考，默认关闭
     this.enableThinking = options.enableThinking ?? _envBool('LLM_ENABLE_THINKING', false);
 

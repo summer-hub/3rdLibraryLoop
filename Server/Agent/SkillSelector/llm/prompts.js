@@ -7,7 +7,7 @@
  */
 
 // ─── Reason #1：任务拆解 Prompt ──────────────────────────────────────────────
-// 输入：具体任务（task）。输出：keywords / intent / constraints / techStack
+// 输入：具体任务（task）。输出：keywords / intent / constraints / techStack / whenToUse
 const TASK_ANALYSIS_PROMPT = `你是一个任务分析助手。请分析下面的"具体事项"，拆解出用于后续 SKILL 模糊匹配的关键信息。
 
 具体事项：
@@ -21,9 +21,18 @@ const TASK_ANALYSIS_PROMPT = `你是一个任务分析助手。请分析下面�
 3. keywords 须兼顾"动作类词"与"技术名词"两类，共 5-10 个，全部小写。
 4. intent 必须以动词开头并点明动作类型（如"准出审核""验收""汇总报告"），不要只描述技术目标。
 
+【whenToUse 提取规则】
+5. whenToUse 必须直接识别并提取任务描述中的"触发场景/前置条件"表述，格式与候选 SKILL 的 useWhen（"use when..."、"当...时调用"）保持一致，便于逐词/逐句语义比对。
+   - 优先从任务原文中定位触发语境词，如"当...时"、"use when"、"对...进行"、"针对..."、"输入是..."等，把其后跟随的场景/对象原样提取为一句话。
+   - 若任务没有显式触发语境词，则依据任务的输入类型归纳触发场景（是"已有产物/JSON/MD/报告"、"源码/仓库"、"待检视的代码差异"，还是其它）。
+   - 只描述"什么输入/什么场景下触发本任务"，不要在此重复技术细节、库列表或输出形式。
+   - 例：任务含"对 PR 的差异做代码检视" → whenToUse="对代码差异进行检视"
+   - 例：任务含"获取仓库源码并分析目录结构" → whenToUse="分析仓库源码目录结构"
+6. 若任务明确属于某类专属触发场景（如 PR 检视），whenToUse 必须原样体现该场景特征词（如"PR"）；不得引入任务中不存在的场景特征，避免与 SKILL 的 useWhen 误判为一致。
+
 【示例】
 输入："对 libcurl 鸿蒙化产物进行准出审核，对照验收标准判断是否满足..."
-正确输出：{"intent":"准出审核 libcurl 鸿蒙化产物是否满足验收标准","keywords":["准出审核","验收测试","验收检查","libcurl","鸿蒙化","arkts"]}
+正确输出：{"intent":"准出审核 libcurl 鸿蒙化产物是否满足验收标准","keywords":["准出审核","验收测试","验收检查","libcurl","鸿蒙化","arkts"],"whenToUse":"对任务执行产物做准出验收审核"}
 错误输出（丢失动作词）：{"intent":"分析 libcurl 鸿蒙化结果","keywords":["libcurl","鸿蒙化","arkts","harmonyos"]}
 
 请严格输出如下 JSON（不要输出任何额外文字、不要用 markdown 代码围栏）：
@@ -31,7 +40,8 @@ const TASK_ANALYSIS_PROMPT = `你是一个任务分析助手。请分析下面�
   "intent": "以动词开头，一句话概括任务目标，须点明动作类型",
   "keywords": ["5-10个关键词，小写，必须含至少1个动作类型词"],
   "constraints": ["任务约束或前置条件，如语言、平台、输出形式等"],
-  "techStack": ["涉及的技术栈或语言，如 C++、ArkTS、Flutter、React Native 等"]
+  "techStack": ["涉及的技术栈或语言，如 C++、ArkTS、Flutter、React Native 等"],
+  "whenToUse": "直接提取任务中的触发场景/前置条件表述（如\"对代码差异进行检视\"），格式对齐 SKILL 的 useWhen"
 }`;
 
 // ─── Reason #2：SKILL 排序 Prompt ─────────────────────────────────────────────
@@ -48,6 +58,9 @@ const SKILL_RANKING_PROMPT = `你是一个严格的 SKILL 评分专家。下面�
 
 【候选 SKILL 列表】
 {{CANDIDATES}}
+
+【任务触发场景（whenToUse）】
+{{WHEN_TO_USE}}
 
 ═══════════════════════════════════════════
 评分规则（总分 100，分 4 个维度）
@@ -77,11 +90,17 @@ const SKILL_RANKING_PROMPT = `你是一个严格的 SKILL 评分专家。下面�
 ═══════════════════════════════════════════
 硬性否决规则（必须严格执行，不得通融）
 ═══════════════════════════════════════════
-1. 技术栈/语言不匹配 → 维度二计 0-5 分，且【总分上限 50】
+1. useWhen 触发场景冲突 → 【总分上限 10】
+   判定方式：对比"任务 whenToUse"与候选 SKILL 的 "useWhen"（该技能何时该调用）是否语义一致
+   - 若候选 SKILL 声明了 useWhen，且任务的 whenToUse 与该 useWhen 描述的触发场景冲突，则判死
+   - 关键判据：任务的输入/触发场景与 SKILL 的前置输入类型不同
+   （例A：任务 whenToUse="分析仓库源码目录结构"，SKILL useWhen="对 Pull Request 的代码差异进行检视" → 任务无 PR 意图但 SKILL 仅用于 PR → 冲突，总分不得 > 10）
+   （例B：任务 whenToUse="对代码差异进行检视"，SKILL useWhen 含 PR → 一致，不触发本规则）
+   - 若候选 SKILL 的 useWhen 为空（未声明），则不触发本规则，按其它规则评分
+2. 技术栈/语言不匹配 → 维度二计 0-5 分，且【总分上限 50】
    （例：任务要 Go 开源库迁移，SKILL 的 language 是 C/C++ → 总分不得 > 50）
-2. SKILL 功能阶段与任务意图不同 → 维度一上限 15 分
+3. SKILL 功能阶段与任务意图不同 → 维度一上限 15 分
    （例：任务要"可行性分析"，SKILL 是"执行移植动作"）
-3. SKILL 与任务完全无关 → 总分上限 10
 4. 严禁仅因"意图看起来契合"就给高分；语言不匹配是硬伤，必须压低总分
 5. 动作类型不一致 → 维度一（意图）上限 15 分，且【总分上限 45】
    判定方式：对比任务的"核心动作动词"与 SKILL 的"核心动作动词"
@@ -107,7 +126,8 @@ const SKILL_RANKING_PROMPT = `你是一个严格的 SKILL 评分专家。下面�
 - ranked 数组按 score 从高到低排序，且必须包含全部候选 SKILL
 - score 必须等于 dimensions 各项之和
 - dimensions 四个 key 必须齐全（intent/techStack/constraint/keyword）
-- 若候选 SKILL 的 language 与任务 techStack 不匹配，务必触发硬否决规则 1
+- 若候选 SKILL 声明了 useWhen 且与任务 whenToUse 触发场景冲突，务必先触发硬否决规则 1
+- 若候选 SKILL 的 language 与任务 techStack 不匹配，务必触发硬否决规则 2
 - 若任务输入是已有产物（JSON/MD/报告）而 SKILL 输入是源码/仓库，务必触发硬否决规则 5`;
 
 /**
