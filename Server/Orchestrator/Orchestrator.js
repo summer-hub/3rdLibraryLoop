@@ -473,6 +473,12 @@ class Orchestrator {
         node.markFinished({ success, resultPath, sessionId, error: errorMsg });
         this._emitStepStatus(node);
 
+        // 已被终止：整条链终止，不再激活后续步骤（nextStepId / failStepId 均不流转）
+        if (this._aborted) {
+            this._currentStepId = null;
+            return;
+        }
+
         // 激活后续步骤
         if (success) {
             this._activateNextStep(node, node.nextStepId);
@@ -577,7 +583,10 @@ class Orchestrator {
         this._aborted = true;
         this._log('warn', '⏹  编排执行已被终止');
 
-        // 终止当前运行中的步骤
+        // 终止当前运行中的步骤。
+        // 注意：这里只通知 FlexRunner 终止（设置 #aborted + abortSession），
+        // 不再直接调用 node.markFinished —— 由 _executeNode 统一负责 markFinished，
+        // 避免 abort 与重试循环各自写入导致同一 attempt 重复记录。
         for (const node of this._nodes.values()) {
             if (node.isRunning && node._runner) {
                 try {
@@ -585,8 +594,6 @@ class Orchestrator {
                 } catch (err) {
                     this._log('warn', `终止步骤 ${node.stepId} 失败: ${err.message}`);
                 }
-                node.markFinished({ success: false, resultPath: '', error: '已终止' });
-                this._emitStepStatus(node);
             }
         }
 
