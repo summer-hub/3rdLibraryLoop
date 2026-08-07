@@ -1,18 +1,19 @@
 ---
 name: tpc-interface-spec
-description: 克隆鸿蒙三方库仓库并提取所有对外接口，生成接口规格文档。先执行 git clone 拉取源码，然后通过分析 Index.ets 入口文件及导入链，提取导出的类、接口/类型、枚举、函数和变量，生成结构化的接口规格说明文档。USE FOR: 鸿蒙三方库接口提取、API 规格文档生成。
+description: 扫描提取鸿蒙三方库源码中对外公开的方法级接口与接口签名，解析 Index.ets 导出链生成接口规格文档，涵盖导出类、方法和函数。只分析对外公开导出项，输出完整接口签名（含参数、返回值、JSDoc）。当需要对鸿蒙三方库进行方法级接口规格提取、接口签名清单生成、Index.ets 导出链分析时调用。
 license: Apache-2.0
 compatibility: 适用于鸿蒙三方库工程（含 library 模块和 Index.ets 入口文件）。需要 git 命令行工具。
 metadata:
   author: AIWeb
-  version: "1.9.0"
+  version: "2.0.0"
   category: harmonyos-development
   language: ArkTS/ETS
+  useWhen: 需要从源码（Index.ets 导出链）提取方法级接口规格或接口签名时；输入是源码或仓库
 ---
 
-# TPC 鸿蒙三方库接口规格提取
+# TPC 鸿蒙三方库方法级接口规格提取
 
-本 Skill 先克隆三方库源码到本地，然后通过源码静态分析提取所有对外导出接口，自动生成标准化的接口规格说明文档。
+本 Skill 先克隆三方库源码到本地，然后通过源码静态分析提取所有对外公开导出的方法级接口，自动生成标准化的接口规格说明文档。
 
 > ⚠️ **核心原则：只分析对外公开导出的接口，不关注内部实现细节。所有输出内容必须来自实际源码，禁止推断或捏造任何接口、参数、类型或功能描述。**
 
@@ -215,7 +216,7 @@ Native 导出：createNativeRoot, initFileCache, ...（单独章节，不计入 
 
 > 装饰器：`@Component`/`@ComponentV2`（struct 组件，UI 组件）
 
-> ⚠️ **struct 组件只列公开成员属性，不列方法**：`aboutToAppear`/`aboutToDisappear`/`aboutToRecycle`/`build`/`getDefaultContext`/`watch*`/`monitor*` 等生命周期回调和状态监听回调由框架自动调用，非用户 API，排除不列。成员装饰器（`@ObjectLink`/`@Prop`/`@Param`/`@Require`）标注在功能描述列括号中。
+> ⚠️ **struct 组件只列公开成员属性，不列方法**：生命周期回调和状态监听回调由框架自动调用，非用户 API，排除不列。成员装饰器（`@ObjectLink`/`@Prop`/`@Param`/`@Require`）标注在功能描述列括号中。
 
 | 序号 | 类名/成员 | 方法/属性 | 功能描述 |
 |------|-----------|-----------|----------|

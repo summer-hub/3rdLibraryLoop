@@ -1,6 +1,6 @@
 ---
 name: tpc-xts-execution
-description: 执行鸿蒙三方库的 XTS 测试用例（含源码已有的和新生成的），编译项目、安装 HAP、通过 hdc 执行 hypium 测试、收集结果并生成执行报告。100% 覆盖所有可测试接口。
+description: 执行鸿蒙三方库的 XTS 测试用例（含源码已有的和新生成的），编译项目、安装 HAP、通过 hdc 执行 hypium 测试、收集结果并生成执行报告。100% 覆盖所有可测试接口。当需要对鸿蒙原生库进行 XTS 测试用例自动化测试，并输出XTS测试报告时调用。
 license: Apache-2.0
 metadata:
   author: AIWeb

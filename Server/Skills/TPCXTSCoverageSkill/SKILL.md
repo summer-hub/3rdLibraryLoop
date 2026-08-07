@@ -1,6 +1,6 @@
 ---
 name: tpc-xts-coverage
-description: 分析鸿蒙三方库现有 XTS 测试用例对接口的覆盖情况。读取接口规格文档，扫描 entry/src/ohosTest/ets/test/ 下所有 .test.ets 文件，通过 import 和接口调用匹配识别已测试的接口，计算 XTS 接口覆盖率百分比，输出已覆盖和未覆盖接口清单。USE FOR: 三方库 XTS 测试覆盖率分析。
+description: 分析鸿蒙三方库现有 XTS 测试用例对接口的覆盖情况。读取接口规格文档，扫描 entry/src/ohosTest/ets/test/ 下所有 .test.ets 文件，通过 import 和接口调用匹配识别已测试的接口，计算 XTS 接口覆盖率百分比，输出已覆盖和未覆盖接口清单。当需要对鸿蒙原生库进行 XTS 测试覆盖率分析时调用。
 license: Apache-2.0
 metadata:
   author: AIWeb
