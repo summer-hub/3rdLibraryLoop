@@ -430,7 +430,7 @@ ${skillInstructions}
         return steps.map((s, idx) => ({
             stepId: typeof s.stepId === 'number' ? s.stepId : idx + 1,
             taskDescription: s.taskDescription || '',
-            dependId: s.dependId ?? 0,
+            dependId: normalizeStepDependId(s.dependId),
             nextStepId: s.nextStepId ?? 0,
             failStepId: s.failStepId ?? 0,
             maxRetries: s.maxRetries ?? 3,
@@ -445,6 +445,24 @@ ${skillInstructions}
                 : []
         }));
     }
+}
+
+/**
+ * 归一化步骤的 dependId：支持 number | number[]（fan-in 聚合）。
+ * - 数组 → 过滤 0/空后保留
+ * - 单值 → 0/null 时返回 0，否则原样返回
+ * @param {number|number[]|null|undefined} value
+ * @returns {number|number[]}
+ */
+function normalizeStepDependId(value) {
+    if (Array.isArray(value)) {
+        const filtered = value
+            .map(v => Number(v))
+            .filter(v => Number.isFinite(v) && v !== 0);
+        return filtered.length === 0 ? 0 : filtered;
+    }
+    const n = Number(value);
+    return Number.isFinite(n) && n !== 0 ? n : 0;
 }
 
 export default DecompositionStrategies;

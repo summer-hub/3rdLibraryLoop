@@ -347,7 +347,8 @@ class FlexRunner {
         this.#inputReport = inputReport || '';
         this.#maxRetries = typeof maxRetries === 'number' ? maxRetries : DEFAULT_MAX_RETRIES;
         this.#stepId = numStepId;
-        this.#dependId = Number(dependId) || 0;
+        // dependId 支持数组（fan-in 聚合），此处仅取第一个作为回退锚点语义
+        this.#dependId = Number(Array.isArray(dependId) ? dependId[0] : dependId) || 0;
         this.#nextStepId = Number(nextStepId) || 0;
         this.#failStepId = Number(failStepId) || 0;
         this.#bigLoopIndex = Number(bigLoopIndex) || 0;

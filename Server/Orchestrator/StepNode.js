@@ -27,7 +27,7 @@ export const NodeStatus = Object.freeze({
  * @typedef {object} StepConfig
  * @property {number|string} stepId        - 步骤 ID（唯一标识）
  * @property {string}        taskDescription - 任务描述
- * @property {number|string} [dependId=0]  - 依赖步骤 ID（0 或 null = 无依赖，首个步骤）
+ * @property {number|string|Array<number|string>} [dependId=0] - 依赖步骤 ID，支持单值或数组（fan-in 聚合）
  * @property {number|string} [nextStepId=0]- 成功后下一步骤 ID（0 = 无后续，结束）
  * @property {number|string} [failStepId=0]- 失败后指向步骤 ID（0 = 失败即终止）
  * @property {number}        [maxRetries=3]- 最大重试次数
@@ -36,6 +36,24 @@ export const NodeStatus = Object.freeze({
  * @property {string}        [inputReport] - 输入报告路径
  * @property {string}        [taskDescription] - 任务描述
  */
+
+/**
+ * 归一化 dependId 为字符串前置 ID 数组。
+ * - 单值（number/string）→ 非 0 时包装为 [id]，0/null → []
+ * - 数组 → 过滤掉 0/空，逐项转字符串
+ * @param {number|string|Array<number|string>|null|undefined} value
+ * @returns {string[]}
+ */
+function normalizeDependIds(value) {
+    if (Array.isArray(value)) {
+        return value
+            .map(v => String(v))
+            .filter(v => v !== '0' && v !== '');
+    }
+    if (value == null) return [];
+    const s = String(value);
+    return s === '0' || s === '' ? [] : [s];
+}
 
 /**
  * @typedef {object} ExecutionRecord
@@ -60,7 +78,10 @@ class StepNode {
         // ── 元信息（可修改，仅 PENDING 状态时允许） ──
         this.stepId = String(config.stepId);
         this.taskDescription = config.taskDescription || '';
-        this.dependId = config.dependId != null ? String(config.dependId) : '0';
+        // dependId 支持 number | number[]：内部统一归一化为字符串前置 ID 数组（_dependIds）。
+        // 对外暴露 dependId 便于兼容——单依赖时为其第一个元素，多依赖时为数组。
+        this._dependIds = normalizeDependIds(config.dependId);
+        this.dependId = this._dependIds.length === 1 ? this._dependIds[0] : this._dependIds;
         this.nextStepId = config.nextStepId != null ? String(config.nextStepId) : '0';
         this.failStepId = config.failStepId != null ? String(config.failStepId) : '0';
         this.maxRetries = typeof config.maxRetries === 'number' ? config.maxRetries : 3;
@@ -90,6 +111,20 @@ class StepNode {
     }
 
     // ─── 状态查询 ──────────────────────────────────────────────────────
+
+    /**
+     * 归一化后的前置依赖步骤 ID 数组。
+     * 调度层统一使用此数组判断 fan-in 聚合条件（所有依赖完成才激活）。
+     * @returns {string[]}
+     */
+    get dependencies() {
+        return this._dependIds;
+    }
+
+    /** 是否有前置依赖（非入口步骤） */
+    get hasDependencies() {
+        return this._dependIds.length > 0;
+    }
 
     /** 是否尚未执行 */
     get isPending() {
@@ -193,7 +228,10 @@ class StepNode {
         if (!patch || typeof patch !== 'object') return false;
 
         if (patch.taskDescription !== undefined) this.taskDescription = patch.taskDescription;
-        if (patch.dependId !== undefined) this.dependId = String(patch.dependId);
+        if (patch.dependId !== undefined) {
+            this._dependIds = normalizeDependIds(patch.dependId);
+            this.dependId = this._dependIds.length === 1 ? this._dependIds[0] : this._dependIds;
+        }
         if (patch.nextStepId !== undefined) this.nextStepId = String(patch.nextStepId);
         if (patch.failStepId !== undefined) this.failStepId = String(patch.failStepId);
         if (patch.maxRetries !== undefined) this.maxRetries = Number(patch.maxRetries);

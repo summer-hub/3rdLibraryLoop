@@ -475,14 +475,16 @@ export class Brain {
         }
 
         // 检查 stepId 唯一性
-        const ids = steps.map(s => s.stepId);
+        // 统一转字符串，与 getStepDependencyIds 返回的字符串依赖 ID 对齐，
+        // 避免 Set.has 严格相等（===）因 "1" !== 1 而误判链式依赖不存在
+        const ids = steps.map(s => String(s.stepId));
         const uniqueIds = new Set(ids);
         if (ids.length !== uniqueIds.size) {
             issues.push('存在重复的 stepId');
         }
 
-        // 检查入口步骤
-        const entrySteps = steps.filter(s => !s.dependId || s.dependId === 0);
+        // 检查入口步骤（dependId 为 0 / 空数组 / 无前置）
+        const entrySteps = steps.filter(s => !hasStepDependencies(s.dependId));
         if (entrySteps.length === 0) {
             issues.push('缺少入口步骤（dependId=0）');
         } else if (entrySteps.length > 1) {
@@ -492,16 +494,18 @@ export class Brain {
 
         // 检查依赖引用的有效性
         for (const step of steps) {
-            if (step.dependId && step.dependId !== 0 &&
-                !uniqueIds.has(step.dependId)) {
-                issues.push(`步骤 ${step.stepId} 的 dependId=${step.dependId} 不存在`);
+            // dependId 支持单值或数组（fan-in 聚合）
+            for (const depId of getStepDependencyIds(step.dependId)) {
+                if (!uniqueIds.has(depId)) {
+                    issues.push(`步骤 ${step.stepId} 的 dependId=${depId} 不存在`);
+                }
             }
             if (step.nextStepId && step.nextStepId !== 0 &&
-                !uniqueIds.has(step.nextStepId)) {
+                !uniqueIds.has(String(step.nextStepId))) {
                 issues.push(`步骤 ${step.stepId} 的 nextStepId=${step.nextStepId} 不存在`);
             }
             if (step.failStepId && step.failStepId !== 0 &&
-                !uniqueIds.has(step.failStepId)) {
+                !uniqueIds.has(String(step.failStepId))) {
                 issues.push(`步骤 ${step.stepId} 的 failStepId=${step.failStepId} 不存在`);
             }
         }
@@ -572,6 +576,33 @@ function _generateTaskId() {
     const ts = Date.now().toString(36);
     const rand = Math.random().toString(36).substring(2, 6);
     return `task_${ts}${rand}`;
+}
+
+/**
+ * 判断步骤是否无前置依赖（入口步骤）。
+ * 支持 dependId 单值或数组。
+ * @param {number|number[]|string|string[]|null|undefined} dependId
+ * @returns {boolean}
+ */
+function hasStepDependencies(dependId) {
+    return getStepDependencyIds(dependId).length > 0;
+}
+
+/**
+ * 提取步骤的全部前置依赖 ID 数组。
+ * 支持 dependId 单值或数组（fan-in 聚合）。
+ * @param {number|number[]|string|string[]|null|undefined} dependId
+ * @returns {string[]}
+ */
+function getStepDependencyIds(dependId) {
+    if (Array.isArray(dependId)) {
+        return dependId
+            .map(v => String(v))
+            .filter(v => v !== '0' && v !== '');
+    }
+    if (dependId == null) return [];
+    const s = String(dependId);
+    return s === '0' || s === '' ? [] : [s];
 }
 
 export default Brain;

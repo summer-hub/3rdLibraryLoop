@@ -130,11 +130,10 @@ for i, step in enumerate(steps):
     elif not isinstance(step['taskDescription'], str) or not step['taskDescription'].strip():
         errors.append(f"步骤{step_num}: taskDescription 为空或非 string")
 
-    # dependId
-    if 'dependId' not in step:
-        errors.append(f"步骤{step_num}: 缺少 dependId")
-    elif not isinstance(step['dependId'], (int, float)):
-        errors.append(f"步骤{step_num}: dependId 应为 number")
+    # dependId（支持 number 或 number[]，fan-in 聚合）
+    did = step.get('dependId', 0)
+    if not isinstance(did, (int, float, list)):
+        errors.append(f"步骤{step_num}: dependId 应为 number 或 array")
 
     # nextStepId
     if 'nextStepId' not in step:
@@ -200,8 +199,10 @@ for i, step in enumerate(steps):
     else:
         ok(f"步骤{step_num} (stepId={step.get('stepId')}): 字段完整")
 
-    # 记录入口和终止步骤
-    if step.get('dependId') == 0:
+    # 记录入口和终止步骤（dependId 支持单值或数组，空数组视为入口）
+    did = step.get('dependId')
+    is_entry = (did is None) or (did == 0) or (isinstance(did, list) and len(did) == 0)
+    if is_entry:
         entry_steps.append(step.get('stepId'))
     if step.get('nextStepId') == 0:
         exit_steps.append(step.get('stepId'))
@@ -221,14 +222,21 @@ if len(exit_steps) == 0:
 else:
     ok(f"终止步骤存在: {exit_steps}")
 
-# 引用有效性
+# 引用有效性（dependId 支持单值或数组）
 ref_errors = []
 for step in steps:
     sid = step.get('stepId')
-    for field in ['dependId', 'nextStepId', 'failStepId']:
+    # nextStepId / failStepId 为单值
+    for field in ['nextStepId', 'failStepId']:
         ref = step.get(field)
         if ref != 0 and ref not in step_ids:
             ref_errors.append(f"stepId={sid}: {field}={ref} 引用了不存在的步骤")
+    # dependId 支持单值或数组
+    did = step.get('dependId')
+    dep_ids = did if isinstance(did, list) else ([did] if did else [])
+    for dep in dep_ids:
+        if dep != 0 and dep not in step_ids:
+            ref_errors.append(f"stepId={sid}: dependId={dep} 引用了不存在的步骤")
 
 if ref_errors:
     for e in ref_errors:

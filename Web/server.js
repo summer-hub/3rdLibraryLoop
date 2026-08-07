@@ -46,6 +46,8 @@ function proxyToBackend(req, res, backendUrl) {
     }, proxyRes => {
         res.writeHead(proxyRes.statusCode, proxyRes.headers);
         proxyRes.pipe(res);
+        // 上游（后端）关闭时，通知下游（浏览器），避免连接悬挂
+        proxyRes.on('close', () => { if (!res.writableEnded) res.end(); });
     });
 
     proxyReq.on('error', err => {
@@ -55,6 +57,15 @@ function proxyToBackend(req, res, backendUrl) {
             message: `后端不可达: ${err.message}`,
             backend: backendUrl
         }));
+    });
+
+    // 浏览器断开（含 EventSource.close、页面关闭/刷新）时销毁上游连接，
+    // 使后端 SseHub 能感知到连接关闭并正确清理连接计数，防止连接泄漏
+    res.on('close', () => {
+        if (!proxyReq.destroyed) proxyReq.destroy();
+    });
+    req.on('aborted', () => {
+        if (!proxyReq.destroyed) proxyReq.destroy();
     });
 
     req.pipe(proxyReq);

@@ -212,9 +212,12 @@ class Orchestrator {
         // 验证依赖引用完整性
         this._validateReferences();
 
-        // 识别入口步骤（dependId 为 0 或指向不存在的步骤）
+        // 识别入口步骤（无任何前置依赖，或全部前置指向不存在的步骤）
         for (const node of this._nodes.values()) {
-            if (node.dependId === '0' || !this._nodes.has(node.dependId)) {
+            // 归一化后的前置依赖数组为空 → 入口步骤
+            const deps = node.dependencies;
+            const hasValidDep = deps.some(d => this._nodes.has(d));
+            if (deps.length === 0 || !hasValidDep) {
                 this._entryStepIds.push(node.stepId);
             }
         }
@@ -255,9 +258,11 @@ class Orchestrator {
                     `Orchestrator.loadTask: 步骤 ${node.stepId} 的 failStepId "${node.failStepId}" 不存在`
                 );
             }
-            // dependId 非 0 时必须存在
-            if (node.dependId !== '0' && !this._nodes.has(node.dependId)) {
-                this._log('warn', `步骤 ${node.stepId} 的 dependId "${node.dependId}" 不存在，视为入口步骤`);
+            // dependId（单值或数组）中每个非 0 引用必须存在
+            for (const depId of node.dependencies) {
+                if (!this._nodes.has(depId)) {
+                    this._log('warn', `步骤 ${node.stepId} 的 dependId "${depId}" 不存在，视为入口步骤`);
+                }
             }
         }
     }
@@ -476,17 +481,27 @@ class Orchestrator {
             }
         }
 
+        // 本步骤完成，可能满足 fan-out/fan-in 依赖条件：扫描所有依赖它的后续步骤尝试激活
+        this._activateDependents(node);
+
         this._currentStepId = null;
     }
 
     /**
-     * 激活后续步骤（标记为 READY）。
+     * 激活后续步骤（标记为 READY），聚合感知。
+     *
+     * 成功/失败链语义（nextStepId/failStepId 单出边）保持不变，但激活前需满足
+     * 目标步骤自身的 fan-in 聚合条件：其所有前置依赖（node.dependencies）都须已 COMPLETED。
+     * 单依赖时行为与旧版完全一致；多依赖时需全部前置完成才真正 READY。
      *
      * @param {StepNode} fromNode    - 触发方步骤
      * @param {string} nextStepId    - 下一步骤 ID
+     * @param {object} [opts]
+     * @param {boolean} [opts.allowCompleted=false] - failStepId 修复路径允许重复执行已完成/失败节点
+     * @param {boolean} [opts.forceDependCheck=true] - 是否检查目标节点的聚合条件（默认检查）
      * @private
      */
-    _activateNextStep(fromNode, nextStepId, { allowCompleted = false } = {}) {
+    _activateNextStep(fromNode, nextStepId, { allowCompleted = false, forceDependCheck = true } = {}) {
         if (nextStepId === '0' || !this._nodes.has(nextStepId)) {
             return;
         }
@@ -508,14 +523,62 @@ class Orchestrator {
             return;
         }
 
+        // 聚合条件：目标节点的所有前置依赖必须已完成（fan-in）
+        if (forceDependCheck && !this._allDependenciesCompleted(nextNode)) {
+            this._log('info',
+                `步骤 ${fromNode.stepId} → 步骤 ${nextStepId} 尚有未完成的前置依赖，等待聚合`);
+            return;
+        }
+
         // 不清空历史结果；运行时状态由 markRunning/markFinished 自然更新
         nextNode.markReady();
-        // 传递前置步骤的结果报告路径
+        // 传递触发方步骤的结果报告路径（fan-in 聚合时取最后一个触发的前置）
         if (fromNode.resultPath) {
             nextNode.inputReport = fromNode.resultPath;
         }
         this._emitStepStatus(nextNode);
         this._log('info', `步骤 ${fromNode.stepId} → 激活步骤 ${nextStepId}`);
+    }
+
+    /**
+     * 当前步骤完成后，扫描所有以它为前置依赖的后续步骤，尝试激活满足条件的步骤。
+     *
+     * 同时覆盖两种场景：
+     *   - fan-out 并行：多个步骤 dependId 指向当前步骤，全部激活（由 _scheduleLoop 并行执行）
+     *   - fan-in 聚合：目标步骤 dependId 为数组，仅当它所有前置都 COMPLETED 才激活
+     * 与 _activateNextStep（沿 nextStepId/failStepId 链）互补；重复激活由 isPending/markReady 幂等拦截。
+     *
+     * @param {StepNode} fromNode - 刚完成的步骤
+     * @private
+     */
+    _activateDependents(fromNode) {
+        for (const node of this._nodes.values()) {
+            if (node === fromNode) continue;
+            // 仅当目标步骤依赖当前步骤，且仍处于待执行状态时才尝试激活
+            if (!node.dependencies.includes(fromNode.stepId)) continue;
+            if (!node.isPending) continue;
+            if (this._allDependenciesCompleted(node)) {
+                this._activateNextStep(fromNode, node.stepId, { forceDependCheck: false });
+            }
+        }
+    }
+
+    /**
+     * 检查步骤的所有前置依赖是否全部完成（fan-in 聚合成就条件）。
+     *
+     * 无依赖（入口）或依赖全部 COMPLETED 时返回 true。
+     *
+     * @param {StepNode} node
+     * @returns {boolean}
+     * @private
+     */
+    _allDependenciesCompleted(node) {
+        const deps = node.dependencies;
+        if (deps.length === 0) return true;
+        return deps.every(depId => {
+            const depNode = this._nodes.get(depId);
+            return depNode && depNode.isCompleted;
+        });
     }
 
     /**
@@ -550,7 +613,8 @@ class Orchestrator {
         await runner.initContext({
             taskId: this._taskId,
             stepId: Number(node.stepId) || 0,
-            dependId: Number(node.dependId) || 0,
+            // dependId 支持数组：FlexRunner 端仅作为回退锚点语义，数组时取第一个依赖
+            dependId: Number(node.dependencies[0]) || 0,
             nextStepId: Number(node.nextStepId) || 0,
             failStepId: Number(node.failStepId) || 0,
             taskDescription: node.taskDescription,

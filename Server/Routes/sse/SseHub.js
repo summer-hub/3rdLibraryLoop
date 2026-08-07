@@ -251,10 +251,15 @@ class SseHub {
      */
     _broadcastHeartbeat() {
         const heartbeat = `: heartbeat ${Date.now()}\n\n`;
-        for (const [, subscribers] of this._channels) {
+        for (const [channel, subscribers] of this._channels) {
             for (const conn of subscribers) {
-                if (this._isAlive(conn)) {
+                if (!this._isAlive(conn)) continue;
+                try {
                     conn.res.write(heartbeat);
+                } catch (e) {
+                    // 写入失败说明连接已失效，立即清理，防止僵尸连接残留
+                    this._removeConnection(channel, conn);
+                    conn.res.end();
                 }
             }
         }
