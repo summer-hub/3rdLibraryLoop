@@ -35,6 +35,50 @@ export class DecompositionStrategies {
         this.skillExecutor = skillExecutor;
     }
 
+    // ─── 步骤摘要格式化（重规划共用） ────────────────────────────────
+
+    /**
+     * 格式化上一轮步骤执行摘要，供重规划 prompt 注入。
+     *
+     * 将 completedSteps / failedSteps / pendingSteps 格式化为可读文本，
+     * 使 LLM 在重拆解时能识别已完成工作并复用，仅针对未完成部分生成新步骤。
+     *
+     * @param {object} context - 重规划上下文
+     * @returns {string} 格式化后的步骤摘要文本
+     * @private
+     */
+    _formatPrevStepsSummary(context) {
+        const { completedSteps = [], failedSteps = [], pendingSteps = [] } = context;
+
+        const parts = [];
+
+        if (completedSteps.length > 0) {
+            parts.push(`### 已完成的步骤（${completedSteps.length} 个，产物已生成，无需重新执行）`);
+            parts.push(completedSteps.map(s =>
+                `  - 步骤${s.stepId}: ${s.taskDescription.slice(0, 120)}` +
+                (s.resultPath ? `\n    产物: ${s.resultPath}` : '')
+            ).join('\n'));
+        }
+
+        if (failedSteps.length > 0) {
+            parts.push(`### 失败的步骤（${failedSteps.length} 个，需重点修复）`);
+            parts.push(failedSteps.map(s =>
+                `  - 步骤${s.stepId}: ${s.taskDescription.slice(0, 120)}` +
+                (s.error ? `\n    失败原因: ${s.error}` : '') +
+                (s.resultPath ? `\n    部分产物: ${s.resultPath}` : '')
+            ).join('\n'));
+        }
+
+        if (pendingSteps.length > 0) {
+            parts.push(`### 未执行的步骤（${pendingSteps.length} 个）`);
+            parts.push(pendingSteps.map(s =>
+                `  - 步骤${s.stepId}: ${s.taskDescription.slice(0, 120)}`
+            ).join('\n'));
+        }
+
+        return parts.length > 0 ? parts.join('\n') : '（无步骤执行信息）';
+    }
+
     // ─── 首轮拆解 ──────────────────────────────────────────────────────
 
     /**
@@ -287,6 +331,9 @@ ${skillInstructions}
             ? improvementSuggestions.map((s, i) => `  ${i + 1}. ${s}`).join('\n')
             : '（无）';
 
+        // 格式化上一轮步骤执行摘要（已完成步骤 + 失败步骤 + 产物路径）
+        const prevStepsText = this._formatPrevStepsSummary(context);
+
         const contextSections = [
             `## 原始任务描述\n${taskDescription}`,
             `## 任务分析\n- 意图: ${analysis.intent}\n- 领域: ${analysis.domain}\n- 复杂度: ${analysis.complexity}\n- 预估步骤数: ${analysis.estimatedSteps}\n- 失败分析: ${analysis.failureAnalysis || '无'}\n- 调整策略: ${analysis.adjustmentStrategy || '无'}`,
@@ -295,7 +342,8 @@ ${skillInstructions}
                 ? `## 用户提供的验收标准\n${userCriteria.trim()}`
                 : null,
             `## 上一轮失败信息\n### 审核摘要\n${prevCheckSummary || '（无）'}\n### 未满足的验收标准\n${failedText}\n### 改进建议\n${suggestionText}`,
-            `## 重拆解要求\n当前是第 ${loopCount} 轮重规划，请基于上一轮失败信息重新拆解任务：\n1. 针对未满足的标准，调整相关步骤的任务描述，使其更明确\n2. 增加或强化验证步骤\n3. 考虑改进建议中的方向，新增必要的步骤\n4. 保持步骤间的依赖关系合理\n5. 步骤 ID 从 1 开始重新编号`
+            `## 上一轮步骤执行详情\n${prevStepsText}`,
+            `## 重拆解要求\n当前是第 ${loopCount} 轮重规划，请基于上一轮失败信息和已完成步骤重新拆解任务：\n1. 已完成的步骤无需重新执行，它们的产物已生成并可用\n2. 针对失败的步骤和未满足的验收标准，调整步骤描述或新增步骤\n3. 增加或强化验证步骤\n4. 考虑改进建议中的方向，新增必要的步骤\n5. 保持步骤间的依赖关系合理\n6. 新步骤 ID 从 1 开始重新编号，但在步骤描述中注明引用了上一轮哪个步骤的产物（如"基于上一轮步骤3的产物…"）`
         ].filter(Boolean);
 
         const title = `brain|task=${taskId}|decompose|replan|loop=${loopCount}`;
@@ -344,7 +392,10 @@ ${skillInstructions}
             ? improvementSuggestions.map((s, i) => `  ${i + 1}. ${s}`).join('\n')
             : '（无）';
 
-        const prompt = `你是一个任务拆解专家。当前是第 ${loopCount} 轮重规划，上一轮执行后准出审核未通过，请基于失败信息重新拆解任务。
+        // 格式化上一轮步骤执行摘要（已完成步骤 + 失败步骤 + 产物路径）
+        const prevStepsText = this._formatPrevStepsSummary(context);
+
+        const prompt = `你是一个任务拆解专家。当前是第 ${loopCount} 轮重规划，上一轮执行后准出审核未通过，请基于失败信息和已完成步骤重新拆解任务。
 
 ## 原始任务描述
 ${taskDescription}
@@ -364,6 +415,9 @@ ${taskCriteriaText || '（未提供）'}
 ### 审核摘要
 ${prevCheckSummary || '（无）'}
 
+### 上一轮步骤执行详情
+${prevStepsText}
+
 ### 未满足的验收标准
 ${failedText}
 
@@ -374,11 +428,12 @@ ${suggestionText}
 ${skillInstructions}
 
 ## 重拆解要求
-1. 针对未满足的标准，调整相关步骤的任务描述，使其更明确
-2. 增加或强化验证步骤
-3. 考虑改进建议中的方向，新增必要的步骤
-4. 保持步骤间的依赖关系合理
-5. 步骤 ID 从 1 开始重新编号
+1. 已完成的步骤无需重新执行，它们的产物已生成并可用
+2. 针对失败的步骤和未满足的验收标准，调整步骤描述或新增步骤
+3. 增加或强化验证步骤
+4. 考虑改进建议中的方向，新增必要的步骤
+5. 保持步骤间的依赖关系合理
+6. 新步骤 ID 从 1 开始重新编号，但在步骤描述中注明引用了上一轮哪个步骤的产物（如"基于上一轮步骤3的产物…"）
 
 ## 输出要求
 请以 JSON 格式返回：

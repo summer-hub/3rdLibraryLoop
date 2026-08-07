@@ -313,38 +313,78 @@ export class Brain {
         const failedCriteria = Array.isArray(prevCheck.criteriaResults)
             ? prevCheck.criteriaResults.filter(c => !c.satisfied)
             : [];
+        const satisfiedCriteria = Array.isArray(prevCheck.criteriaResults)
+            ? prevCheck.criteriaResults.filter(c => c.satisfied)
+            : [];
         const improvementSuggestions = Array.isArray(prevCheck.improvementSuggestions)
             ? prevCheck.improvementSuggestions
             : [];
 
+        // ── 提取上一轮步骤执行详情（已完成步骤 + 失败步骤 + 产物路径）──
+        // 从 previousOrchestratorResult.steps 中提取各步骤的执行状态和产物，
+        // 传入下游 AnalysisStrategies / DecompositionStrategies，使重规划能复用已完成工作
+        const prevSteps = Array.isArray(prevOrch.steps) ? prevOrch.steps : [];
+        const completedSteps = prevSteps
+            .filter(s => s.status === 'completed')
+            .map(s => ({
+                stepId: s.stepId,
+                taskDescription: s.taskDescription || '',
+                resultPath: s.resultPath || '',
+                sessionId: s.sessionId || ''
+            }));
+        const failedSteps = prevSteps
+            .filter(s => s.status === 'failed')
+            .map(s => ({
+                stepId: s.stepId,
+                taskDescription: s.taskDescription || '',
+                resultPath: s.resultPath || '',
+                error: s.error || '',
+                sessionId: s.sessionId || ''
+            }));
+        const pendingSteps = prevSteps
+            .filter(s => s.status === 'pending' || s.status === 'ready' || s.status === 'blocked')
+            .map(s => ({
+                stepId: s.stepId,
+                taskDescription: s.taskDescription || ''
+            }));
+
         this._status = BrainStatus.ANALYZING;
         this._emit(taskId, 'brain:replan:start', {
             planId, taskId, loopCount,
-            failedCount: failedCriteria.length
+            failedCount: failedCriteria.length,
+            completedStepCount: completedSteps.length
         });
 
         try {
-            // ─── 步骤 1：重新分析任务（融入失败上下文） ───
+            // ─── 步骤 1：重新分析任务（融入失败上下文 + 已完成步骤信息） ───
             const analysis = await this._analysis.analyzeTaskWithContext(
                 taskDescription, userCriteria, {
                     failedCriteria,
                     improvementSuggestions,
                     prevCheckSummary: prevCheck.summary || '',
                     prevOrchStatus: prevOrch.status || '',
-                    loopCount
+                    loopCount,
+                    completedSteps,
+                    failedSteps,
+                    pendingSteps,
+                    satisfiedCriteria
                 },
                 { taskId, taskDir, skillDir }
             );
             this._emit(taskId, 'brain:replan:analyze:done', { planId, analysis });
 
-            // ─── 步骤 2：重新拆解（基于失败信息调整步骤） ───
+            // ─── 步骤 2：重新拆解（基于失败信息 + 已完成步骤调整步骤） ───
             this._status = BrainStatus.PLANNING;
             const rawSteps = await this._decomposition.decomposeTaskWithContext(
                 taskDescription, analysis, skillDir, userCriteria, {
                     failedCriteria,
                     improvementSuggestions,
                     prevCheckSummary: prevCheck.summary || '',
-                    loopCount
+                    loopCount,
+                    completedSteps,
+                    failedSteps,
+                    pendingSteps,
+                    satisfiedCriteria
                 },
                 { taskId, taskDir, skillDir }
             );

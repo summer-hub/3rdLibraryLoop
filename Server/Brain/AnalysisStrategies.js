@@ -26,6 +26,61 @@ export class AnalysisStrategies {
         this.skillExecutor = skillExecutor;
     }
 
+    // ─── 步骤摘要格式化（重规划共用） ────────────────────────────────
+
+    /**
+     * 格式化上一轮步骤执行摘要，供重规划 prompt 注入。
+     *
+     * 将 completedSteps / failedSteps / pendingSteps 格式化为可读文本，
+     * 使 LLM 能理解哪些工作已完成、产物在哪里、哪些步骤失败需重做。
+     *
+     * @param {object} context - 重规划上下文
+     * @returns {string} 格式化后的步骤摘要文本
+     * @private
+     */
+    _formatPrevStepsSummary(context) {
+        const { completedSteps = [], failedSteps = [], pendingSteps = [], satisfiedCriteria = [] } = context;
+
+        const parts = [];
+
+        // 已满足的验收标准
+        if (satisfiedCriteria.length > 0) {
+            parts.push(`### 已满足的验收标准（${satisfiedCriteria.length} 条）`);
+            parts.push(satisfiedCriteria.map(c =>
+                `  - [${c.id || c.criterionId}] ${c.criterion || c.criterionText || ''} ✓`
+            ).join('\n'));
+        }
+
+        // 已完成的步骤
+        if (completedSteps.length > 0) {
+            parts.push(`### 已完成的步骤（${completedSteps.length} 个，无需重做）`);
+            parts.push(completedSteps.map(s =>
+                `  - 步骤${s.stepId}: ${s.taskDescription.slice(0, 120)}` +
+                (s.resultPath ? `\n    产物: ${s.resultPath}` : '')
+            ).join('\n'));
+        }
+
+        // 失败的步骤
+        if (failedSteps.length > 0) {
+            parts.push(`### 失败的步骤（${failedSteps.length} 个，需重点修复）`);
+            parts.push(failedSteps.map(s =>
+                `  - 步骤${s.stepId}: ${s.taskDescription.slice(0, 120)}` +
+                (s.error ? `\n    失败原因: ${s.error}` : '') +
+                (s.resultPath ? `\n    产物: ${s.resultPath}` : '')
+            ).join('\n'));
+        }
+
+        // 未执行的步骤
+        if (pendingSteps.length > 0) {
+            parts.push(`### 未执行的步骤（${pendingSteps.length} 个）`);
+            parts.push(pendingSteps.map(s =>
+                `  - 步骤${s.stepId}: ${s.taskDescription.slice(0, 120)}`
+            ).join('\n'));
+        }
+
+        return parts.length > 0 ? parts.join('\n') : '（无步骤执行信息）';
+    }
+
     // ─── 首轮分析 ──────────────────────────────────────────────────────
 
     /**
@@ -211,6 +266,9 @@ ${criteriaSection}
             ? improvementSuggestions.map((s, i) => `  ${i + 1}. ${s}`).join('\n')
             : '（无具体改进建议）';
 
+        // 格式化上一轮步骤执行摘要（已完成步骤 + 失败步骤 + 产物路径）
+        const prevStepsText = this._formatPrevStepsSummary(context);
+
         const contextSections = [
             `## 任务描述\n${taskDescription}`,
             userCriteria.trim()
@@ -219,9 +277,10 @@ ${criteriaSection}
             `## 重规划上下文\n当前是第 ${loopCount} 轮重规划，上一轮执行后准出审核未通过。`,
             `## 上一轮审核摘要\n${prevCheckSummary || '（无摘要）'}`,
             `## 上一轮编排状态\n${prevOrchStatus || 'unknown'}`,
+            `## 上一轮步骤执行详情\n${prevStepsText}`,
             `## 未满足的验收标准\n${failedText}`,
             `## 改进建议\n${suggestionText}`,
-            `## 重分析要求\n1. 保持原始任务目标不变\n2. 针对未满足的标准，分析失败原因\n3. 调整验收标准的验证方式，使其更明确\n4. 如有必要，补充新的验收标准\n5. 考虑改进建议中的方向\n6. 生成 failureAnalysis 和 adjustmentStrategy 字段`
+            `## 重分析要求\n1. 保持原始任务目标不变\n2. 已完成的步骤和已满足的验收标准无需重复分析，重点分析未满足标准的失败原因\n3. 调整验收标准的验证方式，使其更明确\n4. 如有必要，补充新的验收标准\n5. 考虑改进建议中的方向\n6. 生成 failureAnalysis 和 adjustmentStrategy 字段，adjustmentStrategy 中应说明哪些已完成步骤可复用、哪些需要新增或修改`
         ];
 
         const title = `brain|task=${taskId}|reanalyze|loop=${loopCount}`;
@@ -256,6 +315,9 @@ ${criteriaSection}
             ? improvementSuggestions.map((s, i) => `  ${i + 1}. ${s}`).join('\n')
             : '（无具体改进建议）';
 
+        // 格式化上一轮步骤执行摘要（已完成步骤 + 失败步骤 + 产物路径）
+        const prevStepsText = this._formatPrevStepsSummary(context);
+
         const criteriaSection = userCriteria.trim()
             ? `\n## 用户提供的验收标准\n${userCriteria.trim()}\n\n请基于以上用户标准进行细化、补充和结构化。`
             : `\n## 验收标准\n请根据任务描述自动生成合理的验收标准。`;
@@ -274,6 +336,9 @@ ${prevCheckSummary || '（无摘要）'}
 ### 上一轮编排状态
 ${prevOrchStatus || 'unknown'}
 
+### 上一轮步骤执行详情
+${prevStepsText}
+
 ### 未满足的验收标准
 ${failedText}
 
@@ -282,10 +347,11 @@ ${suggestionText}
 
 ## 重分析要求
 1. 保持原始任务目标不变
-2. 针对未满足的标准，分析失败原因
+2. 已完成的步骤和已满足的验收标准无需重复分析，重点分析未满足标准的失败原因
 3. 调整验收标准的验证方式，使其更明确
 4. 如有必要，补充新的验收标准
 5. 考虑改进建议中的方向
+6. adjustmentStrategy 中应说明哪些已完成步骤可复用、哪些需要新增或修改
 
 ## 输出要求
 请以 JSON 格式返回，包含以下字段：
