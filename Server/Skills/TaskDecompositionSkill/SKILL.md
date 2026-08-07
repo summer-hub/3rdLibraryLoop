@@ -238,11 +238,42 @@ failStepId → 失败后跳转到哪个步骤（0 = 失败即终止）
 
 ## 自检
 
-输出完成后，可运行校验脚本验证 JSON 合规性：
+输出完成后，**必须**运行校验脚本验证 JSON 合规性与步骤图无死锁：
 
 ```bash
+# 1. 字段/引用/验收标准合规性校验
 bash scripts/validate-decomposition-output.sh <resultFile>
+
+# 2. 死锁/循环检测（必须通过，否则重拆解）
+node scripts/validate-step-graph.cjs <resultFile>
 ```
+
+### 死锁校验规则（强制）
+
+`validate-step-graph.cjs` 会检测以下**死锁/循环**，任一项不通过则脚本以非零码退出：
+
+1. **成功链环（nextStepId 成环）** — 如 `step4.nextStepId→step5`、`step5.nextStepId→step4`，成功后永远无法结束
+2. **失败链环（failStepId 成环）** — 如 `A 失败→B`、`B 失败→A`，修复链无限回退（自身回退 `failStepId==自己` 配合 `maxRetries` 视为合法，不报错）
+3. **依赖环（dependId 成环）** — 步骤互相依赖，拓扑无法启动
+4. **不可达/孤立步骤** — 从入口沿 `nextStepId` 链无法到达的步骤，永远不会被执行
+5. **成功链无终止** — 所有步骤 `nextStepId` 均非 0，无法结束
+
+> ⚠️ **强制要求**：若脚本 exit 非 0（检测到上述任一问题），**必须修正步骤图的 `nextStepId`/`failStepId`/`dependId` 后重新生成 JSON，并重新运行校验，直至脚本全部通过**。不得提交含死锁的步骤图。
+
+### 死锁反馈与自动重生成
+
+若死锁校验未通过，执行以下**反馈驱动重生成循环**，将死锁链路径交给大模型自身推理修正：
+
+1. **提取死锁反馈** — 读取 `validate-step-graph.cjs` 输出中的死锁链路径（如 `成功链环: 4 → 5 → 4`），将其作为"死锁反馈"写入当前工作上下文。
+2. **判定类型与根因** — 逐条判定死锁类型（成功链环 / 失败链环 / 依赖环 / 孤立步骤 / 无终止），并定位根因字段（`nextStepId` / `failStepId` / `dependId`）。
+3. **带着死锁反馈重新生成 JSON** — 依据任务目标重新设计步骤图，确保打破死锁的同时，步骤图仍能达成任务预期效果。重新生成而非在原 JSON 上局部修补。
+4. **重新校验** — 重新运行 `node scripts/validate-step-graph.cjs <resultFile>`。
+5. **循环 2-4** — 直至脚本全部 PASS；最多尝试 3 次，仍失败则报错并附最后一次死锁反馈。
+
+死锁反馈必须保留在每一步骤的思考中，例如：
+`已在上一轮检测到死锁: 成功链环 4 → 5 → 4，本次生成已将该环改写为 4 → 5 → 6(终止)`。
+
+> 修正完全依靠大模型自身推理能力，不规定机械拆环手法，以确保步骤图仍能达成任务预期效果。
 
 ---
 
@@ -250,7 +281,7 @@ bash scripts/validate-decomposition-output.sh <resultFile>
 
 1. **每个步骤对应一个已有 SKILL** — 步骤的 taskDescription 要能让 SkillSelector 匹配到执行 SKILL
 2. **验收标准必须可验证** — 避免模糊描述，verification 要具体到可执行
-3. **依赖图不能有死循环** — failStepId 回退链必须有限，配合 maxRetries 控制
+3. **依赖图不能有死循环** — failStepId 回退链必须有限，配合 maxRetries 控制；成功链/失败链/依赖环均会死锁。最终以 `node scripts/validate-step-graph.cjs <resultFile>` 校验结果为准，检测到死锁必须重拆解直至通过
 4. **步骤级 AC 的 taskACIds 要覆盖任务级 AC** — 合并所有步骤的 taskACIds 应覆盖所有任务级标准 ID
 5. **重规划时保持目标一致** — 调整的是步骤设计与验收标准，不是任务目标
 6. **输出纯 JSON** — 下游有容错机制但应输出纯 JSON，不依赖容错
