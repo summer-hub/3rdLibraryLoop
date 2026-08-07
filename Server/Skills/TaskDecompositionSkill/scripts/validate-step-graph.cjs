@@ -78,12 +78,31 @@ function findCycles(graph, edgeName) {
 }
 
 /**
- * BFS 可达性检查：从入口节点沿 nextStepId 链，标记所有可到达的步骤。
+ * BFS 可达性检查：从入口节点沿依赖关系遍历，标记所有可到达的步骤。
+ *
+ * 覆盖三类执行路径：
+ *   - dependId：步骤依赖的前置（fan-in 聚合 + fan-out 并行），执行依赖关系
+ *   - nextStepId 成功链（串行推进）
+ *   - failStepId 失败回退链
+ *
+ * 从入口沿 dependId 反向传播（fan-out）：某步骤可达后，依赖它的并行步骤也可达。
+ * 同时沿 nextStepId/failStepId 传播串行/回退链。
+ *
  * @param {Map<string, object>} nodes - stepId -> step
  * @param {string[]} entryIds
  * @returns {Set<string>} 可到达的 stepId 集合
  */
 function reachableFromEntries(nodes, entryIds) {
+  // 反向依赖索引：dep -> 依赖它的步骤列表（fan-out 传播）
+  // 同时维护正向邻接（nextStepId/failStepId）
+  const dependents = new Map(); // 前置 id -> 依赖它的步骤 id[]
+  for (const [sid, step] of nodes) {
+    for (const dep of getDepIds(step.dependId)) {
+      if (!dependents.has(dep)) dependents.set(dep, []);
+      dependents.get(dep).push(sid);
+    }
+  }
+
   const visited = new Set();
   const queue = [...entryIds];
   while (queue.length > 0) {
@@ -92,9 +111,22 @@ function reachableFromEntries(nodes, entryIds) {
     visited.add(cur);
     const node = nodes.get(cur);
     if (!node) continue;
+
+    // dependId fan-out：被当前步骤依赖的并行步骤
+    for (const dep of dependents.get(cur) || []) {
+      if (!visited.has(dep)) queue.push(dep);
+    }
+
+    // nextStepId 成功链
     const next = String(node.nextStepId ?? 0);
     if (next !== '0' && nodes.has(next) && !visited.has(next)) {
       queue.push(next);
+    }
+
+    // failStepId 失败回退链
+    const fail = String(node.failStepId ?? 0);
+    if (fail !== '0' && nodes.has(fail) && !visited.has(fail)) {
+      queue.push(fail);
     }
   }
   return visited;
@@ -184,8 +216,18 @@ for (const step of steps) {
   }
 }
 
+/** 提取 dependId（支持单值或数组）的所有前置 ID 数组 */
+function getDepIds(dependId) {
+  if (Array.isArray(dependId)) {
+    return dependId.map(String).filter((v) => v !== '0' && v !== '');
+  }
+  if (dependId == null) return [];
+  const s = String(dependId);
+  return s === '0' || s === '' ? [] : [s];
+}
+
 // 引用有效性检查（引用的 stepId 必须存在，0 除外）
-const refFields = ['dependId', 'nextStepId', 'failStepId'];
+const refFields = ['nextStepId', 'failStepId'];
 const refErrors = [];
 for (const step of steps) {
   const sid = String(step.stepId);
@@ -195,6 +237,12 @@ for (const step of steps) {
       refErrors.push(`stepId=${sid}: ${field}=${ref} 引用了不存在的步骤`);
     }
   }
+  // dependId 支持单值或数组，逐项校验
+  for (const depId of getDepIds(step.dependId)) {
+    if (!stepIds.has(depId)) {
+      refErrors.push(`stepId=${sid}: dependId=${depId} 引用了不存在的步骤`);
+    }
+  }
 }
 if (refErrors.length > 0) {
   for (const e of refErrors) fail(e);
@@ -202,10 +250,10 @@ if (refErrors.length > 0) {
   ok('所有 dependId/nextStepId/failStepId 引用有效');
 }
 
-// 入口步骤（dependId==0 或指向不存在步骤）
+// 入口步骤（dependId 无前置，或全部前置指向不存在步骤）
 const entryIds = Array.from(nodes.keys()).filter((sid) => {
-  const d = nodes.get(sid).dependId;
-  return d == null || d === 0 || d === '0' || !stepIds.has(String(d));
+  const deps = getDepIds(nodes.get(sid).dependId);
+  return deps.length === 0 || deps.every((d) => !stepIds.has(d));
 });
 if (entryIds.length === 0) {
   fail('无入口步骤（至少需要一个 dependId=0 的步骤）');
@@ -241,12 +289,13 @@ if (failCycles.length > 0) {
   ok('失败链（failStepId）无明显循环');
 }
 
-// ── 3. 依赖环检测（dependId）──────────────────────────────
+// ── 3. 依赖环检测（dependId，支持单值或数组）───────────────
 const depGraph = new Map();
 for (const [sid, step] of nodes) {
-  const d = step.dependId;
-  depGraph.set(sid, d != null && d !== 0 && d !== '0' && String(d) !== sid ? [String(d)] : []);
-}
+  // 每个前置依赖作为一条 dependId 边；排除自身回退
+  const deps = getDepIds(step.dependId).filter((d) => d !== sid);
+  depGraph.set(sid, deps);
+} 
 const depCycles = findCycles(depGraph, 'dependId');
 if (depCycles.length > 0) {
   for (const c of depCycles) fail(`依赖环（dependId）: ${c}`);

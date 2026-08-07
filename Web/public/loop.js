@@ -237,19 +237,28 @@ async function loadOrchestratorProgress(taskId) {
     } catch(err) { State.orchProgress = null; renderGraph(); }
 }
 
+function getDepIds(dep) {
+    if (Array.isArray(dep)) return dep.map(String).filter(function(x){ return x!=='0' && x!==''; });
+    if (dep==null || dep==='0' || dep==='') return [];
+    return [String(dep)];
+}
+
 function buildGraphData() {
     var p = State.orchProgress;
     if (!p || !p.steps || p.steps.length===0) { State.graphNodes=[]; State.graphEdges=[]; return; }
     State.graphNodes = p.steps.map(function(s) {
         return { id: String(s.stepId), stepId: s.stepId, status: s.status||'pending', retryCount: s.retryCount||0, maxRetries: s.maxRetries||3,
-            taskDescription: s.taskDescription||'', dependId: String(s.dependId||'0'), nextStepId: String(s.nextStepId||'0'), failStepId: String(s.failStepId||'0'),
+            taskDescription: s.taskDescription||'', dependId: s.dependId, nextStepId: String(s.nextStepId||'0'), failStepId: String(s.failStepId||'0'),
             sessionId: s.sessionId||'', resultPath: s.resultPath||'', error: s.error||'', startTime: s.startTime, endTime: s.endTime, history: s.history||[],
             canRetry: s.canRetry!==false, skillDirectory: s.skillDirectory||'', taskDir: s.taskDir||'', inputReport: s.inputReport||'' };
     });
     State.graphEdges = [];
     var ids = {}; State.graphNodes.forEach(function(n){ ids[n.id]=true; });
     State.graphNodes.forEach(function(n) {
-        if (n.dependId && n.dependId!=='0' && ids[n.dependId]) State.graphEdges.push({ from:n.dependId, to:n.id, type:'depend', label:'依赖' });
+        // dependId 支持单值或数组（fan-in 聚合），逐项生成依赖边
+        getDepIds(n.dependId).forEach(function(dep) {
+            if (ids[dep]) State.graphEdges.push({ from:dep, to:n.id, type:'depend', label:'依赖' });
+        });
         if (n.nextStepId && n.nextStepId!=='0' && ids[n.nextStepId]) State.graphEdges.push({ from:n.id, to:n.nextStepId, type:'success', label:'成功' });
         if (n.failStepId && n.failStepId!=='0' && ids[n.failStepId]) State.graphEdges.push({ from:n.id, to:n.failStepId, type:'fail', label:'失败' });
     });
@@ -259,7 +268,7 @@ function layoutGraph() {
     var nodes = State.graphNodes; if (nodes.length===0) { State.nodePositions={}; return; }
     var map = {}; nodes.forEach(function(n){ map[n.id]=n; });
     var levels = {};
-    function getLvl(id, vis) { if (!vis) vis={}; if (vis[id]) return 0; if (levels[id]!==undefined) return levels[id]; var n=map[id]; if(!n) return 0; vis[id]=true; if(!n.dependId||n.dependId==='0'||!map[n.dependId]){levels[id]=0;return 0;} var l=getLvl(n.dependId,vis)+1; levels[id]=l; return l; }
+    function getLvl(id, vis) { if (!vis) vis={}; if (vis[id]) return 0; if (levels[id]!==undefined) return levels[id]; var n=map[id]; if(!n) return 0; vis[id]=true; var deps=getDepIds(n.dependId).filter(function(d){return map[d];}); if(deps.length===0){levels[id]=0;return 0;} var l=0; deps.forEach(function(d){ var dl=getLvl(d,vis)+1; if(dl>l)l=dl; }); levels[id]=l; return l; }
     nodes.forEach(function(n){ getLvl(n.id,{}); });
     var chg=true, iter=0;
     while (chg && iter<10) { chg=false; iter++; nodes.forEach(function(n){ if(n.nextStepId&&n.nextStepId!=='0'&&map[n.nextStepId]){ var exp=(levels[n.id]||0)+1; if((levels[n.nextStepId]||0)<exp){levels[n.nextStepId]=exp;chg=true;} } }); }
@@ -449,7 +458,8 @@ function renderDetailTab(step) {
         '</div></div>'+
         '<div class="detail-section"><h4>任务描述</h4><div style="font-size:12px;line-height:1.6;background:var(--code-bg);padding:10px;border-radius:6px;">'+escapeHtml(step.taskDescription||'—')+'</div></div>'+
         '<div class="detail-section"><h4>步骤关系</h4><div class="kv-list">'+
-        '<div class="k">依赖步骤</div><div class="v">'+(step.dependId&&step.dependId!=='0'?'步骤 '+escapeHtml(step.dependId):'无 (入口)')+'</div>'+
+        '<div class="k">依赖步骤</div><div class="v">'+(getDepIds(step.dependId).length>0?'步骤 '+escapeHtml(getDepIds(step.dependId).join(', ')):'无 (入口)')+'</div>'+
+        '<div class="k">依赖数</div><div class="v">'+getDepIds(step.dependId).length+' 个前置</div>'+
         '<div class="k">成功→下一步</div><div class="v">'+(step.nextStepId&&step.nextStepId!=='0'?'步骤 '+escapeHtml(step.nextStepId):'无 (结束)')+'</div>'+
         '<div class="k">失败→回退</div><div class="v">'+(step.failStepId&&step.failStepId!=='0'?'步骤 '+escapeHtml(step.failStepId):'无 (终止)')+'</div>'+
         '</div></div>';
@@ -610,7 +620,7 @@ function renderBrainSection() {
     }
     h+='<div class="brain-card"><h3>📋 拆解步骤 ('+steps.length+' 步)</h3><div class="step-flow">';
     steps.forEach(function(s,idx){
-        var dep=s.dependId&&s.dependId!=='0'?'依赖步骤 '+s.dependId:'入口步骤';
+        var dep=getDepIds(s.dependId).length>0?'依赖步骤 '+getDepIds(s.dependId).join(', '):'入口步骤';
         var nxt=s.nextStepId&&s.nextStepId!=='0'?'→ 步骤 '+s.nextStepId:'→ 结束';
         var fail=s.failStepId&&s.failStepId!=='0'?' | 失败→步骤 '+s.failStepId:'';
         h+='<div class="step-flow-item"><div class="step-num">'+(idx+1)+'</div><div class="step-info"><div class="step-desc">'+escapeHtml(s.taskDescription||'')+'</div><div class="step-meta">'+dep+' · '+nxt+fail+' · 重试'+(s.maxRetries||3)+'次</div></div></div>';
@@ -643,8 +653,15 @@ function startPolling(tid) {
 
 function stopPolling() { if(State.pollTimer){clearInterval(State.pollTimer);State.pollTimer=null;} }
 
+function closeSSE() {
+    if (State.sseSource) {
+        try { State.sseSource.close(); } catch(e) {}
+        State.sseSource=null;
+    }
+}
+
 function connectSSE(tid) {
-    if (State.sseSource) { State.sseSource.close(); State.sseSource=null; }
+    closeSSE();
     try {
         var es=new EventSource('/stream/tasks/'+encodeURIComponent(tid));
         State.sseSource=es;
@@ -661,7 +678,17 @@ function connectSSE(tid) {
         es.addEventListener('orch:task:complete',function(){toast('success','编排任务完成');loadOrchestratorProgress(tid);loadLoopList();});
         es.addEventListener('orch:task:error',function(){toast('error','编排任务出错');loadOrchestratorProgress(tid);loadLoopList();});
         es.addEventListener('orch:task:aborted',function(){toast('warn','编排任务已终止');loadOrchestratorProgress(tid);loadLoopList();});
-        es.onerror=function(){};
+        es.onerror=function(){
+            // 连接错误（含后端限流主动关闭连接）：主动关闭并置空，
+            // 阻止浏览器对 EventSource 的无限自动重连，避免连接泄漏
+            es.close();
+            if (State.sseSource === es) State.sseSource=null;
+        };
+        // 页面刷新/关闭时释放连接，避免刷新后残留订阅（仅注册一次）
+        if (!State._sseUnloadBound) {
+            window.addEventListener('beforeunload', closeSSE);
+            State._sseUnloadBound = true;
+        }
     } catch(err){}
 }
 

@@ -122,16 +122,19 @@ Phase 4: 结果输出（纯 JSON 写入 resultFilePath）
 步骤间通过三个字段构成有向图：
 
 ```
-dependId   → 当前步骤依赖哪个步骤（0 = 入口步骤，无前置依赖）
+dependId   → 当前步骤依赖的步骤，支持 number 或 number[]（0 或空数组 = 入口步骤，无前置依赖）
+              · dependId: 2       单依赖（等价于 [2]）
+              · dependId: [2,3,4] fan-in 聚合，需 2/3/4 全部完成才执行本步骤
 nextStepId → 成功后执行哪个步骤（0 = 终止，任务完成）
 failStepId → 失败后跳转到哪个步骤（0 = 失败即终止）
 ```
 
 ### 2.3 图结构设计要点
 
-- **入口步骤**：至少有一个 `dependId=0` 的步骤
+- **入口步骤**：至少有一个 `dependId=0`（或 `dependId: []`）的步骤
 - **终止步骤**：至少有一个 `nextStepId=0` 的步骤
-- **并行执行**：多个步骤的 `dependId` 指向同一步骤 → Orchestrator 并行执行
+- **并行执行（fan-out）**：多个步骤的 `dependId` 指向同一步骤 → Orchestrator 并行执行
+- **聚合执行（fan-in）**：某步骤需等待多个并行步骤全部完成再执行，用 `dependId: [a, b, c]` → 仅当 a/b/c 全部 COMPLETED 后本步骤才被激活
 - **失败回退**：关键步骤设 `failStepId` 指向修复步骤，修复成功后重新指向原始步骤（有限重试循环）
 - **禁止死循环**：failStepId 回退链必须是有限的，配合 `maxRetries` 控制
 
@@ -210,6 +213,23 @@ failStepId → 失败后跳转到哪个步骤（0 = 失败即终止）
 ```
 
 > 完整输出示例参见 [输出示例](assets/OUTPUT_EXAMPLES.md)
+
+**fan-in 聚合示例**（并行步骤 2/3/4 聚合到步骤 5）：
+
+```json
+{
+  "steps": [
+    { "stepId": 1, "taskDescription": "分析任务并产出输入", "dependId": 0, "nextStepId": 2, "failStepId": 0, "maxRetries": 3 },
+    { "stepId": 2, "taskDescription": "并行检视：代码质量", "dependId": 1, "nextStepId": 5, "failStepId": 0, "maxRetries": 3 },
+    { "stepId": 3, "taskDescription": "并行检视：稳定性", "dependId": 1, "nextStepId": 5, "failStepId": 0, "maxRetries": 3 },
+    { "stepId": 4, "taskDescription": "并行检视：文档质量", "dependId": 1, "nextStepId": 5, "failStepId": 0, "maxRetries": 3 },
+    { "stepId": 5, "taskDescription": "聚合三路检视结果并汇总报告", "dependId": [2, 3, 4], "nextStepId": 0, "failStepId": 0, "maxRetries": 3 }
+  ]
+}
+```
+
+- 步骤 5 的 `dependId: [2, 3, 4]` 表示需等待步骤 2/3/4 **全部 COMPLETED** 后才执行（fan-in 聚合）。
+- 步骤 2/3/4 均 `dependId: 1`，由 Orchestrator 并行执行（fan-out）。
 
 ### 4.3 输出规范
 
