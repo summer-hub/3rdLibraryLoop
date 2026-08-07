@@ -475,7 +475,9 @@ export class Brain {
         }
 
         // 检查 stepId 唯一性
-        const ids = steps.map(s => s.stepId);
+        // 统一转字符串，与 getStepDependencyIds 返回的字符串依赖 ID 对齐，
+        // 避免 Set.has 严格相等（===）因 "1" !== 1 而误判链式依赖不存在
+        const ids = steps.map(s => String(s.stepId));
         const uniqueIds = new Set(ids);
         if (ids.length !== uniqueIds.size) {
             issues.push('存在重复的 stepId');
@@ -499,11 +501,11 @@ export class Brain {
                 }
             }
             if (step.nextStepId && step.nextStepId !== 0 &&
-                !uniqueIds.has(step.nextStepId)) {
+                !uniqueIds.has(String(step.nextStepId))) {
                 issues.push(`步骤 ${step.stepId} 的 nextStepId=${step.nextStepId} 不存在`);
             }
             if (step.failStepId && step.failStepId !== 0 &&
-                !uniqueIds.has(step.failStepId)) {
+                !uniqueIds.has(String(step.failStepId))) {
                 issues.push(`步骤 ${step.stepId} 的 failStepId=${step.failStepId} 不存在`);
             }
         }

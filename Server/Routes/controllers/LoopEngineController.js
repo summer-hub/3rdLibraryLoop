@@ -129,7 +129,19 @@ class LoopEngineController {
             // 生成 taskId（如果未指定）
             const taskId = body.taskId || `task_${Date.now().toString(36)}${Math.random().toString(36).substring(2, 6)}`;
 
-            // 若已存在同 taskId 的循环，先终止旧的
+            // 幂等保护：同一 taskId 若已有循环在运行中，直接返回，避免并发/重复启动
+            const running = this._running.get(taskId);
+            if (running) {
+                return res.json({
+                    status: 'ok',
+                    message: `大循环已在运行中: taskId=${taskId}`,
+                    taskId,
+                    maxLoops,
+                    progress: this._engines.has(taskId) ? this._engines.get(taskId).getProgress(taskId) : null
+                });
+            }
+
+            // 若已存在同 taskId 的循环，先终止旧的（仅针对已结束/空闲的旧实例）
             if (this._engines.has(taskId)) {
                 const oldEngine = this._engines.get(taskId);
                 await oldEngine.abortLoop(taskId).catch(() => {});
@@ -148,6 +160,9 @@ class LoopEngineController {
                 maxLoops
             }).catch(err => {
                 console.error(`[LoopEngineController] taskId=${taskId} 大循环异常:`, err.message);
+            }).finally(() => {
+                // 循环结束后清理运行标记，允许同一 taskId 后续重新启动
+                this._running.delete(taskId);
             });
 
             this._running.set(taskId, loopPromise);
