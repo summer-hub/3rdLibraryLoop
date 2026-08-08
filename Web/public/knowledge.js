@@ -13,7 +13,8 @@ function formatTime(ts) { if (!ts) return '—'; try { return new Date(ts).toLoc
 var API = {
     _fetch: function (url, opts) { return fetch(url, opts).then(function (r) { return r.json(); }); },
     get: function (url) { return this._fetch(url); },
-    post: function (url, body) { return this._fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
+    post: function (url, body) { return this._fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); },
+    del: function (url) { return this._fetch(url, { method: 'DELETE' }); }
 };
 
 function toast(type, msg) {
@@ -200,6 +201,10 @@ async function submitImport() {
             } else {
                 toast('success', '导入完成');
                 showImportResult('导入结果', d);
+                // 同步导入成功后刷新列表（原知识已自动删除）
+                if (d.autoDeleted) {
+                    loadKnowledgeList();
+                }
             }
         } else {
             toast('error', d.error || d.message || '导入失败');
@@ -236,6 +241,10 @@ async function pollImportStatus(importId) {
         if (st === 'completed') {
             stopImportPolling();
             toast('success', '异步导入完成');
+            // 导入成功后刷新列表（原知识已自动删除）
+            if (d.import.result && d.import.result.success) {
+                loadKnowledgeList();
+            }
         } else if (st === 'failed' || st === 'error') {
             stopImportPolling();
             toast('error', '异步导入失败: ' + (d.import.error || d.import.result && d.import.result.message || ''));
@@ -282,6 +291,43 @@ function renderImportStatus(imp) {
     $('knStatusBody').innerHTML = rows + resultPreview;
 }
 
+/* ─── 删除知识 ──────────────────────────────────────────────────────── */
+async function deleteKnowledge() {
+    var exp = KnState.selectedExp;
+    if (!exp) { toast('warn', '请先选择一条知识'); return; }
+
+    if (!confirm('确定要删除知识「' + truncate(exp.taskDescription, 60) + '」吗？\n\nID: ' + exp.id + '\n\n删除后将从知识库中移除（软删除），不可恢复。')) {
+        return;
+    }
+
+    var btn = $('btnDeleteKn');
+    btn.disabled = true;
+    btn.textContent = '🗑️ 删除中...';
+
+    try {
+        var d = await API.del('/api/knowledge/delete?id=' + encodeURIComponent(exp.id));
+        btn.disabled = false;
+        btn.textContent = '🗑️ 删除知识';
+
+        if (d.status === 'ok') {
+            toast('success', d.message || '知识已删除');
+            // 清除选中状态，刷新列表
+            KnState.selectedId = null;
+            KnState.selectedExp = null;
+            $('knDetailCard').style.display = 'none';
+            $('knImportPanel').style.display = 'none';
+            $('knEmpty').style.display = 'flex';
+            loadKnowledgeList();
+        } else {
+            toast('error', d.error || d.message || '删除失败');
+        }
+    } catch (err) {
+        btn.disabled = false;
+        btn.textContent = '🗑️ 删除知识';
+        toast('error', '请求失败: ' + err.message);
+    }
+}
+
 /* ─── 导入结果弹窗 ──────────────────────────────────────────────────── */
 function showImportResult(title, data) {
     $('resultTitle').textContent = title;
@@ -312,6 +358,8 @@ $('btnStartImport').onclick = function () {
 };
 
 $('btnViewDoc').onclick = viewDoc;
+
+$('btnDeleteKn').onclick = deleteKnowledge;
 
 $('btnImportCancel').onclick = function () {
     $('knImportPanel').style.display = 'none';

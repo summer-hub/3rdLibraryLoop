@@ -13,6 +13,7 @@ import KnowledgeImportController from '../controllers/KnowledgeImportController.
  *  GET    /list               — 列出所有知识经验
  *  GET    /experience         — 获取单条知识经验详情
  *  GET    /doc                — 读取经验文档（.md）原文内容
+ *  DELETE /delete             — 删除一条知识经验（软删除）
  *
  * @param {object} dependencies - 共享依赖
  * @param {object} [dependencies.cli]               - CLIController 实例
@@ -44,6 +45,9 @@ export function createKnowledgeRouter(dependencies) {
     router.get('/list',            controller.listExperiences.bind(controller));
     router.get('/experience',      controller.getExperience.bind(controller));
     router.get('/doc',             controller.getDocContent.bind(controller));
+
+    // ── 知识删除 ──
+    router.delete('/delete',       controller.deleteExperience.bind(controller));
 
     return router;
 }

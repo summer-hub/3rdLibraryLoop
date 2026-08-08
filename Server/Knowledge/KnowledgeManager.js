@@ -34,7 +34,7 @@
  *     tags,            // 标签数组
  *     createdAt,       // 创建时间（CST）
  *     updatedAt,       // 更新时间（CST）
- *     active           // 是否有效（软删除标记）
+ *     active           // 是否有效（历史软删除标记，当前 removeExperience 已改为硬删除）
  *   }
  *
  * 使用示例：
@@ -54,7 +54,7 @@
  *   // 查询经验
  *   const all = await km.listExperiences();
  *
- *   // 删除经验
+ *   // 删除经验（物理删除 JSON 文件 + 从索引移除）
  *   await km.removeExperience(record.id);
  *
  *   // 更新经验
@@ -208,7 +208,11 @@ class KnowledgeManager {
     }
 
     /**
-     * 删除一条经验记录（软删除，标记 active=false）。
+     * 删除一条经验记录（硬删除）。
+     *
+     * 删除内容：
+     *   1. 物理删除 db/Knowledge/{id}.json 文件
+     *   2. 从 index.json 索引中移除该条目
      *
      * @param {string} id - 经验 ID
      * @returns {Promise<boolean>} 是否成功
@@ -217,20 +221,17 @@ class KnowledgeManager {
         this._ensureInit();
         if (!id) return false;
 
+        // 先读取记录确认存在
         const record = await this._json.read(id);
         if (!record) return false;
 
-        record.active = false;
-        record.updatedAt = nowCST();
-        await this._json.write(id, record);
+        // 1. 物理删除单条经验详情 JSON 文件
+        await this._json.delete(id);
 
-        // 更新索引
+        // 2. 从索引中移除该条目（非软删除标记，而是彻底移除）
         const index = await this._readIndex();
-        const idx = index.findIndex(e => e.id === id);
-        if (idx >= 0) {
-            index[idx].active = false;
-            await this._writeIndex(index);
-        }
+        const filtered = index.filter(e => e.id !== id);
+        await this._writeIndex(filtered);
 
         return true;
     }

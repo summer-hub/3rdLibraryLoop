@@ -302,12 +302,27 @@ class KnowledgeImporter {
 
         // 异步触发，不 await
         this.execute({ importId, knowledgeInfo, workDir, resultFilePath, userPrompt })
-            .then(result => {
+            .then(async result => {
                 const entry = this._imports.get(importId);
                 if (entry) {
                     entry.status = result.success ? 'completed' : 'failed';
                     entry.result = result;
                     entry.endTime = nowCST();
+                }
+
+                // ── 导入成功后自动删除原知识条目（软删除） ──
+                if (result.success && knowledgeInfo.id) {
+                    try {
+                        const km = await this._getKnowledgeManager();
+                        const removed = await km.removeExperience(knowledgeInfo.id);
+                        if (removed) {
+                            result.message += '；原知识条目已自动删除';
+                            this._log(importId, 'info', `导入成功，原知识条目 ${knowledgeInfo.id} 已自动删除`);
+                        }
+                    } catch (delErr) {
+                        this._log(importId, 'warn', `自动删除原知识条目失败: ${delErr.message}`);
+                        result.message += `；自动删除原知识条目失败: ${delErr.message}`;
+                    }
                 }
             })
             .catch(err => {

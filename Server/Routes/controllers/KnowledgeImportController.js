@@ -11,6 +11,7 @@
  *   GET    /list               — 列出所有知识经验
  *   GET    /experience         — 获取单条知识经验详情
  *   GET    /doc                — 读取经验文档（.md）原文内容
+ *   DELETE /delete             — 删除一条知识经验（软删除）
  *
  * 不感知 HTTP 层细节，只接收 RequestContext / ResponseContext。
  */
@@ -113,6 +114,21 @@ class KnowledgeImportController {
                 userPrompt: body.userPrompt,
             });
 
+            // ── 导入成功后自动删除原知识条目 ──
+            let autoDeleted = false;
+            if (result.success && knowledgeInfo.id) {
+                try {
+                    const km = await this._getKnowledgeManager();
+                    autoDeleted = await km.removeExperience(knowledgeInfo.id);
+                    if (autoDeleted) {
+                        result.message += '；原知识条目已自动删除';
+                    }
+                } catch (delErr) {
+                    // 删除失败不影响导入结果
+                    result.message += `；自动删除原知识条目失败: ${delErr.message}`;
+                }
+            }
+
             res.json({
                 status: 'ok',
                 importId,
@@ -121,6 +137,7 @@ class KnowledgeImportController {
                     : '知识导入执行完成但可能未完全成功，请查看结果文件',
                 result,
                 resultFilePath,
+                autoDeleted,
             });
         } catch (err) {
             res.error(500, `知识导入失败: ${err.message}`);
@@ -288,6 +305,47 @@ class KnowledgeImportController {
             });
         } catch (err) {
             res.error(500, `读取经验文档失败: ${err.message}`);
+        }
+    }
+
+    /**
+     * DELETE /api/knowledge/delete
+     * 删除一条知识经验（软删除，标记 active=false）。
+     *
+     * 用于手动清除无价值或错误的知识条目。
+     *
+     * Query: { id: string }  — 知识条目 ID（kn_xxx）
+     *
+     * @param {RequestContext} req
+     * @param {ResponseContext} res
+     */
+    async deleteExperience(req, res) {
+        const id = req.query.id;
+        if (!id) {
+            return res.error(400, 'id 为必填项');
+        }
+
+        try {
+            const km = await this._getKnowledgeManager();
+
+            // 先检查条目是否存在
+            const record = await km.getExperience(id);
+            if (!record) {
+                return res.error(404, `知识条目不存在: ${id}`);
+            }
+
+            const removed = await km.removeExperience(id);
+            if (!removed) {
+                return res.error(500, '删除失败');
+            }
+
+            res.json({
+                status: 'ok',
+                message: `知识条目 ${id} 已删除`,
+                id,
+            });
+        } catch (err) {
+            res.error(500, `删除知识条目失败: ${err.message}`);
         }
     }
 }
