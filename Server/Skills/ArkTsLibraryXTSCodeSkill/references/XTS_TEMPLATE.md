@@ -1,8 +1,9 @@
 # XTS 测试代码模板
 
-本文档提供 `ohos-xts-code-generator` 技能生成 XTS 测试代码时使用的标准模板，包含测试文件模板、测试函数模板、异步测试模板、多接口协同测试模板等。
+本文档提供 ArkTS XTS 测试代码生成时使用的标准模板，包含测试文件模板、测试函数模板、异步测试模板、多接口协同测试模板等。
 
 > ⚠️ **核心规范**：
+> - `it()` 必须使用三参数格式 `it(name, 0, () => {})` — 省略 filter 部分设备崩溃
 > - 断言 API 必须使用 hypium 专用方法（`assertEqual`/`assertNull`/`assertTrue`/`assertFalse`/`assertLarger`/`assertContain`），**禁止** Jest 风格（`toBe`/`toEqual`/`toBeTruthy`/`toThrow` 等）
 > - hilog 导入：`import { hilog } from '@kit.PerformanceAnalysisKit'`（禁止 `import hilog from '@ohos.hilog'`）
 > - 文件扩展名：`.test.ets`（禁止 `.ts`）
@@ -24,12 +25,11 @@
  *
  * 用例总数：{N}
  * 可测试接口数：{M}
- * 测试函数数：{N}
  *
  * @author lalhan
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from '@ohos/hypium';
+import { describe, it, expect, beforeAll, afterAll } from '@ohos/hypium';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { abilityDelegatorRegistry } from '@kit.TestKit';
 import { common } from '@kit.AbilityKit';
@@ -77,7 +77,7 @@ export default function {LibraryName}XtsTest() {
 
 ---
 
-## 二、测试函数模板（单接口正向测试）
+## 二、单接口正向测试
 
 适用于单个接口的基础功能验证测试：
 
@@ -91,7 +91,7 @@ export default function {LibraryName}XtsTest() {
      *   1. {预期结果 1}
      *   2. {预期结果 2}
      */
-    it('{function_snake_case}_{SEQ}', () => {
+    it('{function_snake_case}_{SEQ}', 0, () => {
       hilog.info(DOMAIN, TAG, 'Test {SEQ}: {用例名称} started');
 
       // ─── 测试数据准备 ────────────────────────────────────────────────────
@@ -104,7 +104,6 @@ export default function {LibraryName}XtsTest() {
 
       // ─── 断言验证 ──────────────────────────────────────────────────────
       expect(result).assertEqual(expectedOutput);
-      // 其他断言...
 
       hilog.info(DOMAIN, TAG, 'Test {SEQ} passed');
     });
@@ -114,7 +113,7 @@ export default function {LibraryName}XtsTest() {
 
 ---
 
-## 三、测试函数模板（多接口协同测试）
+## 三、多接口协同测试
 
 适用于多个接口协同完成功能流程的测试：
 
@@ -131,7 +130,7 @@ export default function {LibraryName}XtsTest() {
      *   2. {接口 2 执行后状态}
      *   3. {协同验证结果}
      */
-    it('{functions_snake_case}_{SEQ}', () => {
+    it('{functions_snake_case}_{SEQ}', 0, () => {
       hilog.info(DOMAIN, TAG, 'Test {SEQ}: {用例名称} started');
 
       // ─── 步骤 1：{接口 1 功能} ──────────────────────────────────────────────
@@ -146,7 +145,6 @@ export default function {LibraryName}XtsTest() {
       expect({step2Result}).assertEqual({预期结果 2});
 
       // ─── 步骤 3：协同验证 ────────────────────────────────────────────────
-      // 验证接口 1 和接口 2 的协同效果
       expect({协同验证表达式}).assertEqual({预期协同结果});
 
       hilog.info(DOMAIN, TAG, 'Test {SEQ} passed');
@@ -155,7 +153,40 @@ export default function {LibraryName}XtsTest() {
 
 ---
 
-## 四、测试函数模板（反向测试 - 参数异常）
+## 四、空值/null 测试
+
+适用于验证接口对边界值的处理测试：
+
+```typescript
+    /**
+     * 用例 {SEQ}: {用例名称}
+     *
+     * 用例描述：验证接口对边界值的处理能力
+     * 涉及接口：{接口签名}
+     * 预期结果：
+     *   1. 输入 {边界值 1} 时，应返回 {预期结果 1}
+     *   2. 输入 {边界值 2} 时，应返回 {预期结果 2}
+     */
+    it('{function_boundary}_{SEQ}', 0, () => {
+      hilog.info(DOMAIN, TAG, 'Test {SEQ}: {用例名称} started');
+
+      // ─── 测试 1：{边界值类型 1} ────────────────────────────────────────────
+      const result1 = {接口调用({边界值 1})};
+      hilog.debug(DOMAIN, TAG, 'Boundary test 1 result: %{public}s', String(result1));
+      expect(result1).assertEqual({预期结果 1});
+
+      // ─── 测试 2：{边界值类型 2} ────────────────────────────────────────────
+      const result2 = {接口调用({边界值 2})};
+      hilog.debug(DOMAIN, TAG, 'Boundary test 2 result: %{public}s', String(result2));
+      expect(result2).assertEqual({预期结果 2});
+
+      hilog.info(DOMAIN, TAG, 'Test {SEQ} passed');
+    });
+```
+
+---
+
+## 五、异常/边界值测试（参数异常）
 
 适用于验证接口对非法参数处理的测试：
 
@@ -169,7 +200,7 @@ export default function {LibraryName}XtsTest() {
      *   1. 输入 {非法参数 1} 时，应抛出异常或返回错误码
      *   2. 输入 {非法参数 2} 时，应抛出异常或返回安全默认值
      */
-    it('{function_error}_{SEQ}', () => {
+    it('{function_error}_{SEQ}', 0, () => {
       hilog.info(DOMAIN, TAG, 'Test {SEQ}: {用例名称} started');
 
       // ─── 测试 1：{非法参数类型 1} - 预期抛异常 ─────────────────────────────
@@ -194,7 +225,7 @@ export default function {LibraryName}XtsTest() {
 
 ---
 
-## 五、测试函数模板（反向测试 - 状态异常）
+## 六、反向测试（状态异常）
 
 适用于验证接口在异常状态下的行为测试：
 
@@ -209,7 +240,7 @@ export default function {LibraryName}XtsTest() {
      *   1. 在未满足前置条件时调用，应抛出异常或返回错误码
      *   2. 不应导致崩溃或不可预期行为
      */
-    it('{function_state_error}_{SEQ}', () => {
+    it('{function_state_error}_{SEQ}', 0, () => {
       hilog.info(DOMAIN, TAG, 'Test {SEQ}: {用例名称} started');
 
       // ─── 测试场景：未初始化状态调用 ──────────────────────────────────────
@@ -229,40 +260,7 @@ export default function {LibraryName}XtsTest() {
 
 ---
 
-## 六、测试函数模板（空值/null/undefined 测试）
-
-适用于验证接口对边界值的处理测试：
-
-```typescript
-    /**
-     * 用例 {SEQ}: {用例名称}
-     *
-     * 用例描述：验证接口对边界值的处理能力
-     * 涉及接口：{接口签名}
-     * 预期结果：
-     *   1. 输入 {边界值 1} 时，应返回 {预期结果 1}
-     *   2. 输入 {边界值 2} 时，应返回 {预期结果 2}
-     */
-    it('{function_boundary}_{SEQ}', () => {
-      hilog.info(DOMAIN, TAG, 'Test {SEQ}: {用例名称} started');
-
-      // ─── 测试 1：{边界值类型 1} ────────────────────────────────────────────
-      const result1 = {接口调用({边界值 1})};
-      hilog.debug(DOMAIN, TAG, 'Boundary test 1 result: %{public}s', String(result1));
-      expect(result1).assertEqual({预期结果 1});
-
-      // ─── 测试 2：{边界值类型 2} ────────────────────────────────────────────
-      const result2 = {接口调用({边界值 2})};
-      hilog.debug(DOMAIN, TAG, 'Boundary test 2 result: %{public}s', String(result2));
-      expect(result2).assertEqual({预期结果 2});
-
-      hilog.info(DOMAIN, TAG, 'Test {SEQ} passed');
-    });
-```
-
----
-
-## 七、测试函数模板（异常/边界值测试）
+## 七、空值/null/undefined 输入测试
 
 适用于验证接口对空值输入的处理测试：
 
@@ -277,7 +275,7 @@ export default function {LibraryName}XtsTest() {
      *   2. 输入空数组/空字符串/空对象时，应返回空结果或安全默认值
      *   3. 所有空值输入不应导致崩溃或不可预期行为
      */
-    it('{function_null_input}_{SEQ}', () => {
+    it('{function_null_input}_{SEQ}', 0, () => {
       hilog.info(DOMAIN, TAG, 'Test {SEQ}: {用例名称} started');
 
       // ─── 测试 1：null 输入（预期抛异常） ──────────────────────────────────────
@@ -291,7 +289,6 @@ export default function {LibraryName}XtsTest() {
       hilog.debug(DOMAIN, TAG, 'Null input handled correctly (exception thrown)');
 
       // ─── 测试 2：null 输入（预期返回安全默认值） ─────────────────────────────
-      // 如果库对 null 返回安全默认值而非抛出异常
       const result2 = {接口调用(null 或 null 等效值)};
       expect(result2).assertNull();  // 或 .assertEqual({安全默认值})
       hilog.debug(DOMAIN, TAG, 'Null input result: %{public}s', String(result2));
@@ -312,7 +309,7 @@ export default function {LibraryName}XtsTest() {
 
 ---
 
-## 八、测试函数模板（异常参数与边界值测试）
+## 八、异常参数与边界值测试
 
 适用于验证接口对异常参数和边界值的处理测试：
 
@@ -328,7 +325,7 @@ export default function {LibraryName}XtsTest() {
      *   3. NaN/Infinity/负值/零值应返回预期结果或抛出异常
      *   4. 所有异常处理不应导致崩溃
      */
-    it('{function_exception_boundary}_{SEQ}', () => {
+    it('{function_exception_boundary}_{SEQ}', 0, () => {
       hilog.info(DOMAIN, TAG, 'Test {SEQ}: {用例名称} started');
 
       // ─── 测试 1：类型不匹配参数（预期抛异常） ──────────────────────────────
@@ -344,13 +341,12 @@ export default function {LibraryName}XtsTest() {
       // ─── 测试 2：特殊值 NaN ────────────────────────────────────────────────
       const result2 = {接口调用(NaN)};
       hilog.debug(DOMAIN, TAG, 'NaN input result: %{public}s', String(result2));
-      // 根据库行为验证：可能返回 NaN 或返回默认值
       expect(Number.isNaN(result2)).assertTrue();  // 或 expect(result2).assertEqual({默认值})
 
       // ─── 测试 3：特殊值 Infinity ────────────────────────────────────────────
       const result3 = {接口调用(Infinity)};
       hilog.debug(DOMAIN, TAG, 'Infinity input result: %{public}s', String(result3));
-      expect(result3).assertEqual({预期结果});  // Infinity 或 clamp 后的值
+      expect(result3).assertEqual({预期结果});
 
       // ─── 测试 4：负值/零值 ──────────────────────────────────────────────────
       const result4 = {接口调用({负值或零值})};
@@ -363,7 +359,7 @@ export default function {LibraryName}XtsTest() {
 
 ---
 
-## 九、测试函数模板（大数据量测试）
+## 九、大数据量测试
 
 适用于验证接口在大数据量输入下的处理能力和性能：
 
@@ -379,18 +375,14 @@ export default function {LibraryName}XtsTest() {
      *   3. 不应发生内存溢出、栈溢出或崩溃
      *   4. 大数据量操作的结果准确性可验证（如首尾元素、深层值）
      */
-    it('{function_large_data}_{SEQ}', () => {
+    it('{function_large_data}_{SEQ}', 0, () => {
       hilog.info(DOMAIN, TAG, 'Test {SEQ}: {用例名称} started');
 
       // ─── 准备大数据量测试数据 ────────────────────────────────────────────
-      // 生成大数组（10000+ 元素）
       const largeArray: number[] = [];
       for (let i = 0; i < 10000; i++) {
         largeArray.push(i);
       }
-      // 生成深度嵌套对象（10+ 层）
-      // 注意：ArkTS 禁止使用 any/Object，需定义具体类型
-      // 生成大量属性对象（1000+ 属性）需用类型安全的方式构建
 
       // ─── 测试 1：大数组处理 ────────────────────────────────────────────────
       const startTime1: number = Date.now();
@@ -398,27 +390,11 @@ export default function {LibraryName}XtsTest() {
       const duration1: number = Date.now() - startTime1;
       hilog.debug(DOMAIN, TAG, 'Large array result length: %{public}d, duration: %{public}d ms', result1.length, duration1);
 
-      // 验证结果正确性（长度、首尾元素）
       expect(result1.length).assertEqual({预期长度});
-      // 验证首尾元素确保数据完整性
       expect(result1[0]).assertEqual({预期首元素});
       expect(result1[result1.length - 1]).assertEqual({预期尾元素});
       // 验证不超时（5 秒内完成）—— 反转比较方向：5000 > duration
       expect(5000).assertLarger(duration1);
-
-      // ─── 测试 2：深度嵌套结构处理 ──────────────────────────────────────────
-      // 构建深度嵌套对象（使用类型安全的方式，避免 any/Object）
-      const deepNestedObj: {DeepNestedType} = {构建深度嵌套数据};
-      const startTime2: number = Date.now();
-      const result2 = {接口调用(deepNestedObj)};
-      const duration2: number = Date.now() - startTime2;
-      hilog.debug(DOMAIN, TAG, 'Deep nested result duration: %{public}d ms', duration2);
-
-      // 验证深层拷贝完整性
-      expect({深层属性访问}).assertEqual({预期深层值});
-      // 验证不超时 —— 反转比较方向：5000 > duration
-      expect(5000).assertLarger(duration2);
-      // 验证不崩溃（能执行到这里即说明未崩溃）
 
       hilog.info(DOMAIN, TAG, 'Test {SEQ} passed');
     });
@@ -427,13 +403,12 @@ export default function {LibraryName}XtsTest() {
 > ⚠️ **大数据测试注意事项**：
 > 1. ArkTS 禁止 `any`/`Object` 类型，构建大数据结构必须使用类型安全的方式（定义 interface 或具体类型）
 > 2. 生成大数组推荐使用 `for` 循环逐个 push，避免使用动态构造
-> 3. 深度嵌套对象需定义逐层嵌套的 interface 类型
-> 4. 性能断言使用 `expect(5000).assertLarger(duration)` 验证操作在 5 秒内完成（反转比较方向）
-> 5. 大数据测试建议放在测试文件末尾，与正向/反向测试分组区分
+> 3. 性能断言使用 `expect(5000).assertLarger(duration)` 验证操作在 5 秒内完成（反转比较方向）
+> 4. 大数据测试建议放在测试文件末尾，与正向/反向测试分组区分
 
 ---
 
-## 十、测试函数模板（异步测试）
+## 十、异步测试
 
 适用于验证异步接口的测试：
 
@@ -447,7 +422,7 @@ export default function {LibraryName}XtsTest() {
      *   1. Promise resolve 后，结果应为 {预期结果}
      *   2. Promise 不应 reject
      */
-    it('{async_function}_{SEQ}', async () => {
+    it('{async_function}_{SEQ}', 0, async () => {
       hilog.info(DOMAIN, TAG, 'Test {SEQ}: {用例名称} started');
 
       // ─── 异步测试执行 ────────────────────────────────────────────────────
@@ -465,7 +440,7 @@ export default function {LibraryName}XtsTest() {
 
 ---
 
-## 十一、测试函数模板（类型判断测试）
+## 十一、类型判断测试
 
 适用于验证类型判断接口的测试：
 
@@ -479,7 +454,7 @@ export default function {LibraryName}XtsTest() {
      *   1. 输入 {类型 A} 时，应返回 true
      *   2. 输入 {类型 B} 时，应返回 false
      */
-    it('{is_type}_{SEQ}', () => {
+    it('{is_type}_{SEQ}', 0, () => {
       hilog.info(DOMAIN, TAG, 'Test {SEQ}: {用例名称} started');
 
       // ─── 正向测试：输入目标类型 ──────────────────────────────────────────
@@ -526,7 +501,7 @@ export default function testsuite() {
      *
      * 测试前提：需准备模拟数据或使用测试服务器
      */
-    it('{mock_function}_{SEQ}', () => {
+    it('{mock_function}_{SEQ}', 0, () => {
       hilog.info(DOMAIN, TAG, 'Test {SEQ} started (with mock data)');
 
       // ─── 准备 Mock 数据 ────────────────────────────────────────────────────
@@ -547,13 +522,82 @@ export default function testsuite() {
 
 ---
 
-## 十四、需要设置超时的异步测试模板
+## 十四、降级测试（接口不可导入）
+
+> 当接口类型被标记为「未导出」或「ESObject 阻断」时使用此模板。
+> 仅测试 getter 初始状态，setter 标注不可测试原因。
+
+### 14.1 setter 参数不可导入 — 仅测试 getter
+
+```typescript
+    /**
+     * 用例 {SEQ}: {用例名称}
+     * 涉及接口：{仅列出可测试的 getter 接口}
+     * 降级说明：{UnimportableType} {未导出/ESObject阻断}，setXxx() 不可测试
+     * 预期结果：
+     *   1. getXxx() 初始返回 null/默认值
+     */
+    it('{name}_degraded_{SEQ}', 0, () => {
+      hilog.info(DOMAIN, TAG, 'Test {SEQ}: {用例名称} (降级) started');
+
+      const obj = new TestableSubclass();
+      expect(obj.getXxx()).assertNull();
+      // setXxx({UnimportableType}) 不可测试：{UnimportableType} {未导出/ESObject阻断}
+
+      hilog.info(DOMAIN, TAG, 'Test {SEQ} passed');
+    });
+```
+
+### 14.2 构造器参数含不可导入类型 — 使用 SDK Mock 替代
+
+```typescript
+    /**
+     * 用例 {SEQ}: {用例名称}
+     * 降级说明：构造器参数 {UnimportableType} 不可导入，使用 {SDKMockMethod} 创建 Mock 对象
+     * 预期结果：
+     *   1. 构造成功，getXxx() 返回预期值
+     */
+    it('{name}_mock_{SEQ}', 0, () => {
+      hilog.info(DOMAIN, TAG, 'Test {SEQ}: {用例名称} (Mock 降级) started');
+
+      const mockParam = ble.createGattClientDevice('mock-device-id');
+      const obj = new TargetClass(mockParam, {numberParam});
+      expect(obj.getXxx()).assertEqual({预期值});
+      hilog.debug(DOMAIN, TAG, 'Result: %{public}s', String(obj.getXxx()));
+
+      hilog.info(DOMAIN, TAG, 'Test {SEQ} passed');
+    });
+```
+
+### 14.3 getter 返回不可导入类型 — 仅验证初始 null
+
+```typescript
+    /**
+     * 用例 {SEQ}: {用例名称}
+     * 降级说明：getXxx() 返回类型 {UnimportableType} 不可导入，仅验证初始 null 状态
+     * 预期结果：
+     *   1. getXxx() 初始返回 null
+     */
+    it('{name}_getter_only_{SEQ}', 0, () => {
+      hilog.info(DOMAIN, TAG, 'Test {SEQ}: {用例名称} (getter-only 降级) started');
+
+      const obj = new TestableSubclass();
+      expect(obj.getXxx()).assertNull();
+      hilog.debug(DOMAIN, TAG, 'getXxx initial null: %{public}s', String(obj.getXxx() === null));
+
+      hilog.info(DOMAIN, TAG, 'Test {SEQ} passed');
+    });
+```
+
+---
+
+## 十五、需要设置超时的异步测试模板
 
 ```typescript
     /**
      * 用例 {SEQ}: {用例名称}（异步超时验证）
      */
-    it('{async_timeout}_{SEQ}', async () => {
+    it('{async_timeout}_{SEQ}', 0, async () => {
       hilog.info(DOMAIN, TAG, 'Test {SEQ} started (async with timeout)');
 
       const startTime = Date.now();
@@ -574,7 +618,54 @@ export default function testsuite() {
 
 ---
 
-## 十五、测试函数命名映射示例
+## 十六、interface 实例化模板
+
+> ⚠️ interface 类型禁止 `new`（见 [CODE_STANDARDS.md 八 规则 A](CODE_STANDARDS.md)）
+
+### 16.1 interface 对象字面量
+
+```typescript
+    // ✅ 正确：interface 用对象字面量赋值
+    const headerOpt: HeaderOptions = { key: 'Accept', value: '*/*' };
+
+    // ❌ 错误：interface 不能 new
+    // const headerOpt = new HeaderOptions();
+```
+
+### 16.2 implements 实现类
+
+```typescript
+    // ✅ 正确：interface 用 implements 实现类
+    class TestCallback implements OnLoadCallBack {
+      onLoadSuccess: (data: ImageInfo) => void = (data: ImageInfo) => {
+        hilog.debug(DOMAIN, TAG, 'onLoadSuccess: %{public}s', JSON.stringify(data));
+      };
+      onLoadFailed: (err: ErrorInfo) => void = (err: ErrorInfo) => {
+        hilog.error(DOMAIN, TAG, 'onLoadFailed: %{public}s', JSON.stringify(err));
+      };
+    }
+
+    const callback: OnLoadCallBack = new TestCallback();
+    option.onLoadListener = callback;
+```
+
+### 16.3 嵌套 interface 属性赋值
+
+```typescript
+    // ✅ 正确：通过嵌套 interface 对象设置（见 CODE_STANDARDS.md 规则 D）
+    const option = new ImageKnifeOptionV2();
+    option.onLoadListener = {
+      onLoadSuccess: (data: ImageInfo) => { ... },
+      onLoadFailed: (err: ErrorInfo) => { ... },
+    };
+
+    // ❌ 错误：直接赋值嵌套属性
+    // option.onLoadSuccess = (data) => { ... };  // onLoadSuccess 不是直接属性
+```
+
+---
+
+## 十七、测试函数命名映射示例
 
 | 用例序号 | 用例中文名称 | 测试函数名 |
 |---------|-------------|-----------|

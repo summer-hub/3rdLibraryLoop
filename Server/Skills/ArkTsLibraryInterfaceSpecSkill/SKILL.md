@@ -1,18 +1,19 @@
 ---
-name: tpc-interface-spec
-description: 克隆鸿蒙三方库仓库并提取所有对外接口，生成接口规格文档。先执行 git clone 拉取源码，然后通过分析 Index.ets 入口文件及导入链，提取导出的类、接口/类型、枚举、函数和变量，生成结构化的接口规格说明文档。USE FOR: 鸿蒙三方库接口提取、API 规格文档生成。
+name: arkts-library-interface-spec
+description: 扫描提取鸿蒙ArkTs原生库源码中对外公开的方法级接口与接口签名，解析 Index.ets 导出链，生成接口规格文档，涵盖导出类、方法和函数。只分析对外公开导出项，输出完整接口签名（含参数、返回值、JSDoc）。当需要对鸿蒙原生库进行方法级接口规格提取、接口签名清单生成、Index.ets 导出链分析时调用。
 license: Apache-2.0
-compatibility: 适用于鸿蒙三方库工程（含 library 模块和 Index.ets 入口文件）。需要 git 命令行工具。
+compatibility: 适用于鸿蒙原生库工程（含 library 模块和 Index.ets 入口文件）。需要 git 命令行工具（用于克隆源码）。
 metadata:
   author: AIWeb
-  version: "1.9.0"
+  version: "2.0.0"
   category: harmonyos-development
   language: ArkTS/ETS
+  useWhen: 从鸿蒙原生库源码提取方法级接口规格时
 ---
 
-# TPC 鸿蒙三方库接口规格提取
+# 鸿蒙ArkTs原生库方法级接口规格提取
 
-本 Skill 先克隆三方库源码到本地，然后通过源码静态分析提取所有对外导出接口，自动生成标准化的接口规格说明文档。
+本 Skill 通过源码静态分析提取鸿蒙原生库所有对外公开导出的方法级接口，自动生成标准化的接口规格说明文档。
 
 > ⚠️ **核心原则：只分析对外公开导出的接口，不关注内部实现细节。所有输出内容必须来自实际源码，禁止推断或捏造任何接口、参数、类型或功能描述。**
 
@@ -21,18 +22,6 @@ metadata:
 - ❌ 不分析内部实现类、内部函数、内部变量
 - ❌ 不分析底层实现细节（如Native 代码、内部算法）
 - ✅ 生成的是"接口规格"，而非"实现规格"
-
----
-
-## 任务参数
-
-| 参数 | 必需 | 说明 |
-|------|------|------|
-| `repoUrl` | ✅ | 鸿蒙三方库 Git 地址（如 `https://gitcode.com/CPF-ApplicationTPC/imageknifepro`） |
-| `outputDir` | ✅ | 输出目录绝对路径（如 `/path/to/db/tpccoverage/imagenifepro_20260714`） |
-| `repoName` | ✅ | 仓库名称（含时间戳），用于目录命名 |
-| `libraryName` | ✅ | 库名称（从 URL 解析） |
-| `reportPath` | ✅ | 报告文件绝对路径（由本 SKILL 从零创建） |
 
 ---
 
@@ -51,50 +40,56 @@ metadata:
 
 ## 工作流程
 
-### 步骤 1：克隆仓库源码
+> **输入变量**：`{{outputDir}}`（工作目录）、`{{reportPath}}`（报告输出路径）、`{{repoUrl}}`（仓库 Git 地址）由编排层注入。源码须位于 `{{outputDir}}/source` 下；若不存在，由步骤 0 自动克隆。
 
-**目标：** 将鸿蒙三方库源码克隆到本地
+### 步骤 0：准备仓库源码（条件性克隆）
+
+**目标：** 确保 `{{outputDir}}/source` 下存在仓库源码，供后续静态分析使用。
 
 **执行步骤：**
-1. 在 `outputDir` 目录下执行 `git clone`：
+
+1. 检查 `{{outputDir}}/source` 目录是否存在且非空：
+   - 用 `list_dir` 列出 `{{outputDir}}/source`
+   - 若目录存在且包含 library 模块（`library/Index.ets` 或 `library/src/main/ets/Index.ets` 存在），**跳过克隆**，直接进入步骤 1
+   - 若目录不存在、为空、或不含 library 模块，执行步骤 2 克隆
+
+2. 克隆仓库源码到 `{{outputDir}}/source`：
    ```bash
    git clone --depth=1 {{repoUrl}} {{outputDir}}/source
    ```
-2. 如果克隆失败，尝试 `--config http.proxy=...` 代理或去掉 `--depth=1`
-3. 源码路径为 `{{outputDir}}/source`
+3. 如果克隆失败，尝试：
+   - 去掉 `--depth=1` 改为完整克隆
+4. 克隆成功后，用 `list_dir` 确认 `{{outputDir}}/source/library` 存在
 
-> ⚠️ 如果克隆失败，必须在报告末尾标注 `状态: 失败` 并说明原因。
-
----
-
-### 步骤 2：读取 README 了解库概述
-
-1. 优先读 `README_zh.md`（中文版），若不存在再读 `README.md`。禁止同时读取双语版本。
-2. 读取库的 README.md 或文档文件，提取：
-- 库的名称
-- 库的功能描述
-- 主要特性
-- 使用限制和注意事项
+> ⚠️ 若所有克隆方式均失败，在报告中说明原因并标注 `状态: 失败`，终止后续步骤。
 
 ---
 
-### 步骤 3：定位库的入口文件与 Native 声明文件
+### 步骤 1：读取 README 了解库概述
+
+1. 优先读 `README_zh.md`（中文版），若不存在再读 `README.md`。禁止同时读取双语版本。提取库的功能描述、主要特性、使用限制和注意事项。库名以步骤 2 的 `oh-package.json5` 为准，README 仅作功能描述来源。
+
+---
+
+### 步骤 2：定位库的入口文件与 Native 声明文件
+
+> 以下路径均相对于 `{{outputDir}}/source`。
 
 1. 用 `list_dir` 列出 `{{outputDir}}/source` 的顶级目录
-2. 确认 library 目录存在后，**仅确认 Index.ets 路径存在，不读取其内容**（用 `glob` 或 `list_dir` 验证文件存在即可）。Index.ets 的内容解析统一由步骤 4a 承接，避免本步骤与 4a 重复读取同一文件：
+2. 确认 library 目录存在后，**仅确认 Index.ets 路径存在，不读取其内容**（用 `glob` 或 `list_dir` 验证文件存在即可）。Index.ets 的内容解析统一由步骤 3a 承接，避免本步骤与 3a 重复读取同一文件：
    - 先确认 `{{outputDir}}/source/library/Index.ets`
    - 上一路径不存在时再确认 `{{outputDir}}/source/library/src/main/ets/Index.ets`
 3. 读取 `{{outputDir}}/source/library/oh-package.json5`，提取 `"name"` 字段作为库名
-4. **定位 Native 声明文件**：用 `glob` 搜索 `library/src/main/cpp/types/*/index.d.ets`，记录实际路径供步骤 4 使用。标准路径模式为 `library/src/main/cpp/types/{模块名}/index.d.ets`，模块名通常为 `libentry` 但可能因库而异。
-   > 注意：Index.ets 中是否实际包含 `export * from '*.so'` 的判断，留待步骤 4a 读取 Index.ets 时确认；本步骤仅预先 glob 定位 `.d.ets` 路径备用，若 glob 无结果则在 4a 确认无 Native 导出。
+4. **定位 Native 声明文件**：用 `glob` 搜索 `library/src/main/cpp/types/*/index.d.ets`，记录实际路径供步骤 3 使用。标准路径模式为 `library/src/main/cpp/types/{模块名}/index.d.ets`，模块名通常为 `libentry` 但可能因库而异。
+   > 注意：Index.ets 中是否实际包含 `export * from '*.so'` 的判断，留待步骤 3a 读取 Index.ets 时确认；本步骤仅预先 glob 定位 `.d.ets` 路径备用，若 glob 无结果则在 3a 确认无 Native 导出。
 
 ---
 
-### 步骤 4：解析 Index.ets → 构建导出清单
+### 步骤 3：解析 Index.ets → 构建导出清单
 
 > ⚠️ **这是最关键的一步，决定了接口数量是否准确一致。**
 
-**4a. 读取 Index.ets，逐行解析所有导出项**
+**3a. 读取 Index.ets，逐行解析所有导出项**
 
 用 `read_file` 读取 Index.ets，**逐行**识别以下模式：
 
@@ -111,7 +106,7 @@ metadata:
 | `export enum Xxx` | 直接记录枚举 Xxx |
 | `export default Xxx` | 记录默认导出 Xxx |
 
-**4b. 递归追踪转发导出（深度 ≤ 3 层）**
+**3b. 递归追踪转发导出（深度 ≤ 3 层）**
 
 对每个 `export { ... } from './path'` 或 `export * from './path'`：
 
@@ -119,65 +114,48 @@ metadata:
 
 2. 读取源文件，提取所有 `export` 声明（class/function/const/interface/type/enum）。对类/struct/接口/枚举定义文件，**必须完整读取主体**（从声明行到闭合 `}`），不可截断，以确保属性和方法的 JSDoc 注释不丢失
 
-3. **读取后立即在 AI 工作上下文中以表格草稿形式记录**每个 export 声明的完整签名，供步骤 5 直接格式化输出。草稿须包含：类名、装饰器（`@Observed`/`@ObservedV2`/`@Component`）、公开方法（含 `static`）、公开属性（带 `@Trace` 的须标注）、interface/class 区分、函数签名，以及每个属性/方法/字段的功能描述来源（JSDoc 或行注释，无则记空）。**构造函数和枚举不纳入接口统计。**
+3. **读取后立即在 AI 工作上下文中以表格草稿形式记录**每个 export 声明的完整签名，供步骤 4 直接格式化输出。草稿须包含：类名、装饰器（`@Observed`/`@ObservedV2`/`@Component`）、公开方法（含 `static`）、公开属性（带 `@Trace` 的须标注）、interface/class 区分、函数签名（参数名、类型、是否可选、默认值、返回值类型）、接口/类型字段列表（字段名、类型、是否可选、泛型参数），以及每个属性/方法/字段的功能描述来源。**构造函数和枚举不纳入接口统计。**
 
-3a. **组件装饰器交叉记录**：对 struct 组件中带 `@ObjectLink`/`@Prop`/`@Link`（V1 装饰器）的属性，草稿中额外记录：属性类型 → 回溯类定义 → 检查 `@Observed` → 标注兼容性（✅/❌）。供步骤 6 生成第 5 章表格。
+> 功能描述提取优先级：JSDoc `/** */` 注释（优先）→ `//` 行注释（次选）→ 源码均无注释时填 `-`。禁止填"属性""方法"等无意义占位符。
 
-4. 如果又遇到 `export { ... } from`，继续递归（深度 +1），达到深度 3 或遇到循环依赖时停止
+4. **组件装饰器交叉记录**：对 struct 组件中带 `@ObjectLink`/`@Prop`/`@Link`（V1 装饰器）的属性，草稿中额外记录：属性类型 → 回溯类定义 → 检查 `@Observed` → 标注兼容性（✅/❌）。供步骤 4 生成第 5 章表格。
 
-> ⚠️ 步骤 5 禁止再次 read 任何源文件，仅基于 4b 草稿做分类整理。若 4b 草稿缺失某项，回到 4b 补读该文件对应类体。
+5. 如果又遇到 `export { ... } from`，继续递归（深度 +1），达到深度 3 或遇到循环依赖时停止
 
-**4c. 构建最终导出清单**
+> ⚠️ 下一主步骤（步骤 4：生成报告）禁止再次 read 任何源文件，仅基于 3b 草稿做分类整理。若 3b 草稿缺失某项，回到 3b 补读该文件对应类体。
 
-将以上步骤收集到的所有导出项汇总为一个清单：
+**3c. 构建最终导出清单**
+
+将以上步骤收集到的所有导出项汇总为一个清单（以下为示例格式，替换为实际导出项）：
 
 ```
-类：ImageKnife (@Observed), ImageKnifeOption (@Observed), ImageKnifeOptionV2 (@ObservedV2), ...
-函数：getExpandSafeArea, ...
-接口（interface，不可 new）：HeaderOptions, HttpRequestOption, OnLoadCallBack, ...
-class（非 interface，可 new）：DnsOption, StaticDnsRuleItem, ResizableOption, ...
-常量：VERSION, ...
-Native 导出：createNativeRoot, initFileCache, ...（单独章节，不计入 ArkTS 接口总数）
+类：ClassNameA (@Observed), ClassNameB (@ObservedV2), StructComponentC (@Component), ...
+函数：functionNameD, ...
+接口（interface，不可 new）：InterfaceNameE, InterfaceNameF, ...
+class（非 interface，可 new）：ClassNameG, ClassNameH, ...
+常量：CONST_NAME, ...
+Native 导出：nativeFuncI, NativeClassNameJ, ...（单独章节，不计入 ArkTS 接口总数）
 
-> ⚠️ **interface 与 class 必须分开列出**，下游 Demo 代码生成依赖此区分：interface 不能 `new`（用对象字面量），class 可以 `new`。
+> ⚠️ **interface 与 class 必须分开列出**，代码生成依赖此区分：interface 不能 `new`（用对象字面量），class 可以 `new`。
 ```
 
 > ⚠️ **禁止在此清单中添加任何未在 Index.ets 导出链中出现的项，也禁止遗漏 Index.ets 中明确导出的任何项。如有 `export * from '*.so'`，取其 `.d.ets` 中所有 `export const function` 和 `export class` 归入 Native 清单。**
 
-**4d. 清单汇总（强制，不可跳过）**
+**3d. 清单汇总（强制，不可跳过）**
 
-完成导出清单后，确认各分类均已收集完毕。**本步骤不要求手工计数**——精确计数由步骤 7 用 grep 完成：
+确认以下分类均已收集完毕：
 
-- 类（export class / struct 组件）：列出所有类名
-- 接口/类型（export interface / type）：列出所有类型名
-- 函数（export function）：列出所有函数名
-- 变量/常量（export const/let）：列出所有变量名
-- Native 导出（export * from '*.so'）：记录 `.d.ets` 路径
-
-> ⚠️ {N}（方法级总数）和 {M}（Native 数量）的精确值在步骤 7 用 grep 计算，**禁止在本步骤估算任何数字**。
+- 类（export class / struct 组件）
+- 接口/类型（export interface / type）
+- 函数（export function）
+- 变量/常量（export const/let）
+- Native 导出（export * from '*.so'）：已记录 `.d.ets` 路径
 
 ---
 
-### 步骤 5：整理详细信息（基于 4b 草稿，禁止再读源文件）
+### 步骤 4：生成报告
 
-> ⚠️ 本步骤禁止再次 read 任何源文件。所有信息须直接引用步骤 4b 草稿，仅做分类整理与格式化为报告表格。若 4b 草稿缺失某项，回到 4b 补读后再继续。
-
-对清单中的每一项，从草稿中提取详细信息并格式化：
-
-- **类**：类名、装饰器（`@Observed`/`@ObservedV2`/`@Component`）、公开方法（含 `static` 标注）、公开属性（带 `@Trace` 的须标注）。**构造函数（`constructor(...)`）不纳入接口统计**
-  - **struct 组件**（`@Component`/`@ComponentV2`）：**只提取公开成员属性，排除所有方法**。成员装饰器（`@ObjectLink`/`@Prop`/`@Param`/`@Require`）内联到功能描述列括号中，struct 小节标题格式为 `ClassName（struct 组件）`
-- **接口/类型**：名称、类型种类标注（`interface` 不可 `new`，`type` 是类型别名）、字段列表（字段名、类型、是否可选）、泛型参数
-  > ⚠️ **interface vs class 必须标注**：interface 不能 `new`（用对象字面量），class 可以 `new`。下游 Demo 代码生成依赖此区分。
-- **函数**：函数名、参数列表（参数名、类型、是否可选、默认值）、返回值类型
-- **变量/常量**：变量名、变量类型
-
-**功能描述提取优先级**：JSDoc `/** */` 注释（优先）→ `//` 行注释（次选）→ 源码均无注释时填 `-`。禁止填"属性"、"方法"等无意义占位符。
-
----
-
-### 步骤 6：生成报告
-
-> ⚠️ **先写正文，后补摘要。** 报告正文（第 1~10 章）写完后，摘要行用 `{PENDING}` 占位，末尾暂不标注 `状态: 成功`。精确计数由步骤 7 用 grep 计算后替换。
+> ⚠️ **先写正文，后补摘要。** 报告正文（第 1~9 章）写完后，摘要行用 `{PENDING}` 占位，末尾暂不标注 `状态: 成功`。精确计数由步骤 5 用 grep 计算后替换。
 
 **报告格式如下：**
 
@@ -186,7 +164,7 @@ Native 导出：createNativeRoot, initFileCache, ...（单独章节，不计入 
 
 > **{PENDING}**
 
-## 1. 三方库概述
+## 1. 鸿蒙原生库概述
 
 {从 README 提取的功能描述}
 
@@ -195,8 +173,8 @@ Native 导出：createNativeRoot, initFileCache, ...（单独章节，不计入 
 **入口文件：** `library/Index.ets`（或实际路径）
 
 **分析涉及的源文件：**
-- `library/src/main/ets/components/Main.ets`
-- `library/src/main/ets/utils/LogUtil.ets`
+- `library/src/main/ets/path/To/SourceFileA.ets`
+- `library/src/main/ets/path/To/SourceFileB.ets`
 - ...（仅列出实际读取并分析的文件，不猜测）
 
 ## 3. 对外导出的类
@@ -215,7 +193,9 @@ Native 导出：createNativeRoot, initFileCache, ...（单独章节，不计入 
 
 > 装饰器：`@Component`/`@ComponentV2`（struct 组件，UI 组件）
 
-> ⚠️ **struct 组件只列公开成员属性，不列方法**：`aboutToAppear`/`aboutToDisappear`/`aboutToRecycle`/`build`/`getDefaultContext`/`watch*`/`monitor*` 等生命周期回调和状态监听回调由框架自动调用，非用户 API，排除不列。成员装饰器（`@ObjectLink`/`@Prop`/`@Param`/`@Require`）标注在功能描述列括号中。
+> 格式约定：struct 小节标题格式为 `ClassName（struct 组件）`；成员装饰器（`@ObjectLink`/`@Prop`/`@Param`/`@Require`）内联到功能描述列括号中。
+
+> ⚠️ **struct 组件只列公开成员属性，不列方法**：生命周期回调和状态监听回调由框架自动调用，非用户 API，排除不列。
 
 | 序号 | 类名/成员 | 方法/属性 | 功能描述 |
 |------|-----------|-----------|----------|
@@ -280,15 +260,17 @@ Native 导出：createNativeRoot, initFileCache, ...（单独章节，不计入 
 {PENDING}
 ```
 
-> ⚠️ 报告末尾写 `{PENDING}` 而非 `状态: 成功`，待步骤 7 验证后替换。
+> ⚠️ 报告末尾写 `{PENDING}` 而非 `状态: 成功`，待步骤 5 验证后替换。
 
 ---
 
-### 步骤 7：计数验证与摘要行补写（强制，不可跳过）
+### 步骤 5：计数验证与摘要行补写（强制，不可跳过）
 
 > ⚠️ **用 grep 精确计数，禁止凭记忆或目测。** 验证通过后替换报告中的 `{PENDING}` 为正确数值并标注 `状态: 成功`。
 
-**7a. 统计报告数据行总数**
+> **环境要求**：以下命令在 Linux/macOS/Git Bash 执行；Windows 环境须用 Git Bash 或 WSL（sed/grep 非系统自带）。
+
+**5a. 统计报告数据行总数**
 
 ```bash
 # 统计报告中所有表格数据行（以 | 数字 | 开头）
@@ -298,11 +280,12 @@ echo "TOTAL=$TOTAL"
 
 > 此命令匹配所有以 `| 1    |` 格式开头的表格数据行，不匹配 `| 序号 |` 等表头行。
 
-**7b. 统计 Native 模块导出数量**
+**5b. 统计 Native 模块导出数量**
 
 ```bash
 # 方式1：从源码 .d.ets 统计（主校验）
-M=$(grep -cE "^export (const|class)" {{outputDir}}/source/library/src/main/cpp/types/libentry/index.d.ets)
+# 注意：路径取自步骤 2 glob 结果，模块名因库而异（通常为 libentry），按实际记录的路径替换
+M=$(grep -cE "^export (const|class)" "{{NATIVE_D_ETS_PATH}}")
 
 # 方式2：从报告第 8 章统计（交叉校验）
 M2=$(sed -n '/^## 8\./,/^## 9\./p' {{reportPath}} | grep -cE "^\| \d+\s+\|")
@@ -310,16 +293,16 @@ M2=$(sed -n '/^## 8\./,/^## 9\./p' {{reportPath}} | grep -cE "^\| \d+\s+\|")
 echo "M=$M (d.ets)  M2=$M2 (report)"
 ```
 
-> M 必须 == M2。如 `.d.ets` 路径不同，按实际路径执行。若库无 Native 导出（Index.ets 中无 `export * from '*.so'`），则 M=0，跳过本步。
+> M 必须 == M2。`{{NATIVE_D_ETS_PATH}}` 为步骤 2 glob 定位的实际 `.d.ets` 绝对路径。若库无 Native 导出（Index.ets 中无 `export * from '*.so'`），则 M=0，跳过本步。
 
-**7c. 计算 ArkTS 方法级总数 N**
+**5c. 计算 ArkTS 方法级总数 N**
 
 ```bash
 N=$((TOTAL - M))
 echo "N=$N (TOTAL=$TOTAL - M=$M)"
 ```
 
-**7d. 统计类级数量 C / I / F / V（用于摘要行明细）**
+**5d. 统计类级数量 C / I / F / V（用于摘要行明细）**
 
 ```bash
 # 类数量（第 3 章小节标题）
@@ -338,25 +321,34 @@ echo "S=$S"
 
 > 如果库无某类导出（如第 5 章只有"无"），对应 grep 结果为 0。
 
-**7e. 元信息标注核对（interface/class 区分 + 装饰器 + struct 排除）**
+**5e. 元信息标注核对（interface/class 区分 + 装饰器 + struct 排除）**
+
+```bash
+# 预计算期望值
+NON_STRUCT_CLASS=$(grep -cE "^### 3\.\d+ .*[^（struct 组件）]$" {{reportPath}})
+
+echo "NON_STRUCT_CLASS=$NON_STRUCT_CLASS"
+```
 
 | 核对项 | grep 命令 | 期望 |
 |--------|-----------|------|
 | interface 标注 | `grep -c "(interface)" {{reportPath}}` | == I |
-| class 标注 | `grep -c "(class)" {{reportPath}}` | ≥ 第 3 章非 struct 类数 |
+| class 标注 | `grep -c "(class)" {{reportPath}}` | ≥ `$NON_STRUCT_CLASS` |
 | struct 标题标注 | `grep -c "（struct 组件）" {{reportPath}}` | == struct 组件数 |
 | 无遗漏方法 | `grep -cE "aboutToAppear\|aboutToDisappear" {{reportPath}}` | == 0 |
 | 组件装饰器表 | `grep -cE "^\| \w+\s+\|" {{reportPath}}`（第 5 章数据行） | == struct 组件数 |
 
-> 若某项不通过，回到步骤 5 补充标注后重新生成报告，再执行步骤 7。
+> 若某项不通过，回到步骤 3b 补充草稿后重新生成报告，再执行步骤 5。
 
-**7f. 补写摘要行并标记成功**
+**5f. 补写摘要行并标记成功**
 
 所有校验通过后，用 `sed` 替换报告中的占位文本：
 
+> 以下 sed 命令为 GNU sed 语法；macOS 需加 `-i ''`（如 `sed -i '' "s/..."`），或改用 `perl -i -pe 's/.../.../'` 替代。
+
 ```bash
 # 构造摘要行
-SUMMARY="> **ArkTS 类级总数 S = $S，方法级总数 N = $N，Native 导出 M = $M**"
+SUMMARY="> **ArkTS 导出项类级条目数 S = $S（类 $C + 接口 $I + 函数 $F + 变量 $V），方法级接口总数 N = $N，Native 导出 M = $M**"
 
 # 替换 {PENDING} 为正确数值
 sed -i "s/^> \*\*{PENDING}\*\*/$SUMMARY/" {{reportPath}}
@@ -367,7 +359,7 @@ sed -i "s/{PENDING}/状态: 成功/" {{reportPath}}
 echo "验证通过: S=$S N=$N M=$M"
 ```
 
-> **验证未全部通过前，禁止执行 7f。** 若 grep 数量与步骤 4d 清单条目数不一致，以 grep 为准，检查报告是否有遗漏或多余的表格行。
+> **验证未全部通过前，禁止执行 5f。** 若 grep 数量与步骤 3d 清单条目数不一致，以 grep 为准，检查报告是否有遗漏或多余的表格行。
 
 ---
 
@@ -376,5 +368,5 @@ echo "验证通过: S=$S N=$N M=$M"
 1. **只关注 Index.ets 导出链内的项**：不在 Index.ets 及其转发链中的 export 不算对外接口
 2. **保留原始类型语法**：ArkTS 泛型、联合类型、交叉类型等保留原始写法，不简化；类型不明确时标注为 `any` 或 `unknown`
 3. **Native 导出识别**：`export * from '*.so'` → 读取 `index.d.ets`，归入「Native 模块导出」独立章节，**不计入 ArkTS 接口总数**
-4. **克隆失败处理**：若 git clone 失败，在报告中说明原因并标注 `状态: 失败`
-5. **grep 驱动计数**：步骤 4d 不填数量，步骤 6 用 `{PENDING}` 占位，步骤 7 用 grep 精确统计后补写摘要行。{N} 为方法级总数，下游 Skills 覆盖率计算基于此值。
+4. **克隆失败处理**：若步骤 0 的 git clone 所有方式均失败，在报告中说明原因并标注 `状态: 失败`，终止后续步骤
+5. **grep 驱动计数**：步骤 3d 不填数量，步骤 4 用 `{PENDING}` 占位，步骤 5 用 grep 精确统计后补写摘要行。{N} 为方法级总数，下游 Skills 覆盖率计算基于此值。

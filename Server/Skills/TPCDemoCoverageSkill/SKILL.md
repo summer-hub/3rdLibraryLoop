@@ -1,6 +1,6 @@
 ---
 name: tpc-demo-coverage
-description: 分析鸿蒙三方库现有 Demo 对接口的覆盖情况。读取接口规格文档，扫描 entry/src/main/ets/ 下所有 .ets 文件，通过 import 语句匹配识别已调用的接口，计算接口覆盖率百分比，输出已覆盖和未覆盖接口清单。
+description: 分析鸿蒙三方库现有 Demo 对接口的覆盖情况。读取接口规格文档，扫描 entry/src/main/ets/ 下所有 .ets 文件，通过 import 语句匹配识别已调用的接口，计算接口覆盖率百分比，输出已覆盖和未覆盖接口清单。当需要对鸿蒙原生库进行 demo 接口覆盖率缺口填补、未覆盖接口测试规划时调用。
 license: Apache-2.0
 metadata:
   author: AIWeb

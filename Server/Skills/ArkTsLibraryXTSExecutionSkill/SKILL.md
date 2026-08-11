@@ -1,20 +1,21 @@
 ---
-name: tpc-xts-execution
-description: 执行鸿蒙三方库的 XTS 测试用例（含源码已有的和新生成的），编译项目、安装 HAP、通过 hdc 执行 hypium 测试、收集结果并生成执行报告。100% 覆盖所有可测试接口。
+name: arkts-library-xts-execution
+description: 执行鸿蒙ArkTs原生库的 XTS 测试用例（含源码已有的和新生成的），编译项目、安装 HAP、通过 hdc 执行 hypium 测试、收集结果并生成执行报告。100% 覆盖所有可测试接口。当需要对鸿蒙ArkTs原生库进行 XTS 测试用例自动化测试，并输出XTS测试报告时调用。
 license: Apache-2.0
 metadata:
   author: AIWeb
   version: "1.1.0"
   category: ohos-testing
+  language: ArkTS/ETS
 ---
 
-# TPC XTS 测试执行与报告生成
+# ArkTS 原生库 XTS 测试执行与报告生成
 
-本 Skill 编译并执行三方库的 XTS 测试用例（含源码已有的和新生成的），收集测试结果，生成测试执行报告。
+本 Skill 编译并执行鸿蒙ArkTs原生库的 XTS 测试用例（含源码已有的和新生成的），收集测试结果，生成测试执行报告。
 
 > ⚠️ 核心约束：
 > 1. 自动诊断源库构建问题，不因源库问题判定任务失败
-> 2. 编译成功 → hdc安装 → aa start → 结果收集
+> 2. 编译成功 → hdc安装 → aa test → 结果收集
 > 3. 编译失败 → 尝试自动修复 → 仍失败则标注源库构建问题
 > 4. 报告状态区分"测试通过" vs "源库构建问题" vs "设备不可用"
 
@@ -22,10 +23,10 @@ metadata:
 > 1. **devecocli / hdc 命令**：必须用 `cmd /c` 包裹，否则 PowerShell 执行策略会阻止 `.ps1` 脚本运行：
 >    ```powershell
 >    # ✅ 正确
->    cmd /c "devecocli emulator list"
->    cmd /c "hdc install path\to\hap"
+>    cmd /c "devecocli signature generate --product default"
+>    cmd /c "hdc list targets"
 >    # ❌ 错误 — 会报 PSSecurityException
->    devecocli emulator list
+>    devecocli signature generate --product default
 >    ```
 > 2. **含空格路径的可执行文件**：必须用 PowerShell `&` 调用运算符，不能用 `cmd /c`（cmd 无法正确处理含空格的 exe 路径）：
 >    ```powershell
@@ -51,7 +52,7 @@ metadata:
 |------|------|------|
 | `sourcePath` | ✅ | 源码根目录 |
 | `outputDir` | ✅ | 输出目录（XTS 用例文档和覆盖率报告所在目录） |
-| `xtsDocPath` | 可选 | 单个 XTS 用例文档路径；若未提供，从 `outputDir` 搜索 `*XTS用例描述*.md` 或 `tpccoverage-xts-doc.md` |
+| `xtsDocPath` | 可选 | 单个 XTS 用例文档路径；若未提供，从 `outputDir` 搜索 `*XTS用例描述*.md` 或 `arktscoverage-xts-doc.md` |
 
 ---
 
@@ -81,59 +82,48 @@ import {新套件名} from './{新文件名}';
 
 `read_file` `{{sourcePath}}/AppScope/app.json5` → 提取 `bundleName`
 
-#### 1.4 修复 build-profile.json5 配置
+#### 1.4 工程迁移（migrate.cjs）
 
-三方库源码的 `build-profile.json5` 中 SDK 版本配置经常不兼容当前构建环境，需统一修正：
+ArkTS原生库源码多为历史工程，`build-profile.json5` 的 SDK 版本配置、hvigor 文件、oh-package.json5 等经常不兼容当前构建环境。使用 `migrate.cjs` 脚本一次性完成华为官方 Manual Migration 全流程迁移。
 
-1. `read_file` 读取 `{{sourcePath}}/build-profile.json5`
-2. 查找 `"products"` 数组中每个产品的 `compileSdkVersion`，统一替换为以下配置：
+1. 执行迁移脚本：
 
-```json5
-"products": [
-  {
-    "name": "default",
-    "signingConfig": "default",
-    "compatibleSdkVersion": "5.0.4(16)",
-    "targetSdkVersion": "5.0.4(16)",
-    "runtimeOS": "HarmonyOS"
-  }
-]
+```powershell
+node {{skillDir}}/scripts/migrate.cjs --source {{sourcePath}}
 ```
 
-> 注意：保留原有的 `"name"` 和 `"signingConfig"` 字段值不变；若为多产品配置，每个产品都应用相同的 SDK 版本修正。
-> 同时删除 `compileSdkVersion` 字段（若存在），因为已由 `targetSdkVersion` 替代。
+> 迁移在编译前执行，确保构建环境兼容。
 
-3. `replace_string_in_file` 或 `write_file` 重新写入修正后的 `build-profile.json5`
+#### 1.5 真机签名与设备检查
 
-#### 1.5 启动模拟器并检查设备
+真机测试需先通过 `devecocli signature generate` 生成调试签名材料并写入 `build-profile.json5`：
 
-使用 `devecocli` 管理模拟器（优先于真机 `hdc`）：
-
-1. 列出可用模拟器实例：
+1. 检查真机连接：
     ```powershell
-    cmd /c "devecocli emulator list"
+    cmd /c "hdc list targets"
     ```
+    无设备输出 → 报告标注"设备不可用"，跳转步骤 4
 
-2. 若没有运行中的实例，后台启动避免 daemon 阻塞：
+2. 生成签名材料（在项目根目录执行）：
     ```powershell
-    Start-Process cmd -ArgumentList '/c devecocli emulator start "模拟器名称"'
+    cmd /c "devecocli signature generate --product default"
     ```
-    > `Start-Process` 不加 `-Wait`，立即返回。daemon 在新窗口，不阻塞主 session。
-
-    `start /B` 立即返回，模拟器 OS 尚在加载。需轮询等待设备就绪：
+    > 自动生成 p12/csr/cer/p7b 签名材料并写入 `build-profile.json5` 的 `signingConfigs`。
+    > 首次使用前需执行 `devecocli auth login` 登录开发者账号。
+    > 若提示 `Provision number exceeds limit` 或签名不一致，加 `--force` 强制重新生成。
 
 3. 轮询确认设备已连接（每 5s 检查一次，最多 60s）：
     ```powershell
     # 最多尝试 12 次，每次间隔 5s
     for ($i = 1; $i -le 12; $i++) {
-      $result = cmd /c "devecocli device list"
-      if ($result -match "emulator|device") { break }
+      $result = cmd /c "hdc list targets"
+      if ($result -match "device") { break }
       Start-Sleep -Seconds 5
     }
     ```
     12 次后仍无设备 → 报告标注"设备不可用"，跳转步骤 4
 
----
+
 
 ### 步骤 2：弹性编译（三层策略）
 
@@ -152,40 +142,20 @@ where.exe hdc
 
 任一不可用 → "构建环境不可用"，跳转步骤 4。
 
-##### 编译前预检：hvigor 版本兼容性
-
-1. `read_file` 读取 `{{sourcePath}}/hvigor/hvigor-config.json5`，提取 `hvigorVersion` 和 `@ohos/hvigor-ohos-plugin` 版本号
-2. 运行 `cmd /c "devecocli --version"` 获取 DevEco Studio 内置 hvigor 版本信息
-3. 比较插件版本与 DevEco Studio 内置 hvigor 的主版本号：
-   - 若插件版本 major < DevEco hvigor major（如 4.x vs 6.x）→ **跳过全部编译验证**，在报告中标注"项目结构迁移"，直接跳转步骤 4（生成报告）
-   - 若版本兼容 → 继续执行第二层首次编译
-
-> ⚠️ **跳过编译的原因**：hvigor 插件跨大版本不兼容时，Agent 会尝试 patch pnpm 缓存中的插件源码（如 `error-url.js`、`generate-loader-json.js`），每次 patch 触发大量文件读写权限请求，导致整个工作流被阻塞。此类问题需要项目结构迁移，非机械性操作可修复，应直接写入报告由用户处理。
-
 #### 第二层：首次编译
 
-> **2a + 2b 同一响应连续执行。**
-
-**2a. 主 HAP：**
-
-```powershell
-powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -Cmd "devecocli build clean"
-powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -Cmd "devecocli build"
-```
-
-**2b. 测试 HAP（紧跟 2a）：**
+构建测试 HAP（含签名）：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -JavaHome -Cmd "devecocli build --modules entry@ohosTest"
 ```
 
 **结果判定：**
-- 两个 HAP 均成功 → "编译成功"，跳转步骤 3
-- 任一失败 → 进入第三层修复
+- 编译成功 → "编译成功"，跳转步骤 3
+- 编译失败 → 进入第三层修复
 
-产物用 glob 查找（`unsigned` 或 `signed`）：
+产物用 glob 查找（signed）：
 ```
-glob: {{sourcePath}}/entry/build/default/outputs/default/*.hap     → 主 HAP
 glob: {{sourcePath}}/entry/build/default/outputs/ohosTest/*.hap    → 测试 HAP
 ```
 
@@ -203,13 +173,9 @@ glob: {{sourcePath}}/entry/build/default/outputs/ohosTest/*.hap    → 测试 HA
 | `hvigorfile.ts` not found | `git submodule update --init --recursive` |
 | `Cannot read property 'xxx' of undefined` | 补充缺失的 `.json5` 字段 |
 | 类型错误 / 导入错误 / 括号不匹配 | 修正测试代码中的类型、导入名、括号 |
-| **hvigor 插件版本不兼容 / 项目结构迁移** | **跳过编译，写入报告** | **❌** |
 
-> **判定规则**：构建日志出现以下任一模式时，判定为"项目结构迁移"，**立即终止修复循环**：
-> - `The project structure and configuration need to be upgraded`
-> - `Cannot find module '@ohos/hvigor/src/base/`（插件引用了 hvigor 内部模块路径，该路径在新版 hvigor 中不存在）
-> - `is not the correct JSON/JSON5 format` 且错误路径包含 `@ohos/hvigor-ohos-plugin`（插件版本与 hvigor 解析器不兼容）
-> - `hvigor-config.json5` 中配置的 `@ohos/hvigor-ohos-plugin` 版本与 DevEco Studio 内置 `@ohos/hvigor` 版本跨大版本（如 4.x vs 6.x）
+> **判定规则**：构建日志出现以下任一模式时，判定为"源库不可修复"，**立即终止修复循环**：
+> - 连续 2 轮出现的错误均为源库不可修复错误（❌ 行）
 
 **P1（建议修复，废弃 API 迁移）**— 仅迁移测试代码，源库不迁移：
 
@@ -255,16 +221,12 @@ glob: {{sourcePath}}/entry/build/default/outputs/ohosTest/*.hap    → 测试 HA
   │     ├─→ 编译成功 → 步骤 3
   │     └─→ 编译失败 → 降级报告
   │
-  ├─→ 检测到项目结构迁移模式？ → ⚠️ 立即终止，跳转降级（标注"项目结构迁移"）
-  │
   └─→ 5 轮仍失败 → 降级报告
 ```
 
 **终止判定（立即退出循环）**：
 
-若构建日志中出现以下任一模式，**立即终止修复循环**，不再尝试后续轮次，直接跳转降级：
-- `The project structure and configuration need to be upgraded`
-- `Cannot find module '@ohos/hvigor/src/base/`
+若构建日志中出现以下模式，**立即终止修复循环**，不再尝试后续轮次，直接跳转降级：
 - 连续 2 轮出现的错误均为源库不可修复错误（❌ 行）
 
 终止后在报告中标注编译跳过原因和修复建议。
@@ -272,12 +234,10 @@ glob: {{sourcePath}}/entry/build/default/outputs/ohosTest/*.hap    → 测试 HA
 **每轮修复后重新编译：**
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -Cmd "devecocli build"
-
 powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -JavaHome -Cmd "devecocli build --modules entry@ohosTest"
 ```
 
-编译成功 → 步骤 3；检测到项目结构迁移或 5 轮仍失败 → 降级。
+编译成功 → 步骤 3；5 轮仍失败 → 降级。
 
 #### 降级：5 轮仍失败 / 提前终止
 
@@ -286,7 +246,6 @@ powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -JavaH
 >
 > **降级后报告追加**：
 > - 源库不可修复的错误 → 标注"需源库作者修复"
-> - 项目结构迁移类错误 → 标注"需在 DevEco Studio 中使用迁移工具升级项目结构"
 > - **任务状态仍为"完成"**（测试代码生成本身已完成，编译执行因源库问题跳过）
 
 ---
@@ -294,67 +253,52 @@ powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -JavaH
 ### 步骤 3：安装与执行
 
 > **安装 → 执行 → 收集结果在同一响应中连续执行。**
+> 真机测试只需安装测试 HAP，无需安装主 HAP。
 
-**步骤 3.1 安装 HAP：**
+**步骤 3.1 卸载旧应用并安装测试 HAP：**
 
-先用 glob 查找实际 HAP 产物文件名（signed 或 unsigned）：
+先用 glob 查找测试 HAP 产物（signed）：
 
 ```
-glob: {{sourcePath}}/entry/build/default/outputs/default/*.hap     → 主 HAP
 glob: {{sourcePath}}/entry/build/default/outputs/ohosTest/*.hap    → 测试 HAP
 ```
 
-然后安装找到的 HAP 文件：
+卸载旧应用并安装测试 HAP：
 
 ```powershell
-cmd /c "hdc install {主HAP绝对路径}"
+cmd /c "hdc uninstall {bundleName}"
 cmd /c "hdc install {测试HAP绝对路径}"
 ```
 
-> ⚠️ Test HAP 单独安装。
-> ⚠️ 签名配置缺失时产物为 `*-unsigned.hap`，仍可正常安装到模拟器。
+> 签名变化会导致安装失败，务必先卸载再安装。
+> 真机必须使用 signed HAP，unsigned HAP 无法安装到真机。
 
 **步骤 3.2 执行 XTS 测试：**
 
-直接使用 `aa start`（`aa test` 在模拟器上每次都因 `ITestObserver` IPC proxy 失败而挂起）：
+动态收集所有测试套件类名（排除 List.test.ets），拼接为 `-s class` 参数：
 
 ```powershell
-cmd /c "hdc shell aa start -a TestAbility -b {bundleName} -m entry_test"
+cmd /c "hdc shell aa test -b {bundleName} -m entry_test -s unittest /ets/testrunner/OpenHarmonyTestRunner -s class {套件类名逗号分隔列表} -s timeout 15000"
 ```
 
-等待 15 秒让所有测试用例执行完毕，然后收集 hilog 日志（见步骤 3.3）。
+> 套件类名从步骤 1.1 的 `.test.ets` 文件名推导（去掉 `.test.ets` 后缀即为类名，如 `FastBleTest.test.ets` → `FastBleTest`）。
+> `aa test` 输出测试结果到 stdout，无需额外 hilog 收集。
 
-**步骤 3.3 收集测试结果（用 hilog）：**
+**步骤 3.3 收集测试结果：**
 
-方式一：使用 `hdc shell hilog` + PowerShell 过滤：
-
-```powershell
-cmd /c "hdc shell hilog -x" 2>&1 | Select-String "Hypium"
-```
-
-方式二：使用 `hdc shell hilog` + cmd findstr（输出更易解析）：
-
-```powershell
-cmd /c "hdc shell hilog -x | findstr Hypium"
-```
-
-搜索关键日志行：
-- `[Hypium][pass]{用例名} ; consuming {N}ms` → 通过
-- `[Hypium][fail]{用例名} ; consuming {N}ms` → 失败，紧接着 `[Hypium][failDetail]{详情}`
-- `[Hypium][error]{用例名} ; consuming {N}ms` → 错误，紧接着 `[Hypium][errorDetail]{详情}`
-- `[Hypium]total cases:{总数};failure {F},error {E},pass {P}; consuming {N}ms` → 总结果行
-- `OHOS_REPORT_RESULT: stream=Tests run: {N}, Failure: {F}, Error: {E}, Pass: {P}, Ignore: 0` → 官方报告格式
+从 `aa test` stdout 解析以下关键行：
+- `OHOS_REPORT_RESULT: stream=Tests run: {N}, Failure: {F}, Error: {E}, Pass: {P}, Ignore: 0` → 总结果行
+- `OHOS_REPORT_STATUS: ...` → 每个用例的状态
 
 统计：总数 / 通过 / 失败(fail) / 错误(error) / 耗时
 
 > ⚠️ **fail vs error 区分**：fail = 断言不匹配（测试逻辑问题），error = 运行时异常（环境/源库问题）
-> ⚠️ **模拟器蓝牙环境限制**：模拟器默认蓝牙未启用，依赖 BLE 系统 API 的接口（如 `getAllConnectedDevice`、`isConnected`、`disconnectAllDevice`）会抛出 `BussinessError 2900003: Bluetooth disabled`。这些 error 是环境问题而非测试代码问题，报告中标注为"模拟器蓝牙环境限制"。
 
 ---
 
 ### 步骤 4：生成执行报告
 
-`write_file` `{{outputDir}}/tpccoverage-xts-exec-report.md`：
+`write_file` `{{outputDir}}/arktscoverage-xts-exec-report.md`：
 
 ```markdown
 # {库名} XTS 测试执行报告
@@ -366,9 +310,8 @@ cmd /c "hdc shell hilog -x | findstr Hypium"
 ## 2. 构建环境
 - devecocli / Node.js / ohpm 版本
 - hdc 设备：{有/无}（设备名称和 OS 版本）
-- 编译结果：{成功 / 失败（修复N轮后）/ ⚠️ 已跳过（项目结构迁移） / 环境不可用}
-（若跳过，需附跳过原因：如"源库 hvigor-ohos-plugin@4.0.2 与 DevEco Studio 内置 hvigor@6.24.3 不兼容，需项目结构迁移"）
-- aa test 执行方式：aa start
+- 编译结果：{成功 / 失败（修复N轮后）/ 环境不可用}
+- aa test 执行方式：aa test
 
 ## 3. 源库问题诊断（若编译失败）
 | 错误类型 | 诊断 | 是否已修复 |
@@ -400,11 +343,6 @@ cmd /c "hdc shell hilog -x | findstr Hypium"
 - fail 用例：断言不匹配原因分析
 - error 用例：运行时异常原因分析（区分环境限制 vs 源库问题）
 
-## 8. 设备兼容性说明（若有）
-- aa test 始终使用 aa start（模拟器 aa test 必定挂起）
-- 模拟器蓝牙未启用导致 BusinessError 2900003
-- 其他设备兼容性问题
-
 ---
 状态: {成功 / 部分通过 / 源库构建问题 / 环境不可用 / 设备不可用}
 ```
@@ -418,16 +356,15 @@ cmd /c "hdc shell hilog -x | findstr Hypium"
 3. **不为测试代码担责**：测试代码已通过 XTS 代码生成阶段验证，源库构建问题不影响测试代码质量判定
 4. **报告状态细化**：`成功` / `部分通过` / `源库构建问题` / `环境不可用` / `设备不可用`
 5. 新套件必须在 List.test.ets 注册后才能执行
-6. Test HAP 单独安装
-7. 模拟器 `aa test` 必定挂起，直接使用 `aa start`
-8. **测试 HAP 需单独构建**：`devecocli build` 只构建主 HAP，测试 HAP 必须通过 `devecocli build --modules entry@ohosTest` 单独构建
-9. **步骤连续执行**：同一响应中连续完成，不输出中间成功信息
-10. **🔴 hvigor daemon 阻塞**：所有构建通过 `build.ps1` 执行，不要直接调用 `devecocli build`。
+6. **真机测试只需安装测试 HAP，无需主 HAP**
+7. **测试 HAP 是唯一需构建的产物**：通过 `devecocli build --modules entry@ohosTest` 构建，无需构建主 HAP
+8. **步骤连续执行**：同一响应中连续完成，不输出中间成功信息
+9. **🔴 hvigor daemon 阻塞**：所有构建通过 `build.ps1` 执行，不要直接调用 `devecocli build`。
     每次构建后自动杀 daemon（并行场景下互相误杀代价低，重试即可恢复）。
-11. **🔴 PowerShell 执行策略兼容性**：所有 `devecocli` 和 `hdc` 命令必须用 `cmd /c` 包裹，否则 PowerShell 会阻止 `.ps1` 脚本运行（报 `PSSecurityException`）
-12. **🔴 HAP 产物文件名不固定**：签名配置缺失时产物为 `*-unsigned.hap`，签名配置存在时为 `*-signed.hap`。必须用 glob 查找实际产物文件名，不可硬编码
-13. **🔴 JAVA_HOME 设置**：测试 HAP 构建使用 `build.ps1 -JavaHome`（脚本自动检测 DevEco 路径并设置 JAVA_HOME）：
+10. **🔴 PowerShell 执行策略兼容性**：所有 `devecocli` 和 `hdc` 命令必须用 `cmd /c` 包裹，否则 PowerShell 会阻止 `.ps1` 脚本运行（报 `PSSecurityException`）
+11. **🔴 真机必须使用 signed HAP**：真机无法安装 unsigned HAP，编译前需通过 `devecocli signature generate` 生成签名。必须用 glob 查找实际产物文件名，不可硬编码
+12. **🔴 JAVA_HOME 设置**：测试 HAP 构建使用 `build.ps1 -JavaHome`（脚本自动检测 DevEco 路径并设置 JAVA_HOME）：
     ```powershell
     powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -JavaHome -Cmd "devecocli build --modules entry@ohosTest"
     ```
-14. **🔴 模拟器蓝牙环境限制**：模拟器默认蓝牙未启用，依赖 BLE 系统 API 的接口会抛出 `BussinessError 2900003: Bluetooth disabled`。这是环境问题而非测试代码问题，报告中标注为"模拟器蓝牙环境限制"
+13. **🔴 签名一致性**：签名变化会导致安装失败，安装前务必先 `hdc uninstall` 卸载旧应用

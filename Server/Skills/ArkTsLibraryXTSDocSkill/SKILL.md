@@ -1,14 +1,15 @@
 ---
-name: tpc-xts-doc
-description: 基于 XTS 覆盖率报告，为未覆盖接口自动判断可测试性并生成 XTS 用例描述文档。仅生成纯函数（无 UI 操作、可通过执行结果验证）的 XTS 用例描述，包含用例序号、名称、描述、预期结果、对应函数接口。USE FOR: 三方库 XTS 覆盖率缺口填补、未覆盖接口测试规划。
+name: arkts-library-xts-doc
+description: 基于 XTS 覆盖率报告，为未覆盖接口自动判断可测试性并生成 XTS 用例描述文档。仅生成纯函数（无 UI 操作、可通过执行结果验证）的 XTS 用例描述，包含用例序号、名称、描述、预期结果、对应函数接口。当需要对鸿蒙原生库进行 XTS 覆盖率缺口填补、未覆盖接口测试规划时调用。
 license: Apache-2.0
 metadata:
   author: AIWeb
   version: "2.0.0"
   category: ohos-testing
+  language: ArkTS/ETS
 ---
 
-# TPC 未覆盖接口 XTS 用例生成
+# 鸿蒙ArkTs原生库未覆盖接口 XTS 用例生成
 
 本 Skill 读取 XTS 覆盖率报告中的未覆盖接口清单，自动判断接口可测试性，为可测试接口生成标准化 XTS 用例描述文档，100% 覆盖所有未覆盖的可测试接口。
 
@@ -21,10 +22,10 @@ metadata:
 
 ## 适用场景
 
-- 为已 ohos 化三方库填补 XTS 覆盖率缺口
+- 为鸿蒙ArkTs原生库填补 XTS 覆盖率缺口
 - 生成可执行的 XTS 用例描述文档
 - 评估库接口的可测试性
-- 配合 TPCInterfaceSpecSkill + TPCXTSCoverageSkill 实现"接口分析 → XTS 覆盖率分析 → 缺口用例规划"完整链路
+- 配合 ArkTsLibraryInterfaceSpecSkill + ArkTsLibraryXTSCoverageSkill 实现"接口分析 → XTS 覆盖率分析 → 缺口用例规划"完整链路
 
 ---
 
@@ -32,7 +33,7 @@ metadata:
 
 | 参数 | 必需 | 说明 |
 |------|------|------|
-| `xtsCoverageReportPath` | ✅ | XTS 覆盖率报告绝对路径（由 TPCXTSCoverageSkill 生成，含未覆盖接口清单及签名） |
+| `xtsCoverageReportPath` | ✅ | XTS 覆盖率报告绝对路径（由 ArkTsLibraryXTSCoverageSkill 生成，含未覆盖接口清单及签名） |
 | `outputDir` | 可选 | 输出目录，默认放置在覆盖率报告所在目录 |
 
 ### 输入异常处理
@@ -295,7 +296,7 @@ metadata:
 ```
 
 **生成规则：**
-1. 文件名固定 `tpccoverage-xts-doc.md`
+1. 文件名固定 `arkts-library-xts-doc.md`
 2. 可测试接口覆盖率达到 100%
 3. 每个用例预期结果必须具体、可验证
 4. 文档末尾标注 `状态: 成功` 或 `状态: 失败`
@@ -315,5 +316,5 @@ metadata:
 
 ## 参考资料
 
-- [用例模板与编写规范](references/TEMPLATE.md) — 7 种用例模板（正向/多接口/反向/空值/边界值/大数据）+ 命名规范
-- [完整生成示例](references/EXAMPLES.md) — 基于 lodash 的完整 XTS 用例描述示例（15 个用例）
+- [用例模板与编写规范](references/TEMPLATE.md) 
+- [完整生成示例](references/EXAMPLES.md)
