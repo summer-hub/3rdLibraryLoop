@@ -30,6 +30,9 @@ const TASK_ANALYSIS_PROMPT = `你是一个任务分析助手。请分析下面�
    - 例：任务含"获取仓库源码并分析目录结构" → whenToUse="分析仓库源码目录结构"
 6. 若任务明确属于某类专属触发场景（如 PR 检视），whenToUse 必须原样体现该场景特征词（如"PR"）；不得引入任务中不存在的场景特征，避免与 SKILL 的 useWhen 误判为一致。
 
+【techStack 提取规则】
+7. techStack 提取禁止主观猜测仓库语言。当任务描述包含 gitcode/gitee 等仓库 URL 时，不得仅凭库名联想其语言（如 opencsv 联想成 Java）；若任务未明确说明语言，techStack 只填任务中明确出现的语言/技术名词，必要时留空，交由后续执行阶段通过 gitcode 仓库语言 API 确认。
+
 【示例】
 输入："对 libcurl 鸿蒙化产物进行准出审核，对照验收标准判断是否满足..."
 正确输出：{"intent":"准出审核 libcurl 鸿蒙化产物是否满足验收标准","keywords":["准出审核","验收测试","验收检查","libcurl","鸿蒙化","arkts"],"whenToUse":"对任务执行产物做准出验收审核"}
@@ -40,7 +43,7 @@ const TASK_ANALYSIS_PROMPT = `你是一个任务分析助手。请分析下面�
   "intent": "以动词开头，一句话概括任务目标，须点明动作类型",
   "keywords": ["5-10个关键词，小写，必须含至少1个动作类型词"],
   "constraints": ["任务约束或前置条件，如语言、平台、输出形式等"],
-  "techStack": ["涉及的技术栈或语言，如 C++、ArkTS、Flutter、React Native 等"],
+  "techStack": ["涉及的技术栈或语言，如 C++、ArkTS、Flutter、React Native 等；仅填任务中明确出现的语言，禁止凭仓库 URL 指向的库名猜测语言，仓库语言由执行阶段调用 gitcode API 确认"],
   "whenToUse": "直接提取任务中的触发场景/前置条件表述（如\"对代码差异进行检视\"），格式对齐 SKILL 的 useWhen"
 }`;
 
@@ -99,9 +102,12 @@ const SKILL_RANKING_PROMPT = `你是一个严格的 SKILL 评分专家。下面�
    - 若候选 SKILL 的 useWhen 为空（未声明），则不触发本规则，按其它规则评分
 2. 技术栈/语言不匹配 → 维度二计 0-5 分，且【总分上限 50】
    （例：任务要 Go 开源库迁移，SKILL 的 language 是 C/C++ → 总分不得 > 50）
+   - **判定依据仅以任务拆解的 techStack（ANALYSIS 中的 techStack 字段）为准**。只有当 techStack 明确给出了某语言，且与该 SKILL 的 language 明确冲突时，才触发本硬否决。
+   - **techStack 为空 / 未明确语言时，禁止凭任务原文中的库名或常识推断语言**（如见到 "opencsv" 就臆断为 Java）。此时视为语言未指明，不触发语言硬否决，按其它维度正常评分。
+   - 不得把 SKILL 的 language 反向当作任务语言来推断匹配与否。
 3. SKILL 功能阶段与任务意图不同 → 维度一上限 15 分
    （例：任务要"可行性分析"，SKILL 是"执行移植动作"）
-4. 严禁仅因"意图看起来契合"就给高分；语言不匹配是硬伤，必须压低总分
+4. 严禁仅因"意图看起来契合"就给高分；当任务 techStack 明确指明语言且与 SKILL 语言冲突时，语言不匹配是硬伤，必须压低总分
 5. 动作类型不一致 → 维度一（意图）上限 15 分，且【总分上限 45】
    判定方式：对比任务的"核心动作动词"与 SKILL 的"核心动作动词"
    - 任务动作是"汇总/聚合/合并/整理已有结果/文件" → SKILL 动作也必须是"汇总/聚合"类
@@ -127,7 +133,7 @@ const SKILL_RANKING_PROMPT = `你是一个严格的 SKILL 评分专家。下面�
 - score 必须等于 dimensions 各项之和
 - dimensions 四个 key 必须齐全（intent/techStack/constraint/keyword）
 - 若候选 SKILL 声明了 useWhen 且与任务 whenToUse 触发场景冲突，务必先触发硬否决规则 1
-- 若候选 SKILL 的 language 与任务 techStack 不匹配，务必触发硬否决规则 2
+- 若候选 SKILL 的 language 与任务 techStack 不匹配，务必触发硬否决规则 2；但若任务 techStack 为空/未明确，不得凭库名推断语言，不触发规则 2
 - 若任务输入是已有产物（JSON/MD/报告）而 SKILL 输入是源码/仓库，务必触发硬否决规则 5`;
 
 /**

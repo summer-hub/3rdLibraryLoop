@@ -206,6 +206,9 @@ class FlexRunner {
     /** @type {string|null} 匹配到的最佳 SKILL 目录 */
     #matchedSkillDir = null;
 
+    /** @type {((sessionId: string) => void)|null} Session 创建后的回调（用于实时同步 sessionId 到编排层） */
+    #onSessionCreated = null;
+
     /** @type {number} 轮询间隔（ms） */
     #pollIntervalMs = POLL_INTERVAL_MS;
 
@@ -264,6 +267,14 @@ class FlexRunner {
     /** @returns {boolean} */
     get initialized() { return this.#initialized; }
 
+    /**
+     * 设置 Session 创建后的回调（可在 initContext 之后注入）。
+     * @param {((sessionId: string) => void|Promise<void>)|null} fn
+     */
+    set onSessionCreated(fn) {
+        this.#onSessionCreated = typeof fn === 'function' ? fn : null;
+    }
+
     // ─── 公开方法 ─────────────────────────────────────────────────────────────
 
     /**
@@ -288,6 +299,7 @@ class FlexRunner {
      * @param {ReturnType<createStorage>} [params.storage] - 注入自定义存储层
      * @param {number} [params.pollIntervalMs] - 轮询间隔 ms（默认 3000）
      * @param {string} [params.mcpConfigPath] - MCP config.json 路径（默认自动推导）
+     * @param {((sessionId: string) => void|Promise<void>)} [params.onSessionCreated] - Session 创建后的回调
      * @returns {Promise<void>}
      */
     async initContext(params = {}) {
@@ -312,7 +324,8 @@ class FlexRunner {
             storage,
             knowledgeManager,
             pollIntervalMs,
-            mcpConfigPath
+            mcpConfigPath,
+            onSessionCreated
         } = params;
 
         if (!taskId) {
@@ -361,6 +374,7 @@ class FlexRunner {
         this.#paused = false;
         this.#aborted = false;
         this.#matchedSkillDir = null;
+        this.#onSessionCreated = typeof onSessionCreated === 'function' ? onSessionCreated : null;
         this.#pollIntervalMs = typeof pollIntervalMs === 'number' && pollIntervalMs > 0
             ? pollIntervalMs
             : POLL_INTERVAL_MS;
@@ -652,6 +666,15 @@ class FlexRunner {
             const { sessionId } = await this.#cli.startSession(title, prompt);
             this.#sessionId = sessionId
             this._log('info', `Session 已创建: ${sessionId}`);
+
+            // 实时通知编排层（静默失败，不影响主流程）
+            if (this.#onSessionCreated) {
+                try {
+                    await this.#onSessionCreated(sessionId);
+                } catch (err) {
+                    this._log('warn', `onSessionCreated 回调异常: ${err.message}`);
+                }
+            }
 
             // ── 4. 轮询等待执行完成 ──
             const completed = await this._pollSession(sessionId);

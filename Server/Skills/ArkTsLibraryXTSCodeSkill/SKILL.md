@@ -1,16 +1,17 @@
 ---
-name: tpc-xts-code
-description: 基于 XTS 用例描述文档（由 TPCXTSDocSkill 生成）自动生成可在 OpenHarmony ohosTest 系统上编译运行的 XTS 测试用例代码。使用 hypium 测试框架，遵循 ArkTS 编码规范。当用户需要将 XTS 用例描述转化为可执行自动化测试代码时使用此技能。前置技能：TPCXTSCoverageSkill。
+name: arkts-library-xts-code
+description: 基于 XTS 用例描述文档（由 ArkTsLibraryXTSDocSkill 生成）自动生成可在 Harmony ohosTest 系统上编译运行的 XTS 测试用例代码。使用 hypium 测试框架，遵循 ArkTS 编码规范。当用户需要将 XTS 用例描述转化为可执行自动化测试代码时使用此技能。前置技能：ArkTsLibraryXTSCoverageSkill。
 license: Apache-2.0
 metadata:
   author: AIWeb
   version: "2.0.0"
   category: ohos-testing
+  language: ArkTS/ETS
 ---
 
-# TPC XTS 测试代码生成
+# ArkTS XTS 测试代码生成
 
-本 Skill 读取 XTS 用例描述文档（由 TPCXTSDocSkill 生成），为每个用例生成独立的 XTS 测试函数实现代码，使用 OpenHarmony hypium 测试框架。XTS 用例文档的"对应的函数接口"列已自包含完整接口签名，无需额外读取接口规格文档。
+本 Skill 读取 XTS 用例描述文档（由 ArkTsLibraryXTSDocSkill 生成），为每个用例生成独立的 XTS 测试函数实现代码，使用 OpenHarmony hypium 测试框架。XTS 用例文档的"对应的函数接口"列已自包含完整接口签名，无需额外读取接口规格文档。
 
 > ⚠️ **核心约束**：
 > 1. 所有测试代码必须基于 XTS 用例描述文档中真实存在的用例和接口生成，严禁凭空捏造
@@ -20,8 +21,8 @@ metadata:
 
 ## 适用场景
 
-- 将 `TPCXTSDocSkill` 生成的用例描述文档转化为可执行测试代码
-- 为已移植鸿蒙三方库快速生成自动化测试用例
+- 将 `ArkTsLibraryXTSDocSkill` 生成的用例描述文档转化为可执行测试代码
+- 为已移植鸿蒙ArkTs原生库快速生成自动化测试用例
 - 生成符合 OpenHarmony XTS 规范的测试代码用于自动化测试
 
 ---
@@ -32,7 +33,7 @@ metadata:
 |------|------|------|
 | `sourcePath` | ✅ | 目标鸿蒙工程根目录（含 `entry/` 和测试模块） |
 | `outputDir` | ✅ | 输出目录（XTS 用例文档和覆盖率报告所在目录） |
-| `interfaceSpecPath` | 可选 | 接口规格文档路径，用于查询依赖类型的完整定义（回调签名、interface/class 区分）；若未提供，从 `outputDir` 搜索 `tpccoverage-interface-spec.md` |
+| `interfaceSpecPath` | 可选 | 接口规格文档路径，用于查询依赖类型的完整定义（回调签名、interface/class 区分）；若未提供，从 `outputDir` 搜索 `arktscoverage-interface-spec.md` |
 | `xtsDocPath` | 可选 | 单个 XTS 用例文档路径；若未提供，从 `outputDir` 搜索 `*未覆盖接口XTS用例描述*.md` 文件 |
 
 ---
@@ -267,6 +268,19 @@ export default function {LibraryName}XtsTest() {
 > expect(10000).assertLarger(duration);  // 即 10000 > duration
 > ```
 
+> ⚠️ **期望值计算规则（强制）**：
+>
+> 当测试数据通过程序化方式生成（如 `arr[i] = i % 256`、`obj.key = f(i)`），断言中的期望值必须满足以下规则之一：
+>
+> | 规则 | 说明 | 示例 |
+> |------|------|------|
+> | **表达式计算** | 使用与测试数据生成相同的表达式 | `expect(arr[9999]).assertEqual(9999 % 256)` |
+> | **手动计算并注释** | 手动计算后在注释中记录计算过程 | `// 9999 % 256 = 15` + `expect(arr[9999]).assertEqual(15)` |
+>
+> **禁止**：从报告描述的语义联想硬编码期望值。例如报告写"填充 0-255 循环数据"时，禁止直接联想"最后一个值=255"，必须实际计算 `lastIndex % 256`。
+>
+> **验证步骤**：每个硬编码期望值写入前，必须反问"这个数字是怎么算出来的？"并在注释中记录计算过程。
+
 > 空值/异常/大数据场景的详细断言策略参见 [CODE_STANDARDS.md 七](references/CODE_STANDARDS.md)。
 
 #### 2.3 逐接口对照规格文档（强制预检）
@@ -282,7 +296,7 @@ export default function {LibraryName}XtsTest() {
 | **参数类型匹配** | 接口规格文档签名 | 参数是否声明为 `common.UIAbilityContext`？若是则传 `appContext as common.UIAbilityContext`，不可直接传 `common.Context` |
 | **回调参数签名** | 接口规格文档回调接口定义 | 回调的每个字段名和参数类型，代码中必须逐字匹配 |
 | **属性名准确性** | 接口规格文档第 3 章属性列表 | 该类的所有属性名，代码中只能使用列表内的名称 |
-| **枚举成员名** | ① 三方库枚举：`read_file` 库源码 ② 系统SDK枚举：`devecocli docs search <枚举名> --catalog harmonyos-references` → `devecocli docs read <documentId>` | 不做大小写假设，系统枚举查 API 参考文档确认 |
+| **枚举成员名** | ① ArkTS原生库枚举：`read_file` 库源码 ② 系统SDK枚举：`devecocli docs search <枚举名> --catalog harmonyos-references` → `devecocli docs read <documentId>` | 不做大小写假设，系统枚举查 API 参考文档确认 |
 | **import 类型存在性** | `library/Index.ets` | 代码中 `import { X }` 的每个 X 必须在 Index.ets 导出链中；不存在的类型用对象字面量，禁止 import |
 
 > 🚨 **系统 SDK 枚举强制验证（立即执行，不可跳过）**：
@@ -368,6 +382,40 @@ it('get_set_path_007', () => {
 
 > 各类型测试函数的完整模板（正向、反向、空值、异常、边界值、大数据、异步、类型判断等）参见 [TEMPLATE.md](references/TEMPLATE.md)。
 
+#### 2.6 测试隔离与状态管理
+
+> ⚠️ 此步骤必须在生成每条断言之前执行。
+
+对当前用例涉及的每一个被断言的状态值，执行以下检查：
+
+| 检查项 | 检查方法 | 处理方式 |
+|-------|---------|---------|
+| 单例模式识别 | 搜索库源码是否含 `getInstance()` 静态方法 | 若是，该类实例的状态跨用例持久化 |
+| 状态可变性 | 确认被断言的状态是否被其他接口修改 | 若是，前面排队的用例可能已修改该状态 |
+| 状态重置 | 在断言前是否调用了 reset/stop/clear 方法 | 若否，必须在断言前添加重置调用或使用 `beforeEach` |
+
+**强制规则**：
+- 断言单例"初始状态"时，必须在断言前显式重置该状态
+- 优先使用 `beforeEach`（而非 `beforeAll`）重置单例状态，因为 `beforeAll` 只执行一次
+- 若无法重置（库未提供 reset 方法），改为断言"调用某方法后的状态"而非"初始状态"
+
+**正确示例**：
+```typescript
+// ✅ 正确：断言前先重置单例状态
+it('scanner_state_034', 0, () => {
+  BleScanner.getInstance().stopScan();  // 重置状态
+  const state = BleScanner.getInstance().getScanState();
+  expect(state).assertEqual(BleScanState.STATE_IDLE);
+});
+
+// ✅ 正确：使用 beforeEach 重置
+beforeEach(() => {
+  BleScanner.getInstance().stopScan();
+});
+```
+
+> 单例状态隔离测试模板参见 [TEMPLATE.md 十六](references/TEMPLATE.md)。
+
 ---
 
 ### 阶段三：代码质量保障
@@ -405,7 +453,7 @@ it('get_set_path_007', () => {
 
 #### 4.1 工程迁移（migrate.cjs）
 
-三方库源码多为历史工程，`build-profile.json5` 的 SDK 版本配置、hvigor 文件、oh-package.json5 等经常不兼容当前构建环境。使用 `migrate.cjs` 脚本一次性完成华为官方 Manual Migration 全流程迁移。
+ArkTS原生库源码多为历史工程，`build-profile.json5` 的 SDK 版本配置、hvigor 文件、oh-package.json5 等经常不兼容当前构建环境。使用 `migrate.cjs` 脚本一次性完成华为官方 Manual Migration 全流程迁移。
 
 1. 执行迁移脚本：
 
@@ -522,7 +570,7 @@ export default function testsuite() {
 
 #### 5.4 生成XTS代码生成报告
 
-`write_file` `{{outputDir}}/tpccoverage-xts-code-report.md`：
+`write_file` `{{outputDir}}/arktscoverage-xts-code-report.md`：
 
 生成完成后，向用户输出以下信息：
 
@@ -600,13 +648,24 @@ export default function testsuite() {
 > | `filesDir` | 文件目录，持久存储 | 需持久化的文件 |
 > | `cacheDir` | 缓存目录 | 缓存文件 |
 
+### 3.6 运行时反推验证
+
+> ⚠️ 每个测试函数生成后、进入编译前，对每条断言执行以下两个反问：
+
+| 反问 | 针对的故障类型 | 不通过时的处理 |
+|------|-------------|-------------|
+| "这个期望值在运行时到底等于多少？" | 期望值计算错误 | 实际计算后修正期望值，或改用表达式 |
+| "这个初始状态在前面用例跑完后还成立吗？" | 单例状态污染 | 添加状态重置调用或改用 `beforeEach` |
+
+**执行方式**：逐条遍历所有 `expect()` 调用，对每条回答两个反问。无法确认的回答"不确定"并标记需要进一步验证。
+
 ---
 
 ## 参考文档
 
 | 文档 | 内容说明 |
 |------|---------|
-| [CODE_STANDARDS.md](references/CODE_STANDARDS.md) | 编码规范完整参考：文件命名、ArkTS 禁止项、日志/注释/错误处理规范、hypium 框架使用、编译错误修复、代码质量检查清单 |
-| [TEMPLATE.md](references/TEMPLATE.md) | 各类型测试函数模板：正向测试、多接口协同、反向测试（参数/状态异常）、空值测试、异常/边界值测试、大数据量测试、异步测试、类型判断测试、覆盖率统计 |
+| [CODE_STANDARDS.md](references/CODE_STANDARDS.md) | 编码规范完整参考：文件命名、ArkTS 禁止项、日志/注释/错误处理规范、hypium 框架使用、编译错误修复、代码质量检查清单（含测试隔离检查 7.6、期望值验证检查 7.7） |
+| [TEMPLATE.md](references/TEMPLATE.md) | 各类型测试函数模板：正向测试、多接口协同、反向测试（参数/状态异常）、空值测试、异常/边界值测试、大数据量测试、异步测试、类型判断测试、单例状态隔离测试、覆盖率统计 |
 | [EXAMPLES.md](references/EXAMPLES.md) | 基于 lodash 的完整示例：输入文档片段、生成的完整测试代码、编译运行验证、覆盖率统计 |
 - hypium 测试框架使用指南

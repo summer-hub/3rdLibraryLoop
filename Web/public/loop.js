@@ -453,7 +453,7 @@ function renderDetailTab(step) {
         '<div class="k">重试次数</div><div class="v">'+(step.retryCount||0)+' / '+(step.maxRetries||3)+'</div>'+
         '<div class="k">开始时间</div><div class="v">'+formatTime(step.startTime)+'</div>'+
         '<div class="k">结束时间</div><div class="v">'+formatTime(step.endTime)+'</div>'+
-        '<div class="k">Session</div><div class="v">'+escapeHtml(step.sessionId||'(无)')+'</div>'+
+        '<div class="k">Session</div><div class="v"><span id="detailSessionVal">'+escapeHtml(step.sessionId||'(无)')+'</span></div>'+
         '<div class="k">结果路径</div><div class="v">'+escapeHtml(step.resultPath||'(无)')+'</div>'+
         '</div></div>'+
         '<div class="detail-section"><h4>任务描述</h4><div style="font-size:12px;line-height:1.6;background:var(--code-bg);padding:10px;border-radius:6px;">'+escapeHtml(step.taskDescription||'—')+'</div></div>'+
@@ -466,6 +466,28 @@ function renderDetailTab(step) {
     if (step.error) h += '<div class="detail-section"><h4 style="color:var(--red);">错误信息</h4><div style="font-size:12px;color:var(--red);background:var(--red-light);padding:10px;border-radius:6px;">'+escapeHtml(step.error)+'</div></div>';
     if (hist.length>0) h += '<div class="detail-section"><h4>执行历史 ('+hist.length+')</h4><div class="history-list">'+hist.map(function(hi){return '<div class="history-item"><span>第 '+hi.attempt+' 次</span><span style="color:'+(hi.success?'var(--green)':'var(--red)')+';">'+(hi.success?'✅ 成功':'❌ 失败')+'</span><span class="muted">'+formatTime(hi.startTime)+' → '+formatTime(hi.endTime)+'</span></div>';}).join('')+'</div></div>';
     $('detailContent').innerHTML=h;
+
+    // 运行中的步骤若 sessionId 为空，从活跃 runner 实时补充（后端通过 SSE 推送可能存在时序差）
+    if (st==='running' && !step.sessionId && step.stepId!=null) {
+        fetchSessionIdForStep(step.stepId);
+    }
+}
+
+/**
+ * 从 /api/flexrunner/status 获取运行中步骤的实时 sessionId 并回填详情面板。
+ * @param {string|number} sid - 步骤 ID
+ */
+async function fetchSessionIdForStep(sid) {
+    try {
+        var tid=State.selectedTaskId;
+        if(!tid) return;
+        var d=await API.get('/api/flexrunner/status?taskId='+encodeURIComponent(tid)+'&stepId='+encodeURIComponent(sid));
+        if(d.status==='ok' && d.runner && d.runner.sessionId
+            && String(State.selectedStepId)===String(sid)) {
+            var el=document.getElementById('detailSessionVal');
+            if(el) el.textContent=d.runner.sessionId;
+        }
+    } catch(err){ /* 静默失败，不影响主流程 */ }
 }
 
 /* ─── 对话 Tab ──────────────────────────────────────────────────────── */

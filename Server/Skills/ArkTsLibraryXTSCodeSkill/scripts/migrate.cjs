@@ -5,10 +5,10 @@
  *   1. 删除工程级 build-profile.json5 的 compileSdkVersion（OpenHarmony 工程跳过）
  *   2. [API 9] 迁移 compatibleSdkVersion/targetSdkVersion 到 product，强制 runtimeOS=HarmonyOS
  *   3. [API 9] 清理各模块级 build-profile.json5 中 targets[].runtimeOS
- *   4. 强制所有 product compatibleSdkVersion/targetSdkVersion=5.0.4(16) + runtimeOS=HarmonyOS
+ *   4. 强制所有 product compatibleSdkVersion/targetSdkVersion=6.1.1(24) + runtimeOS=HarmonyOS
  *   5. 删除 hvigorw / hvigorw.bat / hvigor/hvigor-wrapper.js
- *   6. hvigor/hvigor-config.json5：新增 modelVersion="5.0.4"，删除 hvigorVersion + dependencies 中 @ohos/hvigor-ohos-plugin/rollup
- *   7. 工程级 oh-package.json5：新增 modelVersion="5.0.4"
+ *   6. hvigor/hvigor-config.json5：新增 modelVersion="6.1.1"，删除 hvigorVersion + dependencies 中 @ohos/hvigor-ohos-plugin/rollup
+ *   7. 工程级 oh-package.json5：新增 modelVersion="6.1.1"
  *   8. local.properties：删除 HarmonyOS SDK 配置（OpenHarmony 工程跳过）
  *
  * 用法:
@@ -22,10 +22,10 @@ const fs = require('fs');
 const path = require('path');
 
 // ── 常量 ────────────────────────────────────────────────────
-const MODEL_VERSION = '5.0.4';
+const MODEL_VERSION = '6.1.1';
 const RUNTIME_OS = 'HarmonyOS';
-const COMPATIBLE_SDK_VERSION = '5.0.4(16)'; // 满足 M.S.F(X) 规则，API 9 迁移用
-const TARGET_SDK_VERSION = '5.0.4(16)';
+const COMPATIBLE_SDK_VERSION = '6.1.1(24)'; // 满足 M.S.F(X) 规则，API 9 迁移用
+const TARGET_SDK_VERSION = '6.1.1(24)';
 
 // ── 参数解析 ────────────────────────────────────────────────
 
@@ -220,22 +220,17 @@ function getFieldValue(content, field) {
  */
 function setFieldValue(content, field, valueText, parentAnchor, indent) {
   const escaped = field.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  // 先尝试原地替换
-  const replacePatterns = [
-    // 带引号键
-    new RegExp(`(^[ \\t]*"${escaped}"\\s*:\\s*)[^,}\\n]+`, 'gm'),
-    // 不带引号键
-    new RegExp(`(^[ \\t]*${escaped}\\s*:\\s*)[^,}\\n]+`, 'gm'),
-  ];
-  let result = content;
-  let replaced = false;
-  for (const p of replacePatterns) {
-    const before = result;
-    result = result.replace(p, `$1${valueText}`);
-    if (result !== before) replaced = true;
+  // 检测字段键是否已存在（带引号或不带引号）。依据存在性决定替换或插入，
+  // 而非"替换后文本是否变化"——因为值恰好与目标值相同时替换无变化，
+  // 若据此误判为不存在会重复插入同一字段。
+  const existsRe = new RegExp(`^[ \\t]*("?${escaped}"?\\s*:)`, 'gm');
+  const existsMatch = existsRe.exec(content);
+  if (existsMatch) {
+    // 已存在：仅替换该行值（保留引号键/无引号键原样）
+    const replaceRe = new RegExp(`(^[ \\t]*"?${escaped}"?\\s*:\\s*)[^,}\\n]+`, 'gm');
+    return content.replace(replaceRe, `$1${valueText}`);
   }
-  if (replaced) return result;
-  // 不存在则插入
+  // 不存在 → 插入到指定父对象闭合前
   return insertFieldBeforeClose(content, parentAnchor, `${indent}"${field}": ${valueText},`);
 }
 
@@ -327,7 +322,7 @@ function findModuleBuildProfiles(projectRoot) {
 
 /**
  * 步骤：[API 9] 迁移 app 顶层 compatibleSdkVersion/targetSdkVersion 到每个 product，
- * 值改为 "5.0.4(16)"，并强制 runtimeOS="HarmonyOS"。
+ * 值改为 "6.1.1(24)"，并强制 runtimeOS="HarmonyOS"。
  * @param {string} bpPath
  * @returns {string[]} 操作日志列表
  */
@@ -425,6 +420,9 @@ function migrateApi9BuildProfile(bpPath) {
     const { start, end } = productObjs[idx];
     const objText = newProducts.slice(start, end + 1);
     let newObj = objText;
+    // 清理 product 内残留的 compileSdkVersion（HarmonyOS 新 SDK 中该字段非必须，
+    // 旧工程/AI 可能预置数字或字符串，导致同一对象出现重复键）
+    newObj = removeField(newObj, 'compileSdkVersion');
     // 强制 compatibleSdkVersion
     newObj = setFieldValue(newObj, 'compatibleSdkVersion', `"${COMPATIBLE_SDK_VERSION}"`, '^\\{', '  ');
     // 强制 targetSdkVersion
@@ -434,7 +432,7 @@ function migrateApi9BuildProfile(bpPath) {
     newProducts = newProducts.slice(0, start) + newObj + newProducts.slice(end + 1);
     productCount++;
   }
-  logs.push(`  ✅ ${rel}/build-profile.json5: ${productCount} 个 product 迁移 compatibleSdkVersion=5.0.4(16) + runtimeOS=HarmonyOS`);
+  logs.push(`  ✅ ${rel}/build-profile.json5: ${productCount} 个 product 迁移 compatibleSdkVersion=6.1.1(24) + runtimeOS=HarmonyOS`);
 
   content = beforeProducts + newProducts + afterProducts;
   return { content, logs };
@@ -485,8 +483,8 @@ function removeCompileSdkVersion(bpPath) {
 
 /**
  * 步骤：强制所有 product 的 compatibleSdkVersion/targetSdkVersion/runtimeOS。
- *   - compatibleSdkVersion = "5.0.4(16)"（满足 M.S.F(X) 规则的字符串）
- *   - targetSdkVersion = "5.0.4(16)"
+ *   - compatibleSdkVersion = "6.1.1(24)"（满足 M.S.F(X) 规则的字符串）
+ *   - targetSdkVersion = "6.1.1(24)"
  *   - runtimeOS = "HarmonyOS"
  * 不论原值是数字、字符串、缺失还是其他，统一覆盖。
  * @param {string} bpPath
@@ -565,6 +563,8 @@ function forceProductSdkConfig(bpPath) {
     const { start, end } = productObjs[idx];
     const objText = productsText.slice(start, end + 1);
     let newObj = objText;
+    // 清理 product 内残留的 compileSdkVersion，避免同一对象出现数字+字符串重复键
+    newObj = removeField(newObj, 'compileSdkVersion');
     newObj = setFieldValue(newObj, 'compatibleSdkVersion', `"${COMPATIBLE_SDK_VERSION}"`, '^\\{', '  ');
     newObj = setFieldValue(newObj, 'targetSdkVersion', `"${TARGET_SDK_VERSION}"`, '^\\{', '  ');
     newObj = setFieldValue(newObj, 'runtimeOS', `"${RUNTIME_OS}"`, '^\\{', '  ');
@@ -573,7 +573,7 @@ function forceProductSdkConfig(bpPath) {
   }
   content = beforeProducts + productsText + afterProducts;
   fs.writeFileSync(bpPath, content, 'utf-8');
-  logs.push(`  ✅ ${rel}: 强制 ${count} 个 product compatibleSdkVersion/targetSdkVersion=5.0.4(16) + runtimeOS=${RUNTIME_OS}`);
+  logs.push(`  ✅ ${rel}: 强制 ${count} 个 product compatibleSdkVersion/targetSdkVersion=6.1.1(24) + runtimeOS=${RUNTIME_OS}`);
   return logs;
 }
 
@@ -603,7 +603,7 @@ function removeHvigorFiles(projectRoot) {
 
 /**
  * 步骤：修改 hvigor/hvigor-config.json5。
- * 新增 modelVersion="5.0.4"；删除 hvigorVersion；删除 dependencies 中 @ohos/hvigor-ohos-plugin 与 rollup。
+ * 新增 modelVersion="6.1.1"；删除 hvigorVersion；删除 dependencies 中 @ohos/hvigor-ohos-plugin 与 rollup。
  * @param {string} projectRoot
  * @returns {string[]} 操作日志
  */
@@ -649,7 +649,7 @@ function patchHvigorConfig(projectRoot) {
 }
 
 /**
- * 步骤：工程级 oh-package.json5 新增 modelVersion="5.0.4"。
+ * 步骤：工程级 oh-package.json5 新增 modelVersion="6.1.1"。
  * @param {string} projectRoot
  * @returns {string[]}
  */
@@ -735,7 +735,7 @@ function runMigration(projectRoot, isOpenHarmony, apiLevel) {
     allLogs.push(`  ⏭️ build-profile.json5: OpenHarmony 工程，跳过 compileSdkVersion 删除`);
   }
 
-  // 强制所有 product compatibleSdkVersion/targetSdkVersion=5.0.4(16) + runtimeOS=HarmonyOS
+  // 强制所有 product compatibleSdkVersion/targetSdkVersion=6.1.1(24) + runtimeOS=HarmonyOS
   allLogs.push(...forceProductSdkConfig(bpPath));
 
   // 删除 hvigor 文件
