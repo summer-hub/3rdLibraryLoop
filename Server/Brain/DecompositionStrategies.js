@@ -139,12 +139,12 @@ export class DecompositionStrategies {
 
         const contextSections = [
             `## 任务描述\n${taskDescription}`,
-            `## 任务分析\n- 意图: ${analysis.intent}\n- 领域: ${analysis.domain}\n- 关键词: ${(analysis.keywords || []).join(', ')}\n- 约束: ${(analysis.constraints || []).join(', ')}\n- 技术栈: ${(analysis.techStack || []).join(', ')}\n- 复杂度: ${analysis.complexity}\n- 预估步骤数: ${analysis.estimatedSteps}`,
+            `## 任务分析\n- 意图: ${analysis.intent}\n- 领域: ${analysis.domain}\n- 关键词: ${(analysis.keywords || []).join(', ')}\n- 约束: ${(analysis.constraints || []).join(', ')}\n- 技术栈: ${(analysis.techStack || []).join(', ')}\n- 预估步骤数: ${analysis.estimatedSteps}`,
             `## 任务级验收标准\n${taskCriteriaText || '（未提供）'}`,
             userCriteria.trim()
                 ? `## 用户提供的验收标准\n${userCriteria.trim()}`
                 : null,
-            `## 拆解要求\n请按照 SKILL 中的拆解原则执行，确保：\n1. 每个步骤能被一个 SKILL 独立完成\n2. 步骤间通过 dependId/nextStepId/failStepId 构成有向图\n3. 必须有入口步骤（dependId=0）和终止步骤（nextStepId=0）\n4. 每个步骤必须有明确的验收标准\n5. 所有步骤的验收标准合并后应覆盖任务级验收标准`
+            `## 拆解要求\n请按照 SKILL 中的拆解原则执行，确保：\n1. 每个步骤只做一件独立可验证的事\n2. 步骤间通过 dependId/nextStepId/failStepId 构成有向图\n3. 必须有入口步骤（dependId=0）和终止步骤（nextStepId=0）\n4. 每个步骤必须有明确的验收标准\n5. 所有步骤的验收标准合并后应覆盖任务级验收标准`
         ].filter(Boolean);
 
         const title = `brain|task=${taskId}|decompose|loop=${loopCount}`;
@@ -197,7 +197,6 @@ ${taskDescription}
 - 关键词: ${analysis.keywords.join(', ')}
 - 约束: ${analysis.constraints.join(', ')}
 - 技术栈: ${analysis.techStack.join(', ')}
-- 复杂度: ${analysis.complexity}
 - 预估步骤数: ${analysis.estimatedSteps}
 
 ## 任务级验收标准
@@ -245,7 +244,7 @@ ${skillInstructions}
   - taskACIds: 该步骤标准关联的任务级标准 ID 列表
 
 ### 拆解原则
-1. 每个步骤应该能被一个 SKILL 独立完成
+1. 每个步骤只做一件独立可验证的事
 2. 步骤间通过 dependId/nextStepId/failStepId 构成有向图
 3. 必须有且仅有一个入口步骤（dependId=0）
 4. 步骤描述要包含足够的技术细节，便于 Skill 匹配
@@ -336,7 +335,7 @@ ${skillInstructions}
 
         const contextSections = [
             `## 原始任务描述\n${taskDescription}`,
-            `## 任务分析\n- 意图: ${analysis.intent}\n- 领域: ${analysis.domain}\n- 复杂度: ${analysis.complexity}\n- 预估步骤数: ${analysis.estimatedSteps}\n- 失败分析: ${analysis.failureAnalysis || '无'}\n- 调整策略: ${analysis.adjustmentStrategy || '无'}`,
+            `## 任务分析\n- 意图: ${analysis.intent}\n- 领域: ${analysis.domain}\n- 预估步骤数: ${analysis.estimatedSteps}\n- 失败分析: ${analysis.failureAnalysis || '无'}\n- 调整策略: ${analysis.adjustmentStrategy || '无'}`,
             `## 任务级验收标准\n${taskCriteriaText || '（未提供）'}`,
             userCriteria.trim()
                 ? `## 用户提供的验收标准\n${userCriteria.trim()}`
@@ -403,7 +402,6 @@ ${taskDescription}
 ## 任务分析
 - 意图: ${analysis.intent}
 - 领域: ${analysis.domain}
-- 复杂度: ${analysis.complexity}
 - 预估步骤数: ${analysis.estimatedSteps}
 - 失败分析: ${analysis.failureAnalysis || '无'}
 - 调整策略: ${analysis.adjustmentStrategy || '无'}

@@ -91,7 +91,6 @@ Phase 4: 结果输出（纯 JSON 写入 resultFilePath）
 | `intent` | 确保所有步骤围绕核心意图 |
 | `domain` | 辅助判断任务所属领域，指导步骤设计 |
 | `techStack` | 每个步骤的技术栈要与任务描述一致，便于后续匹配 |
-| `complexity` | 校验步骤数量是否与复杂度匹配 |
 | `estimatedSteps` | 步骤数量参考基准 |
 | `acceptanceCriteria` | 步骤级验收标准需覆盖任务级标准 |
 
@@ -118,7 +117,7 @@ Phase 4: 结果输出（纯 JSON 写入 resultFilePath）
 
 1. **单一职责**：每个步骤只做"一件事"——一个可独立验证的产出或动作。若一个步骤蕴含多个独立产出（如"既分析源码又修改代码"），拆分为多个步骤。
 2. **可验证**：每个步骤必须有可检查的产物或可执行命令来判定成败。无法验证的步骤需拆分，或补充明确验收标准。
-3. **复杂度/步数匹配**：步骤总数应与 `analysis.complexity`（`low` 1-3 步 / `medium` 4-7 步 / `high` 8+ 步）及 `analysis.estimatedSteps` 对齐。
+3. **预估步数对齐**：步骤总数应与 `analysis.estimatedSteps` 对齐（作为参考基准，允许结合任务实际合理增减）。
 4. **过粗/过细判定**：
    - **过粗信号**：步骤描述含"同时/以及/并且"连接多个不相关任务，或蕴含多个独立产物 → 应拆分。
    - **过细信号**：步骤描述只有原子操作（如 `git clone`、`cd 目录`、`ls 查看文件`）→ 应合并为一个"获取源码并分析结构"步骤。
@@ -147,7 +146,7 @@ Phase 4: 结果输出（纯 JSON 写入 resultFilePath）
 
 **示例 3（合理，正确）：**
 ```
-任务: 检视三方库代码质量（complexity=medium, estimatedSteps=4）
+任务: 检视三方库代码质量（estimatedSteps=4）
   ✓ 步骤1: 克隆仓库并准备环境 (dependId=0)
     步骤2: 代码质量检视 (dependId=1)
     步骤3: 文档质量检视 (dependId=1，与步骤2并行)
