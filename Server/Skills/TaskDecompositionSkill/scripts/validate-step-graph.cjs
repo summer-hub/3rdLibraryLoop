@@ -314,6 +314,29 @@ if (unreachable.length > 0) {
   ok('所有步骤均从入口可达');
 }
 
+// ── 4.1 修复链歧义图检查（failStepId 目标被 dependId 反向依赖）──
+// 若 A.failStepId=B 且 B.dependId 包含 A，则 B 既被"失败条件边"进入，又被 dependId
+// 当作"成功依赖边"。Orchestrator 已能正确运行此类图（A 成功时跳过 failStepId 目标、
+// A 失败时跳过依赖聚合），故此处仅 WARN 提示语义不清晰，建议修复步骤不声明修复目标为
+// 成功依赖（默认 WARN 不阻塞，可通过 --strict 提升为 FAIL）。
+const fixChainAmbiguities = [];
+for (const [fromId, fromStep] of nodes) {
+  const failTarget = String(fromStep.failStepId ?? 0);
+  if (failTarget === '0' || !nodes.has(failTarget)) continue;
+  const targetStep = nodes.get(failTarget);
+  const deps = getDepIds(targetStep.dependId);
+  if (deps.includes(fromId)) {
+    fixChainAmbiguities.push(`步骤${fromId} 的 failStepId=${failTarget}，但修复步骤${failTarget} 的 dependId 又包含 ${fromId}`);
+  }
+}
+if (fixChainAmbiguities.length > 0) {
+  for (const msg of fixChainAmbiguities) {
+    warn(`修复链歧义图（dependId 与 failStepId 反向重叠）: ${msg}。建议从修复步骤的 dependId 中移除其修复目标，Orchestrator 仍可正确执行。`);
+  }
+} else {
+  ok('无修复链歧义图（failStepId 目标未被 dependId 反向依赖）');
+}
+
 // ── 5. 成功链无终止检测 ───────────────────────────────────
 const noTerminal = Array.from(nodes.values()).every(
   (s) => s.nextStepId != null && s.nextStepId !== 0 && s.nextStepId !== '0'

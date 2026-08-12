@@ -32,6 +32,9 @@ dotenv.config({ path: path.resolve(__dirname, '..', '..', '..', '.env') });
 const DEFAULT_TOP_K = 5;
 const DEFAULT_HIT_THRESHOLD = 60;
 
+// 多路召回融合权重（默认：动作 0.4 / 领域 0.4 / 原文 0.2）
+const DEFAULT_WEIGHTS = { action: 0.4, domain: 0.4, raw: 0.2 };
+
 export class Agent {
   /**
    * @param {object} [options]
@@ -45,6 +48,11 @@ export class Agent {
     this.matcher = createFuzzyMatcher(options.matcher);
     this.topK = options.topK ?? _envInt('SELECTOR_TOP_K', DEFAULT_TOP_K);
     this.hitThreshold = options.hitThreshold ?? _envInt('SELECTOR_HIT_THRESHOLD', DEFAULT_HIT_THRESHOLD);
+    this.weights = {
+      action: options.weights?.action ?? _envFloat('SELECTOR_WEIGHT_ACTION', DEFAULT_WEIGHTS.action),
+      domain: options.weights?.domain ?? _envFloat('SELECTOR_WEIGHT_DOMAIN', DEFAULT_WEIGHTS.domain),
+      raw: options.weights?.raw ?? _envFloat('SELECTOR_WEIGHT_RAW', DEFAULT_WEIGHTS.raw),
+    };
   }
 
   /**
@@ -70,12 +78,21 @@ export class Agent {
     const analysis = await analyzeTask(this.llm, task);
     trace.push({ step: 'reason-1:analyzeTask', input: { task }, output: analysis });
 
-    // ─── Act：调用模糊匹配工具，召回 topK ───
-    const matched = await this.matcher(analysis, skills, { topK: this.topK });
+    // ─── Act：调用模糊匹配工具，召回 topK（双通道多路融合） ───
+    const matched = await this.matcher(analysis, skills, { topK: this.topK, task, weights: this.weights });
     if (matched.length === 0) {
       throw new Error('Agent.selectSkill: 模糊匹配未召回任何 SKILL');
     }
-    trace.push({ step: 'act:fuzzyMatch', output: { topK: matched.length, scores: matched.map((m) => m.score) } });
+    // trace 留痕：记录每路分数（动作/领域/原文），便于定位偶发未命中
+    trace.push({
+      step: 'act:fuzzyMatch',
+      output: {
+        topK: matched.length,
+        weights: this.weights,
+        scores: matched.map((m) => m.score),
+        routes: matched.map((m) => m.routes || null),
+      },
+    });
 
     // ─── Reason #2：LLM 对候选评分排序 ───
     const rankResult = await rankSkills(this.llm, task, analysis, matched);
@@ -112,14 +129,17 @@ export class Agent {
       };
     }
 
-    // ─── 命中阈值判定：top1 分数 >= 阈值 且 top1-top2 分差足够大才算命中 ───
+    // 稳定降序排序：topScore 判定依赖 ranked[0]，不能信任 LLM 的返回顺序（偶现不严格降序）
+    ranked = ranked.sort((a, b) => b.score - a.score);
+
+    // ─── 命中阈值判定：top1 分数 >= 阈值即命中 ───
     // ranked 已按 score 降序，ranked[0] 是最高分候选
     const topScore = ranked.length > 0 ? ranked[0].score : 0;
     const secondScore = ranked.length > 1 ? ranked[1].score : 0;
+    // top1-top2 分差仅作参考信息保留，不参与命中判定：
+    // 高分 top1（>=阈值）已明确是最佳选择，即使 top2 分数接近也不应判为"不确定"
     const scoreGap = topScore - secondScore;
-    // 分差过小（<10）说明 top1 不显著优于 top2，判定为不确定
-    const isAmbiguous = ranked.length > 1 && scoreGap < 10;
-    const hit = topScore >= this.hitThreshold && !isAmbiguous;
+    const hit = topScore >= this.hitThreshold;
 
     // 确定 best：命中时取最高分 SKILL，未命中时为 null（调用方据此走兜底流程）
     let best = null;
@@ -145,7 +165,7 @@ export class Agent {
       hit,
       // top1 分数（便于调用方了解置信度，未召回为 0）
       topScore,
-      // top1-top2 分差（<10 时判定为不确定，hit=false）
+      // top1-top2 分差（仅参考信息，不参与命中判定）
       scoreGap,
       ranked,
       analysis,
@@ -158,6 +178,13 @@ function _envInt(key, def) {
   const v = process.env[key];
   if (v === undefined || v === '') return def;
   const n = parseInt(v, 10);
+  return Number.isFinite(n) ? n : def;
+}
+
+function _envFloat(key, def) {
+  const v = process.env[key];
+  if (v === undefined || v === '') return def;
+  const n = Number(v);
   return Number.isFinite(n) ? n : def;
 }
 

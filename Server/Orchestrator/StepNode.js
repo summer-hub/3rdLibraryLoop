@@ -213,6 +213,17 @@ class StepNode {
         this.error = reason;
     }
 
+    /**
+     * 释放关联的 FlexRunner 实例及其重型引用（CLIController / SkillSelector / LLMClient / Storage）。
+     *
+     * 编排结束后调用，使 FlexRunner 及其内嵌依赖可被 GC 回收。
+     * 仅置空 `_runner`，保留 `sessionId` / `resultPath` / `history` 等序列化元信息，
+     * 前端仍可通过 `toJSON()` 与本地归档查看历史。
+     */
+    releaseRunner() {
+        this._runner = null;
+    }
+
     // ─── 配置修改 ──────────────────────────────────────────────────────
 
     /**

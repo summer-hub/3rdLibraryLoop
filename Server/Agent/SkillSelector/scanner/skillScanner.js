@@ -174,6 +174,9 @@ function _buildSkillMeta(dirName, dirPath, skillMdPath, fm, md) {
   // 计算正文长度（frontmatter 之后的内容），用于评估 SKILL 复杂度
   const bodyLength = md.replace(/^---[\s\S]*?---/, '').length;
 
+  // 触发场景声明：优先取 frontmatter 的 metadata.useWhen，否则从 description 的 "use when/当...时" 段解析
+  const useWhen = metadata.useWhen || _extractUseWhen(fm.description || '');
+
   return {
     dirName,
     skillPath: dirPath,
@@ -187,10 +190,9 @@ function _buildSkillMeta(dirName, dirPath, skillMdPath, fm, md) {
     category: metadata.category || '',
     // 兼容两种字段命名：language 或 language-support
     language: metadata.language || metadata['language-support'] || '',
-    // 触发场景声明：优先取 frontmatter 的 metadata.useWhen，否则从 description 的 "use when" 段解析
-    useWhen: metadata.useWhen || _extractUseWhen(fm.description || ''),
-    // 可搜索文本：metadata×3 权重放大 + 正文前 2500 字符
-    searchableText: _buildSearchableText(fm.name, fm.description, metadata, bodyText),
+    useWhen,
+    // 可搜索文本：metadata×3 权重放大 + 正文前 2500 字符 + useWhen 触发场景
+    searchableText: _buildSearchableText(fm.name, fm.description, metadata, bodyText, useWhen),
     bodyText,
     bodyLength,
     hasReferences: false, // 在 scanSkills 后置检测，见下
@@ -234,15 +236,17 @@ function _extractUseWhen(description) {
  *   - metadata 字段（name+description+category+language+harmonyos-support+compatibility）
  *     权重放大 3 倍，确保 frontmatter 匹配占主导
  *   - 正文前 2500 字符参与索引，覆盖 description 未提及的语义
+ *   - useWhen 触发场景参与索引，让"什么场景下调用"这一语义信号进入召回
  *
  * @param {string} name
  * @param {string} description
  * @param {object} metadata
  * @param {string} [bodyText=''] - SKILL.md 正文前 2500 字符
+ * @param {string} [useWhen=''] - 从 frontmatter/description 解析的触发场景
  * @returns {string} 小写拼接文本
  * @private
  */
-function _buildSearchableText(name, description, metadata, bodyText = '') {
+function _buildSearchableText(name, description, metadata, bodyText = '', useWhen = '') {
   const metaParts = [
     name,
     description,
@@ -250,6 +254,7 @@ function _buildSearchableText(name, description, metadata, bodyText = '') {
     metadata.language || metadata['language-support'],
     metadata['harmonyos-support'],
     metadata.compatibility || '',
+    useWhen,
   ].filter(Boolean).join(' ');
 
   // metadata 权重放大 3 倍，正文权重 1 倍

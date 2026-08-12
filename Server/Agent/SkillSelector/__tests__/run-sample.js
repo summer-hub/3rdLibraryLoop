@@ -17,12 +17,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // ─── 测试参数 ──────────────────────────────────────────────────────────────
 // 场景 A（预期 hit=true）：C++ 库可行性分析
-const TASK = '分析 libcurl 这个 C++ 开源库能否移植到鸿蒙平台，输出鸿蒙化可行性报告';
+const TASK = '克隆 FastBle 源仓库（https://gitcode.com/CPF-ApplicationTPC/FastBle）到工作目录，解析 ArkTS 源码结构，扫描所有导出类、接口及公共方法签名（含方法名、参数类型、返回值类型、访问修饰符），输出方法级接口规格 markdown 文档（interface-spec.md）到工作目录';
 // 场景 B（预期 hit=false）：Go 库可行性分析（语言否决）
 // const TASK = '分析gitserver这个Go开源库能否移植到鸿蒙平台，输出鸿蒙化可行性报告';
 // 场景 C（预期 hit=false）：汇总报告（动作类型否决 + 分差检查）
 // const TASK = '汇总规范合规性检视结果（compliance-review.json）和业务逻辑检视结果（logic-review.json），生成完整的代码检视报告文档（code-review-report.md）。报告需覆盖仓库内所有核心 ArkTS 源码文件，所有问题需按严重程度分级（Blocker/Critical/Major/Minor），并给出具体的修改建议或代码示例';
-const SKILL_DIRECTORY = 'D:\\code\\AIWeb\\Server\\Skills';
+const SKILL_DIRECTORY = 'Skills';
 
 async function main() {
   console.log('=== SkillSelector 自测 ===');
@@ -72,6 +72,13 @@ async function main() {
     console.log('ReAct 留痕：');
     result.trace.forEach((t) => {
       console.log(`  - ${t.step}`, t.output ? JSON.stringify(t.output) : '');
+      // act:fuzzyMatch 额外打印每路分数明细（动作/领域/原文）
+      if (t.step === 'act:fuzzyMatch' && t.output?.routes) {
+        t.output.routes.forEach((r, i) => {
+          if (!r) return;
+          console.log(`      [${i}] 动作=${r.action.toFixed(3)} 领域=${r.domain.toFixed(3)} 原文=${r.raw.toFixed(3)}`);
+        });
+      }
     });
     console.log();
   } catch (err) {
