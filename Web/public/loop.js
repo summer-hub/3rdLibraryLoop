@@ -585,10 +585,12 @@ function renderMessages(msgs) {
     if(!msgs||msgs.length===0){list.innerHTML='<div class="muted" style="font-size:12px;">暂无消息</div>';return;}
     list.innerHTML=msgs.map(function(m) {
         var role=m.role||(m.info&&m.info.role)||'unknown';
-        var content=m.content||(m.parts&&m.parts[0]&&m.parts[0].text)||JSON.stringify(m);
+        // 显式取 content，空字符串不 fallback 到 JSON.stringify
+        var content = m.content != null ? m.content : ((m.parts&&m.parts[0]&&m.parts[0].text) || '');
+        if (!content || content.trim()==='') return '';
         var t=m.timestamp||''; var rc=role==='user'?'user':role==='assistant'?'assistant':'system';
         return '<div class="msg-item '+rc+'"><div class="role">'+escapeHtml(role)+'</div><div>'+escapeHtml(content)+'</div>'+(t?'<div class="time">'+escapeHtml(t)+'</div>':'')+'</div>';
-    }).join('');
+    }).filter(Boolean).join('');
 }
 
 /* ─── 控制 Tab ──────────────────────────────────────────────────────── */
