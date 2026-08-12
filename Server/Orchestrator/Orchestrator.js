@@ -115,6 +115,9 @@ class Orchestrator {
         this._error = null;
         /** @type {Set<string>} 已参与过的执行路径节点（用于循环检测） */
         this._execPathTrace = new Set();
+        /** @type {Set<string>} 修复步骤集合：被其它步骤 failStepId 指向的 stepId。
+         *  这些节点语义上"仅由某步骤失败时经 failStepId 进入"，不应被 dependId fan-out 并行激活。 */
+        this._fixStepIds = new Set();
 
         // ── 持久化串行化 ──
         // _persistState 可能被并发调用（如步骤状态变更回调中 fire-and-forget 触发）。
@@ -211,6 +214,17 @@ class Orchestrator {
 
         // 验证依赖引用完整性
         this._validateReferences();
+
+        // 识别修复步骤集合：被其它步骤 failStepId 指向的 node。
+        // 这些 node 语义上"仅在某源步骤失败时经 failStepId 进入"，不应通过 dependId
+        // 的 fan-out 并行激活（否则会与源步骤落入同一并行轮次，造成误执行/误阻塞）。
+        this._fixStepIds.clear();
+        for (const node of this._nodes.values()) {
+            const fail = String(node.failStepId);
+            if (fail !== '0' && this._nodes.has(fail)) {
+                this._fixStepIds.add(fail);
+            }
+        }
 
         // 识别入口步骤（无任何前置依赖，或全部前置指向不存在的步骤）
         for (const node of this._nodes.values()) {
@@ -610,6 +624,15 @@ class Orchestrator {
             // _activateDependents 不应在 fromNode 成功时把它当"成功依赖边"激活。
             // 失败路径由 _executeNode 用 allowCompleted:true 走 failStepId 激活，无需在此重复。
             if (fromNode.isCompleted && String(fromNode.failStepId) === String(node.stepId)) {
+                continue;
+            }
+            // 修复步骤兜底：node 是被某步骤 failStepId 指向的修复步骤（存入 _fixStepIds），
+            // 且当前 fromNode 不是它的触发失败源（fromNode.failStepId !== node.stepId）。
+            // 此时 node 的 dependId 若指向 fromNode（如修复步骤误设与验证步骤并行的 dependId），
+            // 会被当作 fan-out 并行激活，导致与源步骤同轮并行、误执行或阻塞后续链。
+            // 修复步骤只应经真正的 failStepId 触发，故此处跳过 fan-out 激活。
+            if (this._fixStepIds.has(node.stepId) &&
+                String(fromNode.failStepId) !== String(node.stepId)) {
                 continue;
             }
             if (this._allDependenciesCompleted(node)) {

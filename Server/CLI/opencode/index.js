@@ -27,6 +27,8 @@ class OpenCodeCLI {
         this.client = null;
         // 消息存档：用于保留对话消息、判断 opencode 是否长时间无新响应（防卡死）
         this.archive = options.archive ?? new MessageArchive();
+        // 记录各 session 首次进入 busy/retry 的时间戳（ms），用于"busy 停滞兜底"判定
+        this._busySince = {};
         this._init();
     }
 
@@ -383,7 +385,28 @@ class OpenCodeCLI {
             }
             const rawStatus = statusMap?.data?.[sessionId];
             if (rawStatus && (rawStatus.type === 'busy' || rawStatus.type === 'retry')) {
-                // AI 正在生成，无需拉消息
+                // AI 正在生成，无需拉消息（快路径）
+                // 但若 busy 持续过久（超过停滞阈值），则降级拉最后一条消息兜底：
+                // opencode 的 session.status() 在任务实际完成后仍可能长时间保持 busy，
+                // 仅依赖 status 会永远无法识别已完成的 finish:"stop" 消息，导致上层轮询超时。
+                const now = Date.now();
+                if (!this._busySince[sessionId]) {
+                    this._busySince[sessionId] = now;
+                }
+                // 复用存档的卡死阈值（默认 5 分钟），作为 busy 停滞兜底的超时判定
+                const stallThresholdMs = this.archive?._store?.stallThresholdMs ?? 5 * 60 * 1000;
+                const busyDurationMs = now - this._busySince[sessionId];
+
+                if (busyDurationMs >= stallThresholdMs) {
+                    // busy 停滞超阈值 → 检查消息层，识别是否实际已完成
+                    this._log('warn',
+                        `checkSessionStatus: session ${sessionId} busy 持续 ${Math.round(busyDurationMs / 1000)}s，降级检查消息层`);
+                    const fallback = await this._checkMessageLayer(sessionId);
+                    if (fallback) {
+                        return fallback;
+                    }
+                }
+
                 const checkRes = await this.archive.recordCheck(sessionId, {
                     lastMessageId: null,
                     status: 'running'
@@ -395,6 +418,8 @@ class OpenCodeCLI {
                     hasNewMessage: false
                 };
             }
+            // 非 busy/retry：清除停滞计时，避免脏状态
+            delete this._busySince[sessionId];
 
             // ── idle 或 status 查询失败：拉最后 1 条消息判断 completed/error/running ──
             const messages = await this.client.session.messages({
@@ -423,10 +448,7 @@ class OpenCodeCLI {
             }
 
             // 正常完成
-            const isCompleted =
-                lastMessage.info?.finish === 'stop' &&
-                Array.isArray(lastMessage.parts) &&
-                lastMessage.parts.some(p => p.type === 'text');
+            const isCompleted = this._isCompletedMessage(lastMessage);
 
             const status = isCompleted ? 'completed' : 'running';
 
@@ -460,6 +482,90 @@ class OpenCodeCLI {
         } catch (error) {
             this._log('warn', `checkSessionStatus 异常 id=${sessionId}: ${error.message}`);
             return { status: 'unknown' };
+        }
+    }
+
+    /**
+     * 判断 opencode 消息是否为正常完成（finish='stop' 且含 text part）。
+     *
+     * 供 checkSessionStatus 的 idle 分支与 busy 停滞兜底分支共用，避免判定逻辑漂移。
+     *
+     * @param {object} lastMessage - opencode 原始消息
+     * @returns {boolean}
+     * @private
+     */
+    _isCompletedMessage(lastMessage) {
+        return Boolean(
+            lastMessage &&
+            lastMessage.info?.finish === 'stop' &&
+            Array.isArray(lastMessage.parts) &&
+            lastMessage.parts.some(p => p.type === 'text')
+        );
+    }
+
+    /**
+     * 从消息层检查 session 是否实际已完成/出错。
+     *
+     * 用于 busy/retry 停滞兜底：拉取最后 1 条消息，若已 finish='stop' 或 info.error，
+     * 则返回对应的 completed/error 状态；否则返回 null（表示任务确实仍在运行）。
+     *
+     * 注意：本方法不更新 _busySince——由调用方在返回非 completed/error 时继续累积。
+     *
+     * @param {string} sessionId
+     * @returns {Promise<object|null>} 已终态时返回状态对象；仍在运行返回 null
+     * @private
+     */
+    async _checkMessageLayer(sessionId) {
+        try {
+            const messages = await this.client.session.messages({
+                path: { id: sessionId },
+                query: { limit: 1 },
+            });
+            const data = messages.data;
+            if (!data || data.length === 0) {
+                return null;
+            }
+
+            const lastMessage = data[data.length - 1];
+
+            // 出错 / 被中断
+            if (lastMessage.info?.error) {
+                const errName = lastMessage.info.error.name ?? 'UnknownError';
+                this._log('warn', `checkSessionStatus: busy 兜底检测到错误 ${errName}，status=error`);
+                await this.archive.recordCheck(sessionId, {
+                    lastMessageId: this._msgDedupeKey(lastMessage),
+                    status: 'error'
+                }).catch(() => {});
+                await this._autoArchive(sessionId, 'error');
+                delete this._busySince[sessionId];
+                return { status: 'error', error: lastMessage.info.error, lastMessage };
+            }
+
+            // 正常完成（finish='stop' 且含 text）
+            if (this._isCompletedMessage(lastMessage)) {
+                this._log('info', `checkSessionStatus: busy 兜底确认 session ${sessionId} 已完成`);
+                const dedupeKey = this._msgDedupeKey(lastMessage);
+                await this.archive.recordCheck(sessionId, {
+                    lastMessageId: dedupeKey,
+                    status: 'completed'
+                }).catch(() => {});
+                await this._autoArchive(sessionId, 'completed');
+                delete this._busySince[sessionId];
+                return {
+                    status: 'completed',
+                    lastMessage,
+                    stallDurationMs: null,
+                    stalled: false,
+                    hasNewMessage: true
+                };
+            }
+
+            // 仍在运行：刷新 busySince（避免一次长消息生成被误判），返回 null 表示继续等待
+            this._busySince[sessionId] = Date.now();
+            return null;
+        } catch (err) {
+            this._log('warn', `checkSessionStatus: busy 兜底检查消息失败 id=${sessionId}: ${err.message}`);
+            return null;
         }
     }
 

@@ -683,7 +683,12 @@ private async requestNeededPermissions(): Promise<boolean> {
 
 生成所有文件后，执行以下检查：
 
-#### 4.1 工程迁移（migrate.cjs）
+#### 4.1 工程迁移（migrate.cjs，必做不可跳过）
+
+> 🔴 **强制步骤，禁止跳过**：
+> - **无论工程类型（OpenHarmony / HarmonyOS）、无论 `build-profile.json5` 的 `compileSdkVersion` 是否与已安装 SDK 匹配，都必须执行下述迁移脚本**。
+> - 禁止以"工程已是新版本""`compileSdkVersion` 已匹配已安装 SDK""工程为 OpenHarmony 无需切换到 HarmonyOS"等理由自行判断并跳过本步骤。
+> - 即使 SDK 版本匹配，源工程的 hvigor 文件、`oh-package.json5`、product 的 `runtimeOS`/`compatibleSdkVersion` 等配置仍可能不兼容当前构建环境，必须在编译前执行迁移。
 
 三方库源码多为历史工程，`build-profile.json5` 的 SDK 版本配置、hvigor 文件、oh-package.json5 等经常不兼容当前构建环境。使用 `migrate.cjs` 脚本一次性完成华为官方 Manual Migration 全流程迁移。
 
@@ -692,6 +697,11 @@ private async requestNeededPermissions(): Promise<boolean> {
 ```powershell
 node {{skillDir}}/scripts/migrate.cjs --source {{sourcePath}}
 ```
+
+2. **执行后强制校验（未通过不得进入 4.2）**：
+   - 迁移脚本必须正常执行完成，输出以 `[migrate] 迁移完成。` 结尾，且包含 `强制 N 个 product compatibleSdkVersion/targetSdkVersion=6.1.1(24) + runtimeOS=HarmonyOS` 日志（N≥1）
+   - 校验 `{{sourcePath}}/build-profile.json5`：每个 product 的 `runtimeOS` 已为 `HarmonyOS`、`compatibleSdkVersion` 已为 `6.1.1(24)`
+   - 任一项不满足 → 重新执行迁移脚本，直至校验通过后方可进入 4.2 编译验证
 
 #### 4.2 编译验证（5 轮修复策略）
 

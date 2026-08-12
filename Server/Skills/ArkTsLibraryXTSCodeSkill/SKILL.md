@@ -4,7 +4,7 @@ description: 基于 XTS 用例描述文档（由 ArkTsLibraryXTSDocSkill 生成�
 license: Apache-2.0
 metadata:
   author: AIWeb
-  version: "2.0.0"
+  version: "2.1.0"
   category: ohos-testing
   language: ArkTS/ETS
 ---
@@ -283,7 +283,7 @@ export default function {LibraryName}XtsTest() {
 
 > 空值/异常/大数据场景的详细断言策略参见 [CODE_STANDARDS.md 七](references/CODE_STANDARDS.md)。
 
-#### 2.3 逐接口对照规格文档（强制预检）
+#### 2.3 逐接口对照规格文档 + 系统 API 预检（强制预检）
 
 > ⚠️ **此步骤必须在生成任何测试代码之前执行**，逐接口对照接口规格文档，杜绝凭记忆猜测类型。
 
@@ -296,17 +296,38 @@ export default function {LibraryName}XtsTest() {
 | **参数类型匹配** | 接口规格文档签名 | 参数是否声明为 `common.UIAbilityContext`？若是则传 `appContext as common.UIAbilityContext`，不可直接传 `common.Context` |
 | **回调参数签名** | 接口规格文档回调接口定义 | 回调的每个字段名和参数类型，代码中必须逐字匹配 |
 | **属性名准确性** | 接口规格文档第 3 章属性列表 | 该类的所有属性名，代码中只能使用列表内的名称 |
-| **枚举成员名** | ① ArkTS原生库枚举：`read_file` 库源码 ② 系统SDK枚举：`devecocli docs search <枚举名> --catalog harmonyos-references` → `devecocli docs read <documentId>` | 不做大小写假设，系统枚举查 API 参考文档确认 |
+| **系统 API 签名/import/参数/返回值** | 系统 API 参考文档（`script_deveco_docs` 工具） | `@kit.*` / `@ohos.*` / `@hms.*` 系统接口的方法签名、参数/返回值类型、import 路径，必须查证确认，禁止凭记忆 |
+| **系统 API 枚举成员名** | 系统 API 参考文档（`script_deveco_docs` 工具） | 系统枚举不做大小写假设，查 API 参考文档确认成员名 |
+| **系统 API 权限/系统能力** | 系统 API 参考文档（`script_deveco_docs` 工具） | 若接口需要权限，在 ohosTest 的 module.json5 中声明；记录系统能力（SystemCapability） |
 | **import 类型存在性** | `library/Index.ets` | 代码中 `import { X }` 的每个 X 必须在 Index.ets 导出链中；不存在的类型用对象字面量，禁止 import |
+| **未导出类型间接测试** | `library/Index.ets` + 库源码 | 库内部使用但未从 Index.ets 导出的类型（如 `Handler`、`BleScanPresenterImp`）不可直接 import，需标注为"不可直接 import"并采用间接策略：① 跳过该类型直接测试，改为测试已导出的关联方法（如测 `getHandler()` 返回值而非 `setHandler()`）；② 通过已导出且 implements 目标接口的子类作为参数传入（如用 `BleScanCallback` 子类替代 `BleScanPresenterImp`）；③ 对回调签名中出现的衍生类型用对象字面量匹配 |
 
-> 🚨 **系统 SDK 枚举强制验证（立即执行，不可跳过）**：
+> 🚨 **系统 API 依赖强制预检（立即执行，不可跳过）**：
 >
-> 当前用例涉及的**每一个**系统 SDK 枚举，**必须立即运行以下命令**确认成员名，禁止凭记忆猜测：
+> 对当前用例涉及的**每一个系统 API 依赖**（`@kit.*` / `@ohos.*` / `@hms.*` 导入的接口、回调、枚举、属性、权限、系统能力），**必须立即调用 MCP 工具 `script_deveco_docs` 检索确认**，禁止凭记忆猜测签名或类型。
+>
+> > 工具实际名称以 MCP 工具列表为准（可能带 server 前缀，如 `mcp-gateway_script_deveco_docs`），从工具列表中找到 `deveco_docs` 相关工具后调用：
 >
 > ```
-> devecocli docs search <枚举名> --catalog harmonyos-references
-> devecocli docs read <文档ID>
+> 工具: script_deveco_docs, action=search
+> 参数: keywords=<系统API名/枚举名/模块名>（如 "UIAbilityContext"、"ImageFit"、"abilityDelegatorRegistry"）
+>
+> 工具: script_deveco_docs, action=read
+> 参数: documentId=<search结果中的documentId>, section=<目标接口/枚举/属性名>
 > ```
+>
+> 检索要点：
+> - **search 降噪**：`script_deveco_docs` 已按标题相关性排序，取**第一条**命中目标的结果；若首条不相关，逐条检查 `sectionTitle` 与目标匹配的项
+> - **read 精确定位**：提供 `section` 参数（接口/枚举/属性名），脚本会截取该小节而非整篇文档
+> - **超长文档**：request 命中 `Enums`/`Types`/`公共定义` 等聚合文档时，read 必须带 `section=<目标名>` 精确定位，避免返回整篇（可达数十 KB）
+> - **import 路径**：read 结果中 `#### 导入模块` 给出 `import { xxx } from '@kit.XxxKit'`，代码必须使用该路径
+> - **检索边界**：`hypium`/`@ohos.hypium`（测试框架）与**库自身 API** 不在系统语料中，`script_deveco_docs` 会返回"未找到"，此时不检索、直接按接口规格文档/库源码编写
+>
+> **检索结果记录**：每完成一个系统 API 的检索，将结论记录到下方（供 2.4 生成代码引用）：
+>
+> | 系统 API | documentId | 关键签名/import路径 | 权限/系统能力 | 结论 |
+> |---------|-----------|-------------------|--------------|------|
+> | （示例）ImageFit | ts-appendix-enums | `import { common } from '@kit.AbilityKit'` | SystemCapability.ArkUI.ArkUI.Full | Fill/Contain/Cover/Auto/None/ScaleDown... |
 >
 > **未完成此步骤禁止进入 2.4 生成代码。**
 >
@@ -451,7 +472,12 @@ beforeEach(() => {
 
 ### 阶段四：编译与运行验证
 
-#### 4.1 工程迁移（migrate.cjs）
+#### 4.1 工程迁移（migrate.cjs，必做不可跳过）
+
+> 🔴 **强制步骤，禁止跳过**：
+> - **无论工程类型（OpenHarmony / HarmonyOS）、无论 `build-profile.json5` 的 `compileSdkVersion` 是否与已安装 SDK 匹配，都必须执行下述迁移脚本**。
+> - 禁止以"工程已是新版本""`compileSdkVersion` 已匹配已安装 SDK""工程为 OpenHarmony 无需切换到 HarmonyOS"等理由自行判断并跳过本步骤。
+> - 即使 SDK 版本匹配，源工程的 hvigor 文件、`oh-package.json5`、product 的 `runtimeOS`/`compatibleSdkVersion` 等配置仍可能不兼容当前构建环境，必须在编译前执行迁移。
 
 ArkTS原生库源码多为历史工程，`build-profile.json5` 的 SDK 版本配置、hvigor 文件、oh-package.json5 等经常不兼容当前构建环境。使用 `migrate.cjs` 脚本一次性完成华为官方 Manual Migration 全流程迁移。
 
@@ -460,6 +486,11 @@ ArkTS原生库源码多为历史工程，`build-profile.json5` 的 SDK 版本配
 ```powershell
 node {{skillDir}}/scripts/migrate.cjs --source {{sourcePath}}
 ```
+
+2. **执行后强制校验（未通过不得进入 4.2）**：
+   - 迁移脚本必须正常执行完成，输出以 `[migrate] 迁移完成。` 结尾，且包含 `强制 N 个 product compatibleSdkVersion/targetSdkVersion=6.1.1(24) + runtimeOS=HarmonyOS` 日志（N≥1）
+   - 校验 `{{sourcePath}}/build-profile.json5`：每个 product 的 `runtimeOS` 已为 `HarmonyOS`、`compatibleSdkVersion` 已为 `6.1.1(24)`
+   - 任一项不满足 → 重新执行迁移脚本，直至校验通过后方可进入 4.2 编译验证
 
 #### 4.2 编译验证（5 轮修复策略）
 
@@ -470,9 +501,11 @@ node {{skillDir}}/scripts/migrate.cjs --source {{sourcePath}}
 
 ##### 首次编译
 
+> ⚠️ **build.ps1 工程目录指定**：`build.ps1` 通过 `cmd.exe` 执行 `-Cmd` 参数内容，不会自动切换到工程目录。`-Cmd` 参数必须包含 `cd /d {{sourcePath}} &&` 前缀，确保 devecocli 在正确工程目录下执行。
+
 ```powershell
-powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -Cmd "devecocli build clean"
-powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -JavaHome -Cmd "devecocli build --modules entry@ohosTest"
+powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -Cmd "cd /d {{sourcePath}} && devecocli build clean"
+powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -JavaHome -Cmd "cd /d {{sourcePath}} && devecocli build --modules entry@ohosTest"
 ```
 
 编译通过 → 跳转 4.2。
@@ -504,7 +537,7 @@ powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -JavaH
 3. 重新编译：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -JavaHome -Cmd "devecocli build --modules entry@ohosTest"
+powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -JavaHome -Cmd "cd /d {{sourcePath}} && devecocli build --modules entry@ohosTest"
 ```
 
 4. 编译通过 → 跳转 4.3 代码规范自查
@@ -529,6 +562,7 @@ powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -JavaH
 | 错误类型 | 解决方法 |
 |---------|---------|
 | arkts-no-any | 定义具体类型或 interface |
+| arkts-no-any-unknown | `unknown` 关键字被完全禁止。改用空但合法的对象（如 `new BleDevice('', '')`）、构造最小字段对象字面量 `as Type`、或 `{} as Type` |
 | arkts-no-esobj | 定义命名 interface |
 | arkts-no-unsafe-cast | 正确定义类型，避免双重 `as unknown as` |
 | 导入路径错误 | 检查库导出入口的实际路径 |
@@ -612,6 +646,7 @@ export default function testsuite() {
 | 规范 | 错误标识 | 正确做法 |
 |------|---------|---------|
 | 禁止 `null as SomeType` 强转 | arkts-limited-throw / 类型不兼容错误 | `{} as common.Context`（用于不需要实际功能的参数如 processRenderScript 的 context）|
+| 禁止 `unknown` 关键字及 `as unknown as` 双重转换 | `arkts-no-any-unknown` | `unknown` 被完全禁止。改用空但合法的对象（如 `new BleDevice('', '')`）、构造最小字段对象字面量 `as Type`、或 `{} as Type` |
 | 禁止 `catch(e)` 后 `throw e` | arkts-limited-throw | 仅 `throw new Error(msg)` 合法；用 try-catch + 布尔标记替代 |
 | 禁止 `undefined as SomeType` | 类型不兼容错误 | 使用 null 检查 + `throw new Error()` 或安全默认值 |
 | 禁止 `any` 类型 | arkts-no-any | 定义具体 interface 或使用泛型 |
@@ -668,4 +703,5 @@ export default function testsuite() {
 | [CODE_STANDARDS.md](references/CODE_STANDARDS.md) | 编码规范完整参考：文件命名、ArkTS 禁止项、日志/注释/错误处理规范、hypium 框架使用、编译错误修复、代码质量检查清单（含测试隔离检查 7.6、期望值验证检查 7.7） |
 | [TEMPLATE.md](references/TEMPLATE.md) | 各类型测试函数模板：正向测试、多接口协同、反向测试（参数/状态异常）、空值测试、异常/边界值测试、大数据量测试、异步测试、类型判断测试、单例状态隔离测试、覆盖率统计 |
 | [EXAMPLES.md](references/EXAMPLES.md) | 基于 lodash 的完整示例：输入文档片段、生成的完整测试代码、编译运行验证、覆盖率统计 |
+| [SYSTEM_API_LOOKUP.md](references/SYSTEM_API_LOOKUP.md) | 系统 API 检索工具指南：`script_deveco_docs` 用法、常用系统 API 速查、降噪策略、检索边界 |
 - hypium 测试框架使用指南
