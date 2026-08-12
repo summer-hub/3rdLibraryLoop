@@ -17,12 +17,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // ─── 测试参数 ──────────────────────────────────────────────────────────────
 // 场景 A（预期 hit=true）：C++ 库可行性分析
-const TASK = '分析 libcurl 这个 C++ 开源库能否移植到鸿蒙平台，输出鸿蒙化可行性报告';
+const TASK = '针对覆盖率报告 coverage-report.md 中列出的未覆盖接口，逐个设计 XTS 测试用例场景（涵盖正常流程、边界条件、异常输入），输出场景描述报告（scenario-report.md），确保每个未覆盖接口至少包含1个测试场景，并标注场景对应的方法名、输入与预期结果';
 // 场景 B（预期 hit=false）：Go 库可行性分析（语言否决）
 // const TASK = '分析gitserver这个Go开源库能否移植到鸿蒙平台，输出鸿蒙化可行性报告';
 // 场景 C（预期 hit=false）：汇总报告（动作类型否决 + 分差检查）
 // const TASK = '汇总规范合规性检视结果（compliance-review.json）和业务逻辑检视结果（logic-review.json），生成完整的代码检视报告文档（code-review-report.md）。报告需覆盖仓库内所有核心 ArkTS 源码文件，所有问题需按严重程度分级（Blocker/Critical/Major/Minor），并给出具体的修改建议或代码示例';
-const SKILL_DIRECTORY = 'D:\\code\\AIWeb\\Server\\Skills';
+const SKILL_DIRECTORY = 'Skills';
 
 async function main() {
   console.log('=== SkillSelector 自测 ===');

@@ -478,8 +478,10 @@ class Orchestrator {
                 this._log('warn',
                     `步骤 ${node.stepId} 失败且达到 maxRetries=${node.maxRetries}，终止流程`);
             } else if (node.failStepId !== '0') {
-                // 未达上限 → 立即跳 failStepId（允许重复执行已 completed/failed 修复步骤）
-                this._activateNextStep(node, node.failStepId, { allowCompleted: true });
+                // 未达上限 → 立即跳 failStepId（允许重复执行已 completed/failed 修复步骤）。
+                // forceDependCheck:false 跳过目标步骤的 fan-in 依赖聚合检查——failStepId 是显式
+                // 失败跳转，不应被 dependId 聚合条件阻塞（修复目标失败即应进入修复步骤）。
+                this._activateNextStep(node, node.failStepId, { allowCompleted: true, forceDependCheck: false });
             } else {
                 this._log('warn', `步骤 ${node.stepId} 失败且无 failStepId，链终止`);
             }
@@ -581,6 +583,13 @@ class Orchestrator {
             // 仅当目标步骤依赖当前步骤，且仍处于待执行状态时才尝试激活
             if (!node.dependencies.includes(fromNode.stepId)) continue;
             if (!node.isPending) continue;
+            // 关键修复：当前步骤成功时，跳过"以当前步骤为 failStepId 目标"的修复链节点。
+            // 即若 fromNode.failStepId == node.stepId，则 node 只在 fromNode 失败时才进入；
+            // _activateDependents 不应在 fromNode 成功时把它当"成功依赖边"激活。
+            // 失败路径由 _executeNode 用 allowCompleted:true 走 failStepId 激活，无需在此重复。
+            if (fromNode.isCompleted && String(fromNode.failStepId) === String(node.stepId)) {
+                continue;
+            }
             if (this._allDependenciesCompleted(node)) {
                 this._activateNextStep(fromNode, node.stepId, { forceDependCheck: false });
             }

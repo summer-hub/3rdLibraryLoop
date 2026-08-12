@@ -23,7 +23,7 @@ if ($JavaHome) {
     $Cmd = "set JAVA_HOME=$DevEco\jbr && set PATH=%JAVA_HOME%\bin;%PATH% && $Cmd"
 }
 
-$TimeoutMs = 120000
+$TimeoutMs = 300000
 $ErrorActionPreference = "Continue"
 
 Write-Host "[build.ps1] DevEco:  $DevEco"
