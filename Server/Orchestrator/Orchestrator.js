@@ -343,6 +343,28 @@ class Orchestrator {
     }
 
     /**
+     * 释放编排器持有的重型引用（各个步骤的 FlexRunner 及其内嵌依赖）。
+     *
+     * 编排结束后由上层（OrchestratorController）调用，遍历所有节点置空 `_runner`，
+     * 使 FlexRunner / CLIController / SkillSelector Agent / LLMClient / Storage 可被 GC 回收。
+     *
+     * 仅释放内存引用，保留：
+     *   - StepNode 元信息（status / sessionId / resultPath / history），供 toJSON 历史查询
+     *   - 磁盘持久化文件（orchestration.json / loop.json / result .md）
+     *
+     * 调用后 getProgress / getStepInfo 仍可用；依赖 `_runner` 的 live/session 实时查询
+     * 将失效（前端走本地归档回退路径）。
+     */
+    dispose() {
+        if (this._disposed) return;
+        for (const node of this._nodes.values()) {
+            node.releaseRunner();
+        }
+        this._disposed = true;
+        this._log('info', '── 编排器已释放重型引用 ──');
+    }
+
+    /**
      * 主调度循环。
      *
      * 每轮：

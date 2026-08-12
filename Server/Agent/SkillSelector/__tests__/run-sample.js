@@ -17,7 +17,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // ─── 测试参数 ──────────────────────────────────────────────────────────────
 // 场景 A（预期 hit=true）：C++ 库可行性分析
-const TASK = '针对覆盖率报告 coverage-report.md 中列出的未覆盖接口，逐个设计 XTS 测试用例场景（涵盖正常流程、边界条件、异常输入），输出场景描述报告（scenario-report.md），确保每个未覆盖接口至少包含1个测试场景，并标注场景对应的方法名、输入与预期结果';
+const TASK = '克隆 FastBle 源仓库（https://gitcode.com/CPF-ApplicationTPC/FastBle）到工作目录，解析 ArkTS 源码结构，扫描所有导出类、接口及公共方法签名（含方法名、参数类型、返回值类型、访问修饰符），输出方法级接口规格 markdown 文档（interface-spec.md）到工作目录';
 // 场景 B（预期 hit=false）：Go 库可行性分析（语言否决）
 // const TASK = '分析gitserver这个Go开源库能否移植到鸿蒙平台，输出鸿蒙化可行性报告';
 // 场景 C（预期 hit=false）：汇总报告（动作类型否决 + 分差检查）
@@ -72,6 +72,13 @@ async function main() {
     console.log('ReAct 留痕：');
     result.trace.forEach((t) => {
       console.log(`  - ${t.step}`, t.output ? JSON.stringify(t.output) : '');
+      // act:fuzzyMatch 额外打印每路分数明细（动作/领域/原文）
+      if (t.step === 'act:fuzzyMatch' && t.output?.routes) {
+        t.output.routes.forEach((r, i) => {
+          if (!r) return;
+          console.log(`      [${i}] 动作=${r.action.toFixed(3)} 领域=${r.domain.toFixed(3)} 原文=${r.raw.toFixed(3)}`);
+        });
+      }
     });
     console.log();
   } catch (err) {
