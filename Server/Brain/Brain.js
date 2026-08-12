@@ -163,21 +163,22 @@ export class Brain {
 
         try {
             // ─── 步骤 1：分析任务意图 + 提取/生成验收标准 ───
-            const analysis = await this._analysis.analyzeTask(taskDescription, userCriteria, {
+            const { analysis, sessionId: analysisSessionId } = await this._analysis.analyzeTask(taskDescription, userCriteria, {
                 taskId, taskDir, skillDir, loopCount: 0
             });
-            this._emit(planId, 'brain:analyze:done', { planId, analysis });
+            this._emit(planId, 'brain:analyze:done', { planId, analysis, sessionId: analysisSessionId });
 
             // ─── 步骤 2：拆解为步骤（含步骤级验收标准） ───
             this._status = BrainStatus.PLANNING;
-            const rawSteps = await this._decomposition.decomposeTask(
+            const { steps: rawSteps, sessionId: decompositionSessionId } = await this._decomposition.decomposeTask(
                 taskDescription, analysis, skillDir, userCriteria,
                 { taskId, taskDir, loopCount: 0 }
             );
             this._emit(planId, 'brain:plan:done', {
                 planId,
                 stepCount: rawSteps.length,
-                steps: rawSteps.map(s => ({ stepId: s.stepId, taskDescription: s.taskDescription }))
+                steps: rawSteps.map(s => ({ stepId: s.stepId, taskDescription: s.taskDescription })),
+                sessionId: decompositionSessionId
             });
 
             // ─── 步骤 3：校验拆解结果 ───
@@ -214,10 +215,14 @@ export class Brain {
                 taskDescription,
                 userAcceptanceCriteria: userCriteria || '',
                 analysis,
+                analysisSessionId,
+                decompositionSessionId,
                 taskDef,
                 validation,
                 createdAt: nowCST(),
-                status: BrainStatus.COMPLETED
+                status: BrainStatus.COMPLETED,
+                isReplan: false,
+                loopCount: 0
             };
 
             // 持久化
@@ -357,7 +362,7 @@ export class Brain {
 
         try {
             // ─── 步骤 1：重新分析任务（融入失败上下文 + 已完成步骤信息） ───
-            const analysis = await this._analysis.analyzeTaskWithContext(
+            const { analysis, sessionId: analysisSessionId } = await this._analysis.analyzeTaskWithContext(
                 taskDescription, userCriteria, {
                     failedCriteria,
                     improvementSuggestions,
@@ -371,11 +376,11 @@ export class Brain {
                 },
                 { taskId, taskDir, skillDir }
             );
-            this._emit(taskId, 'brain:replan:analyze:done', { planId, analysis });
+            this._emit(taskId, 'brain:replan:analyze:done', { planId, analysis, sessionId: analysisSessionId });
 
             // ─── 步骤 2：重新拆解（基于失败信息 + 已完成步骤调整步骤） ───
             this._status = BrainStatus.PLANNING;
-            const rawSteps = await this._decomposition.decomposeTaskWithContext(
+            const { steps: rawSteps, sessionId: decompositionSessionId } = await this._decomposition.decomposeTaskWithContext(
                 taskDescription, analysis, skillDir, userCriteria, {
                     failedCriteria,
                     improvementSuggestions,
@@ -436,6 +441,8 @@ export class Brain {
                 taskDescription,
                 userAcceptanceCriteria: userCriteria,
                 analysis,
+                analysisSessionId,
+                decompositionSessionId,
                 taskDef,
                 validation,
                 createdAt: nowCST(),

@@ -8,6 +8,12 @@
 
 ```json
 {
+  "keyParameters": {
+    "versionNumbers": ["7.88.0"],
+    "branchNames": [],
+    "repoUrls": ["https://github.com/curl/curl.git"],
+    "libraryNames": ["libcurl"]
+  },
   "steps": [
     {
       "stepId": 1,
@@ -132,6 +138,12 @@
 
 ```json
 {
+  "keyParameters": {
+    "versionNumbers": [],
+    "branchNames": ["main"],
+    "repoUrls": [],
+    "libraryNames": ["libexample"]
+  },
   "steps": [
     {
       "stepId": 1,
@@ -244,6 +256,12 @@
 
 ```json
 {
+  "keyParameters": {
+    "versionNumbers": [],
+    "branchNames": ["feature/fix-123"],
+    "repoUrls": [],
+    "libraryNames": []
+  },
   "steps": [
     {
       "stepId": 1,
@@ -299,3 +317,7 @@
   ]
 }
 ```
+
+---
+
+> **keyParameters 字段说明**：所有示例均在 `steps` 之前包含 `keyParameters` 字段，由 Phase 1.4 从任务描述中提取版本号、分支名、仓库 URL、库名。步骤描述中引用这些参数时必须与 `keyParameters` 中的值逐字一致，由 `validate-param-consistency.cjs` 强制校验。若任务描述中不含某类参数（如无版本号），对应数组留空 `[]` 即可。

@@ -15,11 +15,12 @@ var State = {
     loops: [], filteredLoops: [], selectedTaskId: null,
     currentProgress: null, orchProgress: null, selectedStepId: null,
     activeDetailTab: 'detail', brainPlan: null,
-    sseSource: null, pollTimer: null, convPollTimer: null,
+    sseSource: null, pollTimer: null,
     activeMainTab: 'rounds',
     graphNodes: [], graphEdges: [], nodePositions: {},
     graphTransform: { scale: 1, tx: 0, ty: 0 },
-    graphInteract: null
+    graphInteract: null,
+    selectedLoop: null  // 当前查看的轮次（null=最新轮）
 };
 
 /* ─── 工具函数 ──────────────────────────────────────────────────────── */
@@ -27,6 +28,7 @@ function $(id) { return document.getElementById(id); }
 function escapeHtml(t) { if (t == null) return ''; var d = document.createElement('div'); d.textContent = String(t); return d.innerHTML; }
 function truncate(s, n) { if (!s) return ''; n = n || 50; return s.length > n ? s.substring(0, n) + '...' : s; }
 function formatTime(ts) { if (!ts) return '—'; try { return new Date(ts).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch(e) { return ts; } }
+function copySessionId(sid) { if (!sid) return; try { navigator.clipboard.writeText(sid); } catch(e) {} }
 
 function statusLabel(s) {
     var m = { idle:'空闲', planning:'拆解中', executing:'执行中', checking:'审核中', passed:'已通过', failed:'未通过', aborted:'已终止', error:'错误', loaded:'已加载', running:'运行中', completed:'已完成', pending:'待执行', ready:'就绪', skipped:'已跳过', blocked:'已阻塞', deadlocked:'死锁' };
@@ -92,13 +94,24 @@ function renderLoopList() {
 
 /* ─── 任务选择 & 数据加载 ────────────────────────────────────────────── */
 async function selectLoop(taskId) {
-    State.selectedTaskId = taskId; State.selectedStepId = null;
-    stopPolling(); stopConvPolling(); renderLoopList();
+    State.selectedTaskId = taskId; State.selectedStepId = null; State.selectedLoop = null;
+    stopPolling(); renderLoopList();
     await loadAllData(taskId); connectSSE(taskId);
 }
 
 async function loadAllData(taskId) {
     await Promise.all([ loadLoopProgress(taskId), loadOrchestratorProgress(taskId), loadBrainPlan(taskId) ]);
+}
+
+/**
+ * 加载指定轮次的编排进度和 Brain 计划。
+ * @param {string} taskId
+ * @param {number} loop - 轮次序号（0-based）
+ */
+async function loadRoundData(taskId, loop) {
+    State.selectedLoop = loop;
+    State.selectedStepId = null;
+    await Promise.all([ loadOrchestratorProgress(taskId, loop), loadBrainPlan(taskId, loop) ]);
 }
 
 async function loadLoopProgress(taskId) {
@@ -155,7 +168,22 @@ function renderRounds() {
     }
     $('roundsSection').innerHTML = '<h3>🔄 循环轮次时间线 (' + rounds.length + ' 轮)</h3>' +
         rounds.map(function(r){ return renderRoundCard(r); }).join('');
-    document.querySelectorAll('.round-header').forEach(function(el){ el.onclick = function(){ el.parentElement.classList.toggle('expanded'); }; });
+    document.querySelectorAll('.round-header').forEach(function(el){
+        el.onclick = function(){
+            var card = el.parentElement;
+            var wasExpanded = card.classList.contains('expanded');
+            // 先折叠所有卡片
+            document.querySelectorAll('.round-card').forEach(function(c){ c.classList.remove('expanded'); });
+            if (!wasExpanded) {
+                card.classList.add('expanded');
+                // 加载该轮编排数据和 Brain 计划
+                var loopVal = card.getAttribute('data-loop');
+                if (loopVal != null && State.selectedTaskId) {
+                    loadRoundData(State.selectedTaskId, Number(loopVal));
+                }
+            }
+        };
+    });
     var cards = document.querySelectorAll('.round-card');
     if (cards.length > 0) cards[cards.length-1].classList.add('expanded');
 }
@@ -166,7 +194,7 @@ function renderRoundCard(r) {
     var numCls = r.passed ? 'passed' : 'failed';
     var ph = r._inProgress ? ' (' + statusLabel(r._currentPhase) + '...)' : '';
     var t = (r.startTime?formatTime(r.startTime):'—') + (r.endTime?' → '+formatTime(r.endTime):' → 进行中');
-    var h = '<div class="round-card ' + cls + '"><div class="round-header">';
+    var h = '<div class="round-card ' + cls + '" data-loop="' + r.loop + '"><div class="round-header">';
     h += '<div class="round-num ' + numCls + '">' + (r.loop+1) + '</div>';
     h += '<div class="round-title">第 ' + (r.loop+1) + ' 轮' + ph + '</div>';
     if (r.passed) h += '<span class="status-badge passed">✅ 通过</span>';
@@ -195,7 +223,7 @@ function renderBrainPhase(r) {
         h += '</div>';
         if (r.planningFailureAnalysis) h += '<div style="margin-top:8px;padding:6px 8px;background:var(--red-light);border-radius:5px;font-size:11px;"><strong>失败分析:</strong> ' + escapeHtml(r.planningFailureAnalysis) + '</div>';
         if (r.planningAdjustmentStrategy) h += '<div style="margin-top:4px;padding:6px 8px;background:var(--orange-light);border-radius:5px;font-size:11px;"><strong>调整策略:</strong> ' + escapeHtml(r.planningAdjustmentStrategy) + '</div>';
-        h += '<div style="margin-top:8px;"><button class="secondary sm" onclick="switchToBrainTab()">🧠 查看 Brain 拆解详情</button></div>';
+        h += '<div style="margin-top:8px;"><button class="secondary sm" onclick="switchToBrainTab(' + r.loop + ')">🧠 查看 Brain 拆解详情</button></div>';
     }
     h += '</div></div>'; return h;
 }
@@ -208,7 +236,7 @@ function renderOrchestratorPhase(r) {
     else if (!st) h += '<span class="muted">无编排数据</span>';
     else {
         h += '<div class="kv"><span class="k">编排状态</span><span class="v"><span class="status-badge ' + st + '">' + statusLabel(st) + '</span></span></div>';
-        h += '<div style="margin-top:8px;"><button class="secondary sm" onclick="switchToOrchTab()">🔀 查看步骤编排图</button></div>';
+        h += '<div style="margin-top:8px;"><button class="secondary sm" onclick="switchToOrchTab(' + r.loop + ')">🔀 查看步骤编排图</button></div>';
     }
     h += '</div></div>'; return h;
 }
@@ -229,12 +257,14 @@ function renderCheckPhase(r) {
 }
 
 /* ─── 编排图 ────────────────────────────────────────────────────────── */
-async function loadOrchestratorProgress(taskId) {
+async function loadOrchestratorProgress(taskId, loop) {
     try {
-        var d = await API.get('/api/orchestrator/progress?taskId=' + encodeURIComponent(taskId));
+        var url = '/api/orchestrator/progress?taskId=' + encodeURIComponent(taskId);
+        if (loop != null) url += '&loop=' + encodeURIComponent(loop);
+        var d = await API.get(url);
         if (d.status==='ok' && d.progress) { State.orchProgress = d.progress; renderGraph(); renderDetailPanel(); }
         else { State.orchProgress = null; renderGraph(); renderDetailPanel(); }
-    } catch(err) { State.orchProgress = null; renderGraph(); }
+    } catch(err) { State.orchProgress = null; renderGraph(); renderDetailPanel(); }
 }
 
 function getDepIds(dep) {
@@ -315,7 +345,8 @@ function renderGraph() {
     var vp=$('graphViewport');
     if (vp) vp.innerHTML=c; else { svg.innerHTML='<g class="graph-viewport" id="graphViewport">'+c+'</g>'; }
     applyGraphTransform();
-    $('graphHint').textContent = State.graphNodes.length+' 个步骤, '+State.graphEdges.length+' 条关系';
+    $('graphHint').textContent = State.graphNodes.length+' 个步骤, '+State.graphEdges.length+' 条关系' +
+        (State.selectedLoop != null ? ' (第 ' + (State.selectedLoop + 1) + ' 轮)' : '');
 }
 
 /* ─── 图表交互：缩放 / 平移 / 节点拖拽 ────────────────────────────────── */
@@ -453,7 +484,7 @@ function renderDetailTab(step) {
         '<div class="k">重试次数</div><div class="v">'+(step.retryCount||0)+' / '+(step.maxRetries||3)+'</div>'+
         '<div class="k">开始时间</div><div class="v">'+formatTime(step.startTime)+'</div>'+
         '<div class="k">结束时间</div><div class="v">'+formatTime(step.endTime)+'</div>'+
-        '<div class="k">Session</div><div class="v"><span id="detailSessionVal">'+escapeHtml(step.sessionId||'(无)')+'</span></div>'+
+        '<div class="k">Session</div><div class="v"><span id="detailSessionVal">'+escapeHtml(step.sessionId||'(无)')+'</span>'+(hist.length>1?'<div class="muted" style="font-size:11px;margin-top:2px;">最新一次（共 '+hist.length+' 次重试，见下方历史详情）</div>':'')+'</div>'+
         '<div class="k">结果路径</div><div class="v">'+escapeHtml(step.resultPath||'(无)')+'</div>'+
         '</div></div>'+
         '<div class="detail-section"><h4>任务描述</h4><div style="font-size:12px;line-height:1.6;background:var(--code-bg);padding:10px;border-radius:6px;">'+escapeHtml(step.taskDescription||'—')+'</div></div>'+
@@ -464,7 +495,20 @@ function renderDetailTab(step) {
         '<div class="k">失败→回退</div><div class="v">'+(step.failStepId&&step.failStepId!=='0'?'步骤 '+escapeHtml(step.failStepId):'无 (终止)')+'</div>'+
         '</div></div>';
     if (step.error) h += '<div class="detail-section"><h4 style="color:var(--red);">错误信息</h4><div style="font-size:12px;color:var(--red);background:var(--red-light);padding:10px;border-radius:6px;">'+escapeHtml(step.error)+'</div></div>';
-    if (hist.length>0) h += '<div class="detail-section"><h4>执行历史 ('+hist.length+')</h4><div class="history-list">'+hist.map(function(hi){return '<div class="history-item"><span>第 '+hi.attempt+' 次</span><span style="color:'+(hi.success?'var(--green)':'var(--red)')+';">'+(hi.success?'✅ 成功':'❌ 失败')+'</span><span class="muted">'+formatTime(hi.startTime)+' → '+formatTime(hi.endTime)+'</span></div>';}).join('')+'</div></div>';
+    if (hist.length>0) {
+        h+='<div class="detail-section"><h4>执行历史 ('+hist.length+')</h4><div class="history-list">';
+        hist.forEach(function(hi){
+            var sid=hi.sessionId||'';
+            h+='<div class="history-item">'+
+                '<span class="history-attempt">第 '+hi.attempt+' 次</span>'+
+                '<span style="color:'+(hi.success?'var(--green)':'var(--red)')+';">'+(hi.success?'✅ 成功':'❌ 失败')+'</span>'+
+                '<span class="muted">'+formatTime(hi.startTime)+' → '+formatTime(hi.endTime)+'</span>'+
+                (sid?'<div class="history-session">Session: <a href="#" onclick="copySessionId(\''+escapeHtml(sid)+'\');return false;" title="点击复制">'+escapeHtml(sid)+'</a></div>':'')+
+                (hi.resultPath?'<div class="history-result muted">'+escapeHtml(hi.resultPath)+'</div>':'')+
+                '</div>';
+        });
+        h+='</div></div>';
+    }
     $('detailContent').innerHTML=h;
 
     // 运行中的步骤若 sessionId 为空，从活跃 runner 实时补充（后端通过 SSE 推送可能存在时序差）
@@ -496,15 +540,13 @@ async function renderConversationTab(step) {
     $('detailContent').innerHTML='<div class="detail-section"><h4>会话交互</h4>'+
         '<div class="form-group"><textarea id="convInput" placeholder="输入要发送的消息..." style="min-height:60px;"></textarea></div>'+
         '<div class="detail-actions"><button class="secondary sm" id="btnInject">📥 注入提示词</button><button class="primary sm" id="btnSendWait">📨 发送并等待</button></div></div>'+
-        '<div class="detail-section"><h4>消息列表 <span id="convPollInd" style="display:none;" class="poll-indicator">轮询中</span></h4>'+
-        '<div class="detail-actions" style="margin-bottom:8px;"><button class="secondary sm" id="btnGetLive">获取实时消息</button><button class="secondary sm" id="btnGetSession">获取会话归档</button><button class="secondary sm" id="btnTogglePoll">自动轮询</button></div>'+
+        '<div class="detail-section"><h4>消息列表</h4>'+
+        '<div class="detail-actions" style="margin-bottom:8px;"><button class="secondary sm" id="btnGetLive">获取实时消息</button><button class="secondary sm" id="btnGetSession">获取会话归档</button></div>'+
         '<div class="msg-list" id="msgList"><div class="muted" style="font-size:12px;">点击按钮获取消息...</div></div></div>';
     $('btnInject').onclick=function(){injectPromptMsg(tid,sid);};
     $('btnSendWait').onclick=function(){sendAndWaitMsg(tid,sid);};
     $('btnGetLive').onclick=function(){getLiveMsgs(tid,sid);};
     $('btnGetSession').onclick=function(){getSessionArchive(tid,sid);};
-    $('btnTogglePoll').onclick=function(){toggleConvPoll(tid,sid);};
-    getLiveMsgs(tid,sid);
 }
 
 async function getLiveMsgs(tid,sid) {
@@ -530,14 +572,6 @@ async function sendAndWaitMsg(tid,sid) {
     catch(err){ toast('error','请求失败: '+err.message); }
     finally { btn.disabled=false; btn.textContent='📨 发送并等待'; }
 }
-
-function toggleConvPoll(tid,sid) {
-    var btn=$('btnTogglePoll'), ind=$('convPollInd');
-    if (State.convPollTimer) { stopConvPolling(); btn.textContent='自动轮询'; btn.className='secondary sm'; ind.style.display='none'; }
-    else { btn.textContent='停止轮询'; btn.className='danger sm'; ind.style.display='inline-flex'; getLiveMsgs(tid,sid); State.convPollTimer=setInterval(function(){getLiveMsgs(tid,sid);},3000); }
-}
-
-function stopConvPolling() { if(State.convPollTimer){clearInterval(State.convPollTimer);State.convPollTimer=null;} }
 
 function renderMessages(msgs) {
     var list=$('msgList'); if(!list) return;
@@ -610,8 +644,13 @@ async function viewFile(fp) {
 }
 
 /* ─── Brain 拆解 ────────────────────────────────────────────────────── */
-async function loadBrainPlan(tid) {
-    try { var d=await API.get('/api/brain/plan?taskId='+encodeURIComponent(tid)); if(d.status==='ok'&&d.plan){State.brainPlan=d.plan;renderBrainSection();} else {State.brainPlan=null;renderBrainSection();} } catch(err){ State.brainPlan=null; renderBrainSection(); }
+async function loadBrainPlan(tid, loop) {
+    try {
+        var url = '/api/brain/plan?taskId='+encodeURIComponent(tid);
+        if (loop != null) url += '&loop=' + encodeURIComponent(loop);
+        var d = await API.get(url);
+        if(d.status==='ok'&&d.plan){State.brainPlan=d.plan;renderBrainSection();} else {State.brainPlan=null;renderBrainSection();}
+    } catch(err) { State.brainPlan=null; renderBrainSection(); }
 }
 
 function renderBrainSection() {
@@ -625,6 +664,9 @@ function renderBrainSection() {
     h+='<div class="k">Task ID</div><div class="v">'+escapeHtml(plan.taskId||td.taskId||'—')+'</div>';
     h+='<div class="k">校验</div><div class="v">'+(valid?'<span class="badge ok">通过</span>':'<span class="badge error">未通过</span>')+'</div>';
     h+='<div class="k">创建时间</div><div class="v">'+escapeHtml(plan.createdAt||'—')+'</div>';
+    h+='<div class="k">轮次</div><div class="v">'+(plan.isReplan?'第 '+(plan.loopCount||0)+' 轮 (重规划)':'第 0 轮 (初始)')+'</div>';
+    h+='<div class="k">分析 Session</div><div class="v">'+escapeHtml(plan.analysisSessionId||'—')+'</div>';
+    h+='<div class="k">拆解 Session</div><div class="v">'+escapeHtml(plan.decompositionSessionId||'—')+'</div>';
     h+='</div>';
     if (an.intent) h+='<div style="margin-top:10px;font-size:12px;padding:8px;background:var(--code-bg);border-radius:6px;"><strong>任务意图:</strong> '+escapeHtml(an.intent)+'</div>';
     h+='<div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap;">';
@@ -670,7 +712,15 @@ async function abortLoop() {
 /* ─── 轮询 & SSE ────────────────────────────────────────────────────── */
 function startPolling(tid) {
     stopPolling();
-    State.pollTimer=setInterval(async function(){ await loadAllData(tid); loadLoopList(); if(State.currentProgress){var s=State.currentProgress.status;if(s!=='planning'&&s!=='executing'&&s!=='checking')stopPolling();} },3000);
+    State.pollTimer=setInterval(async function(){
+        // 轮询时始终加载最新状态（而非历史轮次）
+        var savedLoop = State.selectedLoop;
+        State.selectedLoop = null;
+        await loadAllData(tid);
+        State.selectedLoop = savedLoop;
+        loadLoopList();
+        if(State.currentProgress){var s=State.currentProgress.status;if(s!=='planning'&&s!=='executing'&&s!=='checking')stopPolling();}
+    },3000);
 }
 
 function stopPolling() { if(State.pollTimer){clearInterval(State.pollTimer);State.pollTimer=null;} }
@@ -738,17 +788,20 @@ async function submitNewLoop() {
 }
 
 /* ─── Tab 切换 ──────────────────────────────────────────────────────── */
-function switchToOrchTab() {
+function switchToOrchTab(loop) {
     document.querySelectorAll('.main-tab').forEach(function(t){t.classList.remove('active');});
     document.querySelector('.main-tab[data-tab="orchestrator"]').classList.add('active');
     document.querySelectorAll('.tab-content').forEach(function(c){c.classList.remove('active');});
     $('tabOrchestrator').classList.add('active'); State.activeMainTab='orchestrator';
+    if (loop != null && State.selectedTaskId) { loadOrchestratorProgress(State.selectedTaskId, loop); }
+    else { renderGraph(); }
 }
-function switchToBrainTab() {
+function switchToBrainTab(loop) {
     document.querySelectorAll('.main-tab').forEach(function(t){t.classList.remove('active');});
     document.querySelector('.main-tab[data-tab="brain"]').classList.add('active');
     document.querySelectorAll('.tab-content').forEach(function(c){c.classList.remove('active');});
     $('tabBrain').classList.add('active'); State.activeMainTab='brain';
+    if (loop != null && State.selectedTaskId) { loadBrainPlan(State.selectedTaskId, loop); }
 }
 
 /* ─── 事件绑定 & 初始化 ──────────────────────────────────────────────── */
@@ -779,14 +832,14 @@ $('newLoopOverlay').onclick=function(e){if(e.target===$('newLoopOverlay'))closeN
 $('btnNewLoopCancel').onclick=closeNewLoopModal;
 $('btnNewLoopSubmit').onclick=submitNewLoop;
 $('btnLoopAbort').onclick=abortLoop;
-$('btnLoopRefresh').onclick=function(){if(State.selectedTaskId)loadAllData(State.selectedTaskId);};
+$('btnLoopRefresh').onclick=function(){if(State.selectedTaskId){State.selectedLoop=null;loadAllData(State.selectedTaskId);}};
 $('modalClose').onclick=closeModal;
 $('modalOverlay').onclick=function(e){if(e.target===$('modalOverlay'))closeModal();};
 $('advancedToggle').onclick=function(){$('advancedSection').classList.toggle('show');$('advancedToggle').classList.toggle('open');};
 $('btnGraphFit').onclick=graphFitToView;
 $('btnGraphZoomIn').onclick=function(){graphZoomBy(1.2);};
 $('btnGraphZoomOut').onclick=function(){graphZoomBy(0.83);};
-$('btnGraphRefresh').onclick=function(){if(State.selectedTaskId)loadOrchestratorProgress(State.selectedTaskId);};
+$('btnGraphRefresh').onclick=function(){if(State.selectedTaskId)loadOrchestratorProgress(State.selectedTaskId, State.selectedLoop);};
 initGraphInteraction();
 
 // 暴露给 onclick 内联调用

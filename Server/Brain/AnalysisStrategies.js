@@ -100,7 +100,7 @@ export class AnalysisStrategies {
      * @param {string} [execCtx.taskDir]   - 工作目录（Session cwd）
      * @param {string} [execCtx.skillDir]  - SKILL 根目录
      * @param {number} [execCtx.loopCount] - 循环轮次（默认 0）
-     * @returns {Promise<object>} { intent, domain, keywords, constraints, techStack, acceptanceCriteria }
+     * @returns {Promise<{analysis: object, sessionId: string|null}>} analysis 包含 intent/domain/keywords 等，sessionId 为 opencode 会话 ID（LLM fallback 时为 null）
      */
     async analyzeTask(taskDescription, userCriteria = '', execCtx = {}) {
         const { taskId, taskDir, skillDir, loopCount = 0 } = execCtx;
@@ -116,8 +116,9 @@ export class AnalysisStrategies {
             }
         }
 
-        // ── Fallback：直接 LLM 调用 ──
-        return await this._analyzeViaLLM(taskDescription, userCriteria);
+        // ── Fallback：直接 LLM 调用（无 sessionId） ──
+        const analysis = await this._analyzeViaLLM(taskDescription, userCriteria);
+        return { analysis, sessionId: null };
     }
 
     /**
@@ -143,7 +144,7 @@ export class AnalysisStrategies {
         ];
 
         const title = `brain|task=${taskId}|analyze|loop=${loopCount}`;
-        const { success, json } = await this.skillExecutor.invokeSkill(
+        const { success, json, sessionId } = await this.skillExecutor.invokeSkill(
             analysisSkillDir, taskDir, resultFilePath, title, contextSections
         );
 
@@ -151,7 +152,7 @@ export class AnalysisStrategies {
             throw new Error('TaskAnalysisSkill 执行失败或结果解析为空');
         }
 
-        return this.normalizeAnalysis(json);
+        return { analysis: this.normalizeAnalysis(json), sessionId: sessionId || null };
     }
 
     /**
@@ -222,7 +223,7 @@ ${criteriaSection}
      * @param {string} context.prevOrchStatus - 上轮编排状态
      * @param {number} context.loopCount - 当前循环轮次
      * @param {object} [execCtx] - CLI 执行上下文 { taskId, taskDir, skillDir }
-     * @returns {Promise<object>}
+     * @returns {Promise<{analysis: object, sessionId: string|null}>}
      */
     async analyzeTaskWithContext(taskDescription, userCriteria, context, execCtx = {}) {
         const { taskId, taskDir, skillDir } = execCtx;
@@ -238,8 +239,9 @@ ${criteriaSection}
             }
         }
 
-        // ── Fallback：直接 LLM 调用 ──
-        return await this._analyzeWithContextViaLLM(taskDescription, userCriteria, context);
+        // ── Fallback：直接 LLM 调用（无 sessionId） ──
+        const analysis = await this._analyzeWithContextViaLLM(taskDescription, userCriteria, context);
+        return { analysis, sessionId: null };
     }
 
     /**
@@ -284,7 +286,7 @@ ${criteriaSection}
         ];
 
         const title = `brain|task=${taskId}|reanalyze|loop=${loopCount}`;
-        const { success, json } = await this.skillExecutor.invokeSkill(
+        const { success, json, sessionId } = await this.skillExecutor.invokeSkill(
             analysisSkillDir, taskDir, resultFilePath, title, contextSections
         );
 
@@ -292,7 +294,7 @@ ${criteriaSection}
             throw new Error('TaskAnalysisSkill（重规划）执行失败或结果解析为空');
         }
 
-        return this.normalizeAnalysis(json);
+        return { analysis: this.normalizeAnalysis(json), sessionId: sessionId || null };
     }
 
     /**

@@ -105,6 +105,21 @@ Phase 4: 结果输出（纯 JSON 写入 resultFilePath）
 
 > 详细处理流程参见 [重规划上下文处理指南](references/REPLAN_CONTEXT_GUIDE.md)
 
+### 1.4 关键参数提取与锚定
+
+在解析任务描述后，**必须**提取以下关键参数，并在后续步骤描述与验收标准中**逐字引用**原始值，不得改写、缩写或臆造：
+
+| 参数类别 | 提取规则 | 示例 |
+|----------|----------|------|
+| 版本号 | 所有 `\d+\.\d+` 格式的数字 | `0.82`, `0.84` |
+| 分支名 | `br_` 前缀的标识符 | `br_rnoh0.82` |
+| 仓库 URL | `https://` 开头的完整 URL | `https://gitcode.com/CPF-RN/rntpc_react-native-pager-view/tree/br_rnoh0.82` |
+| 库名 | 任务描述中的三方库名称 | `rntpc_react-native-pager-view` |
+
+提取的参数写入输出 JSON 的 `keyParameters` 字段（结构见 Phase 4.2）。生成步骤描述时，涉及上述参数的位置必须从 `keyParameters` 中取值，不得从记忆中重新生成。
+
+> ⚠️ **高频错误案例**：任务描述中源分支为 `br_rnoh0.82`（版本 `0.82`），但 LLM 在步骤描述中臆造为 `br_rnoh0.72`（版本 `0.72`）。这类版本号/分支名篡改会导致后续所有步骤执行完全错误，且现有结构校验无法发现。`keyParameters` 字段 + `validate-param-consistency.cjs` 脚本用于强制拦截此类错误。
+
 ---
 
 ## Phase 2：步骤设计与依赖图构建
@@ -228,6 +243,12 @@ failStepId → 失败后跳转到哪个步骤（0 = 失败即终止）
 
 ```json
 {
+  "keyParameters": {
+    "versionNumbers": ["0.82", "0.84"],
+    "branchNames": ["br_rnoh0.82"],
+    "repoUrls": ["https://gitcode.com/CPF-RN/rntpc_react-native-pager-view/tree/br_rnoh0.82"],
+    "libraryNames": ["rntpc_react-native-pager-view"]
+  },
   "steps": [
     {
       "stepId": 1,
@@ -249,6 +270,8 @@ failStepId → 失败后跳转到哪个步骤（0 = 失败即终止）
   ]
 }
 ```
+
+> `keyParameters` 为必填字段，由 Phase 1.4 从任务描述中提取。步骤描述中出现的所有版本号、分支名必须与 `keyParameters` 中的值一致，由 `validate-param-consistency.cjs` 强制校验。
 
 > 完整输出示例参见 [输出示例](assets/OUTPUT_EXAMPLES.md)
 
@@ -273,9 +296,11 @@ failStepId → 失败后跳转到哪个步骤（0 = 失败即终止）
 
 - ✅ 纯 JSON（无 markdown 代码块标记，无注释，无前后缀文字）
 - ✅ 合法可解析格式
+- ✅ `keyParameters` 字段存在且 `versionNumbers`/`branchNames` 至少各含 1 项（当任务描述包含版本号/分支名时）
 - ✅ `stepId` 从 1 递增，唯一
 - ✅ `acceptanceCriteria[].id` 格式为 `ac{stepId}_{序号}`
 - ✅ 所有字符串字段非空
+- ✅ 步骤描述中出现的版本号/分支名与 `keyParameters` 一致（由 `validate-param-consistency.cjs` 强制校验）
 - ✅ 重规划时 `stepId` 从 1 重新编号
 
 ---
@@ -296,7 +321,7 @@ failStepId → 失败后跳转到哪个步骤（0 = 失败即终止）
 
 ## 自检
 
-输出完成后，**必须**运行校验脚本验证 JSON 合规性与步骤图无死锁：
+输出完成后，**必须**运行以下三套校验脚本，全部通过后方可提交：
 
 ```bash
 # 1. 字段/引用/验收标准合规性校验
@@ -304,7 +329,21 @@ bash scripts/validate-decomposition-output.sh <resultFile>
 
 # 2. 死锁/循环检测（必须通过，否则重拆解）
 node scripts/validate-step-graph.cjs <resultFile>
+
+# 3. 关键参数一致性校验（版本号/分支名篡改检测）
+node scripts/validate-param-consistency.cjs <resultFile>
 ```
+
+### 参数一致性校验规则（强制）
+
+`validate-param-consistency.cjs` 会检测以下**参数篡改**，任一项不通过则脚本以非零码退出：
+
+1. **`keyParameters` 缺失** — 输出 JSON 未包含 `keyParameters` 字段，或 `versionNumbers`/`branchNames` 子字段为空（当任务描述中含版本号/分支名时）
+2. **步骤描述中的版本号不在 `keyParameters` 中** — 如步骤描述出现 `0.72` 但 `keyParameters.versionNumbers` 中无此值，判定为版本号臆造
+3. **步骤描述中的分支名不在 `keyParameters` 中** — 如步骤描述出现 `br_rnoh0.72` 但 `keyParameters.branchNames` 中无此值，判定为分支名臆造
+4. **`keyParameters` 中声明的参数在步骤中完全未引用** — 如 `keyParameters.versionNumbers` 含 `0.82` 但所有步骤描述中均未出现，判定为参数声明但未使用
+
+> ⚠️ **强制要求**：若脚本 exit 非 0（检测到参数篡改），**必须对照原始任务描述修正 `keyParameters` 及相关步骤描述后重新生成 JSON，并重新运行校验，直至全部通过**。
 
 ### 死锁校验规则（强制）
 
@@ -344,3 +383,4 @@ node scripts/validate-step-graph.cjs <resultFile>
 5. **重规划时保持目标一致** — 调整的是步骤设计与验收标准，不是任务目标
 6. **输出纯 JSON** — 下游有容错机制但应输出纯 JSON，不依赖容错
 7. **步骤级 AC 实际由 AcceptanceCheckSkill 消费** — Orchestrator 仅消费图字段调度，步骤级 AC 通过产物文件传递给 AcceptanceCheckSkill 评估
+8. **关键参数逐字保真** — 版本号、分支名、仓库 URL、库名等关键参数必须从任务描述中原样提取到 `keyParameters`，步骤描述中引用时必须与 `keyParameters` 一致。LLM 生成时易将版本号臆造为相似但错误的值（如 `0.82`→`0.72`），由 `validate-param-consistency.cjs` 强制拦截

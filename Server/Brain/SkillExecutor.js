@@ -70,7 +70,7 @@ export class SkillExecutor {
      * @param {string} resultFilePath  - 结果文件输出路径
      * @param {string} title           - Session 标题
      * @param {Array<string>} contextSections - prompt 中的上下文段落列表
-     * @returns {Promise<{success: boolean, json: object|null, raw: string}>}
+     * @returns {Promise<{success: boolean, json: object|null, raw: string, sessionId: string}>}
      */
     async invokeSkill(skillDir, workDir, resultFilePath, title, contextSections) {
         const cli = await this.getCLI();
@@ -108,7 +108,10 @@ export class SkillExecutor {
         }
 
         // ── 5. 读取结果文件 ──
-        return await this.readSkillResult(resultFilePath);
+        const result = await this.readSkillResult(resultFilePath);
+        // 将 sessionId 透传给调用方，供 Brain 记录到 plan 中
+        result.sessionId = sessionId;
+        return result;
     }
 
     /**

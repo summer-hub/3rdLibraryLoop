@@ -96,7 +96,7 @@ export class DecompositionStrategies {
      * @param {string} skillDir - SKILL 目录路径
      * @param {string} [userCriteria] - 用户提供的验收标准
      * @param {object} [execCtx] - CLI 执行上下文 { taskId, taskDir, loopCount }
-     * @returns {Promise<Array>} 步骤数组
+     * @returns {Promise<{steps: Array, sessionId: string|null}>} steps 为步骤数组，sessionId 为 opencode 会话 ID（LLM fallback 时为 null）
      */
     async decomposeTask(taskDescription, analysis, skillDir, userCriteria = '', execCtx = {}) {
         const { taskId, taskDir, loopCount = 0 } = execCtx;
@@ -112,8 +112,9 @@ export class DecompositionStrategies {
             }
         }
 
-        // ── Fallback：直接 LLM 调用 ──
-        return await this._decomposeViaLLM(taskDescription, analysis, skillDir, userCriteria);
+        // ── Fallback：直接 LLM 调用（无 sessionId） ──
+        const steps = await this._decomposeViaLLM(taskDescription, analysis, skillDir, userCriteria);
+        return { steps, sessionId: null };
     }
 
     /**
@@ -148,7 +149,7 @@ export class DecompositionStrategies {
         ].filter(Boolean);
 
         const title = `brain|task=${taskId}|decompose|loop=${loopCount}`;
-        const { success, json } = await this.skillExecutor.invokeSkill(
+        const { success, json, sessionId } = await this.skillExecutor.invokeSkill(
             decompSkillDir, taskDir, resultFilePath, title, contextSections
         );
 
@@ -156,7 +157,7 @@ export class DecompositionStrategies {
             throw new Error('TaskDecompositionSkill 执行失败或结果中未包含有效步骤');
         }
 
-        return this.normalizeSteps(json.steps);
+        return { steps: this.normalizeSteps(json.steps), sessionId: sessionId || null };
     }
 
     /**
@@ -279,7 +280,7 @@ ${skillInstructions}
      * @param {string} userCriteria
      * @param {object} context - 重规划上下文 { failedCriteria, improvementSuggestions, prevCheckSummary, loopCount }
      * @param {object} [execCtx] - CLI 执行上下文 { taskId, taskDir, skillDir }
-     * @returns {Promise<Array>} 步骤数组
+     * @returns {Promise<{steps: Array, sessionId: string|null}>}
      */
     async decomposeTaskWithContext(taskDescription, analysis, skillDir, userCriteria, context, execCtx = {}) {
         const { taskId, taskDir } = execCtx;
@@ -296,8 +297,9 @@ ${skillInstructions}
             }
         }
 
-        // ── Fallback：直接 LLM 调用 ──
-        return await this._decomposeWithContextViaLLM(taskDescription, analysis, skillDir, userCriteria, context);
+        // ── Fallback：直接 LLM 调用（无 sessionId） ──
+        const steps = await this._decomposeWithContextViaLLM(taskDescription, analysis, skillDir, userCriteria, context);
+        return { steps, sessionId: null };
     }
 
     /**
@@ -346,7 +348,7 @@ ${skillInstructions}
         ].filter(Boolean);
 
         const title = `brain|task=${taskId}|decompose|replan|loop=${loopCount}`;
-        const { success, json } = await this.skillExecutor.invokeSkill(
+        const { success, json, sessionId } = await this.skillExecutor.invokeSkill(
             decompSkillDir, taskDir, resultFilePath, title, contextSections
         );
 
@@ -354,7 +356,7 @@ ${skillInstructions}
             throw new Error('TaskDecompositionSkill（重规划）执行失败或结果中未包含有效步骤');
         }
 
-        return this.normalizeSteps(json.steps);
+        return { steps: this.normalizeSteps(json.steps), sessionId: sessionId || null };
     }
 
     /**

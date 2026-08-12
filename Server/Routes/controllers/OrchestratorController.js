@@ -280,8 +280,11 @@ class OrchestratorController {
     }
 
     /**
-     * GET /api/orchestrator/progress?taskId=xxx
+     * GET /api/orchestrator/progress?taskId=xxx[&loop=N]
      * 查询编排进度（全部步骤状态汇总）
+     *
+     * - 不传 loop：返回最新编排状态（内存实例或 orchestration.json 快照）
+     * - 传 loop=N：返回第 N 轮编排状态（从 orchestration_loopN.json 读取）
      *
      * 如果内存中没有该任务实例，尝试从磁盘恢复。
      */
@@ -289,6 +292,26 @@ class OrchestratorController {
         const { taskId } = req.query;
         if (!taskId) return res.error(400, 'taskId 为必填项');
 
+        // ── 指定轮次：从磁盘读取 orchestration_loop{N}.json ──
+        const loopParam = req.query.loop;
+        if (loopParam != null && loopParam !== '') {
+            const loopNum = Number(loopParam);
+            if (this.storage) {
+                try {
+                    const state = await this.storage.json('task').read(`${taskId}/orchestration_loop${loopNum}`);
+                    if (state) {
+                        return res.json({ status: 'ok', progress: state });
+                    }
+                    return res.error(404, `未找到第 ${loopNum} 轮编排状态: taskId=${taskId}`);
+                } catch (err) {
+                    console.warn(`[OrchestratorController] 读取轮次编排状态失败: loop=${loopNum}, ${err.message}`);
+                    return res.error(404, `未找到第 ${loopNum} 轮编排状态: taskId=${taskId}`);
+                }
+            }
+            return res.error(404, `未找到第 ${loopNum} 轮编排状态: taskId=${taskId}`);
+        }
+
+        // ── 默认：返回最新编排状态 ──
         let orch;
         try {
             orch = this._getOrchestrator(taskId);

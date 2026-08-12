@@ -173,9 +173,11 @@ class BrainController {
      * 支持两种查询方式：
      *   - planId: 按计划 ID 查找（遍历 db/task/ 子目录）
      *   - taskId: 按任务 ID 查找（直接读取 db/task/{taskId}/brain.json，更快）
+     *   - taskId + loop: 按任务 ID + 轮次查找（读取 brain_loop{N}.json）
      */
     async planDetail(req, res) {
         const { planId, taskId } = req.query;
+        const loopParam = req.query.loop;
 
         if (!planId && !taskId) {
             return res.error(400, 'planId 或 taskId 为必填项');
@@ -184,7 +186,17 @@ class BrainController {
         try {
             const brain = this._getBrain();
 
-            // 优先按 taskId 快速加载
+            // 指定轮次：按 taskId + loopCount 加载
+            if (taskId && loopParam != null && loopParam !== '') {
+                const loopNum = Number(loopParam);
+                const plan = await brain.loadPlan('', { taskId, loopCount: loopNum });
+                if (plan) {
+                    return res.json({ status: 'ok', plan });
+                }
+                return res.error(404, `未找到第 ${loopNum} 轮 Brain 计划: taskId=${taskId}`);
+            }
+
+            // 优先按 taskId 快速加载最新计划
             if (taskId) {
                 const plans = await brain.listPlans();
                 const plan = plans.find(p => p.taskId === taskId);
