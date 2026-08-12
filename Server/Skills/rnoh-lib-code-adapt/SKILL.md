@@ -324,6 +324,8 @@ npm pack --dry-run | grep '\.har'  # 验证 tgz 包含 HAR
 > ```
 > 详见 [references/har-tgz-build.md](references/har-tgz-build.md) Step D 的「获取 example 模板工程」章节。
 
+> ⚠️ **模板 compatibleSdkVersion 必须升级**：RN3rdTemplate 模板默认 `compatibleSdkVersion: '5.0.0(12)'`（API 12），但 RNOH 0.84 的 HAR 包要求最低 API 17。必须手动将 `example/harmony/build-profile.json5` 中的 `compatibleSdkVersion` 升级到目标版本对应值（0.84 → `'5.0.5(17)'`），否则构建时报 `Specification Limit Violation` 错误。API 版本对应表见 [references/har-tgz-build.md](references/har-tgz-build.md) 中的「API 版本对应表」。
+
 ```json
 // example/package.json
 "@react-native-ohos/react-native-xxx": "file:../react-native-ohos-react-native-xxx-<version>.tgz"
@@ -335,6 +337,8 @@ ls node_modules/@react-native-ohos/react-native-xxx/harmony/*.har  # 验证
 ```
 
 ### 4e. 最终编译验证
+
+> ⚠️ **禁止使用 MCP `deveco-mcp_build_project` 工具**：该工具可能构建 DevEco Studio 当前打开的项目而非工作目录中的项目，返回 `BUILD SUCCESSFUL` 但实际未构建目标工程。必须使用 `devecocli build` 命令在项目目录中执行构建以获得准确的编译结果。
 
 > ⚠️ **codegen 脚本参数验证**：运行 `npm run codegen` 前，检查 `example/package.json` 的 `codegen` 脚本是否包含 `--generate-type all`。`react-native codegen-harmony`（example 工程）**不支持**此参数，添加后会导致 `error: unknown option '--generate-type'`。该参数仅适用于库根 `package.json` 的 `codegen-lib` 脚本（使用 `react-native codegen-lib-harmony`）。如发现误加，移除后再执行。
 
