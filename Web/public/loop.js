@@ -114,16 +114,42 @@ async function loadRoundData(taskId, loop) {
     await Promise.all([ loadOrchestratorProgress(taskId, loop), loadBrainPlan(taskId, loop) ]);
 }
 
-async function loadLoopProgress(taskId) {
+async function loadLoopProgress(taskId, opts) {
     try {
         var d = await API.get('/api/loopengine/progress?taskId=' + encodeURIComponent(taskId));
         if (d.status === 'ok' && d.progress) {
             State.currentProgress = d.progress;
-            renderLoopOverview(); renderRounds();
+            // 静默模式：用户正在查看历史轮次时，只更新概览栏，不重建轮次 DOM（避免打断用户视图）
+            var silent = opts && opts.silent;
+            renderLoopOverview();
+            if (!silent) renderRounds(); else refreshRoundCardBadges();
             var s = d.progress.status;
             if (s === 'planning' || s === 'executing' || s === 'checking') startPolling(taskId);
         }
     } catch(err) { toast('error', '加载进度失败: ' + err.message); }
+}
+
+/**
+ * 静默刷新：只更新轮次卡片上的状态徽章和时间，不重建 DOM，不打断用户展开状态。
+ */
+function refreshRoundCardBadges() {
+    var p = State.currentProgress; if (!p || !p.rounds) return;
+    p.rounds.forEach(function(r) {
+        var card = document.querySelector('.round-card[data-loop="' + r.loop + '"]');
+        if (!card) return;
+        // 更新状态徽章
+        var badge = card.querySelector('.status-badge');
+        if (badge) {
+            if (r.passed) { badge.className = 'status-badge passed'; badge.textContent = '✅ 通过'; }
+            else if (r.error) { badge.className = 'status-badge error'; badge.textContent = '❌ 异常'; }
+        }
+        // 更新时间
+        var timeEl = card.querySelector('.round-time');
+        if (timeEl && r.endTime) {
+            var t = (r.startTime?formatTime(r.startTime):'—') + ' → ' + formatTime(r.endTime);
+            timeEl.textContent = t;
+        }
+    });
 }
 
 /* ─── 循环概览渲染 ──────────────────────────────────────────────────── */
@@ -184,8 +210,17 @@ function renderRounds() {
             }
         };
     });
+    // 展开逻辑：用户已选择查看某个历史轮次 → 展开对应卡片；否则展开最新轮次
     var cards = document.querySelectorAll('.round-card');
-    if (cards.length > 0) cards[cards.length-1].classList.add('expanded');
+    if (cards.length > 0) {
+        var targetLoop = State.selectedLoop;
+        var targetCard = null;
+        if (targetLoop != null) {
+            targetCard = document.querySelector('.round-card[data-loop="' + targetLoop + '"]');
+        }
+        if (!targetCard) targetCard = cards[cards.length - 1];
+        targetCard.classList.add('expanded');
+    }
 }
 
 function renderRoundCard(r) {
@@ -722,11 +757,13 @@ async function abortLoop() {
 function startPolling(tid) {
     stopPolling();
     State.pollTimer=setInterval(async function(){
-        // 轮询时始终加载最新状态（而非历史轮次）
-        var savedLoop = State.selectedLoop;
-        State.selectedLoop = null;
-        await loadAllData(tid);
-        State.selectedLoop = savedLoop;
+        // 用户正在查看历史轮次 → 静默刷新（只更新徽章，不重建 DOM）
+        // 用户在最新轮 → 正常刷新
+        var viewingHistory = State.selectedLoop != null;
+        await loadLoopProgress(tid, { silent: viewingHistory });
+        if (!viewingHistory) {
+            await loadOrchestratorProgress(tid);
+        }
         loadLoopList();
         if(State.currentProgress){var s=State.currentProgress.status;if(s!=='planning'&&s!=='executing'&&s!=='checking')stopPolling();}
     },3000);
@@ -746,19 +783,22 @@ function connectSSE(tid) {
     try {
         var es=new EventSource('/stream/tasks/'+encodeURIComponent(tid));
         State.sseSource=es;
-        es.addEventListener('loop:start',function(){toast('info','大循环已启动');loadLoopProgress(tid);});
-        es.addEventListener('loop:round:start',function(e){try{var d=JSON.parse(e.data);toast('info','第 '+(d.loop+1)+'/'+d.total+' 轮开始');loadLoopProgress(tid);}catch(x){}});
-        es.addEventListener('loop:planning',function(e){try{var d=JSON.parse(e.data);toast('info','第 '+(d.loop+1)+' 轮: Brain '+(d.isReplan?'重规划中':'拆解中')+'...');loadLoopProgress(tid);loadBrainPlan(tid);}catch(x){}});
-        es.addEventListener('loop:executing',function(e){try{var d=JSON.parse(e.data);toast('info','第 '+(d.loop+1)+' 轮: Orchestrator 执行中...');loadLoopProgress(tid);loadOrchestratorProgress(tid);}catch(x){}});
-        es.addEventListener('loop:checking',function(e){try{var d=JSON.parse(e.data);toast('info','第 '+(d.loop+1)+' 轮: TestCheck 审核中...');loadLoopProgress(tid);}catch(x){}});
-        es.addEventListener('loop:round:end',function(e){try{var d=JSON.parse(e.data);if(d.passed)toast('success','第 '+(d.loop+1)+' 轮: ✅ 准出通过');else toast('warn','第 '+(d.loop+1)+' 轮: ❌ 准出未通过，进入下一轮');loadLoopProgress(tid);loadBrainPlan(tid);loadLoopList();}catch(x){}});
+        // SSE 事件处理：用户正在查看历史轮次时，进度更新走静默模式（不重建 DOM），
+        // 编排图/Brain 计划的更新也跳过，避免打断用户视图。
+        // 终止/完成/错误等关键事件始终强制刷新，确保用户看到最终状态。
+        es.addEventListener('loop:start',function(){toast('info','大循环已启动');loadLoopProgress(tid,{silent:State.selectedLoop!=null});});
+        es.addEventListener('loop:round:start',function(e){try{var d=JSON.parse(e.data);toast('info','第 '+(d.loop+1)+'/'+d.total+' 轮开始');loadLoopProgress(tid,{silent:State.selectedLoop!=null});}catch(x){}});
+        es.addEventListener('loop:planning',function(e){try{var d=JSON.parse(e.data);toast('info','第 '+(d.loop+1)+' 轮: Brain '+(d.isReplan?'重规划中':'拆解中')+'...');loadLoopProgress(tid,{silent:State.selectedLoop!=null});if(State.selectedLoop==null)loadBrainPlan(tid);}catch(x){}});
+        es.addEventListener('loop:executing',function(e){try{var d=JSON.parse(e.data);toast('info','第 '+(d.loop+1)+' 轮: Orchestrator 执行中...');loadLoopProgress(tid,{silent:State.selectedLoop!=null});if(State.selectedLoop==null)loadOrchestratorProgress(tid);}catch(x){}});
+        es.addEventListener('loop:checking',function(e){try{var d=JSON.parse(e.data);toast('info','第 '+(d.loop+1)+' 轮: TestCheck 审核中...');loadLoopProgress(tid,{silent:State.selectedLoop!=null});}catch(x){}});
+        es.addEventListener('loop:round:end',function(e){try{var d=JSON.parse(e.data);if(d.passed)toast('success','第 '+(d.loop+1)+' 轮: ✅ 准出通过');else toast('warn','第 '+(d.loop+1)+' 轮: ❌ 准出未通过，进入下一轮');loadLoopProgress(tid,{silent:State.selectedLoop!=null});if(State.selectedLoop==null)loadBrainPlan(tid);loadLoopList();}catch(x){}});
         es.addEventListener('loop:complete',function(e){try{var d=JSON.parse(e.data);if(d.passed)toast('success','🎉 大循环完成: 准出通过! 共 '+d.totalRounds+' 轮');else toast('error','大循环结束: '+d.status+', 共 '+d.totalRounds+' 轮');stopPolling();loadLoopProgress(tid);loadLoopList();}catch(x){}});
         es.addEventListener('loop:aborted',function(){toast('warn','大循环已终止');stopPolling();loadLoopProgress(tid);loadLoopList();});
         es.addEventListener('loop:error',function(e){try{var d=JSON.parse(e.data);toast('error','大循环出错: '+(d.error||''));}catch(x){}stopPolling();loadLoopProgress(tid);loadLoopList();});
-        es.addEventListener('orch:step:status',function(e){try{var d=JSON.parse(e.data);toast('info','步骤 '+d.stepId+': '+statusLabel(d.status));loadOrchestratorProgress(tid);}catch(x){}});
-        es.addEventListener('orch:task:complete',function(){toast('success','编排任务完成');loadOrchestratorProgress(tid);loadLoopList();});
-        es.addEventListener('orch:task:error',function(){toast('error','编排任务出错');loadOrchestratorProgress(tid);loadLoopList();});
-        es.addEventListener('orch:task:aborted',function(){toast('warn','编排任务已终止');loadOrchestratorProgress(tid);loadLoopList();});
+        es.addEventListener('orch:step:status',function(e){try{var d=JSON.parse(e.data);toast('info','步骤 '+d.stepId+': '+statusLabel(d.status));if(State.selectedLoop==null)loadOrchestratorProgress(tid);}catch(x){}});
+        es.addEventListener('orch:task:complete',function(){toast('success','编排任务完成');if(State.selectedLoop==null)loadOrchestratorProgress(tid);loadLoopList();});
+        es.addEventListener('orch:task:error',function(){toast('error','编排任务出错');if(State.selectedLoop==null)loadOrchestratorProgress(tid);loadLoopList();});
+        es.addEventListener('orch:task:aborted',function(){toast('warn','编排任务已终止');if(State.selectedLoop==null)loadOrchestratorProgress(tid);loadLoopList();});
         es.onerror=function(){
             // 连接错误（含后端限流主动关闭连接）：主动关闭并置空，
             // 阻止浏览器对 EventSource 的无限自动重连，避免连接泄漏
