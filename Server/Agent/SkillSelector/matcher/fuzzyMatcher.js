@@ -21,7 +21,7 @@
 // 第 1 段：分词器（原 tokenizer.js）
 // ════════════════════════════════════════════════════════════════════════
 
-import { isActionWord, ACTION_WORD_WEIGHT } from '../utils/actionWords.js';
+import { isActionWord, isDomainWord, ACTION_WORD_WEIGHT } from '../utils/actionWords.js';
 
 // ─── 英文停用词（参考 engine.py 的 _STOPWORDS）─────────────────────────────────
 const STOPWORDS = new Set([
@@ -269,69 +269,105 @@ export function bm25Scores(query, documents, opts = {}) {
 /**
  * 默认模糊匹配器
  *
- * 匹配策略：
- *   - Phase A：单路 BM25 打分（原始 keywords + intent tokens 查询）
- *   - legacy fallback：BM25 全零分时回退到子串匹配，保证不返回空
+ * 匹配策略（双通道 + 多路召回融合）：
+ *   - 路 A（动作通道）：仅用 keywords + intent 中的「动作类 token」做 BM25 打分，
+ *     动作词加权只对真动作词生效（避免领域词混入动作词表稀释信号）。
+ *   - 路 B（领域通道）：用 keywords 中的「领域/产出物特征词」+ whenToUse 分词
+ *     做 BM25 打分，直接匹配文档侧已索引的 useWhen 与 searchableText 中的领域词。
+ *   - 路 C（原文兜底路）：用原始任务描述 task 全文分词做 BM25 打分，覆盖
+ *     keywords 提取偏差导致的语义漂移。
+ *   - 融合：score = wA·bm25A + wB·bm25B + wC·bm25C（归一化后加权），
+ *     name 精确匹配 bonus 保留在所有路。
+ *   - legacy fallback：融合后全零分时回退到子串匹配，保证不返回空。
  *
  * @param {object} analysis - Reason #1 产出的任务拆解
  * @param {Array} skills - 候选 SkillMeta[]
  * @param {object} [options]
  * @param {number} [options.topK=5] - 召回数量
- * @returns {Promise<Array>} 排序后的候选 SKILL（含 score），长度 ≤ topK
+ * @param {string} [options.task] - 原始任务描述（原文兜底路用）
+ * @param {object} [options.weights] - 融合权重 { action, domain, raw }
+ * @returns {Promise<Array>} 排序后的候选 SKILL（含 score / routes），长度 ≤ topK
  */
 export async function fuzzyMatch(analysis, skills, options = {}) {
   const topK = options.topK ?? 5;
   if (!skills || skills.length === 0) return [];
 
+  const weights = {
+    action: options.weights?.action ?? 0.4,
+    domain: options.weights?.domain ?? 0.4,
+    raw: options.weights?.raw ?? 0.2,
+  };
+
   // ─── 准备数据 ──────────────────────────────────────────────────────────────
   const keywords = normalizeList(analysis?.keywords);
   const intentTokens = tokenize(analysis?.intent || '');
+  const whenToUseTokens = tokenize(analysis?.whenToUse || '');
+  const taskTokens = tokenize(options?.task || '');
 
   // 把每个 SKILL 的 searchableText 分词，作为 BM25 的文档集
   const docs = skills.map((s) => tokenize(s.searchableText || ''));
 
-  // ─── Phase A：单路 BM25 打分 ──────────────────────────────────────────────────
-  // 动作词加权：把动作类型词重复 ACTION_WORD_WEIGHT 次，等价于打分时权重×N，
-  // 使"验收测试/准出审核"等意向词主导排名，避免被高频技术词（覆盖率/xts/demo）淹没。
-  const query = [];
-  const rawQueryTokens = keywords.length + intentTokens.length; // 展开前的原始 token 数
-  for (const kw of keywords) {
-    query.push(kw);
-    if (isActionWord(kw)) {
-      for (let i = 0; i < ACTION_WORD_WEIGHT - 1; i++) query.push(kw);
-    }
+  // ─── 路 A：动作通道 ──────────────────────────────────────────────────────────
+  // 仅保留动作类 token（keywords 中动作为主的词 + intent 中动作词），动作词加权。
+  const actionKeywords = keywords.filter((kw) => isActionWord(kw));
+  const actionIntentTokens = intentTokens.filter((t) => isActionWord(t));
+  const queryA = [];
+  const rawQueryATokens = actionKeywords.length + actionIntentTokens.length;
+  for (const kw of actionKeywords) {
+    queryA.push(kw);
+    for (let i = 0; i < ACTION_WORD_WEIGHT - 1; i++) queryA.push(kw);
   }
-  for (const t of intentTokens) {
-    query.push(t);
-    if (isActionWord(t)) {
-      for (let i = 0; i < ACTION_WORD_WEIGHT - 1; i++) query.push(t);
-    }
+  for (const t of actionIntentTokens) {
+    queryA.push(t);
+    for (let i = 0; i < ACTION_WORD_WEIGHT - 1; i++) queryA.push(t);
   }
+
+  // ─── 路 B：领域通道 ──────────────────────────────────────────────────────────
+  // 领域/产出物特征词（keywords 中领域词 + whenToUse 分词）做查询，匹配文档侧领域词/useWhen。
+  const domainKeywords = keywords.filter((kw) => isDomainWord(kw));
+  const queryB = [...domainKeywords, ...whenToUseTokens];
+
+  // ─── 路 C：原文兜底通道 ──────────────────────────────────────────────────────
+  const queryC = taskTokens;
 
   const bm25 = new BM25(docs);
-  const rawScores = bm25.scores(query);
+  const rawA = bm25.scores(queryA);
+  const rawB = bm25.scores(queryB);
+  const rawC = bm25.scores(queryC);
 
-  // 分数归一化：raw / max(3, 原始 query token 数)
-  // 注意分母用展开前的 token 数，避免动作词展开导致分母变大而抵消加权增益
-  const queryTokenCount = Math.max(3, rawQueryTokens);
-  const scores = rawScores.map((s) => s / queryTokenCount);
+  // 分数归一化：raw / max(3, 单路实际参与 token 数)
+  // 分母用各路的原始 token 数（非展开后），避免动作词展开/多路叠加导致分母虚高
+  const countA = Math.max(3, rawQueryATokens);
+  const countB = Math.max(3, queryB.length);
+  const countC = Math.max(3, queryC.length);
+  const normA = rawA.map((s) => s / countA);
+  const normB = rawB.map((s) => s / countB);
+  const normC = rawC.map((s) => s / countC);
 
-  // 检查 BM25 是否全零（无任何 token 重叠）→ 回退到 legacy 子串匹配
-  const hasAnyScore = scores.some((s) => s > 0);
+  // 融合
+  const fused = normA.map((_, i) => weights.action * normA[i] + weights.domain * normB[i] + weights.raw * normC[i]);
+
+  // 检查融合后是否全零（无任何 token 重叠）→ 回退到 legacy 子串匹配
+  const hasAnyScore = fused.some((s) => s > 0);
   let candidates;
   if (!hasAnyScore) {
     candidates = _legacySubstringMatch(analysis, skills).slice(0, topK);
   } else {
     candidates = skills
       .map((skill, i) => {
-        let score = scores[i] || 0;
+        let score = fused[i] || 0;
         // name 精确匹配 bonus：query keywords 中任一词与 skill.name 精确匹配时 ×1.15
         const skillName = (skill.name || '').toLowerCase();
         const hasNameMatch = keywords.some((kw) => kw && skillName === kw);
         if (hasNameMatch && score > 0) {
           score = score * 1.15;
         }
-        return { skill, score };
+        return {
+          skill,
+          score,
+          // 每路归一化分数留痕，便于定位偶发未命中
+          routes: { action: normA[i] || 0, domain: normB[i] || 0, raw: normC[i] || 0 },
+        };
       })
       .sort((a, b) => b.score - a.score)
       .slice(0, topK);

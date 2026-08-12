@@ -308,6 +308,13 @@ class KnowledgeImporter {
                     entry.status = result.success ? 'completed' : 'failed';
                     entry.result = result;
                     entry.endTime = nowCST();
+                    // 进入终态后释放大对象引用（knowledgeInfo / result），
+                    // 防止 _imports Map 随导入次数累积重型数据导致内存泄露。
+                    // 保留轻量状态字段（importId/status/sessionId/时间戳），供前端 import-status 查询。
+                    entry.knowledgeInfo = null;
+                    entry.workDir = null;
+                    entry.resultFilePath = null;
+                    entry.result = result.success ? { success: true, message: result.message, sessionId: result.sessionId } : null;
                 }
 
                 // ── 导入成功后自动删除原知识条目（软删除） ──
@@ -331,6 +338,11 @@ class KnowledgeImporter {
                     entry.status = 'error';
                     entry.error = err.message;
                     entry.endTime = nowCST();
+                    // 释放大对象引用，仅保留轻量状态
+                    entry.knowledgeInfo = null;
+                    entry.workDir = null;
+                    entry.resultFilePath = null;
+                    entry.result = null;
                 }
             });
 

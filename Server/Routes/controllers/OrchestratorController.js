@@ -64,6 +64,35 @@ class OrchestratorController {
         });
     }
 
+    /**
+     * 释放指定任务编排器持有的重型引用，并（可选）从内存移除编排器实例。
+     *
+     * 调用 `orch.dispose()` 置空各步骤节点的 `_runner`，使 FlexRunner / CLIController /
+     * SkillSelector Agent / LLMClient / Storage 可被 GC 回收。保留磁盘持久化与
+     * Orchestrator 的轻量元信息（getProgress / getStepInfo 仍可用）。
+     *
+     * @param {string} taskId - 任务 ID
+     * @param {object} [opts]
+     * @param {boolean} [opts.removeInstance=false] - 是否同时从内存 Map 移除编排器实例
+     * @returns {boolean} 是否找到并处理了该任务
+     */
+    disposeOrchestrator(taskId, opts = {}) {
+        const { removeInstance = false } = opts;
+        const orch = this._orchestrators.get(taskId);
+        if (!orch) return false;
+
+        try {
+            orch.dispose();
+        } catch (err) {
+            console.warn(`[OrchestratorController] dispose 失败: taskId=${taskId}, error=${err.message}`);
+        }
+
+        if (removeInstance) {
+            this._orchestrators.delete(taskId);
+        }
+        return true;
+    }
+
     // ─── 供 FlexRunnerController 跨域查询 ──────────────────────────────
 
     /**
@@ -470,7 +499,8 @@ class OrchestratorController {
             await orch.abort();
         }
 
-        const existed = this._orchestrators.delete(taskId);
+        // 先释放重型引用，再从内存移除
+        const existed = this.disposeOrchestrator(taskId, { removeInstance: true });
 
         // 同时删除持久化文件
         let diskRemoved = false;

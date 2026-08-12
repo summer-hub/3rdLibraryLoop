@@ -15,12 +15,14 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 import { tokenize, normalizeList, BM25, bm25Scores, fuzzyMatch } from '../matcher/fuzzyMatcher.js';
 import { parseFrontmatter, scanSkills } from '../scanner/skillScanner.js';
 import { isTransientError, retryDelay } from '../llm/llmClient.js';
 import { renderTemplate } from '../llm/prompts.js';
 
-const SKILL_DIRECTORY = 'D:\\code\\AIWeb\\Server\\Skills';
+const SKILL_DIRECTORY = path.resolve(__dirname, '..', '..', '..', 'Skills');
 
 let passed = 0;
 let failed = 0;

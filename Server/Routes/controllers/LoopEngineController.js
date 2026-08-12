@@ -163,6 +163,30 @@ class LoopEngineController {
             }).finally(() => {
                 // 循环结束后清理运行标记，允许同一 taskId 后续重新启动
                 this._running.delete(taskId);
+
+                // 释放该任务对应的 Orchestrator 重型引用（FlexRunner/LLM/CLI 等），防止内存泄露。
+                // 保留 Orchestrator 轻量元信息与磁盘持久化，前端历史查看不受影响。
+                if (this.orchestratorController) {
+                    try {
+                        this.orchestratorController.disposeOrchestrator(taskId);
+                    } catch (err) {
+                        console.warn(`[LoopEngineController] 释放 Orchestrator 失败: taskId=${taskId}, error=${err.message}`);
+                    }
+                }
+
+                // 从内存移除已进入终态的大循环实例（PASSED/FAILED/ABORTED/ERROR）。
+                // 历史列表由 list() 扫描磁盘 loop.json 提供，不依赖内存 _engines。
+                const engine = this._engines.get(taskId);
+                if (engine) {
+                    const terminalStates = [
+                        LoopStatus.PASSED, LoopStatus.FAILED,
+                        LoopStatus.ABORTED, LoopStatus.ERROR
+                    ];
+                    const ctx = engine.getLoop(taskId);
+                    if (ctx && terminalStates.includes(ctx.status)) {
+                        this._engines.delete(taskId);
+                    }
+                }
             });
 
             this._running.set(taskId, loopPromise);
@@ -322,6 +346,17 @@ class LoopEngineController {
             }
 
             const ok = await engine.abortLoop(taskId);
+
+            // 终止后释放重型引用（Orchestrator 的 FlexRunner/LLM/CLI 等），防止内存泄露。
+            // restore/progress 仍可从磁盘恢复查看历史。
+            if (this.orchestratorController) {
+                try {
+                    this.orchestratorController.disposeOrchestrator(taskId);
+                } catch (err) {
+                    console.warn(`[LoopEngineController] abort 释放 Orchestrator 失败: taskId=${taskId}, error=${err.message}`);
+                }
+            }
+
             res.json({
                 status: ok ? 'ok' : 'error',
                 message: ok ? '大循环已终止' : '终止失败（可能已结束）',
