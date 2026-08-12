@@ -80,7 +80,7 @@ SKILL 指令中只需说明**调用哪个工具、传什么参数**，AI 会自�
 ```
 工具: kb_add_document
 参数:
-  documentId (string, 必填): 文档唯一标识，如 "experiences/kn_xxx"
+  documentId (string, 必填): 文档唯一标识，如 "experiences/react-native-track-player-upstream-diff"。禁止使用知识条目ID（kn_xxx），应使用知识内容的简明概括作为文档名
   catalog (string, 必填): 所属目录，如 "best-practices"
   title (string, 选填): 文档标题
   content (string, 必填): 文档 Markdown 原文（必须结构化整理，非原始文档）

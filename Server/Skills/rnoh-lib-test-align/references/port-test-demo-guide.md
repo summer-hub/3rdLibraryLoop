@@ -206,3 +206,7 @@ src/
 ### Q: index.tsx 合并后编译错误
 
 **A**: 使用 `--skip-index-merge` 跳过自动合并，手动将 demo 入口文件内容复制到 `src/index.tsx` 中。
+
+### Q: 子目录中的 index.tsx 聚合入口被跳过
+
+**A**: `port-test-demo.sh` 在拷贝支撑文件时，会将所有名为 `index.tsx` 的文件加入 `SKIP_FILES` 列表（因为主入口文件也叫 `index.tsx`）。这导致上游 `testCases/index.tsx` 等子目录中的聚合入口文件被跳过未拷贝。移植完成后需手动检查是否存在被跳过的聚合入口，并手动创建或拷贝。

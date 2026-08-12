@@ -12,7 +12,7 @@ compatibility: 需要 git、node、npm；DevEco Studio >= 6.0.0 或 Command Line
 allowed-tools: Bash Read Grep Glob Edit Write
 metadata:
   author: rnoh-team
-  version: "2.0"
+  version: "2.1.0"
   phase: "2-of-4"
 ---
 
@@ -300,8 +300,14 @@ rnoh-build-har [api-version] [rnoh-version] [path] [--build-mode <mode>]
 
 ### 4c. 打 TGZ 包
 
+> ⚠️ **npm pack 前必须清理 rnoh-build-har 临时文件**：`rnoh-build-har` 会在 `harmony/` 下产生 `oh_modules`（可达 913MB）、`AppScope`、`build-profile.json5` 等临时工程文件。即使 `.npmignore` 已排除，`npm pack` 仍需遍历整个目录树导致超时（>120s）。
+
 ```bash
 cd /path/to/react-native-xxx
+
+# 清理 rnoh-build-har 产生的临时文件（避免 oh_modules 913MB 导致 npm pack 超时）
+rm -rf harmony/oh_modules harmony/AppScope harmony/build-profile.json5 harmony/hvigor harmony/oh-package.json5 harmony/<module>/build
+
 npm pack                        # 产出: <name>-<version>.tgz
 npm pack --dry-run | grep '\.har'  # 验证 tgz 包含 HAR
 ```
@@ -330,6 +336,8 @@ ls node_modules/@react-native-ohos/react-native-xxx/harmony/*.har  # 验证
 
 ### 4e. 最终编译验证
 
+> ⚠️ **codegen 脚本参数验证**：运行 `npm run codegen` 前，检查 `example/package.json` 的 `codegen` 脚本是否包含 `--generate-type all`。`react-native codegen-harmony`（example 工程）**不支持**此参数，添加后会导致 `error: unknown option '--generate-type'`。该参数仅适用于库根 `package.json` 的 `codegen-lib` 脚本（使用 `react-native codegen-lib-harmony`）。如发现误加，移除后再执行。
+
 ```bash
 cd example && npm install --legacy-peer-deps
 npm run codegen
@@ -339,6 +347,14 @@ devecocli build --product default --build-mode debug
 ```
 
 > ⚠️ `ohpm install` 不可跳过 — CMake 编译时需从 `oh_modules/@rnoh/react-native-openharmony/src/main/cpp/` 读取 RNOH C++ 源码。
+
+> ⚠️ **构建日志来源验证**（多任务并行时必须）：构建完成后验证日志路径来自当前任务仓库，排除其他任务日志干扰：
+> ```bash
+> # 确认当前任务路径在日志中出现（应为大量匹配）
+> grep -c "当前任务路径" <log_file>
+> # 确认其他任务路径不在日志中（应为 0 匹配）
+> grep -c "其他任务路径" <log_file>
+> ```
 
 详细操作步骤、参数说明、API 版本对应表、devecocli 回退方案见 [references/har-tgz-build.md](references/har-tgz-build.md)。
 
@@ -374,6 +390,8 @@ devecocli build --product default --build-mode debug
 | `npm install` | tgz 包正确安装到 node_modules |
 | `ohpm install` | oh_modules 中有 RNOH har 包 |
 | `devecocli build` | `BUILD SUCCESSFUL`，仅框架 WARNING |
+| CMake 编译完整性 | `BuildNativeWithCmake` 和 `BuildNativeWithNinja` 两个步骤均完成且无 ERROR |
+| 构建日志来源 | 日志路径来自当前任务仓库（当前任务路径有匹配，其他任务路径 0 匹配） |
 
 ---
 

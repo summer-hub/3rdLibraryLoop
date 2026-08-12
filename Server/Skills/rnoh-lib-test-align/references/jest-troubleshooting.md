@@ -283,6 +283,49 @@ testMatch: ['<rootDir>/src/__tests__/*.test.tsx'],
 
 同时确保 `tsconfig.jest.json` 的 `exclude` 包含 `harmony` 目录。
 
+## 问题 8：NativeEventEmitter.addListener 返回值缺少 remove 方法
+
+### 症状 8
+
+```text
+TypeError: this._nativeEventSubscription.remove is not a function
+```
+
+在 TurboModule 库（如 NetInfo）的测试中，`State.tearDown()` 调用 `this._nativeEventSubscription.remove()` 时崩溃。
+
+### 根因 8
+
+`__mocks__/react-native.js` 中的 `NativeEventEmitter` 继承 Node.js 的 `EventEmitter`，其 `addListener` 方法返回 EventEmitter 实例（boolean 值或 listener 引用），而非 RN 的 `NativeEventSubscription` 对象（`{ remove: () => void }`）。
+
+### 解决方案 8
+
+在 mock 中覆写 `addListener`，使其返回包含 `remove` 方法的对象：
+
+```javascript
+// __mocks__/react-native.js
+const { EventEmitter } = require('events');
+
+class MockNativeEventEmitter extends EventEmitter {
+  addListener(eventName, handler) {
+    const listener = super.addListener(eventName, handler);
+    // 返回 NativeEventSubscription 兼容对象
+    return {
+      remove: () => super.removeListener(eventName, handler),
+    };
+  }
+}
+
+module.exports = {
+  // ... 其他导出
+  NativeEventEmitter: MockNativeEventEmitter,
+  NativeModules: {
+    // 按需提供 mock 的原生模块
+  },
+};
+```
+
+**关键**：所有 TurboModule 库（非 Fabric 组件库）的测试都需要此 mock。TurboModule 库不需要 mock `codegenNativeComponent`，但必须正确 mock `NativeEventEmitter`。
+
 ## 完整配置模板
 
 ### jest.config.js

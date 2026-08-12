@@ -172,9 +172,16 @@ Phase 5: 输出导入结果
 
 **文档ID生成规则**：
 ```
-experiences/{knowledgeId}
+experiences/{知识总结}
 ```
-例如 `experiences/kn_msd0gvvs70885d0e`
+其中 `{知识总结}` 是对该条知识内容的简明概括，用于生成可读的文档文件名。
+
+**生成要求**：
+- 从经验内容中提炼核心主题，生成简短的描述性名称
+- 使用中划线（`-`）分隔词语，如 `react-native-track-player-upstream-diff`
+- **禁止使用知识条目ID（`kn_xxx`）作为文档名**
+- 多个条目拆分时，每个条目独立生成各自的文档ID
+- 文档ID中禁止包含空格、特殊字符（仅允许字母、数字、中划线、斜杠）
 
 **目录(catalog)选择**：
 - 默认使用 `best-practices` 目录
@@ -188,7 +195,7 @@ experiences/{knowledgeId}
 ```
 工具名: kb_add_document
 参数:
-  documentId: "experiences/{knowledgeId}"
+  documentId: "experiences/{知识总结}"
   catalog: "best-practices"
   title: "{概括性的经验标题（非原始文档标题）}"
   content: "{按问题现象/解决方案/结果结构整理后的Markdown}"
@@ -259,6 +266,7 @@ experiences/{knowledgeId}
 4. **必要时新增 assets 模板** — 若优化引入新的输出模板
 
 > ⚠️ SKILL修改必须保持渐进式披露原则：body < 500行，详细内容拆分到 references/。
+> ⚠️ **禁止添加变更记录**：修改SKILL文件时，不得在SKILL.md末尾添加"变更记录"章节。版本递增仅体现在 frontmatter 的 version 字段中。
 
 > SKILL优化规范参见 [SKILL优化规范](references/SKILL_OPTIMIZATION_GUIDE.md)
 
@@ -279,7 +287,7 @@ experiences/{knowledgeId}
 ## 导入摘要
 
 ### 知识类导入
-- 文档ID: experiences/{knowledgeId}
+- 文档ID: experiences/{知识总结}
 - 目录: best-practices
 - 状态: 已导入
 - 工具: kb_add_document
