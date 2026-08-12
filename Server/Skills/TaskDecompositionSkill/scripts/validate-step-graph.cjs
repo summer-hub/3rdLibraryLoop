@@ -337,6 +337,55 @@ if (fixChainAmbiguities.length > 0) {
   ok('无修复链歧义图（failStepId 目标未被 dependId 反向依赖）');
 }
 
+// ── 4.2 修复步骤被并行 dependId 依赖检查（fan-out 误激活）──
+// 修复步骤 B（被某步骤 A 的 failStepId 指向）的 dependId 若包含 A 或 A 的"依赖祖先"
+// （即能让 B 与 A 在同一轮并行 READY 的节点），则 A 的前置完成后 B 会被 fan-out 并行
+// 激活，与真正的验证步骤 A 落入同一并行轮次，导致误执行/阻塞后续链。
+// 判定"祖先"：沿 dependId 链逆向可达 A 的节点（含 A 本身）。
+// Orchestrator 已兜底禁止修复步骤被 fan-out 激活，故此处仅 WARN 提示语义不清晰。
+function collectDepAncestors(startId) {
+  const seen = new Set();
+  const stack = [startId];
+  while (stack.length > 0) {
+    const cur = stack.pop();
+    if (seen.has(cur)) continue;
+    seen.add(cur);
+    const curStep = nodes.get(cur);
+    if (!curStep) continue;
+    for (const dep of getDepIds(curStep.dependId)) {
+      if (!seen.has(dep)) stack.push(dep);
+    }
+  }
+  return seen;
+}
+
+const fixFanoutIssues = [];
+for (const [fixId, fixStep] of nodes) {
+  const triggerSources = [];
+  for (const [sid, s] of nodes) {
+    if (String(s.failStepId ?? 0) === fixId) {
+      triggerSources.push(sid);
+    }
+  }
+  if (triggerSources.length === 0) continue; // 不是修复步骤
+  const fixDeps = getDepIds(fixStep.dependId);
+  if (fixDeps.length === 0) continue; // 无 dependId，不存在 fan-out 风险
+  for (const src of triggerSources) {
+    const srcAncestors = collectDepAncestors(src); // 含 src 本身及其全部依赖祖先
+    const overlap = fixDeps.filter((d) => srcAncestors.has(d));
+    if (overlap.length > 0) {
+      fixFanoutIssues.push(`修复步骤${fixId}（步骤${triggerSources.join('/')} 的 failStepId 目标）的 dependId ${overlap.join(',')} 与触发源步骤${src} 的依赖祖先重叠，触发源前置完成后会与触发源并行 fan-out 激活`);
+    }
+  }
+}
+if (fixFanoutIssues.length > 0) {
+  for (const msg of fixFanoutIssues) {
+    warn(`修复步骤 fan-out 误激活风险: ${msg}。修复步骤只应经 failStepId 触发，Orchestrator 已兜底禁止并行激活。`);
+  }
+} else {
+  ok('无修复步骤 fan-out 误激活风险');
+}
+
 // ── 5. 成功链无终止检测 ───────────────────────────────────
 const noTerminal = Array.from(nodes.values()).every(
   (s) => s.nextStepId != null && s.nextStepId !== 0 && s.nextStepId !== '0'

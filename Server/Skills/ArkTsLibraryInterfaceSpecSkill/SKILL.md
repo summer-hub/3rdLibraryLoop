@@ -30,9 +30,12 @@ metadata:
 - ✅ 提取 `export` 关键字标记的公开接口：`export class`、`export function`、`export const/let`、`export interface`、`export type`、`export default`
 - ✅ `export { X } from './path'` 和 `export * from './path'` 是**转发导出**，须递归追踪到源文件提取原始定义
 - ❌ 不分析 `private`、`protected`、以 `_` 或 `#` 开头的成员，以及 `import` 语句
+- ✅ **无显式访问修饰符的类成员默认 `public`，必须提取**——ArkTS 中类成员不带 `private`/`protected`/`internal` 即对外可见，必须计入接口表格，不得当作内部实现跳过
+- ✅ **类字段箭头函数属性（如 `callback = (data) => {...}`）是公开可访问的 API，必须提取**——此类字段属性与普通公开属性同等对待，计入接口表格，不得遗漏
 - ❌ **枚举不算对外接口**——枚举是类型定义，非可调用的 API，不纳入接口统计。无论直接导出（`export enum Xxx`）还是间接导出（`export {default as Xxx} from './path'` 转发 + 源文件为 `enum Xxx` 且 `export default Xxx`），一律排除
 - ❌ **构造函数（`constructor(...)`）不算对外接口**——构造函数是类的实例化机制，非可调用的 API，不纳入接口统计
 - ❌ **struct 组件**（`@Component`/`@ComponentV2` 装饰的 struct）：**只提取公开成员属性，排除所有方法**——`aboutToAppear`/`aboutToDisappear`/`aboutToRecycle`/`build`/`getDefaultContext`/`@Watch` 触发的 `watchXxx()`/`@Monitor` 触发的 `monitorXxx()` 等生命周期回调和状态监听回调由框架自动调用，非用户 API
+- ✅ **通过导出类公有静态属性暴露的内部类（如 `static Builder = new XxxBuilder()`）的公开方法**：属于对外可调用的 API，**一律展开计入对应导出类的接口表格**，方法签名前缀标注所属内部类名（如 `Builder.setXxx()`）。内部类本身不单独建小节，仅展开其公开方法
 - **转发导出追踪深度**：从 Index.ets 出发沿 `export ... from` 链递归，**最大 3 层**，遇到循环依赖立即停止
 - **Native 模块导出**（`export * from '*.so'`）：读取对应 `.d.ets` 类型声明文件，提取 `export const function` 和 `export class`，列入报告独立章节，**不计入 ArkTS 接口总数**
 
@@ -92,7 +95,7 @@ metadata:
    - 先确认 `{{repoDir}}/library/Index.ets`
    - 上一路径不存在时再确认 `{{repoDir}}/library/src/main/ets/Index.ets`
 3. 读取 `{{repoDir}}/library/oh-package.json5`，提取 `"name"` 字段作为库名
-4. **定位 Native 声明文件**：用 `glob` 搜索 `library/src/main/cpp/types/*/index.d.ets`，记录实际路径供步骤 3 使用。标准路径模式为 `library/src/main/cpp/types/{模块名}/index.d.ets`，模块名通常为 `libentry` 但可能因库而异。
+4. **定位 Native 声明文件**：用 `glob` 搜索 `library/src/main/cpp/types/*/index.d.ets`，记录实际路径为 `{{nativeDPath}}` 供步骤 3 与步骤 5 使用。标准路径模式为 `library/src/main/cpp/types/{模块名}/index.d.ets`，模块名通常为 `libentry` 但可能因库而异。
    > 注意：Index.ets 中是否实际包含 `export * from '*.so'` 的判断，留待步骤 3a 读取 Index.ets 时确认；本步骤仅预先 glob 定位 `.d.ets` 路径备用，若 glob 无结果则在 3a 确认无 Native 导出。
 
 ---
@@ -128,6 +131,10 @@ metadata:
 
 3. **读取后立即在 AI 工作上下文中以表格草稿形式记录**每个 export 声明的完整签名，供步骤 4 直接格式化输出。草稿须包含：类名、装饰器（`@Observed`/`@ObservedV2`/`@Component`）、公开方法（含 `static`）、公开属性（带 `@Trace` 的须标注）、interface/class 区分、函数签名（参数名、类型、是否可选、默认值、返回值类型）、接口/类型字段列表（字段名、类型、是否可选、泛型参数），以及每个属性/方法/字段的功能描述来源。**构造函数和枚举不纳入接口统计。**
 
+> **公开成员覆盖完整性**：记录类公开成员时，除显式 `public` 的成员外，**必须同时覆盖无修饰符成员（默认 public）与类字段箭头函数属性（如 `callback = (data) => {...}`）**。逐一对齐类主体中每个不被 `private`/`protected`/`internal` 修饰的成员，确认全部入草稿后再进入下一成员，防止遗漏后无从校验。
+
+> **内部类/Builder 追查**：若导出类含 `static Xxx = new Yyy()` 形式的公有静态属性，须读取同文件内 `class Yyy`（非 export）定义，将其**公开方法**以 `Xxx.方法名()` 前缀纳入该导出类的草稿条目（内部类本身不单独建小节）。
+
 > 功能描述提取优先级：JSDoc `/** */` 注释（优先）→ `//` 行注释（次选）→ 源码均无注释时填 `-`。禁止填"属性""方法"等无意义占位符。
 
 4. **组件装饰器交叉记录**：对 struct 组件中带 `@ObjectLink`/`@Prop`/`@Link`（V1 装饰器）的属性，草稿中额外记录：属性类型 → 回溯类定义 → 检查 `@Observed` → 标注兼容性（✅/❌）。供步骤 4 生成第 5 章表格。
@@ -153,7 +160,7 @@ Native 导出：nativeFuncJ, NativeClassNameK, ...（单独章节，不计入 Ar
 > ⚠️ **枚举不计入 S（类级条目数）**：无论直接枚举导出还是间接枚举导出，一律归入独立 ENUM 清单，仅用于第 10 章展示，不参与 S/N 计数。
 ```
 
-> ⚠️ **禁止在此清单中添加任何未在 Index.ets 导出链中出现的项，也禁止遗漏 Index.ets 中明确导出的任何项。如有 `export * from '*.so'`，取其 `.d.ets` 中所有 `export const function` 和 `export class` 归入 Native 清单。**
+> ⚠️ **禁止在此清单中添加任何未在 Index.ets 导出链中出现的项，也禁止遗漏 Index.ets 中明确导出的任何项。** 这里的"遗漏"同样适用于类内**无修饰符公开成员与箭头函数字段属性**（默认 public，须计入）。如有 `export * from '*.so'`，取其 `.d.ets` 中所有 `export const function` 和 `export class` 归入 Native 清单。
 
 **3d. 清单汇总（强制，不可跳过）**
 
@@ -165,12 +172,13 @@ Native 导出：nativeFuncJ, NativeClassNameK, ...（单独章节，不计入 Ar
 - 变量/常量（export const/let）
 - 枚举（export enum / 间接枚举导出）：已单独列出 ENUM 清单，不计入 S
 - Native 导出（export * from '*.so'）：已记录 `.d.ets` 路径
+- ✔ **逐类与源码比对**：确认每个导出类的**无修饰符公开成员（默认 public）与箭头函数字段属性**均已入清单，无遗漏
 
 ---
 
 ### 步骤 4：生成报告
 
-> ⚠️ **先写正文，后补摘要。** 报告正文（第 1~9 章）写完后，摘要行用 `{PENDING}` 占位，末尾暂不标注 `状态: 成功`。精确计数由步骤 5 用 grep 计算后替换。
+> ⚠️ **先写正文，后补摘要。** 报告正文（第 1~9 章）写完后，摘要行用 `{PENDING}` 占位，末尾暂不标注 `状态: 成功`。精确计数由步骤 5 调用计数脚本计算后替换。
 
 **报告格式如下：**
 
@@ -291,102 +299,40 @@ Native 导出：nativeFuncJ, NativeClassNameK, ...（单独章节，不计入 Ar
 
 ### 步骤 5：计数验证与摘要行补写（强制，不可跳过）
 
-> ⚠️ **用 grep 精确计数，禁止凭记忆或目测。** 验证通过后替换报告中的 `{PENDING}` 为正确数值并标注 `状态: 成功`。
+> ⚠️ **调用计数脚本精确计数，禁止手工目测或凭记忆估算。** 脚本验证通过后自动替换报告中的 `{PENDING}` 为正确数值并标注 `状态: 成功`。
 
-> **环境要求**：以下命令在 Linux/macOS/Git Bash 执行；Windows 环境须用 Git Bash 或 WSL（sed/grep 非系统自带）。
+> **环境要求**：本步骤由 Node.js 脚本 `{{skillDir}}/scripts/count-report.cjs` 完成，**不再依赖 grep/sed**（本项目为 Node 工程，Windows/PowerShell 可直接运行）。
 
-**5a. 统计报告数据行总数**
+**5a. 调用计数验证脚本**
 
-```bash
-# 统计报告中所有表格数据行（以 | 数字 | 开头）
-TOTAL=$(grep -cE "^\| \d+\s+\|" {{reportPath}})
-echo "TOTAL=$TOTAL"
-```
-
-> 此命令匹配所有以 `| 1    |` 格式开头的表格数据行，不匹配 `| 序号 |` 等表头行。
-
-**5b. 统计 Native 模块导出数量**
+运行以下命令（`{{skillDir}}` 为本 Skill 所在目录，`count-report.cjs` 位于其 `scripts/` 子目录；`{{nativeDPath}}` 为步骤 2 glob 定位的 `.d.ets` 绝对路径，若库无 Native 导出可省略）：
 
 ```bash
-# 方式1：从源码 .d.ets 统计（主校验）
-# 注意：路径取自步骤 2 glob 结果，模块名因库而异（通常为 libentry），按实际记录的路径替换
-M=$(grep -cE "^export (const|class)" "{{NATIVE_D_ETS_PATH}}")
-
-# 方式2：从报告第 8 章统计（交叉校验）
-M2=$(sed -n '/^## 8\./,/^## 9\./p' {{reportPath}} | grep -cE "^\| \d+\s+\|")
-
-echo "M=$M (d.ets)  M2=$M2 (report)"
+node "{{skillDir}}/scripts/count-report.cjs" '{"reportPath":"{{reportPath}}","nativeDPath":"{{nativeDPath}}"}'
 ```
 
-> M 必须 == M2。`{{NATIVE_D_ETS_PATH}}` 为步骤 2 glob 定位的实际 `.d.ets` 绝对路径。若库无 Native 导出（Index.ets 中无 `export * from '*.so'`），则 M=0，跳过本步。
+> 若 `{{nativeDPath}}` 未提供，脚本会自动从报告第 8 章统计 Native 数（M2 口径）并打印来源说明。
 
-**5c. 计算 ArkTS 方法级总数 N**
+**5b. 解读脚本输出并校验**
 
-```bash
-N=$((TOTAL - M))
-echo "N=$N (TOTAL=$TOTAL - M=$M)"
-```
+脚本自动完成下列统计与核对（对应原 5a~5f 全部逻辑）：
 
-**5d. 统计类级数量 C / I / F / V / E（用于摘要行明细）**
+- **TOTAL**：全报告所有 `| 数字 |` 表格数据行总数
+- **M / M2**：Native 导出数。优先从 `nativeDPath` 的 `.d.ets` 统计 `^export (const|class)`；未提供时从报告第 8 章数据行统计，并打印来源。若两者均有则交叉核对是否相等
+- **E**：第 10 章（枚举导出）数据行数，用于从 N 中排除
+- **C / I / F / V**：类、接口、函数、变量数量
+- **N = TOTAL - M - E**：方法级接口总数（枚举不纳入 N）
+- **S = C + I + F + V**：类级条目数（不含枚举）
 
-```bash
-# 类数量（第 3 章小节标题）
-C=$(grep -cE "^### 3\.\d+" {{reportPath}})
-# 接口数量（第 4 章小节标题）
-I=$(grep -cE "^### 4\.\d+" {{reportPath}})
-# 函数数量（第 6 章数据行）
-F=$(sed -n '/^## 6\./,/^## 7\./p' {{reportPath}} | grep -cE "^\| \d+\s+\|")
-# 变量数量（第 7 章数据行）
-V=$(sed -n '/^## 7\./,/^## 8\./p' {{reportPath}} | grep -cE "^\| \d+\s+\|")
-# 枚举数量（第 10 章数据行，不计入 S）
-E=$(sed -n '/^## 10\./,/^## 11\./p' {{reportPath}} | grep -cE "^\| \d+\s+\|")
+脚本输出各项统计与 `PASS/FAIL` 校验结果。**全部通过时**脚本自动将摘要行 `> **{PENDING}**` 替换为正确数值、报告末尾 `{PENDING}` 替换为 `状态: 成功` 并写回文件，随后 `process.exit(0)`。
 
-echo "C=$C I=$I F=$F V=$V E=$E"
-S=$((C + I + F + V))
-echo "S=$S (不含枚举)"
-```
+**5c. 失败处理**
 
-> 如果库无某类导出（如第 5 章只有"无"），对应 grep 结果为 0。枚举（E）仅作展示，**不参与 S 计算**。
+> ⚠️ **验证未全部通过前，禁止标记 `状态: 成功`。** 脚本任一项 FAIL 时会打印失败原因并不写回报告，以退出码 `1` 结束（即视为未通过）。此时需回到步骤 3b 修正草稿、重新生成报告，再重新执行本步骤脚本。
 
-**5e. 元信息标注核对（interface/class 区分 + 装饰器 + struct 排除）**
+**5d. 已定稿报告复核**
 
-```bash
-# 预计算期望值
-NON_STRUCT_CLASS=$(grep -cE "^### 3\.\d+ .*[^（struct 组件）]$" {{reportPath}})
-
-echo "NON_STRUCT_CLASS=$NON_STRUCT_CLASS"
-```
-
-| 核对项 | grep 命令 | 期望 |
-|--------|-----------|------|
-| interface 标注 | `grep -c "(interface)" {{reportPath}}` | == I |
-| class 标注 | `grep -c "(class)" {{reportPath}}` | ≥ `$NON_STRUCT_CLASS` |
-| struct 标题标注 | `grep -c "（struct 组件）" {{reportPath}}` | == struct 组件数 |
-| 无遗漏方法 | `grep -cE "aboutToAppear\|aboutToDisappear" {{reportPath}}` | == 0 |
-| 组件装饰器表 | `grep -cE "^\| \w+\s+\|" {{reportPath}}`（第 5 章数据行） | == struct 组件数 |
-
-> 若某项不通过，回到步骤 3b 补充草稿后重新生成报告，再执行步骤 5。
-
-**5f. 补写摘要行并标记成功**
-
-所有校验通过后，用 `sed` 替换报告中的占位文本：
-
-> 以下 sed 命令为 GNU sed 语法；macOS 需加 `-i ''`（如 `sed -i '' "s/..."`），或改用 `perl -i -pe 's/.../.../'` 替代。
-
-```bash
-# 构造摘要行
-SUMMARY="> **ArkTS 导出项类级条目数 S = $S（类 $C + 接口 $I + 函数 $F + 变量 $V），枚举 $E（不计入接口统计），方法级接口总数 N = $N，Native 导出 M = $M**"
-
-# 替换 {PENDING} 为正确数值
-sed -i "s/^> \*\*{PENDING}\*\*/$SUMMARY/" {{reportPath}}
-
-# 标注状态: 成功
-sed -i "s/{PENDING}/状态: 成功/" {{reportPath}}
-
-echo "验证通过: S=$S N=$N M=$M E=$E"
-```
-
-> **验证未全部通过前，禁止执行 5f。** 若 grep 数量与步骤 3d 清单条目数不一致，以 grep 为准，检查报告是否有遗漏或多余的表格行。
+若报告已定稿（无 `{PENDING}`），脚本仅做只读统计并校对现有摘要行的数值是否与计算值一致，**不写回文件**，避免破坏已定稿报告。核对不一致时脚本会 FAIL 并提示修正。
 
 ---
 
@@ -396,4 +342,6 @@ echo "验证通过: S=$S N=$N M=$M E=$E"
 2. **保留原始类型语法**：ArkTS 泛型、联合类型、交叉类型等保留原始写法，不简化；类型不明确时标注为 `any` 或 `unknown`
 3. **Native 导出识别**：`export * from '*.so'` → 读取 `index.d.ets`，归入「Native 模块导出」独立章节，**不计入 ArkTS 接口总数**
 4. **仓库准备与克隆失败处理**：步骤 0 优先复用工作目录下已存在的同名仓库（含 `.git` 或 library 模块的目录），避免重复克隆。若工作目录下不存在可用仓库且 git clone 所有方式均失败，在报告中说明原因并标注 `状态: 失败`，终止后续步骤
-5. **grep 驱动计数**：步骤 3d 不填数量，步骤 4 用 `{PENDING}` 占位，步骤 5 用 grep 精确统计后补写摘要行。{N} 为方法级总数，下游 Skills 覆盖率计算基于此值。
+5. **脚本驱动计数**：步骤 3d 不填数量，步骤 4 用 `{PENDING}` 占位，步骤 5 调用 `{{skillDir}}/scripts/count-report.cjs` 精确统计后补写摘要行。{N} 为方法级总数，下游 Skills 覆盖率计算基于此值。
+6. **内部类方法计入与枚举排除**：导出类通过 `static` 属性暴露的内部类（如 Builder）的公开方法计入接口表格；枚举章节行不计入 N（见步骤 5 的 E 排除逻辑）。
+7. **无修饰符成员与箭头函数属性默认 public，须计入**：提取公开成员时不得只认显式 `public`。类内不带 `private`/`protected`/`internal` 的成员（含 `mXxx` 字段、`static` 方法、箭头函数字段属性如 `callback = (data) => {...}`）均默认 public，必须计入接口表格；提取完成后须回源码逐成员比对，确认无遗漏后再进入步骤 4。
