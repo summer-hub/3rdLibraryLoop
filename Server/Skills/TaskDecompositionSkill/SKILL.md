@@ -213,6 +213,46 @@ failStepId → 失败后跳转到哪个步骤（0 = 失败即终止）
 
 描述必须包含：具体操作（git clone/扫描/编译/测试）、操作对象（库名/文件路径）、预期输出（报告文件名/状态标记）。
 
+#### RN 三方库框架升级适配的推荐 SKILL 标注
+
+当任务命中「RN 三方库框架升级适配」领域模板时，每个步骤的 `taskDescription` 末尾应追加一句推荐执行 SKILL 的提示，格式为`推荐使用 {SKILL目录名} SKILL 执行。`。无对应专用 SKILL 的步骤（如克隆仓库、设备部署等通用操作）无需追加。已知映射：
+
+| 步骤职责 | 推荐 SKILL | SKILL 说明 |
+|----------|----------|----------|
+| 版本差异分析 | `rnoh-lib-version-diff` | 版本分析与差异生成 |
+| 代码适配与编译验证 | `rnoh-lib-code-adapt` | 代码适配与编译验证 |
+| 测试对齐与补全 | `rnoh-lib-test-align` | 测试对齐与补全 |
+| 功能测试总结 | `rnoh-lib-func-test` | 功能测试验证指引 |
+
+#### 有推荐 SKILL 时步骤描述精简规则
+
+> ⚠️ **核心原则：有推荐 SKILL 的步骤，`taskDescription` 只需描述任务目标与关键参数（版本号/分支名/库名），技术执行细节由 SKILL 承载，不需要在步骤描述中重复。**
+
+当某步骤有对应的推荐 SKILL 时，`taskDescription` 应遵循以下精简模式：
+
+1. **一句话描述任务目标** — 做什么、预期产出是什么
+2. **保留关键参数锚定** — 版本号、分支名、库名等 `keyParameters` 中的值必须出现（参数一致性校验要求）
+3. **末尾追加 SKILL 推荐** — `推荐使用 {SKILL目录名} SKILL 执行。`
+4. **不重复 SKILL 内的技术细节** — 如脚本名、编译步骤、适配层级、具体命令等，这些由 SKILL 自身描述
+
+**精简前（冗长，错误）：**
+```
+执行 detect-upstream-version.js 脚本识别鸿蒙化基线版本号与 npm 上游最新版本号，判定升级类型 A/B/C；
+如为类型 A 使用 generate-diff.js 对比上游社区仓库两个版本标签（注意 --repo 必须是上游社区仓库 URL，
+不是鸿蒙化仓库 URL）；如为类型 B 跳过 diff 生成，聚焦 RNOH 0.82→0.84 框架 API 变更对比；
+执行 git ls-remote --heads 检查 br_rnoh0.84 分支是否存在，如无则标注需从 0.82 基线升级；
+输出版本分析报告，包含 currentVersion、upstreamVersion、diffItems、风险等级字段。
+推荐使用 rnoh-lib-version-diff SKILL 执行。
+```
+
+**精简后（正确）：**
+```
+对 rntpc_react-native-netinfo 进行版本差异分析，对比 br_rnoh0.82 基线版本与 0.84 目标版本的差异，
+检查 br_rnoh0.84 分支是否存在，输出版本分析报告。推荐使用 rnoh-lib-version-diff SKILL 执行。
+```
+
+> 无推荐 SKILL 的步骤（如克隆仓库、设备部署等通用操作）仍需在 `taskDescription` 中写明具体操作步骤，因为这些操作没有 SKILL 承载细节。
+
 ---
 
 ## Phase 3：步骤级验收标准生成
@@ -390,3 +430,4 @@ node scripts/validate-param-consistency.cjs <resultFile>
 6. **输出纯 JSON** — 下游有容错机制但应输出纯 JSON，不依赖容错
 7. **步骤级 AC 实际由 AcceptanceCheckSkill 消费** — Orchestrator 仅消费图字段调度，步骤级 AC 通过产物文件传递给 AcceptanceCheckSkill 评估
 8. **关键参数逐字保真** — 版本号、分支名、仓库 URL、库名等关键参数必须从任务描述中原样提取到 `keyParameters`，步骤描述中引用时必须与 `keyParameters` 一致。LLM 生成时易将版本号臆造为相似但错误的值（如 `0.82`→`0.72`），由 `validate-param-consistency.cjs` 强制拦截
+9. **RN 三方库升级步骤描述追加推荐 SKILL** — 当任务命中「RN 三方库框架升级适配」领域模板时，每个步骤的 `taskDescription` 末尾追加`推荐使用 {SKILL目录名} SKILL 执行。`，帮助 SkillSelector 更精准匹配执行 SKILL（详见 Phase 2.4）

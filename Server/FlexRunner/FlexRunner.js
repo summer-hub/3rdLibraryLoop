@@ -118,8 +118,8 @@ const DEFAULT_MAX_RETRIES = 3;
 /** 轮询间隔（ms），用于等待 opencode session 执行完成 */
 const POLL_INTERVAL_MS = 5000;
 
-/** 轮询超时（ms），单个步骤最多等待 10 分钟 */
-const POLL_TIMEOUT_MS = 30 * 60 * 1000;
+/** 轮询超时（ms），单个步骤最多等待 1.5 小时 */
+const POLL_TIMEOUT_MS = 90 * 60 * 1000;
 
 // ─── FlexRunner 类 ──────────────────────────────────────────────────────────
 
@@ -428,7 +428,7 @@ class FlexRunner {
      *
      * 文件命名（按大循环轮次 + 步骤内重试次数区分）：
      *   - 结果文件: stepId{actualStepId}_loop{bigLoopIndex}_result_{retryCount}.md
-     *   - 摘要文件: stepId{actualStepId}_loop{bigLoopIndex}_Summary_{retryCount}.md
+     *   - 经验文件: stepId{actualStepId}_loop{bigLoopIndex}_Summary_{retryCount}.md
      *
      * 控制信号（pause/resume/abort）在步骤边界检查，非实时。
      *
@@ -480,7 +480,7 @@ class FlexRunner {
                 `stepId${this.#stepId}_loop${this.#bigLoopIndex}_Summary_${loopCount}.md`
             );
 
-            // ── 收集历史执行文档（第 N 次执行时传入之前的结果/摘要） ──
+            // ── 收集历史执行文档（第 N 次执行时传入之前的结果/经验） ──
             const historyDocs = await this._collectHistoryDocs(loopCount);
 
             // ── 步骤 2：invokeSkill（生成 result .md） ──
@@ -620,7 +620,7 @@ class FlexRunner {
      *
      * 流程：
      *   1. 创建 opencode Session（标题=taskId+stepId+loopCount）
-     *   2. 发送初始 prompt（任务描述 + SKILL 目录 + 报告路径 + 结果/摘要文件路径）
+     *   2. 发送初始 prompt（任务描述 + SKILL 目录 + 报告路径 + 结果/经验文件路径）
      *      — skillDir 为 null 时，prompt 不包含 SKILL 目录，改为基于任务描述直接执行
      *   3. 轮询 Session 状态直到完成或超时
      *   4. 记录 sessionId
@@ -632,9 +632,9 @@ class FlexRunner {
      * @param {string} taskDescription   - 任务描述字符串
      * @param {string|null} skillDir     - 选定的 SKILL 目录路径；null 表示无 SKILL 模式
      * @param {string} [reportPath]      - 输入报告路径（可选）
-     * @param {object} [filePaths]       - 结果/摘要文件路径
+     * @param {object} [filePaths]       - 结果/经验文件路径
      * @param {string} [filePaths.resultFilePath]  - 结果文件输出路径
-     * @param {string} [filePaths.summaryFilePath] - 摘要文件输出路径
+     * @param {string} [filePaths.summaryFilePath] - 经验文件输出路径
      * @returns {Promise<boolean>} 是否成功
      */
     async invokeSkill(taskDescription, skillDir, reportPath, filePaths = {}) {
@@ -692,7 +692,7 @@ class FlexRunner {
     }
 
     /**
-     * persistKnowledge — 读取摘要文件，将有效经验存入任务。
+     * persistKnowledge — 读取经验文件，将有效经验存入任务。
      *
      * 读取 Summary .md 文件内容，将其作为经验知识记录到 TaskStepStore，
      * 并登记到知识沉淀系统（KnowledgeManager）。
@@ -709,7 +709,7 @@ class FlexRunner {
      *
      * 静默失败：持久化失败不影响主流程。
      *
-     * @param {string} summaryFilePath - 摘要文件路径
+     * @param {string} summaryFilePath - 经验文件路径
      * @returns {Promise<boolean>} 是否成功
      */
     async persistKnowledge(summaryFilePath) {
@@ -738,9 +738,9 @@ class FlexRunner {
 
         try {
             const content = await fs.readFile(summaryFilePath, 'utf-8');
-            this._log('info', `persistKnowledge: 已读取摘要文件 (${content.length} 字符)`);
+            this._log('info', `persistKnowledge: 已读取经验文件 (${content.length} 字符)`);
 
-            // 1. 将摘要内容持久化到步骤记录
+            // 1. 将经验内容持久化到步骤记录
             await this._persistStep({ knowledgeSummary: content });
             this._log('info', 'persistKnowledge: 经验已持久化到步骤记录');
 
@@ -768,7 +768,7 @@ class FlexRunner {
 
             return true;
         } catch (err) {
-            this._log('warn', `persistKnowledge: 处理摘要文件失败: ${summaryFilePath} — ${err.message}`);
+            this._log('warn', `persistKnowledge: 处理经验文件失败: ${summaryFilePath} — ${err.message}`);
             return false;
         }
     }
@@ -1066,9 +1066,9 @@ class FlexRunner {
      * @param {string} taskDescription - 任务描述
      * @param {string} skillDir        - SKILL 目录
      * @param {string} [reportPath]    - 输入报告路径
-     * @param {object} [filePaths]     - 结果/摘要文件路径
+     * @param {object} [filePaths]     - 结果/经验文件路径
      * @param {string} [filePaths.resultFilePath]  - 结果文件输出路径
-     * @param {string} [filePaths.summaryFilePath] - 摘要文件输出路径
+     * @param {string} [filePaths.summaryFilePath] - 经验文件输出路径
      * @returns {string} 拼接后的 prompt 文本
      * @private
      */
@@ -1092,7 +1092,7 @@ class FlexRunner {
                 parts.push(`## 结果文件输出路径\n${filePaths.resultFilePath}`);
             }
             if (filePaths.summaryFilePath) {
-                parts.push(`## 摘要文件输出路径\n${filePaths.summaryFilePath}`);
+                parts.push(`## 经验文件输出路径\n${filePaths.summaryFilePath}`);
             }
             // 历史结果文档路径（第 N 次执行时传入之前的 result .md 路径，不传内容）
             if (filePaths.historyDocs && filePaths.historyDocs.length > 0) {
@@ -1105,7 +1105,7 @@ class FlexRunner {
             }
             parts.push(
                 '请按照 SKILL 中的指令执行任务。',
-                '执行完成后，请将结果写入上述"结果文件输出路径"，并在"摘要文件输出路径"写入摘要。',
+                '执行完成后，请将结果写入上述"结果文件输出路径"，并在"经验文件输出路径"写入经验总结。',
                 '结果文件需包含 `## 执行状态` 字段（值为 `成功` 或 `失败`），用于判断执行结果。',
                 '',
                 '## 经验沉淀判断（重要）',
@@ -1115,11 +1115,11 @@ class FlexRunner {
                 '- 这些经验对未来类似的任务有明确的参考价值',
                 '- 不是简单的执行流水账或重复的通用知识',
                 '',
-                '如果存在有价值的经验，请将经验总结写入上述"摘要文件输出路径"（如果路径已提供），',
-                '经验摘要文件应包含：关键发现、踩坑记录、解决方案、可复用建议等。',
+                '如果存在有价值的经验，请将经验总结写入上述"经验文件输出路径"（如果路径已提供），',
+                '经验经验文件应包含：关键发现、踩坑记录、解决方案、可复用建议等。',
                 '',
-                '## 经验分类（必须在摘要文件末尾输出）',
-                '在摘要文件末尾附上以下经验分类块，用于标记本次经验的归属类型：',
+                '## 经验分类（必须在经验文件末尾输出）',
+                '在经验文件末尾附上以下经验分类块，用于标记本次经验的归属类型：',
                 '```',
                 '## 经验分类',
                 '- 沉淀类型: skill优化 | 知识库 | 无',
@@ -1127,12 +1127,12 @@ class FlexRunner {
                 '- 优化建议: <对当前SKILL的具体修改/新增点，skill优化类必填>',
                 '```',
                 '字段说明：',
-                '- 沉淀类型：三选一。skill优化=当前SKILL有可改进之处（检查项缺失/规则错误/可复用模式未被覆盖）；知识库=通用领域经验，与具体SKILL逻辑无关；无=无有价值经验，此时不生成摘要文件。',
+                '- 沉淀类型：三选一。skill优化=当前SKILL有可改进之处（检查项缺失/规则错误/可复用模式未被覆盖）；知识库=通用领域经验，与具体SKILL逻辑无关；无=无有价值经验，此时不生成经验文件。',
                 '- 适用SKILL：仅 skill优化 类必填，填上面注入的当前 step 调用 SKILL 的路径，原样保留不要改动。',
                 '- 优化建议：仅 skill优化 类必填，描述对当前SKILL的具体修改/新增点（如"新增 XX 检查项"、"修正 YY 规则"）。',
                 '',
-                '如果没有有价值的经验可沉淀（如任务过于简单、未发现新的经验），则**不需要生成摘要文件**。',
-                '请勿创建空文件或无实质内容的摘要文件。'
+                '如果没有有价值的经验可沉淀（如任务过于简单、未发现新的经验），则**不需要生成经验文件**。',
+                '请勿创建空文件或无实质内容的经验文件。'
             );
         } else {
             // ── 无 SKILL：基于任务描述本身直接执行 ──
@@ -1143,7 +1143,7 @@ class FlexRunner {
                 parts.push(`## 结果文件输出路径\n${filePaths.resultFilePath}`);
             }
             if (filePaths.summaryFilePath) {
-                parts.push(`## 摘要文件输出路径（可选）\n${filePaths.summaryFilePath}`);
+                parts.push(`## 经验文件输出路径（可选）\n${filePaths.summaryFilePath}`);
             }
             // 历史结果文档路径（第 N 次执行时传入之前的 result .md 路径，不传内容）
             if (filePaths.historyDocs && filePaths.historyDocs.length > 0) {
@@ -1166,11 +1166,11 @@ class FlexRunner {
                 '- 这些经验对未来类似的任务有明确的参考价值',
                 '- 不是简单的执行流水账或重复的通用知识',
                 '',
-                '如果存在有价值的经验，请将经验总结写入上述"摘要文件输出路径"（如果路径已提供），',
-                '经验摘要文件应包含：关键发现、踩坑记录、解决方案、可复用建议等。',
+                '如果存在有价值的经验，请将经验总结写入上述"经验文件输出路径"（如果路径已提供），',
+                '经验经验文件应包含：关键发现、踩坑记录、解决方案、可复用建议等。',
                 '',
-                '## 经验分类（必须在摘要文件末尾输出）',
-                '在摘要文件末尾附上以下经验分类块，用于标记本次经验的归属类型：',
+                '## 经验分类（必须在经验文件末尾输出）',
+                '在经验文件末尾附上以下经验分类块，用于标记本次经验的归属类型：',
                 '```',
                 '## 经验分类',
                 '- 沉淀类型: skill优化 | 知识库 | 无',
@@ -1178,12 +1178,12 @@ class FlexRunner {
                 '- 优化建议: <skill优化类必填，但本次无SKILL，通常填"无">',
                 '```',
                 '字段说明：',
-                '- 沉淀类型：三选一。skill优化=需为某个SKILL沉淀优化建议；知识库=通用领域经验，与具体SKILL逻辑无关；无=无有价值经验，此时不生成摘要文件。',
+                '- 沉淀类型：三选一。skill优化=需为某个SKILL沉淀优化建议；知识库=通用领域经验，与具体SKILL逻辑无关；无=无有价值经验，此时不生成经验文件。',
                 '- 适用SKILL：本次未匹配到 SKILL，此处标记"无"。若沉淀类型为 skill优化，请在优化建议中注明建议沉淀到哪个 SKILL（如期望新增或修改的 SKILL 名称）。',
                 '- 优化建议：仅 skill优化 类必填，描述建议新建或修改的 SKILL 的具体点。',
                 '',
-                '如果没有有价值的经验可沉淀（如任务过于简单、未发现新的经验），则**不需要生成摘要文件**。',
-                '请勿创建空文件或无实质内容的摘要文件。'
+                '如果没有有价值的经验可沉淀（如任务过于简单、未发现新的经验），则**不需要生成经验文件**。',
+                '请勿创建空文件或无实质内容的经验文件。'
             );
         }
 

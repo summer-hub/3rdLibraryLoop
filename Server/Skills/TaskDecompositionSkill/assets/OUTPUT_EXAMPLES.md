@@ -321,3 +321,127 @@
 ---
 
 > **keyParameters 字段说明**：所有示例均在 `steps` 之前包含 `keyParameters` 字段，由 Phase 1.4 从任务描述中提取版本号、分支名、仓库 URL、库名。步骤描述中引用这些参数时必须与 `keyParameters` 中的值逐字一致，由 `validate-param-consistency.cjs` 强制校验。若任务描述中不含某类参数（如无版本号），对应数组留空 `[]` 即可。
+
+---
+
+## 示例 4：RN 三方库框架升级适配（含推荐 SKILL 标注）
+
+> 该示例展示「RN 三方库框架升级适配」领域模板的标准 6 步拆解。**有推荐 SKILL 的步骤（2/3/4/6）`taskDescription` 只描述任务目标与关键参数，技术细节由 SKILL 承载；无推荐 SKILL 的步骤（1/5）仍写明具体操作。**
+
+```json
+{
+  "keyParameters": {
+    "versionNumbers": ["0.82", "0.84", "19.2"],
+    "branchNames": ["br_rnoh0.82", "br_rnoh0.84"],
+    "repoUrls": [
+      "https://gitcode.com/CPF-RN/rntpc_react-native-netinfo/tree/br_rnoh0.82",
+      "https://gitcode.com/CPF-RN/rntpc_react-native-netinfo"
+    ],
+    "libraryNames": ["rntpc_react-native-netinfo", "react-native-netinfo"]
+  },
+  "steps": [
+    {
+      "stepId": 1,
+      "taskDescription": "从 https://gitcode.com/CPF-RN/rntpc_react-native-netinfo/tree/br_rnoh0.82 克隆 br_rnoh0.82 分支到工作目录；克隆后执行 git branch --show-current 确认当前分支为 br_rnoh0.82；执行 ls 确认目录结构包含 package.json、src/、harmony/ 三部分；输出克隆与结构验证记录。",
+      "dependId": 0,
+      "nextStepId": 2,
+      "failStepId": 0,
+      "maxRetries": 3,
+      "acceptanceCriteria": [
+        {
+          "id": "ac1_1",
+          "criterion": "仓库已克隆到工作目录，当前分支为 br_rnoh0.82",
+          "type": "output",
+          "verification": "在工作目录执行 git branch --show-current，输出为 br_rnoh0.82",
+          "taskACIds": ["ac1"]
+        }
+      ]
+    },
+    {
+      "stepId": 2,
+      "taskDescription": "对 rntpc_react-native-netinfo 进行版本差异分析，对比 br_rnoh0.82 基线版本与 0.84 目标版本的差异，检查 br_rnoh0.84 分支是否存在，输出版本分析报告。推荐使用 rnoh-lib-version-diff SKILL 执行。",
+      "dependId": 1,
+      "nextStepId": 3,
+      "failStepId": 0,
+      "maxRetries": 3,
+      "acceptanceCriteria": [
+        {
+          "id": "ac2_1",
+          "criterion": "版本分析报告已生成且 JSON.parse 成功",
+          "type": "output",
+          "verification": "检查版本分析报告文件存在且可被 JSON.parse 解析",
+          "taskACIds": ["ac2"]
+        }
+      ]
+    },
+    {
+      "stepId": 3,
+      "taskDescription": "对 rntpc_react-native-netinfo 进行 0.82→0.84 框架升级代码适配与编译验证，输出适配变更清单。推荐使用 rnoh-lib-code-adapt SKILL 执行.",
+      "dependId": 2,
+      "nextStepId": 4,
+      "failStepId": 0,
+      "maxRetries": 3,
+      "acceptanceCriteria": [
+        {
+          "id": "ac3_1",
+          "criterion": "package.json 中框架依赖版本已升级到目标版本",
+          "type": "compliance",
+          "verification": "读取 package.json 检查 react/react-native/@react-native-oh/react-native-harmony 版本号匹配",
+          "taskACIds": ["ac3"]
+        }
+      ]
+    },
+    {
+      "stepId": 4,
+      "taskDescription": "对 rntpc_react-native-netinfo 移植上游测试 demo 并执行测试验证，补充缺失测试用例，输出测试结果。推荐使用 rnoh-lib-test-align SKILL 执行.",
+      "dependId": 3,
+      "nextStepId": 5,
+      "failStepId": 0,
+      "maxRetries": 3,
+      "acceptanceCriteria": [
+        {
+          "id": "ac4_1",
+          "criterion": "jest 测试已执行并输出通过率与覆盖率数据",
+          "type": "quality",
+          "verification": "执行 jest 测试，检查输出含通过率与覆盖率数据",
+          "taskACIds": ["ac8"]
+        }
+      ]
+    },
+    {
+      "stepId": 5,
+      "taskDescription": "确保 build-profile.json5 中 signingConfigs 已配置且非空；构建产出 entry-default-signed.hap（已签名），确认 size > 0；部署到设备获取 UI 树 JSON grep 搜索 netinfo 关键词命中；获取 hilog 按 level=F/E 过滤确认无崩溃；输出设备验证记录。",
+      "dependId": 4,
+      "nextStepId": 6,
+      "failStepId": 0,
+      "maxRetries": 3,
+      "acceptanceCriteria": [
+        {
+          "id": "ac5_1",
+          "criterion": "entry-default-signed.hap 签名构建产物已生成且 size > 0",
+          "type": "output",
+          "verification": "检查构建产物路径下 entry-default-signed.hap 存在，ls -l 显示 size > 0",
+          "taskACIds": ["ac6"]
+        }
+      ]
+    },
+    {
+      "stepId": 6,
+      "taskDescription": "基于适配变更清单与设备验证记录，对 rntpc_react-native-netinfo 生成功能测试 checklist 与 fix-summary.json，标注高风险场景。推荐使用 rnoh-lib-func-test SKILL 执行.",
+      "dependId": 5,
+      "nextStepId": 0,
+      "failStepId": 0,
+      "maxRetries": 3,
+      "acceptanceCriteria": [
+        {
+          "id": "ac6_1",
+          "criterion": "fix-summary.json 独立文件已生成且 JSON.parse 成功",
+          "type": "output",
+          "verification": "检查 fix-summary.json 独立存在，对其执行 JSON.parse 成功",
+          "taskACIds": ["ac8"]
+        }
+      ]
+    }
+  ]
+}
+```
