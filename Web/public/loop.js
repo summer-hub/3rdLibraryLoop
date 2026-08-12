@@ -94,7 +94,7 @@ function renderLoopList() {
 
 /* ─── 任务选择 & 数据加载 ────────────────────────────────────────────── */
 async function selectLoop(taskId) {
-    State.selectedTaskId = taskId; State.selectedStepId = null; State.selectedLoop = null;
+    State.selectedTaskId = taskId; State.selectedStepId = null; State.selectedLoop = null; State._convRenderedStep=null;
     stopPolling(); renderLoopList();
     await loadAllData(taskId); connectSSE(taskId);
 }
@@ -462,15 +462,22 @@ function initGraphInteraction() {
 }
 
 /* ─── 步骤选择 & 详情面板 ────────────────────────────────────────────── */
-function selectStep(stepId) { State.selectedStepId=stepId; renderGraph(); renderDetailPanel(); }
+function selectStep(stepId) { State.selectedStepId=stepId; State._convRenderedStep=null; renderGraph(); renderDetailPanel(); }
 
 function getStep() { if(!State.orchProgress||!State.selectedStepId) return null; return State.orchProgress.steps.find(function(s){return String(s.stepId)===String(State.selectedStepId);}); }
 
 function renderDetailPanel() {
     var s=getStep();
     if (!s) { $('detailContent').innerHTML='<div class="detail-empty">请选择一个步骤节点</div>'; return; }
+    // 对话 tab 内容由用户手动获取消息，SSE 触发的重渲染不应冲掉已有内容
+    // 仅在步骤切换或 tab 切换时重建对话面板
+    if (State.activeDetailTab==='conversation') {
+        if (State._convRenderedStep === String(s.stepId) && $('msgList')) return;
+        State._convRenderedStep = String(s.stepId);
+        renderConversationTab(s);
+        return;
+    }
     if (State.activeDetailTab==='detail') renderDetailTab(s);
-    else if (State.activeDetailTab==='conversation') renderConversationTab(s);
     else if (State.activeDetailTab==='control') renderControlTab(s);
     else if (State.activeDetailTab==='files') renderFilesTab(s);
 }
@@ -820,7 +827,7 @@ document.querySelectorAll('.main-tab').forEach(function(tab){
 document.querySelectorAll('.detail-tab').forEach(function(tab){
     tab.onclick=function(){
         document.querySelectorAll('.detail-tab').forEach(function(t){t.classList.remove('active');});
-        tab.classList.add('active'); State.activeDetailTab=tab.dataset.tab; renderDetailPanel();
+        tab.classList.add('active'); State.activeDetailTab=tab.dataset.tab; State._convRenderedStep=null; renderDetailPanel();
     };
 });
 

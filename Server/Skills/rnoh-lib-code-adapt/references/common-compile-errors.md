@@ -12,6 +12,8 @@
 | C++ 链接错误 | `undefined reference` | 中 |
 | Codegen 产物缺失 | `file not found` (生成的头文件) | 中 |
 | ohpm install 缺失 | `not an existing directory` (CMake) | 中（运行 ohpm install 即可） |
+| HAR 不在 tgz 中 | `npm pack --dry-run` 无 `.har` 输出 | 中（package.json files 加 harmony/） |
+| rnoh-build-har 失败 | HAR 构建报错 | 中（检查 SDK 版本、ohpm 依赖） |
 | SDK 版本不匹配 | `SDK component missing` | 中（移除 compileSdkVersion 即可） |
 | RNOH 框架内部警告 | `deprecated`、`not supported on all devices` | 低（无需修复，是 WARNING） |
 | peer dependency 冲突 | `ERESOLVE` | 低（用 --legacy-peer-deps 绕过） |
@@ -330,37 +332,55 @@ RNOH 框架内部代码使用了部分 deprecated API 或高版本 API。这是*
 
 ## 编译验证流程
 
-### 完整验证步骤
+### 完整验证步骤（HAR → TGZ → 依赖 tgz 编译）
 
 ```bash
-# 1. 清理
-rm -rf node_modules harmony/entry/src/main/cpp/generated
+# ── 前提：代码适配已完成 ──
 
-# 2. 安装 JS 依赖
+# 1. 单文件语法检查
+devecocli check lint harmony/src/main/ets/
+devecocli check lint harmony/src/main/cpp/
+
+# 2. 打 HAR 包（使用 rnoh-build-har 工具）
+cd /path/to/react-native-xxx
+rnoh-build-har 17 0.84.2 .
+# 产出: harmony/xxx.har
+
+# 3. 打 TGZ 包
+npm pack
+# 产出: react-native-ohos-react-native-xxx-<version>.tgz
+
+# 4. RN 工程依赖本地 tgz 包
+cd example
+# 编辑 package.json: "file:../react-native-ohos-react-native-xxx-<version>.tgz"
+rm -rf node_modules/@react-native-ohos/react-native-xxx
 npm install --legacy-peer-deps
 
-# 3. Codegen
+# 5. Codegen + JS Bundle
 npm run codegen
-
-# 4. JS Bundle
 npm run dev
 
-# 5. 安装鸿蒙原生依赖（关键！不可跳过）
-cd example/harmony && ohpm install
+# 6. 安装鸿蒙原生依赖（关键！不可跳过）
+cd harmony && ohpm install
 
-# 6. 原生构建（推荐 devecocli）
-cd example/harmony && devecocli build --product default --build-mode debug
+# 7. 原生构建（依赖 tgz 包）
+devecocli build --product default --build-mode debug
 ```
+
+> ⚠️ **最终验证必须依赖 tgz 包**，不能依赖源码 `file:` 目录引用。详见 [har-tgz-build.md](har-tgz-build.md)。
 
 ### 渐进式验证
 
 如果一次性修复太多错误难以定位，可以分步验证：
 
-1. 先只修 package.json 版本升级，`npm install` 通过
-2. 再修 codegen，`npm run codegen` 通过
-3. 再修 JS Bundle，`npm run dev` 通过
-4. 运行 `cd example/harmony && ohpm install`，确保 har 包安装到 `oh_modules/`
-5. 最后修原生编译，`devecocli build` 通过
+1. `devecocli check lint` 通过 — 确认无语法错误
+2. `rnoh-build-har` 通过 — 确认 HAR 包构建成功
+3. `npm pack --dry-run` 通过 — 确认 tgz 包含 HAR 文件
+4. `npm install` 通过 — 确认 tgz 包正确安装
+5. `npm run codegen` 通过 — 确认 codegen 产物正确
+6. `npm run dev` 通过 — 确认 JS Bundle 构建成功
+7. `ohpm install` 通过 — 确认 har 包安装到 oh_modules
+8. `devecocli build` 通过 — 确认原生编译成功
 
 ---
 
@@ -427,3 +447,110 @@ import { XxxPackage } from '@react-native-ohos/xxx';
 - ❌ 将 `ts.ets` 改名为 `ts.ts` — TS 文件不能导入 ArkTS(.ets) 文件（`Importing ArkTS files in JS and TS files is forbidden`）
 - ❌ 删除 `ts.ets` 并在 `index.ets` 中直接 export — 会导致 `Failed to resolve OhmUrl for index.ets`
 - ❌ 在 `build-profile.json5` 中用符号链接路径 `./entry/oh_modules/@react-native-ohos/xxx` 作为 srcPath — hvigor 报 `Path not found`
+
+---
+
+## 十二、HAR / TGZ 打包相关错误
+
+### 12.1 rnoh-build-har 构建失败
+
+#### SDK 版本不匹配
+
+```
+hvigor ERROR: SDK component missing.
+```
+
+**修复**：通过 `api-version` 参数指定正确的 API 版本，或移除库 `build-profile.json5` 中的 `compileSdkVersion`：
+```bash
+# 指定 API 版本
+rnoh-build-har 17 0.84.2 .
+
+# 或移除 compileSdkVersion 后重新构建
+rnoh-build-har .
+```
+
+#### ohpm 依赖未安装
+
+```
+CMake Error: not an existing directory
+.../oh_modules/@rnoh/react-native-openharmony/src/main/cpp
+```
+
+**修复**：使用 `rnoh-version` 参数让工具自动从 ohpm 拉取 RNOH，或确保本地 `node_modules` 中有 RNOH HAR：
+```bash
+# 方式1：指定 RNOH ohpm 版本
+rnoh-build-har 0.84.2 .
+
+# 方式2：先 npm install 再构建
+npm install --legacy-peer-deps
+rnoh-build-har .
+```
+
+### 12.2 TGZ 包不含 HAR 文件
+
+#### 症状
+
+```bash
+$ npm pack --dry-run | grep '\.har'
+# 无输出 — HAR 文件未包含在 tgz 中
+```
+
+#### 原因
+
+`package.json` 的 `files` 字段未包含 `harmony/` 目录。
+
+#### 修复
+
+```json
+{
+  "files": [
+    "src",
+    "harmony",
+    "README.md"
+  ]
+}
+```
+
+### 12.3 tgz 依赖安装后找不到 HAR
+
+#### 症状
+
+example 工程编译时找不到库的 HAR 文件：
+```
+ohpm ERROR: File not found: .../node_modules/@react-native-ohos/xxx/harmony/xxx.har
+```
+
+#### 原因
+
+tgz 包中确实不含 HAR（见 12.2），或 oh-package.json5 中 HAR 引用路径错误。
+
+#### 修复
+
+1. 确认 tgz 包含 HAR：`npm pack --dry-run | grep '\.har'`
+2. 确认 `oh-package.json5` 中引用路径正确：
+   ```json5
+   // 从 tgz 安装后，HAR 在 node_modules/@react-native-ohos/xxx/harmony/xxx.har
+   "@react-native-ohos/xxx": "file:./xxx.har"
+   ```
+3. 重新打 tgz 包并安装
+
+### 12.4 源码 file: 依赖迁移到 tgz 依赖后路径变更
+
+#### 症状
+
+从源码 `file:../rntpc_xxx` 改为 tgz `file:../xxx.tgz` 后，oh-package.json5 中的 HAR 路径失效。
+
+#### 原因
+
+源码依赖时 HAR 在 `../rntpc_xxx/harmony/xxx.har`，tgz 依赖后 HAR 在 `node_modules/@react-native-ohos/xxx/harmony/xxx.har`。
+
+#### 修复
+
+更新 `oh-package.json5` 中的 HAR 引用路径：
+```json5
+// 旧（源码依赖）
+"@react-native-ohos/xxx": "file:../../rntpc_xxx/harmony/xxx.har"
+
+// 新（tgz 依赖）
+"@react-native-ohos/xxx": "file:../../node_modules/@react-native-ohos/xxx/harmony/xxx.har"
+```
