@@ -864,10 +864,16 @@ class FlexRunner {
     /**
      * checkResult — 读取结果文件，判断执行是否成功。
      *
-     * 读取 result .md 文件内容，查找 `## 执行状态` 标题下的值：
-     *   - `成功` → 返回 true
-     *   - `失败` → 返回 false
-     *   - 文件不存在或无法解析 → 返回 false
+     * 兼容 SKILL 产物中多种执行状态标记格式（按优先级匹配）：
+     *   1. 标题下独立行：`## 执行状态` 下一行为 `成功` / `失败`
+     *   2. 标题内联：`## 执行状态: 成功` / `## 执行状态：失败`
+     *   3. 末尾 `状态:` 行：文件末尾附近 `状态: 成功` / `状态: 失败`
+     *      （如 ArkTsLibraryInterfaceSpecSkill 的 count-report.cjs 写回格式）
+     *
+     * 状态值归一化：`成功` 判 true；`失败` 判 false；
+     * 已知中间态（`部分通过` / `源库构建问题` / `环境不可用` / `设备不可用`）
+     * 视为成功（产物已完成，非失败），记录 warn 日志；
+     * 其他未知状态值视为无法解析 → false。
      *
      * @param {string} resultFilePath - 结果文件路径
      * @returns {Promise<boolean>} 执行是否成功
@@ -883,20 +889,77 @@ class FlexRunner {
         try {
             const content = await fs.readFile(resultFilePath, 'utf-8');
 
-            // 匹配 `## 执行状态` 标题下的内容
-            const match = content.match(/##\s*执行状态\s*\n\s*(成功|失败)/i);
-            if (!match) {
-                this._log('warn', `checkResult: 结果文件中未找到有效的"## 执行状态"字段: ${resultFilePath}`);
-                return false;
+            // 1. 标题下独立行：`## 执行状态` 下一行为状态值（可能带 - / * / > 列表前缀）
+            let match = content.match(/^#{1,6}\s*执行状态\s*$\n\s*(.+)$/m);
+            if (match) {
+                return this._parseStatusValue(match[1].trim(), resultFilePath);
             }
 
-            const success = match[1].toLowerCase() === '成功';
-            this._log('info', `checkResult: 执行状态 = ${match[1]} (${success ? '成功' : '失败'})`);
-            return success;
+            // 2. 标题内联：`## 执行状态: 成功` / `## 执行状态：失败`
+            match = content.match(/^#{1,6}\s*执行状态\s*[:：]\s*([^\n]+)/m);
+            if (match) {
+                return this._parseStatusValue(match[1].trim(), resultFilePath);
+            }
+
+            // 3. 末尾 `状态:` 行：仅取文件最后 10 行，避免正文中误出现"状态:"字样
+            const tailLines = content.split('\n').slice(-10);
+            for (const line of tailLines) {
+                const tailMatch = line.match(/^\s*状态\s*[:：]\s*(.+)$/);
+                if (tailMatch) {
+                    return this._parseStatusValue(tailMatch[1].trim(), resultFilePath);
+                }
+            }
+
+            this._log('warn', `checkResult: 结果文件中未找到有效的执行状态字段: ${resultFilePath}`);
+            return false;
         } catch (err) {
             this._log('warn', `checkResult: 读取结果文件失败: ${resultFilePath} — ${err.message}`);
             return false;
         }
+    }
+
+    /**
+     * 解析结果文件中的状态值。
+     *
+     * 状态判定规则：
+     *   - `成功` → true
+     *   - `失败` → false
+     *   - 已知中间态（`部分通过` / `源库构建问题` / `环境不可用` / `设备不可用`）
+     *     视为成功（产物已完成，非失败），记录 warn 日志
+     *   - 其他未知状态值 → false（视为无法解析，避免误判成功）
+     *
+     * @param {string} raw - 状态值原始文本
+     * @param {string} resultFilePath - 结果文件路径（仅用于日志）
+     * @returns {boolean} 执行是否成功
+     * @private
+     */
+    _parseStatusValue(raw, resultFilePath) {
+        if (!raw) {
+            this._log('warn', `checkResult: 执行状态值解析为空: ${resultFilePath}`);
+            return false;
+        }
+
+        const value = raw.replace(/^[#>*\-\s]+/, '').trim();
+
+        if (value === '成功') {
+            this._log('info', `checkResult: 执行状态 = 成功 (${resultFilePath})`);
+            return true;
+        }
+
+        if (value === '失败') {
+            this._log('info', `checkResult: 执行状态 = 失败 (${resultFilePath})`);
+            return false;
+        }
+
+        // 已知中间态：产物已完成但非完全成功，视为成功（记录 warn 提示）
+        const KNOWN_MIDDLE_STATES = ['部分通过', '源库构建问题', '环境不可用', '设备不可用'];
+        if (KNOWN_MIDDLE_STATES.includes(value)) {
+            this._log('warn', `checkResult: 识别到中间态状态「${value}」，视为成功 (${resultFilePath})`);
+            return true;
+        }
+
+        this._log('warn', `checkResult: 无法识别的执行状态「${value}」，视为失败 (${resultFilePath})`);
+        return false;
     }
 
     /**

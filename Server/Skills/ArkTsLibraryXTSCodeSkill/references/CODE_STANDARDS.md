@@ -52,7 +52,7 @@
 | `prototype` 扩展 | `arkts-no-prototype-assignment` | 类继承或组合 |
 | `delete` 操作符 | `arkts-no-delete` | 设为 `undefined` 或重构对象 |
 | `arguments` 对象 | `arkts-no-arguments` | 展开参数 `...args: T[]` |
-| 双重 `as unknown as T` | `arkts-no-unsafe-cast` | 正确定义类型，避免强转 |
+| `unknown` 关键字及双重 `as unknown as T` | `arkts-no-any-unknown` | `unknown` 关键字在 ArkTS 严格模式下被完全禁止，不能用于类型转换中间层。替代方案：① 传递空但合法的对象（如 `new BleDevice('', '')` 代替 `null as BleDevice`）；② 对需要 null 参数的异常测试，改测空字符串/零值参数的行为；③ 构造最小必填字段对象字面量并 `as Type`（如 `as ble.ScanResult`）；④ 不需要实际功能的参数用 `{} as Type`（如 `{} as common.Context`） |
 | `for...in` | `arkts-no-for-in` | `Object.keys().forEach()` |
 | `eval()` | `arkts-no-eval` | 禁止使用 |
 | `catch(e)` 中直接 `throw e` | `arkts-limited-throw` | **禁止重新抛出任意类型异常**。改用 try-catch + 布尔标记模式，catch 中仅设标记，不 throw |
@@ -385,6 +385,7 @@ export default function testsuite() {
 - ✅ 无 Jest 风格断言（toBe/equal/toThrow/toBeNull/toBeTruthy 等）
 - ✅ 无硬编码文件路径（使用 abilityDelegatorRegistry 获取沙箱目录）
 - ✅ 无 `null as SomeType` 不兼容强转
+- ✅ 无 `unknown` 关键字使用（包括 `as unknown as` 双重转换，arkts-no-any-unknown）
 - ✅ 无 `catch(e) { throw e }` 模式（arkts-limited-throw）
 - ✅ hilog 使用 `@kit.PerformanceAnalysisKit` 导入（非 `@ohos.hilog`）
 - ✅ 文件扩展名为 `.test.ets`（非 `.ts`）
@@ -453,6 +454,7 @@ export default function testsuite() {
 | 错误 | 常见原因 | 修复方法 |
 |------|---------|---------|
 | arkts-no-any | 使用了 any 类型 | 定义具体类型 `interface ResultType { ... }` |
+| arkts-no-any-unknown | 使用了 `unknown` 关键字或 `null as unknown as Type` 双重转换 | `unknown` 被完全禁止。改用空但合法的对象（如 `new BleDevice('', '')`）、构造最小字段对象字面量 `as Type`、或 `{} as Type`（不需实际功能的参数） |
 | arkts-no-esobj | 使用了 Object 类型 | 定义命名 interface |
 | arkts-limited-throw | `throw e` 其中 e 非Error类型 | 仅允许 `throw new Error(msg)`，改用 try-catch + 布尔标记 |
 | 类型不兼容 | `null as SomeType` 强转 | 使用 `{} as common.Context` 或 null 检查 + throw new Error |

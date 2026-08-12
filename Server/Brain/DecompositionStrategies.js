@@ -485,7 +485,8 @@ ${skillInstructions}
         if (!Array.isArray(steps) || steps.length === 0) {
             throw new Error('步骤列表为空');
         }
-        return steps.map((s, idx) => ({
+        // 先归一化，再做修复链依赖冲突防御（sanitizeFixChainDependId）
+        const normalized = steps.map((s, idx) => ({
             stepId: typeof s.stepId === 'number' ? s.stepId : idx + 1,
             taskDescription: s.taskDescription || '',
             dependId: normalizeStepDependId(s.dependId),
@@ -502,6 +503,7 @@ ${skillInstructions}
                 })).filter(c => c.criterion)
                 : []
         }));
+        return sanitizeFixChainDependId(normalized);
     }
 }
 
@@ -521,6 +523,61 @@ function normalizeStepDependId(value) {
     }
     const n = Number(value);
     return Number.isFinite(n) && n !== 0 ? n : 0;
+}
+
+/**
+ * 修复链 dependId 冲突防御。
+ *
+ * 背景：串行修复链路中，某步骤 A 的 failStepId=B（B 是 A 的修复步骤），若 B 的
+ * dependId 又声明了 A（"修复步骤依赖其修复目标"），则 B 同时被"失败条件边"与
+ * "成功依赖边"两条边指向 A，语义相互矛盾。Orchestrator 执行侧已兜底（A 成功时跳过
+ * failStepId 目标、A 失败时跳过依赖聚合直接进入 B），但图本身仍应保持清晰。
+ *
+ * 防御规则：仅移除"修复步骤对其修复目标本身"的依赖（B.dependId 中含 A 时剔除 A），
+ * 保留其余依赖（可能指向修复真正需要的前置产物）。
+ * 注意：不删除"修复步骤对其它并行步骤"的依赖（如 B 依赖 C），因为那可能是真实前置，
+ * 且 fan-out 并行激活已由 Orchestrator._activateDependents 兜底禁止。
+ *
+ * @param {Array<{stepId:number, dependId:number|number[], failStepId:number}>} steps - 归一化后的步骤
+ * @returns {Array} 修正后的步骤数组（在副本上修改，不污染入参）
+ */
+function sanitizeFixChainDependId(steps) {
+    // 收集修复步骤 -> 触发它的源步骤（即"修复目标"）id
+    // 一般一个修复步骤只被一个源步骤指向，但用数组兼容多源
+    const fixTargetOf = new Map(); // 修复步骤 id -> 源步骤 id 列表
+    for (const step of steps) {
+        const fail = Number(step.failStepId);
+        if (Number.isFinite(fail) && fail !== 0 && fail !== Number(step.stepId)) {
+            if (!fixTargetOf.has(fail)) fixTargetOf.set(fail, []);
+            if (!fixTargetOf.get(fail).includes(Number(step.stepId))) {
+                fixTargetOf.get(fail).push(Number(step.stepId));
+            }
+        }
+    }
+
+    return steps.map(step => {
+        const targets = fixTargetOf.get(Number(step.stepId)) || [];
+        if (targets.length === 0) return step;
+
+        const dependIds = Array.isArray(step.dependId) ? step.dependId : [step.dependId];
+        const filtered = dependIds
+            .filter(dep => !targets.includes(Number(dep)) || Number(dep) === Number(step.stepId));
+        if (filtered.length === dependIds.length) return step;
+
+        const next = { ...step };
+        const cleaned = filtered.filter(d => Number(d) !== 0);
+        if (cleaned.length === 0) {
+            // 修复步骤的 dependId 全部指向其修复目标：不置 0（否则会变成"入口步骤"被提前执行）。
+            // 保留第一条修复目标依赖，由 Orchestrator._activateDependents 的 _fixStepIds 兜底
+            // 禁止 fan-out 并行激活，仅允许 failStepId 触发。
+            next.dependId = dependIds[0];
+        } else if (cleaned.length === 1) {
+            next.dependId = cleaned[0];
+        } else {
+            next.dependId = cleaned;
+        }
+        return next;
+    });
 }
 
 export default DecompositionStrategies;
