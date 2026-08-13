@@ -530,8 +530,24 @@ export class Brain {
             issues.push('存在重复的 stepId');
         }
 
-        // 检查入口步骤（dependId 为 0 / 空数组 / 无前置）
-        const entrySteps = steps.filter(s => !hasStepDependencies(s.dependId));
+        // 检查入口步骤（dependId 为 0 / 空数组 / 无前置）。
+        // 修复步骤（被其它步骤 failStepId 指向的节点）不作为入口：即使其 dependId 为
+        // 0/空/-1，也只应经 failStepId 触发，与 Orchestrator 入口识别（_fixStepIds）语义对齐。
+        // 例外：排除修复步骤后找不到任何入口时回退为不排除，兼容"重试锚点回退"图
+        // （链首入口恰被某步骤 failStepId 指向，如 A.failStepId=链首，A 失败跳回链首重跑全链）。
+        const fixStepIds = new Set(
+            steps
+                .filter(s => s.failStepId && String(s.failStepId) !== '0' &&
+                    ids.includes(String(s.failStepId)))
+                .map(s => String(s.failStepId))
+        );
+        const collectEntries = (excludeFix) =>
+            steps.filter(s => !excludeFix || !fixStepIds.has(String(s.stepId)))
+                .filter(s => !hasStepDependencies(s.dependId));
+        const entrySteps = collectEntries(true);
+        if (entrySteps.length === 0) {
+            entrySteps.push(...collectEntries(false));
+        }
         if (entrySteps.length === 0) {
             issues.push('缺少入口步骤（dependId=0）');
         } else if (entrySteps.length > 1) {
@@ -638,6 +654,7 @@ function hasStepDependencies(dependId) {
 /**
  * 提取步骤的全部前置依赖 ID 数组。
  * 支持 dependId 单值或数组（fan-in 聚合）。
+ * -1 是"修复步骤哨兵"：表示仅由 failStepId 触发、无真实前置依赖，与 0/空 一样不纳入依赖 ID。
  * @param {number|number[]|string|string[]|null|undefined} dependId
  * @returns {string[]}
  */
@@ -645,11 +662,11 @@ function getStepDependencyIds(dependId) {
     if (Array.isArray(dependId)) {
         return dependId
             .map(v => String(v))
-            .filter(v => v !== '0' && v !== '');
+            .filter(v => v !== '0' && v !== '' && v !== '-1');
     }
     if (dependId == null) return [];
     const s = String(dependId);
-    return s === '0' || s === '' ? [] : [s];
+    return s === '0' || s === '' || s === '-1' ? [] : [s];
 }
 
 export default Brain;

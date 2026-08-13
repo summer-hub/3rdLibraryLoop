@@ -137,6 +137,53 @@ compatibility: 适用于任意托管在 Git 仓库的 C/C++ 开源库。
   assert(fm.metadata && fm.metadata.version === '2.2.0', `metadata.version 去引号：${fm.metadata?.version}`);
   assert(fm.metadata && fm.metadata.category === 'harmonyos-porting', 'metadata.category 正确');
   assert(fm.metadata && fm.metadata.language === 'C/C++', `metadata.language 正确：${fm.metadata?.language}`);
+
+  // 块标量：折叠块（>-）多行拼装为单行（行间补一个空格）
+  const foldedMd = `---
+name: folded-skill
+description: >-
+  第一行折叠内容。
+  第二行与第一行拼接。
+  第三行单独成句。
+metadata:
+  author: test
+  version: "1.0"
+---`;
+  const foldedFm = parseFrontmatter(foldedMd);
+  assert(
+    foldedFm.description === '第一行折叠内容。 第二行与第一行拼接。 第三行单独成句。',
+    `折叠块标量（>-）解析为空格拼接：${JSON.stringify(foldedFm.description)}`
+  );
+  assert(foldedFm.metadata && foldedFm.metadata.author === 'test', '块标量后 metadata 嵌套字段不被块吞并');
+  assert(foldedFm.metadata && foldedFm.metadata.version === '1.0', '块标量后 metadata.version 解析正确');
+
+  // 块标量：字面块（|）保留换行
+  const literalMd = `---
+name: literal-skill
+description: |
+  第一行保留。
+  第二行另起一行。
+---`;
+  const literalFm = parseFrontmatter(literalMd);
+  assert(
+    literalFm.description === '第一行保留。\n第二行另起一行。\n',
+    `字面块标量（|）保留换行（clip 尾换行）：${JSON.stringify(literalFm.description)}`
+  );
+
+  // 块标量：折叠块 + 块内空行作段落分隔（保留单个换行）
+  const foldedPargraphMd = `---
+name: folded-paragraph
+description: >-
+  段落一第一行。
+  段落一第二行。
+
+  段落二第一行。
+---`;
+  const foldedParagraphFm = parseFrontmatter(foldedPargraphMd);
+  assert(
+    foldedParagraphFm.description === '段落一第一行。 段落一第二行。\n段落二第一行。',
+    `折叠块标量空行作段落分隔：${JSON.stringify(foldedParagraphFm.description)}`
+  );
   console.log();
 
   // ─── 测试 6：scanSkills 真实目录 ───────────────────────────────────────────
