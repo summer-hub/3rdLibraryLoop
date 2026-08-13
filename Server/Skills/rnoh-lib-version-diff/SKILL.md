@@ -158,7 +158,7 @@ git ls-remote --tags <上游仓库URL>
 |------|------|
 | `<branch1>/` | 分支1 的完整源代码（无 .git） |
 | `<branch2>/` | 分支2 的完整源代码（无 .git） |
-| `diff_<b1>_<b2>.patch` | 对比 diff 文件（默认排除 lock 文件、example/、文档等噪音） |
+| `diff_<b1>_<b2>.patch` | 对比 diff 文件（默认排除 lock 文件、example/examples、其他平台原生代码、文档等噪音） |
 | `summary_<b1>_<b2>.md` | 变更摘要，按文件统计增删行数 |
 
 > 脚本详细参数、排除规则与输出格式见 [references/script-reference.md](references/script-reference.md)。

@@ -77,9 +77,12 @@ node scripts/generate-diff.js --repo <url> --branch1 <name> --branch2 <name> [�
 
 **默认排除的路径模式**：
 - lock 文件：`yarn.lock`, `package-lock.json`, `*.lock`
-- 非核心目录：`.yarn/`, `.github/`, `example/`, `docs/`
+- 非核心目录：`.yarn/`, `.github/`, `example/`, `examples/`, `docs/`
+- 其他平台原生代码（glob 匹配任意层级）：`**/android/**`, `**/ios/**`, `**/apple/**`, `**/windows/**`
 - 文档文件：`CHANGELOG.md`, `CONTRIBUTING.md`, `MIGRATION*.md`, `README.md`
 - 配置文件：`.gitignore`, `.yarnrc.yml`, `.npmrc`, `.idea/`
+
+> **关于 `**` glob 模式**：含 `**` 的排除模式使用 git 的 `:(glob,exclude)` 语法，匹配仓库中任意层级的目录。例如 `**/android/**` 会排除根目录 `android/` 和 monorepo 子包 `packages/*/android/` 下的所有文件。鸿蒙适配只关心 JS/TS 源码和 TurboModule Spec，其他平台原生实现无分析价值。
 
 **输出文件**：
 - `<branch1>/` — 分支1 源代码（无 .git）

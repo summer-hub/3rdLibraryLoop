@@ -106,6 +106,7 @@ const EXCLUDES = [];
 
 // ── 默认排除规则 (聚焦三方库核心代码, 过滤与鸿蒙化升级排查无关的噪音) ──
 // 这些路径在 --full 模式下不会被排除
+// 含 ** 的模式使用 git glob pathspec 匹配任意层级目录
 const DEFAULT_EXCLUDES = [
   // lock 文件
   'yarn.lock',
@@ -118,8 +119,15 @@ const DEFAULT_EXCLUDES = [
   '.npmrc',
   '.idea/',
   '.gitignore',
-  // 示例工程
+  // 示例工程 (example/ 单数 + examples/ 复数, 兼容 monorepo 命名)
   'example/',
+  'examples/',
+  // 其他平台原生代码 (鸿蒙适配只关心 JS/TS 源码 + TurboModule Spec)
+  // **/pattern/** 使用 glob 匹配任意层级的目录内文件
+  '**/android/**',
+  '**/ios/**',
+  '**/apple/**',
+  '**/windows/**',
   // 文档
   'docs/',
   'CHANGELOG.md',
@@ -162,7 +170,8 @@ RNOH 三方库分支对比脚本
 
 默认排除的路径 (除非使用 --full):
   yarn.lock, package-lock.json, *.lock
-  .yarn/, .github/, example/, docs/
+  .yarn/, .github/, example/, examples/, docs/
+  **/android/**, **/ios/**, **/apple/**, **/windows/**  (其他平台原生代码, glob 匹配任意层级)
   CHANGELOG.md, CONTRIBUTING.md, MIGRATION*.md, README.md
   .gitignore, .yarnrc.yml, .npmrc, .idea/
 
@@ -290,6 +299,8 @@ function buildExcludeList() {
 
 /**
  * 构建 git diff 的 pathspec 参数数组。
+ * 含 ** 的模式使用 :(glob,exclude) 语法匹配任意层级目录;
+ * 普通模式使用 :! 前缀匹配根目录路径。
  * @param {string[]} excludePatterns 排除模式列表
  * @returns {string[]} git pathspec 参数 (含前导 '--')
  */
@@ -297,7 +308,11 @@ function buildPathspecArgs(excludePatterns) {
   if (excludePatterns.length === 0) return [];
   const args = ['--'];
   for (const pattern of excludePatterns) {
-    args.push(`:!${pattern}`);
+    if (pattern.includes('**')) {
+      args.push(`:(glob,exclude)${pattern}`);
+    } else {
+      args.push(`:!${pattern}`);
+    }
   }
   return args;
 }
