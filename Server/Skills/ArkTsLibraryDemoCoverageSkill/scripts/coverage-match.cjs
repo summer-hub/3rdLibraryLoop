@@ -19,6 +19,9 @@ function parseArgs() {
   return parsed;
 }
 
+/** 测试目录黑名单：任意层级命中即跳过（demo 统计不得混入测试代码） */
+const TEST_DIR_NAMES = new Set(['ohosTest', 'test', 'tests', '__tests__', 'testability']);
+
 function walkDir(dir, ext, excludeTopDirs, srcRoot) {
   let results = [];
   if (!fs.existsSync(dir)) return results;
@@ -29,6 +32,8 @@ function walkDir(dir, ext, excludeTopDirs, srcRoot) {
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
+      // 任意层级的测试目录均跳过，防止 AI 误扩 --src 范围时混入测试文件
+      if (TEST_DIR_NAMES.has(entry.name)) continue;
       results = results.concat(walkDir(fullPath, ext, excludeTopDirs, srcRoot));
     } else if (entry.isFile()) {
       if (ext.includes(path.extname(entry.name))) {
@@ -44,7 +49,12 @@ function walkDir(dir, ext, excludeTopDirs, srcRoot) {
 
 function extractImports(content, libName) {
   const importedSymbols = [];
-  const importRegex = /import\s*\{([^}]*?)\}\s*from\s*['"]([^'"]+)['"]/gs;
+  // 支持单行/多行 import，包含：
+  //   import { A } from 'lib'
+  //   import A, { B } from 'lib'          （默认导出 + 具名导出混合）
+  //   import type { A } from 'lib'        （类型导入，不产生运行时符号）
+  //   import * as Lib from 'lib'          （命名空间导入，返回空符号列表）
+  const importRegex = /import\s+(?:type\s+)?(?:[A-Za-z_$][\w$]*\s*,\s*)?\{([^}]*?)\}\s*from\s*['"]([^'"]+)['"]/gs;
   let match;
   while ((match = importRegex.exec(content)) !== null) {
     const symbolsStr = match[1];
@@ -298,7 +308,7 @@ function matchCoverage(interfaces, files, libName) {
   };
 }
 
-const EXCLUDE_TOP_DIRS = ['entryability', 'entrybackupability', 'model', 'util'];
+const EXCLUDE_TOP_DIRS = ['entryability', 'entrybackupability', 'model', 'util', 'ohosTest'];
 
 const args = parseArgs();
 

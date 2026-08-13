@@ -97,6 +97,12 @@ function parseClassMember(cell) {
     return { memberName: m ? m[1] : cleaned, kind: 'method' };
   }
 
+  // static property: "static propName: type" or "static readonly propName: type"
+  const staticPropM = cleaned.match(/^static\s+(?:readonly\s+)?(\w+)\??\s*:/);
+  if (staticPropM) {
+    return { memberName: staticPropM[1], kind: 'property' };
+  }
+
   // property: "propName: type" or "propName?: type"
   const propM = cleaned.match(/^(\w+)\??\s*:/);
   if (propM) {
@@ -110,7 +116,7 @@ function parseClassMember(cell) {
 /** 判断成员是否为 static */
 function isStaticMember(cell, kind) {
   if (kind === 'constructor') return false;
-  if (kind === 'property') return /\bstatic\s+readonly\b/.test(cell);
+  if (kind === 'property') return /\bstatic\b/.test(cell);
   return /\bstatic\s/.test(cell) || /\bstatic\s+readonly\b/.test(cell);
 }
 
@@ -213,7 +219,16 @@ function parseSpec(specPath) {
         // 接口表格: | 序号 | 接口/类型名 | 类型(interface/class) | 字段 | 字段类型 | 必填 | 描述 |
         const fieldCell = cols[3] || '';
         if (!fieldCell) continue;
-        const fieldName = fieldCell.replace(/\?$/, '').trim();
+        let fieldName = fieldCell.replace(/\?$/, '').trim();
+
+        // type alias entries have "—" (em-dash) as field name (no real field).
+        // Use the string literal value from the type column as memberName instead,
+        // so coverage-match.cjs can detect usage like on('audioInterrupt', ...) in demo code.
+        if (fieldName === '\u2014' || fieldName === '-' || fieldName === '—') {
+          const typeValue = (cols[4] || '').trim();
+          fieldName = typeValue.replace(/^['"]|['"]$/g, '');
+          if (!fieldName) fieldName = fieldCell;
+        }
 
         const signature = `${fieldName}: ${cols[4] || ''}`;  // 字段:类型
         const description = cols[6] || '';                   // 描述列
