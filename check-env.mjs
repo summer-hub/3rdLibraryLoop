@@ -539,6 +539,8 @@ function checkDependencies() {
     if (fs.existsSync(rootPkg)) depDirs.push(['根目录', PROJECT_ROOT]);
     const serverPkg = path.join(PROJECT_ROOT, 'Server', 'package.json');
     if (fs.existsSync(serverPkg)) depDirs.push(['Server', path.join(PROJECT_ROOT, 'Server')]);
+    const mcpPkg = path.join(PROJECT_ROOT, 'MCP', 'package.json');
+    if (fs.existsSync(mcpPkg)) depDirs.push(['MCP', path.join(PROJECT_ROOT, 'MCP')]);
 
     for (const [label, dir] of depDirs) {
         const pkgJson = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));

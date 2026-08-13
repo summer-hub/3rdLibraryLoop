@@ -159,6 +159,15 @@ const services = [
         restart: true,               // 先关闭旧进程再启动
     },
     {
+        name: 'MCP Gateway',
+        cmd: 'node',
+        args: [path.join(PROJECT_ROOT, 'MCP', 'src', 'index.js'), '--config', path.join(PROJECT_ROOT, 'MCP', 'config.json')],
+        cwd: path.join(PROJECT_ROOT, 'MCP'),
+        color: C.blue,
+        url: null,                    // stdio 传输，无 HTTP 端口
+        skipIfRunning: 'MCP/src/index.js',  // 已在运行（如 opencode 已 spawn）则跳过
+    },
+    {
         name: 'opencode serve',
         cmd: 'opencode',
         args: ['serve'],
