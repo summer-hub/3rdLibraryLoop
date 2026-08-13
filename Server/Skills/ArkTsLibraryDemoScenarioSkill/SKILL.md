@@ -1,5 +1,5 @@
 ---
-name: tpc-demo-scenario
+name: arkts-library-demo-scenario
 description: 基于覆盖率报告，为未覆盖接口生成 ArkTS 测试 Demo 描述文档。读取覆盖率报告中的未覆盖接口清单（含签名和功能描述），以接口为单位生成测试 Demo 描述（名称、描述、步骤、预期结果），并以表格形式汇总输出。允许将存在直接调用关系或属于同一功能模块的接口合并到同一个 Demo 中。当需要对鸿蒙原生库进行 Demo 覆盖率缺口填补、未覆盖接口场景规划时调用。
 license: Apache-2.0
 metadata:
@@ -9,7 +9,7 @@ metadata:
   language: ArkTS/ETS
 ---
 
-# TPC 未覆盖接口 Demo 场景生成
+# 鸿蒙ArkTs原生库未覆盖接口 Demo 场景生成
 
 本 Skill 读取覆盖率报告中的未覆盖接口清单，以接口为单位自动生成测试 Demo 描述，输出为标准 Markdown 表格文档，使接口覆盖率达到 100%。
 
@@ -51,10 +51,10 @@ metadata:
 
 ## 适用场景
 
-- 为已 ohos 化三方库填补 Demo 覆盖率缺口
+- 为已 ohos 化鸿蒙原生库填补 Demo 覆盖率缺口
 - 生成开发者可直接参考的测试 Demo 描述文档
 - 为 QA / 开发团队提供可执行的 Demo 实现指导
-- 配合 TPCInterfaceSpecSkill + TPCDemoCoverageSkill 实现"接口分析 → 覆盖率分析 → 缺口场景规划"完整链路
+- 配合 ArkTsLibraryInterfaceSpecSkill + ArkTsLibraryDemoCoverageSkill 实现"接口分析 → 覆盖率分析 → 缺口场景规划"完整链路
 
 ---
 
@@ -62,7 +62,7 @@ metadata:
 
 | 参数 | 必需 | 说明 |
 |------|------|------|
-| `coverageReportPath` | ✅ | 覆盖率报告绝对路径（由 TPCDemoCoverageSkill 生成，含未覆盖接口清单及签名） |
+| `coverageReportPath` | ✅ | 覆盖率报告绝对路径（由 ArkTsLibraryDemoCoverageSkill 生成，含未覆盖接口清单及签名） |
 | `sourcePath` | 可选 | 源码根目录（提供后可探查现有 demo 风格作为参考） |
 | `outputDir` | 可选 | 输出目录，默认放置在覆盖率报告所在目录 |
 

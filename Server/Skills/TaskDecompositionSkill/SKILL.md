@@ -179,24 +179,24 @@ Phase 4: 结果输出（纯 JSON 写入 resultFilePath）
 步骤间通过三个字段构成有向图：
 
 ```
-dependId   → 当前步骤依赖的步骤，支持 number 或 number[]（0 或空数组 = 入口步骤，无前置依赖）
+dependId   → 当前步骤依赖的步骤，支持 number 或 number[]（0 或空数组 = 入口步骤，无前置依赖；
+              -1 = 修复步骤哨兵，表示"仅由 failStepId 触发、无入口身份、无并行依赖"）
               · dependId: 2       单依赖（等价于 [2]）
               · dependId: [2,3,4] fan-in 聚合，需 2/3/4 全部完成才执行本步骤
+              · dependId: -1      修复步骤（唯一进入条件是触发它的步骤失败），不能当作入口步骤
 nextStepId → 成功后执行哪个步骤（0 = 终止，任务完成）
 failStepId → 失败后跳转到哪个步骤（0 = 失败即终止）
 ```
 
-> ⚠️ **修复链歧义约束**：若某步骤 A 的 `failStepId=B`（B 是 A 的修复步骤），建议 **B 的 `dependId` 不要再次指向 A**。B 的唯一进入条件是 A 失败（由 failStepId 边传递）；若 B 的 dependId 又声明 A，会形成失败链与依赖链的重叠边。Orchestrator 已能正确处理（A 成功时跳过 failStepId 目标、A 失败时跳过依赖聚合直接进入 B），但保持步骤图语义清晰仍是最佳实践：修复步骤的 dependId 只声明"修复所需、且非本修复目标"的其它已完成前置。
-
-> ⚠️ **修复步骤禁止并行 fan-out**：修复步骤（被某步骤 `failStepId` 指向的节点）的 `dependId` **不得指向一个会让它与源步骤落入同一并行轮次的步骤**。典型错误：验证步骤 D 的 `failStepId=E`（E 是修复步骤），同时 E 的 `dependId` 又指向 D 的前置 C，导致 C 完成后 E 与 D 被 fan-out 并行激活——E 会提前误执行，且 D 完成后的下一步会被 E 拖住等待。修复步骤的 dependId 只能声明"修复真正需要的、且早已独立完成的产物提供步骤"（如生成步骤），且这些步骤必须不与源验证步骤处于同一并行轮次；否则应留空（0），完全依赖 failStepId 触发。
+> ⚠️ **修复步骤 dependId 必须设为 -1 哨兵**：被某步骤 `failStepId=B` 指向的修复步骤 B，其 `dependId` **必须设为 `-1`**，不能设为 0 或空。0 或空会被 Orchestrator / 校验脚本误判为"入口步骤"，导致 B 与任务入口一步骤并行启动、提前误执行。`dependId=-1` 明确表达"仅由 failStepId 触发、无入口身份、无并行依赖"。修复成功后通常用 B 的 `nextStepId` 指回触发它的步骤，配合 `maxRetries` 形成有限重试循环。（Brain 生成侧 `sanitizeFixChainDependId` 会自动将修复步骤的 dependId 规范化为 `-1`，LLM 原始输出无需手工设置此字段。）
 
 ### 2.3 图结构设计要点
 
-- **入口步骤**：至少有一个 `dependId=0`（或 `dependId: []`）的步骤
+- **入口步骤**：至少有一个 `dependId=0`（或 `dependId: []`）的步骤；`dependId=-1` 的修复步骤不计入入口
 - **终止步骤**：至少有一个 `nextStepId=0` 的步骤
 - **并行执行（fan-out）**：多个步骤的 `dependId` 指向同一步骤 → Orchestrator 并行执行
 - **聚合执行（fan-in）**：某步骤需等待多个并行步骤全部完成再执行，用 `dependId: [a, b, c]` → 仅当 a/b/c 全部 COMPLETED 后本步骤才被激活
-- **失败回退**：关键步骤设 `failStepId` 指向修复步骤，修复成功后重新指向原始步骤（有限重试循环）
+- **失败回退**：关键步骤设 `failStepId` 指向修复步骤（修复步骤 `dependId=-1`），修复成功后通过 `nextStepId` 重新指向原始步骤（有限重试循环）
 - **禁止死循环**：failStepId 回退链必须是有限的，配合 `maxRetries` 控制
 
 > 依赖图设计模式与示例参见 [依赖图设计指南](references/DEPENDENCY_GRAPH_GUIDE.md)

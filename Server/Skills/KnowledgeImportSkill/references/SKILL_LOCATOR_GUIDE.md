@@ -83,9 +83,9 @@ Step 4: 确认关联
 | task-planning | task-analysis, task-decomposition | 任务分析、拆解、验收标准 |
 | meta-skill | skill-generator, knowledge-import | SKILL生成、知识导入、自我迭代 |
 | 代码检视 | arkts-code-check, arkts-library-*-check | 代码质量、内存泄漏、稳定性、覆盖率 |
-| TPC Demo | tpc-demo-* | Demo代码、覆盖率、场景 |
-| TPC XTS | tpc-xts-* | XTS测试、用例、执行 |
-| 接口规范 | tpc-interface-spec | 接口提取、规格 |
+| 原生库 Demo | arkts-library-demo-* | Demo代码、覆盖率、场景 |
+| 原生库 XTS | arkts-library-xts-* | XTS测试、用例、执行 |
+| 接口规范 | arkts-library-interface-spec | 接口提取、规格 |
 | 验收 | acceptance-check | 准出审核、验收测试 |
 
 > 此表仅用于辅助理解SKILL分类，**不用于语义推断关联**。定位仍以显式提及为前提。

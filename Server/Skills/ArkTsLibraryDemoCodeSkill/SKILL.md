@@ -1,6 +1,6 @@
 ---
-name: tpc-demo-code
-description: 基于 Demo 场景文档（由 TPCDemoScenarioSkill 生成）自动生成可在 OpenHarmony 系统上编译运行的 ArkTS 测试 Demo 实现代码。所有 Demo ETS 页面文件统一存放在 pages/ 目录下，文件名格式为"序号_PascalCase描述Page.ets"，通过主页面统一导航，并同步生成中英文字符串资源。场景文档已自包含接口签名，无需额外读取接口规格文档。生成代码严格遵循华为 ArkTS 编码规范，包含 hilog 日志、错误处理、必要注释和权限适配。当用户需要将 demo 场景描述转化为实际ArkTs代码时使用此技能。
+name: arkts-library-demo-code
+description: 基于 Demo 场景文档（由 ArkTsLibraryDemoScenarioSkill 生成）自动生成可在 OpenHarmony 系统上编译运行的 ArkTS 测试 Demo 实现代码。所有 Demo ETS 页面文件统一存放在 pages/ 目录下，文件名格式为"序号_PascalCase描述Page.ets"，通过主页面统一导航，并同步生成中英文字符串资源。场景文档已自包含接口签名，无需额外读取接口规格文档。生成代码严格遵循华为 ArkTS 编码规范，包含 hilog 日志、错误处理、必要注释和权限适配。当用户需要将 demo 场景描述转化为实际ArkTs代码时使用此技能。
 license: Apache-2.0
 metadata:
   author: AIWeb
@@ -9,9 +9,9 @@ metadata:
   language: ArkTS/ETS
 ---
 
-# TPC Demo ArkTS 代码生成
+# 鸿蒙ArkTs原生库 Demo 代码生成
 
-本 Skill 读取 Demo 场景文档（由 TPCDemoScenarioSkill 生成），为每个场景生成独立的 ArkTS 页面实现代码，并生成统一的主页面导航代码，确保所有代码能够在鸿蒙系统上编译运行，正确展示三方库的功能和使用方法。场景文档的"对应函数接口"列已自包含完整接口签名，无需额外读取接口规格文档。
+本 Skill 读取 Demo 场景文档（由 ArkTsLibraryDemoScenarioSkill 生成），为每个场景生成独立的 ArkTS 页面实现代码，并生成统一的主页面导航代码，确保所有代码能够在鸿蒙系统上编译运行，正确展示鸿蒙原生库的功能和使用方法。场景文档的"对应函数接口"列已自包含完整接口签名，无需额外读取接口规格文档。
 
 > ⚠️ **核心约束**：所有生成的代码必须基于场景文档中明确列出的接口和功能。严禁凭空捏造不存在的接口、参数或行为。所有代码须通过 ArkTS 严格模式编译检查。
 
@@ -61,9 +61,9 @@ metadata:
 
 ## 适用场景
 
-- 将 `TPCDemoScenarioSkill` 生成的 Demo 场景文档转化为可运行代码
-- 为已移植鸿蒙三方库快速生成功能验证 Demo 工程
-- 生成符合华为规范的三方库示例代码用于文档展示或 QA 测试
+- 将 `ArkTsLibraryDemoScenarioSkill` 生成的 Demo 场景文档转化为可运行代码
+- 为已移植鸿蒙原生库快速生成功能验证 Demo 工程
+- 生成符合华为规范的鸿蒙原生库示例代码用于文档展示或 QA 测试
 
 ---
 
@@ -73,7 +73,7 @@ metadata:
 |------|------|------|
 | `sourcePath` | ✅ | 目标鸿蒙工程根目录（已编译通过，含 `entry/` 和 `library/` 模块） |
 | `outputDir` | ✅ | 输出目录（场景文档和覆盖率报告所在目录） |
-| `interfaceSpecPath` | 可选 | 接口规格文档路径，用于查询依赖类型的完整定义（回调签名、枚举成员、interface/class 区分）；若未提供，从 `outputDir` 搜索 `tpccoverage-interface-spec.md` |
+| `interfaceSpecPath` | 可选 | 接口规格文档路径，用于查询依赖类型的完整定义（回调签名、枚举成员、interface/class 区分）；若未提供，从 `outputDir` 搜索 `arktscoverage-interface-spec.md` |
 | `scenarioDocPath` | 可选 | 单个场景文档路径；若未提供，从 `outputDir` 搜索所有 `*未覆盖接口Demo场景*.md` 文件 |
 
 ---
@@ -120,7 +120,7 @@ metadata:
 - [ ] 读取 entry/src/main/resources/zh_CN/element/string.json 和 entry/src/main/resources/en_US/element/string.json（若存在），了解已有字符串键命名规范，避免键名冲突
 - [ ] **确认 deveco-cli 可用**：运行 `devecocli --version` 确认 CLI 已安装且可正常调用
 - [ ] **UI 组件装饰器预检**：若接口规格文档第 5 章存在，直接对照兼容性表；否则 `read_file` library/Index.ets 中导出的 `@Component` 源文件，搜索 `@ObjectLink`/`@Prop`/`@Link`，确认关联类有 `@Observed` 装饰器；标注不兼容的组件，Demo 场景规划时排除
-- [ ] **读取接口规格文档建立依赖类型词典**：若提供了 `{{interfaceSpecPath}}`，读取该文件；否则从 `{{outputDir}}` 搜索 `tpccoverage-interface-spec.md`。提取以下信息供生成代码时查询：
+- [ ] **读取接口规格文档建立依赖类型词典**：若提供了 `{{interfaceSpecPath}}`，读取该文件；否则从 `{{outputDir}}` 搜索 `arktscoverage-interface-spec.md`。提取以下信息供生成代码时查询：
   - 每个接口/类的 **类型种类**（`(interface)` 不可 new, `(class)` 可 new, `@ObservedV2` 需 V2 装饰器）
   - 每个回调接口的 **完整字段签名**（如 `OnLoadCallBack.onLoadFailed: (err: string, imageInfo: ImageInfo) => void`）
   - 每个类的 **属性名列表**（代码中只能使用文档列出的属性名）
@@ -192,7 +192,7 @@ metadata:
    - 用户授权权限（需运行时 requestPermissionsFromUser 动态申请，如 READ_MEDIA）
 ```
 
-#### 1.3 逐接口对照规格文档（强制预检）
+#### 1.3 逐接口对照规格文档 + 系统 API 预检（强制预检）
 
 > ⚠️ **此步骤必须在生成任何代码之前执行**，逐接口对照接口规格文档，杜绝凭记忆猜测类型。
 
@@ -205,21 +205,39 @@ metadata:
 | **参数类型匹配** | 接口规格文档签名 | 参数是否声明为 `common.UIAbilityContext`？若是则传 `appContext as common.UIAbilityContext`，不可直接传 `common.Context` |
 | **回调参数签名** | 接口规格文档回调接口定义 | 回调的每个字段名和参数类型，代码中必须逐字匹配 |
 | **属性名准确性** | 接口规格文档第 3 章属性列表 | 该类的所有属性名，代码中只能使用列表内的名称 |
-| **枚举成员名** | ① 三方库枚举：`read_file` 库源码 ② 系统SDK枚举：`devecocli docs search <枚举名> --catalog harmonyos-references` → `devecocli docs read <documentId>` | 不做大小写假设，系统枚举查 API 参考文档确认 |
+| **系统 API 签名/import/参数/返回值** | 系统 API 参考文档（`script_deveco_docs` 工具） | `@kit.*` / `@ohos.*` / `@hms.*` 系统接口的方法签名、参数/返回值类型、import 路径，必须查证确认，禁止凭记忆 |
+| **系统 API 枚举成员名** | 系统 API 参考文档（`script_deveco_docs` 工具） | 系统枚举不做大小写假设，查 API 参考文档确认成员名 |
+| **系统 API 权限/系统能力** | 系统 API 参考文档（`script_deveco_docs` 工具） | 若接口需要权限，在 module.json5 中声明并动态申请；记录系统能力（SystemCapability） |
 | **import 类型存在性** | `library/Index.ets` | 代码中 `import { X }` 的每个 X 必须在 Index.ets 导出链中；不存在的类型用对象字面量，禁止 import |
 
-> 🚨 **系统 SDK 枚举强制验证（立即执行，不可跳过）**：
+> 🚨 **系统 API 依赖强制预检（立即执行，不可跳过）**：
 >
-> 当前 Demo 涉及的**每一个**系统 SDK 枚举（如 `ImageFit`、`BorderStyle`、`FontWeight`、
-> `TextAlign`、`TextOverflow` 等），**必须立即运行以下命令**确认成员名，禁止凭记忆猜测：
+> 对当前 Demo 涉及的**每一个系统 API 依赖**（`@kit.*` / `@ohos.*` / `@hms.*` 导入的接口、回调、枚举、属性、权限、系统能力，如 `ImageFit`、`BorderStyle`、`FontWeight`、`TextAlign`、`TextOverflow` 等），**必须立即调用 MCP 工具 `script_deveco_docs` 检索确认**，禁止凭记忆猜测签名或类型。
+>
+> > 工具实际名称以 MCP 工具列表为准（可能带 server 前缀，如 `mcp-gateway_script_deveco_docs`），从工具列表中找到 `deveco_docs` 相关工具后调用：
 >
 > ```
-> devecocli docs search <枚举名> --catalog harmonyos-references --limit 10
-> # 从上一步结果获取文档 ID，然后：
-> devecocli docs read <文档ID>
+> 工具: script_deveco_docs, action=search
+> 参数: keywords=<系统API名/枚举名/模块名>（如 "UIAbilityContext"、"ImageFit"、"abilityDelegatorRegistry"）
+>
+> 工具: script_deveco_docs, action=read
+> 参数: documentId=<search结果中的documentId>, section=<目标接口/枚举/属性名>
 > ```
 >
-> 验证通过后将实际成员名记录到下方，**未完成此步骤禁止进入 1.4 生成代码**。
+> 检索要点：
+> - **search 降噪**：`script_deveco_docs` 已按标题相关性排序，取**第一条**命中目标的结果；若首条不相关，逐条检查 `sectionTitle` 与目标匹配的项
+> - **read 精确定位**：提供 `section` 参数（接口/枚举/属性名），脚本会截取该小节而非整篇文档
+> - **超长文档**：检索命中 `Enums`/`Types`/`公共定义` 等聚合文档时，read 必须带 `section=<目标名>` 精确定位，避免返回整篇（可达数十 KB）
+> - **import 路径**：read 结果中 `#### 导入模块` 给出 `import { xxx } from '@kit.XxxKit'`，代码必须使用该路径
+> - **检索边界**：**库自身 API** 不在系统语料中，`script_deveco_docs` 会返回"未找到"，此时不检索、直接按接口规格文档/库源码编写
+>
+> **检索结果记录**：每完成一个系统 API 的检索，将结论记录到下方（供 1.4 生成代码引用）：
+>
+> | 系统 API | documentId | 关键签名/import路径 | 权限/系统能力 | 结论 |
+> |---------|-----------|-------------------|--------------|------|
+> | （示例）ImageFit | ts-appendix-enums | ArkUI 全局枚举，无需 import | SystemCapability.ArkUI.ArkUI.Full | Fill/Contain/Cover/Auto/None/ScaleDown... |
+>
+> **未完成此步骤禁止进入 1.4 生成代码。**
 >
 > 🚨 **第二步：import 类型链强制追踪（立即执行，不可跳过）**：
 >
@@ -303,7 +321,7 @@ struct {ComponentName} {
     hilog.debug(DOMAIN, TAG, '{actionMethod} called');
     this.isLoading = true;
     try {
-      // 调用三方库接口
+      // 调用鸿蒙原生库接口
       const result = await {libraryCall};
       hilog.info(DOMAIN, TAG, '{actionMethod} succeeded: %{public}s', String(result));
       this.resultText = `结果：${String(result)}`;
@@ -558,7 +576,7 @@ windowStage.loadContent('pages/DemoIndex', (err, data) => { ... });
 
 #### 2.4 在 DemoIndex 中保留原始库 Demo 入口
 
-若工程中已有原始的三方库功能演示页面（如 `pages/Tab`，通过 `pages/Index` 跳转进入），**必须**在 `DemoIndex.ets` 中以视觉区分的方式保留其跳转入口，确保原有 Demo 不被覆盖：
+若工程中已有原始的鸿蒙原生库功能演示页面（如 `pages/Tab`，通过 `pages/Index` 跳转进入），**必须**在 `DemoIndex.ets` 中以视觉区分的方式保留其跳转入口，确保原有 Demo 不被覆盖：
 
 1. 在 `DemoIndex.ets` 顶层常量区声明原始 Demo 路由：
 
@@ -617,8 +635,8 @@ Column() {
 
 ```json
 // zh_CN
-{ "name": "demo_original_title", "value": "原始三方库示例" },
-{ "name": "demo_original_index_desc", "value": "原有三方库功能演示页面（保留入口）" }
+{ "name": "demo_original_title", "value": "原始鸿蒙原生库示例" },
+{ "name": "demo_original_index_desc", "value": "原有鸿蒙原生库功能演示页面（保留入口）" }
 
 // en_US
 { "name": "demo_original_title", "value": "Original Library Demo" },
@@ -690,7 +708,7 @@ private async requestNeededPermissions(): Promise<boolean> {
 > - 禁止以"工程已是新版本""`compileSdkVersion` 已匹配已安装 SDK""工程为 OpenHarmony 无需切换到 HarmonyOS"等理由自行判断并跳过本步骤。
 > - 即使 SDK 版本匹配，源工程的 hvigor 文件、`oh-package.json5`、product 的 `runtimeOS`/`compatibleSdkVersion` 等配置仍可能不兼容当前构建环境，必须在编译前执行迁移。
 
-三方库源码多为历史工程，`build-profile.json5` 的 SDK 版本配置、hvigor 文件、oh-package.json5 等经常不兼容当前构建环境。使用 `migrate.cjs` 脚本一次性完成华为官方 Manual Migration 全流程迁移。
+鸿蒙原生库源码多为历史工程，`build-profile.json5` 的 SDK 版本配置、hvigor 文件、oh-package.json5 等经常不兼容当前构建环境。使用 `migrate.cjs` 脚本一次性完成华为官方 Manual Migration 全流程迁移。
 
 1. 执行迁移脚本：
 
@@ -813,7 +831,7 @@ powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -Cmd "
 
 | 检查项 | 错误示例 | 正确做法 | 检查方法 |
 |-------|---------|---------|---------|
-| **枚举成员名** | `ImageFit.CONTAIN` | `ImageFit.Contain` | 🚨 系统枚举立即运行：`devecocli docs search <枚举名> --catalog harmonyos-references` → `devecocli docs read <id>`，不执行禁止继续 |
+| **枚举成员名** | `ImageFit.CONTAIN` | `ImageFit.Contain` | 🚨 系统枚举立即调用 MCP 工具 `script_deveco_docs`：`action=search` 取目标枚举 → `action=read` 带 `section=<枚举名>` 精确定位成员名，不执行禁止继续（用法详见 SYSTEM_API_LOOKUP.md） |
 | **组件名/类名准确性** | `ImageKnifeComponentV2` | `ImageKnifeComponent` | 组件名/类名必须与库 `Index.ets` 导出名**逐字符一致**，禁止自行追加"V2"/"New"等后缀 |
 | **interface/class 区分** | `new HttpRequestOption()` | `{ ... } as HttpRequestOption` | 查接口规格文档第 4 章：`(interface)` 不能用 `new`；`(class)` 可以用 `new` |
 | **回调参数类型** | `(errorInfo: ErrorInfo) => void` | `(err: string, imageInfo: ImageInfo) => void` | 查接口规格文档第 4 章的回调接口定义，严格匹配字段类型 |
@@ -837,7 +855,7 @@ powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -Cmd "
 
 ### 阶段五：输出Demo代码生成报告
 
-`write_file` `{{outputDir}}/tpccoverage-demo-code-report.md`：
+`write_file` `{{outputDir}}/arkts-demo-code-report.md`：
 
 生成完成后，向用户输出以下信息： 
 
@@ -884,3 +902,4 @@ powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -Cmd "
 - 代码规范与禁止项速查：[references/CODE_STANDARDS.md](references/CODE_STANDARDS.md)
 - 页面代码模板：[references/TEMPLATE.md](references/TEMPLATE.md)
 - 生成示例对比：[references/EXAMPLES.md](references/EXAMPLES.md)
+- 系统 API 检索工具指南：[references/SYSTEM_API_LOOKUP.md](references/SYSTEM_API_LOOKUP.md)

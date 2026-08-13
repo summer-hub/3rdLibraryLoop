@@ -1,5 +1,5 @@
 /**
- * parse-spec.cjs — 解析 TPCInterfaceSpecSkill 生成的接口规格 Markdown 文档，
+ * parse-spec.cjs — 解析 ArkTsLibraryInterfaceSpecSkill 生成的接口规格 Markdown 文档，
  * 提取方法级接口清单并输出为 JSON。
  *
  * 用法:

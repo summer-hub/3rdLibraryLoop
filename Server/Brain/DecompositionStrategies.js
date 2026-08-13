@@ -485,7 +485,7 @@ ${skillInstructions}
         if (!Array.isArray(steps) || steps.length === 0) {
             throw new Error('步骤列表为空');
         }
-        // 先归一化，再做修复链依赖冲突防御（sanitizeFixChainDependId）
+        // 先归一化，再做修复步骤 dependId 哨兵规范化（sanitizeFixChainDependId → -1）
         const normalized = steps.map((s, idx) => ({
             stepId: typeof s.stepId === 'number' ? s.stepId : idx + 1,
             taskDescription: s.taskDescription || '',
@@ -509,8 +509,8 @@ ${skillInstructions}
 
 /**
  * 归一化步骤的 dependId：支持 number | number[]（fan-in 聚合）。
- * - 数组 → 过滤 0/空后保留
- * - 单值 → 0/null 时返回 0，否则原样返回
+ * - 数组 → 过滤 0/空后保留（-1 哨兵穿透保留）
+ * - 单值 → 0/null 时返回 0；-1 哨兵原样返回（允许穿透，由 sanitizeFixChainDependId 统一设置）
  * @param {number|number[]|null|undefined} value
  * @returns {number|number[]}
  */
@@ -526,24 +526,32 @@ function normalizeStepDependId(value) {
 }
 
 /**
- * 修复链 dependId 冲突防御。
+ * 修复步骤 dependId 哨兵规范化（-1）。
  *
- * 背景：串行修复链路中，某步骤 A 的 failStepId=B（B 是 A 的修复步骤），若 B 的
- * dependId 又声明了 A（"修复步骤依赖其修复目标"），则 B 同时被"失败条件边"与
- * "成功依赖边"两条边指向 A，语义相互矛盾。Orchestrator 执行侧已兜底（A 成功时跳过
- * failStepId 目标、A 失败时跳过依赖聚合直接进入 B），但图本身仍应保持清晰。
+ * 背景：某步骤 A 的 failStepId=B（B 是 A 的修复步骤）时，B 的真实进入条件是"A 失败"
+ * （由 failStepId 边传递），B 不应有"成功依赖边"或"入口身份"。
+ * 但 LLM 生成的 B.dependId 可能取四类值，均产生歧义：
+ *   1. dependId=0 / 空          → 被 Orchestrator 误判为入口步骤，提前并行执行
+ *   2. dependId 指向 A（修复目标）→ 失败链与依赖链重叠
+ *   3. dependId 指向并行步骤 C   → 与源步骤同轮 fan-out 误激活（Orchestrator._activateDependents 已兜底）
+ *   4. dependId 指向真实前置     → 语义尚可，但依赖边冗余（修复步骤只经 failStepId 进入）
  *
- * 防御规则：仅移除"修复步骤对其修复目标本身"的依赖（B.dependId 中含 A 时剔除 A），
- * 保留其余依赖（可能指向修复真正需要的前置产物）。
- * 注意：不删除"修复步骤对其它并行步骤"的依赖（如 B 依赖 C），因为那可能是真实前置，
- * 且 fan-out 并行激活已由 Orchestrator._activateDependents 兜底禁止。
+ * 规范规则：仅当被 failStepId 指向的节点是"纯修复步骤"时，其 dependId 规范化为 -1 哨兵
+ * （表示"仅由 failStepId 触发、无入口身份、无并行依赖"）。判定"纯修复步骤"：
+ *   1. dependId 未给出任何真实前置（0 / 空 / 仅指向修复目标 / 无效引用），且有
+ *   2. 没有被任何其它步骤的 dependId 引用（不承担"产物提供者"角色，即不是普通入口/锚点）。
+ *
+ * 例外（保留原值，fan-out 风险交由 Orchestrator._fixStepIds 兜底）：
+ *   - 修复步骤已有真实 dependId——不强行置 -1，避免破坏其真实前置语义。
+ *   - "重试锚点回退"：链首入口步骤恰被某步骤 failStepId 指向（如 A.failStepId=链首，
+ *     A 失败跳回链首重跑全链），且该步骤被其它步骤 dependId 引用——它是真正的入口，
+ *     置 -1 会使其失去入口身份，必须保留 dependId=0/真实依赖。
  *
  * @param {Array<{stepId:number, dependId:number|number[], failStepId:number}>} steps - 归一化后的步骤
  * @returns {Array} 修正后的步骤数组（在副本上修改，不污染入参）
  */
 function sanitizeFixChainDependId(steps) {
     // 收集修复步骤 -> 触发它的源步骤（即"修复目标"）id
-    // 一般一个修复步骤只被一个源步骤指向，但用数组兼容多源
     const fixTargetOf = new Map(); // 修复步骤 id -> 源步骤 id 列表
     for (const step of steps) {
         const fail = Number(step.failStepId);
@@ -555,28 +563,39 @@ function sanitizeFixChainDependId(steps) {
         }
     }
 
+    // 所有 stepId 集合
+    const idSet = new Set(steps.map(s => Number(s.stepId)));
+    // 被其它步骤 dependId 引用的 stepId 集合（真实"产物提供者"角色）
+    const depReferenced = new Set();
+    for (const step of steps) {
+        const dependIds = Array.isArray(step.dependId) ? step.dependId : [step.dependId];
+        for (const d of dependIds) {
+            const n = Number(d);
+            if (Number.isFinite(n) && n !== 0 && n !== -1) depReferenced.add(n);
+        }
+    }
+
     return steps.map(step => {
         const targets = fixTargetOf.get(Number(step.stepId)) || [];
-        if (targets.length === 0) return step;
+        if (targets.length === 0) return step; // 非修复步骤，保留原 dependId
 
+        if (Number(step.dependId) === -1) return step; // 已是哨兵，幂等
+
+        const sid = Number(step.stepId);
+        // 是否已有"非修复目标"的真实前置依赖（指向修复目标 A 的 dependId 不算真实依赖，
+        // 那是失败链与依赖链的重叠边，应剔除后置 -1）
         const dependIds = Array.isArray(step.dependId) ? step.dependId : [step.dependId];
-        const filtered = dependIds
-            .filter(dep => !targets.includes(Number(dep)) || Number(dep) === Number(step.stepId));
-        if (filtered.length === dependIds.length) return step;
+        const hasRealDeps = dependIds.some(d => {
+            const n = Number(d);
+            return Number.isFinite(n) && n !== 0 && n !== -1 && idSet.has(n) && !targets.includes(n);
+        });
+        // 是否承担"产物提供者"角色（被其它步骤 dependId 引用 → 真入口/锚点，非纯修复步骤）
+        const isDepSource = depReferenced.has(sid);
 
-        const next = { ...step };
-        const cleaned = filtered.filter(d => Number(d) !== 0);
-        if (cleaned.length === 0) {
-            // 修复步骤的 dependId 全部指向其修复目标：不置 0（否则会变成"入口步骤"被提前执行）。
-            // 保留第一条修复目标依赖，由 Orchestrator._activateDependents 的 _fixStepIds 兜底
-            // 禁止 fan-out 并行激活，仅允许 failStepId 触发。
-            next.dependId = dependIds[0];
-        } else if (cleaned.length === 1) {
-            next.dependId = cleaned[0];
-        } else {
-            next.dependId = cleaned;
-        }
-        return next;
+        if (hasRealDeps || isDepSource) return step;
+
+        // 纯修复步骤：dependId 统一规范化为 -1 哨兵
+        return { ...step, dependId: -1 };
     });
 }
 

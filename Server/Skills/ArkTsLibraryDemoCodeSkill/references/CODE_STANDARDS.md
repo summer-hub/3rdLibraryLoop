@@ -170,7 +170,7 @@ private httpRequest: http.HttpRequest | null = null;
 aboutToDisappear(): void {
   hilog.info(DOMAIN, TAG, 'XxxPage disappeared, releasing resources');
 
-  // 释放三方库实例
+  // 释放鸿蒙原生库实例
   if (this.blurManager !== null) {
     this.blurManager.release();
     this.blurManager = null;

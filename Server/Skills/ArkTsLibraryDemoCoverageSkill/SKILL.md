@@ -1,6 +1,6 @@
 ---
-name: tpc-demo-coverage
-description: 分析鸿蒙三方库现有 Demo 对接口的覆盖情况。读取接口规格文档，扫描 entry/src/main/ets/ 下所有 .ets 文件，通过 import 语句匹配识别已调用的接口，计算接口覆盖率百分比，输出已覆盖和未覆盖接口清单。当需要对鸿蒙原生库进行 demo 接口覆盖率缺口填补、未覆盖接口测试规划时调用。
+name: arkts-library-demo-coverage
+description: 分析鸿蒙原生库现有 Demo 对接口的覆盖情况。读取接口规格文档，扫描 entry/src/main/ets/ 下所有 .ets 文件，通过 import 语句匹配识别已调用的接口，计算接口覆盖率百分比，输出已覆盖和未覆盖接口清单。当需要对鸿蒙原生库进行 demo 接口覆盖率缺口填补、未覆盖接口测试规划时调用。
 license: Apache-2.0
 metadata:
   author: AIWeb
@@ -9,7 +9,7 @@ metadata:
   language: ArkTS/ETS
 ---
 
-# TPC Demo 接口覆盖率分析
+# 鸿蒙ArkTs原生库 Demo 接口覆盖率分析
 
 本 Skill 读取接口规格文档和现有 Demo 源码，分析 Demo 对导出接口的覆盖情况，输出覆盖率报告。
 
@@ -21,7 +21,7 @@ metadata:
 
 | 参数 | 必需 | 说明 |
 |------|------|------|
-| `interfaceSpecPath` | ✅ | 接口规格文档绝对路径（由 TPCInterfaceSpecSkill 生成） |
+| `interfaceSpecPath` | ✅ | 接口规格文档绝对路径（由 ArkTsLibraryInterfaceSpecSkill 生成） |
 | `sourcePath` | ✅ | 克隆后的源码根目录绝对路径（如 `{outputDir}/source`） |
 
 ---
@@ -37,7 +37,7 @@ metadata:
 运行 `parse-spec.cjs` 脚本（位于 SKILL.md 同目录的 `scripts/` 子目录下）：
 
 ```bash
-node "{{skillDir}}/scripts/parse-spec.cjs" --spec "{{interfaceSpecPath}}" --output "{{interfaceSpecDir}}/tpccoverage-interfaces.json"
+node "{{skillDir}}/scripts/parse-spec.cjs" --spec "{{interfaceSpecPath}}" --output "{{interfaceSpecDir}}/arkts-demo-interfaces.json"
 ```
 
 其中：
@@ -48,7 +48,7 @@ node "{{skillDir}}/scripts/parse-spec.cjs" --spec "{{interfaceSpecPath}}" --outp
 1. 从接口规格文档摘要行提取 N（方法级总数）、S（类级总数）、M（Native 数量）
 2. 逐章节解析 Markdown 表格（类/接口/函数/变量），提取每个方法级接口项
 3. 自动判断 `kind`（method/property/field/function/variable）和 `isStatic`；构造函数和枚举自动跳过
-4. 输出 `tpccoverage-interfaces.json`，校验条目总数 == 摘要行 N
+4. 输出 `arkts-demo-interfaces.json`，校验条目总数 == 摘要行 N
 5. 若不一致，打印警告但继续输出（以表格实际行数为准）
 
 **脚本输出 JSON 格式：**
@@ -75,7 +75,7 @@ node "{{skillDir}}/scripts/parse-spec.cjs" --spec "{{interfaceSpecPath}}" --outp
 运行 `coverage-match.cjs` 脚本（位于 SKILL.md 同目录的 `scripts/` 子目录下）：
 
 ```bash
-node "{{skillDir}}/scripts/coverage-match.cjs" --interfaces "{{interfaceSpecDir}}/tpccoverage-interfaces.json" --src "{{sourcePath}}/entry/src/main/ets" --lib "{{库名}}" --output "{{interfaceSpecDir}}/coverage-result.json"
+node "{{skillDir}}/scripts/coverage-match.cjs" --interfaces "{{interfaceSpecDir}}/arkts-demo-interfaces.json" --src "{{sourcePath}}/entry/src/main/ets" --lib "{{库名}}" --output "{{interfaceSpecDir}}/coverage-result.json"
 ```
 
 其中：
@@ -160,7 +160,7 @@ node "{{skillDir}}/scripts/coverage-match.cjs" --interfaces "{{interfaceSpecDir}
 
 ### 步骤 4：生成覆盖率报告
 
-生成 `{接口规格文档同目录}/tpccoverage-demo-coverage-report.md`：
+生成 `{接口规格文档同目录}/arkts-demo-coverage-report.md`：
 
 ```markdown
 # {库名} Demo 接口覆盖率报告
@@ -224,7 +224,7 @@ node "{{skillDir}}/scripts/coverage-match.cjs" --interfaces "{{interfaceSpecDir}
 ```
 
 **生成规则：**
-1. 文件名固定为 `tpccoverage-demo-coverage-report.md`，保存在接口规格文档同目录
+1. 文件名固定为 `arkts-demo-coverage-report.md`，保存在接口规格文档同目录
 2. 覆盖率计算精确到小数点后 2 位
 3. 接口名称必须与接口规格文档中的名称完全一致
 4. 类型字段取值：`class`、`interface`、`type`、`enum`、`function`、`variable`
@@ -241,13 +241,13 @@ node "{{skillDir}}/scripts/coverage-match.cjs" --interfaces "{{interfaceSpecDir}
 删除步骤 1 和步骤 2 生成的中间文件（与报告同目录）：
 
 ```powershell
-Remove-Item -LiteralPath "{{interfaceSpecDir}}/tpccoverage-interfaces.json" -Force
+Remove-Item -LiteralPath "{{interfaceSpecDir}}/arkts-demo-interfaces.json" -Force
 Remove-Item -LiteralPath "{{interfaceSpecDir}}/coverage-result.json" -Force
 ```
 
 其中 `{{interfaceSpecDir}}` = 接口规格文档所在目录。
 
-> 仅保留最终产物 `tpccoverage-demo-coverage-report.md`，中间文件 `tpccoverage-interfaces.json`（步骤 1）和 `coverage-result.json`（步骤 2 脚本输出）在报告生成后不再需要，必须删除。
+> 仅保留最终产物 `arkts-demo-coverage-report.md`，中间文件 `arkts-demo-interfaces.json`（步骤 1）和 `coverage-result.json`（步骤 2 脚本输出）在报告生成后不再需要，必须删除。
 
 ---
 
@@ -262,4 +262,4 @@ Remove-Item -LiteralPath "{{interfaceSpecDir}}/coverage-result.json" -Force
 7. **文件不存在**：若 demo 目录不存在或为空，脚本输出覆盖率 0%，需在报告中标注原因
 8. **PowerShell 兼容**：v2.0.0 起，所有文件扫描、import 提取、符号匹配均由 Node.js 脚本完成，不再使用 CMD `findstr`/`dir`/`del` 命令，彻底避免 PowerShell 5.1 兼容性问题
 9. **多行 import 自动处理**：脚本使用 `[^}]*` 跨行正则，自动捕获 `import {` 和 `} from` 分行的多行导入，无需人工补齐
-10. **中间文件清理**：步骤 4 报告生成后，**必须删除**中间文件 `tpccoverage-interfaces.json` 和 `coverage-result.json`（见步骤 5）
+10. **中间文件清理**：步骤 4 报告生成后，**必须删除**中间文件 `arkts-demo-interfaces.json` 和 `coverage-result.json`（见步骤 5）
