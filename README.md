@@ -120,15 +120,23 @@ flowchart LR
 
 ### 1. 环境准备
 
-```bash
-# Node.js ≥ 22（需内置 node:sqlite 模块）
-node --version
+确保以下工具已安装：
 
-# 安装依赖
+| 工具 | 版本要求 | 安装方式 |
+|------|---------|---------|
+| **Node.js** | ≥ 22（需内置 `node:sqlite`） | [nodejs.org](https://nodejs.org/) 或 `nvm install 22` |
+| **opencode** | 任意版本 | `npm install -g opencode` |
+| **devecocli** | ≥ 1.2 | `npm install -g @deveco/deveco-cli` |
+
+安装项目依赖（根目录 + Server）：
+
+```bash
 cd 3rdLibraryLoop
 npm install
 cd Server && npm install
 ```
+
+> 💡 也可以跳过手动安装，直接运行第 3 步的环境检测脚本，会自动检测并安装缺失依赖。
 
 ### 2. 配置环境变量
 
@@ -137,15 +145,15 @@ cd Server
 cp .env.example .env
 ```
 
-编辑 `Server/.env`：
+编辑 `Server/.env`，填入百炼平台 API Key：
 
 ```ini
-# 百炼平台 API Key（必填）
+# 百炼平台 API Key（必填），从 https://bailian.console.aliyun.com/ 获取
 DASHSCOPE_API_KEY=your_api_key_here
 
-# LLM 端点与模型
+# LLM 端点与模型（OpenAI 兼容模式）
 LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-LLM_MODEL=glm-5-1
+LLM_MODEL=glm-5-2
 
 # 采样参数（可选）
 LLM_TEMPERATURE=0.1
@@ -154,21 +162,80 @@ LLM_ENABLE_THINKING=false
 
 # SkillSelector 配置（可选）
 SELECTOR_TOP_K=5
-SELECTOR_HIT_THRESHOLD=60
 FALLBACK_MODEL=qwen3.7-max
 ```
 
-### 3. 启动服务
+同时需配置 opencode 的模型信息，编辑 `~/.config/opencode/opencode.json`：
 
-```bash
-# 启动后端 API 服务（默认 127.0.0.1:3000）
-node Server/Routes/server.js --port 3000 --type opencode
-
-# 启动前端 Web 服务（默认 8080，自动代理 /api/* 到后端）
-node Web/server.js --port 8080 --backend http://127.0.0.1:3000
+```json
+{
+  "provider": {
+    "myprovider": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "volcengine",
+      "options": {
+        "apiKey": "your_api_key",
+        "baseURL": "https://ark.cn-beijing.volces.com/api/v3"
+      },
+      "models": {
+        "ep-xxxxxxxx": {
+          "name": "GLM-4.7",
+          "reasoningEffort": "medium"
+        }
+      }
+    }
+  }
+}
 ```
 
+### 3. 一键启动（推荐）
+
+项目提供了环境检测 + 服务启动一体化脚本，会自动完成以下工作：
+
+1. **环境检测**：检查 `.env` 配置、Node.js、opencode、devecocli、模型配置、项目依赖（缺失依赖自动 `npm install`）
+2. **启动服务**：
+   - **Server / Web**：先关闭占用端口的旧进程，再重新启动
+   - **opencode serve**：检测到已在运行则跳过，避免重复启动
+
+```bash
+# 环境检测 + 启动全部服务
+node start-services.mjs
+
+# 跳过环境检测，直接启动服务
+node start-services.mjs --skip-check
+
+# 仅执行环境检测（不启动服务）
+node check-env.mjs
+```
+
+启动成功后：
+
+| 服务 | 地址 | 说明 |
+|------|------|------|
+| Server 后端 API | `http://127.0.0.1:3000` | REST API + SSE 推送 |
+| Web 前端 | `http://localhost:8080` | AI Loop 大循环控制台 |
+| opencode serve | 后台服务 | CLI 引擎，供 Server 调用 |
+
 访问 `http://localhost:8080` 即可打开 **AI Loop 大循环控制台**。
+
+> 按 `Ctrl+C` 停止由本脚本启动的服务（opencode serve 若之前已在运行则不受影响）。
+
+### 4. 手动启动（可选）
+
+如需分别启动各个服务：
+
+```bash
+# opencode serve（需在项目上一级目录执行）
+cd ..
+opencode serve &
+
+# 后端 API 服务（默认 127.0.0.1:3000）
+cd 3rdLibraryLoop
+node Server/Routes/server.js --port 3000 --type opencode
+
+# 前端 Web 服务（默认 8080，自动代理 /api/* 到后端）
+node Web/server.js --port 8080 --backend http://127.0.0.1:3000
+```
 
 ---
 
