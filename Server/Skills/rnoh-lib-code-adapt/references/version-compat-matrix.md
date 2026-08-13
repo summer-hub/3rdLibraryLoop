@@ -102,9 +102,9 @@
 | RNOH 版本 | Compile SDK (API Level) | 说明 |
 |-----------|------------------------|------|
 | 0.72 | API 12+ | |
-| 0.77 | API 14+ | |
-| 0.82 | API 15+ | |
-| 0.84 | API 17+ | ⚠️ 如果本地未安装 API 17 SDK，可移除 `compileSdkVersion` 字段让 hvigor 自动选择 DevEco 内置 SDK |
+| 0.77 | API 12+ | |
+| 0.82 | API 12+ | |
+| 0.84 | API 12+ | 如果本地未安装 API 12 SDK，可移除 `compileSdkVersion` 字段让 hvigor 自动选择 DevEco 内置 SDK |
 
 ## 升级路径建议
 

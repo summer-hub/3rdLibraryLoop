@@ -30,7 +30,7 @@ RN 0.84 要求 React 19.2.3，如果三方库依赖 React 18.x，会有 peer 冲
 
 ## 5. compileSdkVersion 与本地 SDK 不匹配
 
-`build-profile.json5` 中指定的 `compileSdkVersion`（如 `5.0.1(17)`）如果本地未安装对应 SDK，hvigor 会报 `SDK component missing` 错误。
+`build-profile.json5` 中指定的 `compileSdkVersion`（如 `5.0.1(13)`）如果本地未安装对应 SDK，hvigor 会报 `SDK component missing` 错误。
 
 **解决方案**（按优先级）：
 1. **移除 `compileSdkVersion` 字段**：让 hvigor 自动使用 DevEco Studio 内置 SDK（推荐）

@@ -343,7 +343,7 @@ devecocli check lint harmony/src/main/cpp/
 
 # 2. 打 HAR 包（使用 rnoh-build-har 工具）
 cd /path/to/react-native-xxx
-rnoh-build-har 17 0.84.2 .
+rnoh-build-har 12 0.84.2 .
 # 产出: harmony/xxx.har
 
 # 3. 打 TGZ 包
@@ -463,7 +463,7 @@ hvigor ERROR: SDK component missing.
 **修复**：通过 `api-version` 参数指定正确的 API 版本，或移除库 `build-profile.json5` 中的 `compileSdkVersion`：
 ```bash
 # 指定 API 版本
-rnoh-build-har 17 0.84.2 .
+rnoh-build-har 12 0.84.2 .
 
 # 或移除 compileSdkVersion 后重新构建
 rnoh-build-har .

@@ -122,9 +122,9 @@ rnoh-build-har [api-version] [version] [path] [--module-name <name>] [--build-mo
 | RNOH 版本 | 推荐 API 版本 | 说明 |
 |-----------|-------------|------|
 | 0.72 | 12+ | API 12 |
-| 0.77 | 14+ | API 14 |
-| 0.82 | 15+ | API 15 |
-| 0.84 | 17+ | API 17（本地未安装时可移除 compileSdkVersion） |
+| 0.77 | 12+ | API 12 |
+| 0.82 | 12+ | API 12 |
+| 0.84 | 12+ | API 12 |
 
 ### 常用示例
 
@@ -136,13 +136,13 @@ rnoh-build-har
 rnoh-build-har rntpc_react-native-netinfo
 
 # 指定 API 版本 + 库路径（使用本地 HAR）
-rnoh-build-har 17 rntpc_react-native-netinfo
+rnoh-build-har 12 rntpc_react-native-netinfo
 
 # 使用 ohpm 版本号替代本地 HAR（无需先 npm install）
 rnoh-build-har 0.82.18 rntpc_react-native-permissions
 
 # 指定 API 版本 + ohpm 版本 + 路径
-rnoh-build-har 17 0.84.2 rntpc_react-native-permissions
+rnoh-build-har 12 0.84.2 rntpc_react-native-permissions
 
 # 指定模块名 + debug 模式
 rnoh-build-har --module-name mylib --build-mode debug
@@ -175,7 +175,7 @@ await buildHar({
   libPath: '/path/to/react-native-xxx',
   buildMode: 'release',
   // rnohVersion: '0.82.18',  // 可选：使用 ohpm 版本
-  // apiVersion: 17,          // 可选：HarmonyOS API 版本（12-24）
+  // apiVersion: 12,          // 可选：HarmonyOS API 版本（12-24）
   // moduleName: 'mylib',     // 可选：自动检测
 });
 ```
@@ -464,7 +464,7 @@ devecocli check lint harmony/src/main/cpp/
 
 # Step B: 打 HAR 包
 cd /path/to/rntpc_react-native-xxx
-rnoh-build-har 17 0.84.2 .   # API 17 + RNOH 0.84.2 + 当前目录
+rnoh-build-har 12 0.84.2 .   # API 12 + RNOH 0.84.2 + 当前目录
 # 产出: harmony/xxx.har
 
 # Step C: 打 TGZ 包

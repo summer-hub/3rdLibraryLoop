@@ -294,7 +294,7 @@ devecocli check lint harmony/src/main/ets/  # 批量检查
 
 ```bash
 rnoh-build-har [api-version] [rnoh-version] [path] [--build-mode <mode>]
-# 示例: rnoh-build-har 17 0.84.2 .
+# 示例: rnoh-build-har 12 0.84.2 .
 # 产出: harmony/<module>.har
 ```
 
@@ -324,7 +324,7 @@ npm pack --dry-run | grep '\.har'  # 验证 tgz 包含 HAR
 > ```
 > 详见 [references/har-tgz-build.md](references/har-tgz-build.md) Step D 的「获取 example 模板工程」章节。
 
-> ⚠️ **模板 compatibleSdkVersion 必须升级**：RN3rdTemplate 模板默认 `compatibleSdkVersion: '5.0.0(12)'`（API 12），但 RNOH 0.84 的 HAR 包要求最低 API 17。必须手动将 `example/harmony/build-profile.json5` 中的 `compatibleSdkVersion` 升级到目标版本对应值（0.84 → `'5.0.5(17)'`），否则构建时报 `Specification Limit Violation` 错误。API 版本对应表见 [references/har-tgz-build.md](references/har-tgz-build.md) 中的「API 版本对应表」。
+> ⚠️ **模板 compatibleSdkVersion 保持不变**：RN3rdTemplate 模板默认 `compatibleSdkVersion: '5.0.0(12)'`（API 12），RNOH 0.84 的 HAR 包兼容 API 12，**不要修改**此值。`example/harmony/build-profile.json5` 中的 `compatibleSdkVersion` 必须保持为 `'5.0.0(12)'`。API 版本对应表见 [references/har-tgz-build.md](references/har-tgz-build.md) 中的「API 版本对应表」。
 
 ```json
 // example/package.json
