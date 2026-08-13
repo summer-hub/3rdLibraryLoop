@@ -246,7 +246,11 @@ cat package.json | grep -A 10 '"files"'
 cd /path/to/react-native-xxx
 
 # 打包（生成 <name>-<version>.tgz）
+# prepack 脚本会执行 bob build（tsc + babel 编译），必须通过
 npm pack
+
+# 如果 prepack 失败（TypeScript 编译错误），必须修复错误后重试，禁止 --ignore-scripts
+# 常见 TS 错误修复见下方"prepack TypeScript 编译错误修复"
 
 # 输出示例：
 # npm notice
@@ -281,6 +285,28 @@ react-native-ohos-react-native-xxx-<version>.tgz
 ```
 
 文件名格式：`<scope>-<name>-<version>.tgz`（scope 中的 `@` 和 `/` 转为 `-`）
+
+### prepack TypeScript 编译错误修复
+
+> ⚠️ **禁止使用 `npm pack --ignore-scripts` 跳过 prepack**。prepack 执行 `bob build`（tsc + babel 编译），是 TGZ 包完整性的保证。必须修复所有 TypeScript 编译错误后让 `npm pack` 正常通过。
+
+`prepack` 脚本执行 `yarn build` → `bob build`，其中 `typescript` target 使用 `tsc` 生成类型定义文件。升级到新版本 TypeScript（如 5.9.x）后，可能遇到以下编译错误：
+
+| 错误码 | 错误信息 | 原因 | 修复方法 |
+|--------|---------|------|---------|
+| `TS4111` | Property 'X' comes from an index signature, so it must be accessed with ['X'] | TypeScript 5.x 对索引签名属性访问更严格 | 将 `obj.prop` 改为 `obj['prop']` |
+| `TS2307` | Cannot find module 'X' or its corresponding type declarations | 鸿蒙化库的 jest mock 自引用上游包名 | 改为相对路径 import（如 `"../AsyncStorage"`） |
+| `TS2554` | Expected N arguments, but got M | 方法签名变更后调用处未同步更新 | 更新调用参数 |
+
+```typescript
+// TS4111 修复示例
+// 错误: return !!err.message && err?.code === "AsyncStorageError";
+// 修复: return !!err['message'] && err?.['code'] === "AsyncStorageError";
+
+// TS2307 修复示例（jest mock 自引用）
+// 错误: import type { AsyncStorage } from "@react-native-async-storage/async-storage";
+// 修复: import type { AsyncStorage } from "../AsyncStorage";
+```
 
 ---
 

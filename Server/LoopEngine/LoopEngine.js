@@ -417,7 +417,8 @@ class LoopEngine {
                     checkSummary: r.checkResult ? r.checkResult.summary : null,
                     checkPassed: r.checkResult ? r.checkResult.passed : null,
                     checkStatus: r.checkResult ? r.checkResult.status : null,
-                    checkId: r.checkResult ? r.checkResult.checkId : null
+                    checkId: r.checkResult ? r.checkResult.checkId : null,
+                    checkSessionId: r.checkResult ? r.checkResult.sessionId || null : null
                 };
             })
         };
@@ -680,7 +681,8 @@ class LoopEngine {
                         checkPassed: r.checkResult?.passed ?? null,
                         checkStatus: r.checkResult?.status || null,
                         checkSummary: r.checkResult?.summary || null,
-                        checkId: r.checkResult?.checkId || null
+                        checkId: r.checkResult?.checkId || null,
+                        checkSessionId: r.checkResult?.sessionId || null
                     };
                 }),
                 persistedAt: nowCST()
@@ -743,7 +745,8 @@ class LoopEngine {
                         checkId: r.checkId,
                         passed: r.checkPassed ?? false,
                         status: r.checkStatus || CheckStatus.IDLE,
-                        summary: r.checkSummary || ''
+                        summary: r.checkSummary || '',
+                        sessionId: r.checkSessionId || ''
                     } : null,
                     passed: r.passed || false,
                     error: r.error || null
@@ -753,6 +756,22 @@ class LoopEngine {
             };
 
             this._loops.set(taskId, ctx);
+
+            // ── 补充加载：旧版 loop.json 缺少 checkSessionId，
+            //    从 testcheck_loopN.json 中补全各轮 checkResult.sessionId ──
+            for (const round of ctx.rounds) {
+                if (round.checkResult && !round.checkResult.sessionId) {
+                    try {
+                        const checkData = await json.read(`${taskId}/testcheck_loop${round.loop}`);
+                        if (checkData && checkData.sessionId) {
+                            round.checkResult.sessionId = checkData.sessionId;
+                        }
+                    } catch {
+                        // testcheck_loopN.json 可能不存在（审核未执行），跳过
+                    }
+                }
+            }
+
             this._log('info', `大循环状态已恢复: taskId=${taskId}, status=${ctx.status}`);
             return ctx;
         } catch {

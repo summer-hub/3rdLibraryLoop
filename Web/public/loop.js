@@ -285,8 +285,11 @@ function renderCheckPhase(r) {
         if (r.checkPassed===true) h += '<div style="margin-bottom:6px;"><span class="status-badge passed">✅ 准出通过</span></div>';
         else if (r.checkPassed===false) h += '<div style="margin-bottom:6px;"><span class="status-badge failed">❌ 准出未通过</span></div>';
         else h += '<div style="margin-bottom:6px;"><span class="status-badge ' + (r.checkStatus||'idle') + '">' + statusLabel(r.checkStatus) + '</span></div>';
+        h += '<div class="kv"><span class="k">Check ID</span><span class="v">' + escapeHtml(r.checkId||'—') + '</span>';
+        h += '<span class="k">审核 Session</span><span class="v">' + escapeHtml(r.checkSessionId||'—') + '</span></div>';
         if (r.checkSummary) h += '<div style="margin-bottom:8px;padding:6px 8px;background:var(--card);border-radius:5px;font-size:11px;line-height:1.6;"><strong>审核摘要:</strong> ' + escapeHtml(r.checkSummary) + '</div>';
         h += '<button class="secondary sm" onclick="loadCheckDetail(\'' + escapeHtml(State.selectedTaskId) + '\', ' + r.loop + ')">📄 查看审核详情</button>';
+        h += ' <button class="secondary sm" onclick="loadCheckSession(\'' + escapeHtml(State.selectedTaskId) + '\', ' + r.loop + ')">💬 查看审核对话</button>';
     }
     h += '</div></div>'; return h;
 }
@@ -748,6 +751,22 @@ async function loadCheckDetail(tid,loop) {
     try { var d=await API.get('/api/loopengine/progress?taskId='+encodeURIComponent(tid)); if(d.status==='ok'&&d.progress){ var r=(d.progress.rounds||[]).find(function(x){return x.loop===loop;}); if(r){ var c='=== 第 '+(loop+1)+' 轮准出审核 ===\n\n'; c+='Check ID: '+(r.checkId||'—')+'\n'; c+='状态: '+statusLabel(r.checkStatus)+'\n'; c+='通过: '+(r.checkPassed?'是':'否')+'\n\n'; c+='审核摘要:\n'+(r.checkSummary||'—')+'\n'; showModal('审核详情 - 第'+(loop+1)+'轮',c); } else toast('error','未找到第'+(loop+1)+'轮审核数据'); } } catch(err){ toast('error','加载审核详情失败: '+err.message); }
 }
 
+async function loadCheckSession(tid, loop) {
+    try {
+        var d = await API.get('/api/loopengine/check-session?taskId=' + encodeURIComponent(tid) + '&loop=' + encodeURIComponent(loop));
+        if (d.status === 'ok') {
+            var msgs = d.messages || [];
+            var title = '审核对话 - 第' + (loop + 1) + '轮';
+            if (d.sessionId) title += ' (' + d.sessionId.substring(0, 20) + '...)';
+            showSessionModal(title, msgs);
+        } else {
+            toast('error', d.error || '获取审核对话失败');
+        }
+    } catch(err) {
+        toast('error', '获取审核对话失败: ' + err.message);
+    }
+}
+
 async function abortLoop() {
     var tid=State.selectedTaskId; if(!tid) return;
     try { var d=await API.post('/api/loopengine/abort',{taskId:tid}); toast(d.status==='ok'?'warn':'error',d.message||'终止完成'); await loadLoopProgress(tid); loadLoopList(); } catch(err){ toast('error',err.message); }
@@ -816,6 +835,24 @@ function connectSSE(tid) {
 /* ─── 弹窗 ──────────────────────────────────────────────────────────── */
 function showModal(title,content) { $('modalTitle').textContent=title; $('modalContent').textContent=content; $('modalOverlay').classList.add('show'); }
 function closeModal() { $('modalOverlay').classList.remove('show'); }
+
+function showSessionModal(title, msgs) {
+    $('modalTitle').textContent = title;
+    var el = $('modalContent');
+    if (!msgs || msgs.length === 0) {
+        el.textContent = '暂无对话消息';
+    } else {
+        el.innerHTML = msgs.map(function(m) {
+            var role = m.role || (m.info && m.info.role) || 'unknown';
+            var content = m.content != null ? m.content : ((m.parts && m.parts[0] && m.parts[0].text) || '');
+            if (!content || content.trim() === '') return '';
+            var t = m.timestamp || '';
+            var rc = role === 'user' ? 'user' : role === 'assistant' ? 'assistant' : 'system';
+            return '<div class="msg-item ' + rc + '"><div class="role">' + escapeHtml(role) + '</div><div>' + escapeHtml(content) + '</div>' + (t ? '<div class="time">' + escapeHtml(t) + '</div>' : '') + '</div>';
+        }).filter(Boolean).join('');
+    }
+    $('modalOverlay').classList.add('show');
+}
 
 function openNewLoopModal() {
     $('newLoopDesc').value=''; $('newLoopCriteria').value=''; $('newLoopMaxLoops').value='3';
@@ -896,6 +933,7 @@ window.selectLoop=selectLoop;
 window.selectStep=selectStep;
 window.viewFile=viewFile;
 window.loadCheckDetail=loadCheckDetail;
+window.loadCheckSession=loadCheckSession;
 window.switchToOrchTab=switchToOrchTab;
 window.switchToBrainTab=switchToBrainTab;
 window.showModal=showModal;

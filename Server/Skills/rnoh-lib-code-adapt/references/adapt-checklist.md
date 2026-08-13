@@ -167,6 +167,47 @@ struct MySection {
       或使用 new Map<string, string>()
 ```
 
+### 9. "Function may throw exceptions" 警告
+
+ArkTS 编译器会对可能抛出异常的函数调用发出警告，要求特殊处理。常见触发场景：
+
+**场景 A：ResultSet 操作**
+
+```
+警告: cursor.close() 和 db.query() 等 ResultSet 操作可能抛出异常
+修复: 将 cursor 声明为 nullable，query 调用移入 try 块，close 增加 null 检查 + try-catch
+```
+
+```typescript
+// 修复模式
+let cursor: relationalStore.ResultSet | null = null;
+try {
+  cursor = await db.query(predicates, columns);
+  // cursor 操作...
+} catch (e) {
+  // 错误处理
+} finally {
+  if (cursor !== null) {
+    try { cursor.close(); } catch (e) { Logger.warn(TAG, e.message) }
+  }
+}
+```
+
+**场景 B：数据库事务回滚**
+
+```
+警告: rdbStore.rollBack() 在 catch 块中可能抛出异常
+修复: 用 try-catch 包裹 rollBack 调用
+```
+
+```typescript
+// 修复模式
+} catch (e) {
+  try { rdbStore.rollBack(); } catch (rollbackErr) { Logger.warn(TAG, rollbackErr.message) }
+  throw new Error(e.message);
+}
+```
+
 ---
 
 ## C++ 侧适配注意事项

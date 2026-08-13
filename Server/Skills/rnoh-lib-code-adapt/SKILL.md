@@ -12,7 +12,7 @@ compatibility: 需要 git、node、npm；DevEco Studio >= 6.0.0 或 Command Line
 allowed-tools: Bash Read Grep Glob Edit Write
 metadata:
   author: rnoh-team
-  version: "2.1.0"
+  version: "2.2.0"
   phase: "2-of-4"
 ---
 
@@ -76,12 +76,21 @@ npm install -g rnoh-build-har
 ## 进度清单
 
 ```
-- [ ] Step 1: 分析 diff，分类变更
+- [ ] Step 1: 分析 diff，分类变更（含上游 API 变更识别）
 - [ ] Step 2: 修改 RN 框架版本依赖
-- [ ] Step 3: 代码适配修改（JS → Spec → codegen → harmony）
+- [ ] Step 3: 代码适配修改
+  - [ ] 3.0: 上游 API 重构适配（硬性要求，不可跳过）
+  - [ ] 3.1: JS 层版本更新（npm install 更新 JS 源码）
+  - [ ] 3.2: API 签名变更适配（codegen + TurboModule 重写）
+  - [ ] 3.3: 原生层变更适配（C++/ArkTS）
+  - [ ] 3.4: 新增导出适配
+  - [ ] 3.5: 鸿蒙 API 核查
+- [ ] Step 3 完成度检查门禁（进入 Step 4 前必须通过）
 - [ ] Step 4: 编译验证（语法检查 → 打 HAR → 打 TGZ → 依赖 tgz → 编译）
 - [ ] Step 5: 生成适配变更清单
 ```
+
+> ⚠️ **绝对禁止跳过上游三方库的内容升级**：即使任务标题只提到 "RNOH 0.xx → 0.yy 框架升级"，如果版本分析报告（stepId2）指出上游有 API 变更（callback→Promise、模块名变更、新增/删除方法等），**必须**在 Step 3 中完成上游 API 的完整鸿蒙侧适配。仅做框架版本号升级而不适配上游 API 变更是严重错误。
 
 ---
 
@@ -93,7 +102,7 @@ npm install -g rnoh-build-har
 
 | 类型 | 说明 | 鸿蒙侧影响 | 适配优先级 |
 |------|------|-----------|-----------|
-| **JS 层变更** | `.js`/`.ts`/`.tsx` 文件修改 | 鸿蒙化工程不含 JS 代码，通过 package.json 依赖源库，仅需更新依赖版本 | 无 |
+| **JS 层变更** | `.js`/`.ts`/`.tsx` 文件修改 | JS 源码通过 npm 自动更新，**但其中 API 变更必须在鸿蒙侧适配**（见 Step 3.0） | 视变更内容而定 |
 | **原生层变更** | `.cpp`/`.h`/`.java`/`.kt` 文件 | 需检查 harmony/ 下 C++/ArkTS 代码是否需对应修改 | 高 |
 | **API 签名变更** | TurboModule spec 文件（`*Native*.ts`）接口变更 | 需重新 codegen，更新 C++ 和 ArkTS 适配层 | 最高 |
 | **新增导出** | 新增组件、模块或 API | 需在鸿蒙侧新增对应 Package/Component 注册 | 高 |
@@ -187,13 +196,35 @@ npm install -g rnoh-build-har
 
 根据 Step 1 的变更分类清单，逐项执行适配修改。按层级顺序：**JS → Spec → codegen → harmony**。
 
-### 3.1 JS 层变更适配
+### 3.0 上游 API 重构适配（硬性要求，不可跳过）
 
-鸿蒙化三方库**不含 JS 代码**，JS 层由 `package.json` 依赖的源库提供。JS 层变更**无需手动适配**：
+> ⚠️ **本节是整个适配流程中最核心的步骤。** 如果版本分析报告指出上游有 API 变更，**必须**完成本节全部检查和适配后才能进入 3.1。即使编译能通过（因为旧 API 可能仍兼容运行），不做上游 API 适配会导致功能不完整或运行时错误。
+
+#### 检查清单
+
+在开始代码修改前，**必须**逐项检查以下内容。详细检查命令和迁移步骤见 [references/api-migration-checklist.md](references/api-migration-checklist.md)。
+
+**① TurboModule 模块名变更检查**：对比 `src/native-module/Native*.ts` 中的模块名与 `harmony/` 下 Package 注册的模块名。如果不同，需同步修改 ArkTS Package、C++ Package、C++ TurboModule 文件名和类名。
+
+**② API 模式变更检查（callback → Promise）**：检查上游 spec 是否有 Promise 返回类型。如果从 callback 改为 Promise，需将 C++ 方法注册从 `ARK_METHOD_METADATA` 改为 `ARK_ASYNC_METHOD_METADATA`，重写 ArkTS TurboModule 为 async/Promise 模式，移除不再需要的工具类。
+
+**③ 新增/删除方法检查**：对比上游 spec 接口和鸿蒙侧 TurboModule 实现的方法列表。新增方法→实现对应逻辑；删除方法→清理旧实现和 C++ 方法注册；签名变更→更新参数和返回类型。
+
+**④ 数据格式变更检查**：检查方法参数和返回值的数据格式是否变化（如 `[string, string][]` → `{ key, value }[]`），同步修改实现。
+
+**⑤ codegenConfig 变更检查**：对比上游 `package.json` 的 `codegenConfig`（name、javaPackageName 等），同步更新鸿蒙化工程的 `package.json`。
+
+### 3.1 JS 层版本更新
+
+鸿蒙化三方库**不含 JS 代码**，JS 层由 `package.json` 依赖的源库提供。**JS 源码文件的更新是自动的**（通过 `npm install`），但 **JS 层中包含的 API 变更必须在鸿蒙侧手动适配**（见 3.0）：
 
 1. 在 `package.json` 中将源库依赖版本更新到目标版本
-2. 运行 `npm install` 安装新版本，JS 代码自动更新
-3. 运行 `npm run codegen` 重新生成 C++ 和 ArkTS 代码
+2. 运行 `npm install` 安装新版本，JS 代码（`src/` 目录）自动更新
+3. 检查 `src/native-module/Native*.ts` 确认新 API 签名
+4. 按照 3.0 的检查清单完成鸿蒙侧适配
+5. 运行 `npm run codegen` 重新生成 C++ 和 ArkTS 代码
+
+> ⚠️ **"JS 层变更无需手动适配"仅指 JS 源码文件本身不需要手动复制/修改**，不代表可以跳过上游 API 变更的鸿蒙侧适配。上游 API 变更（模块名、方法签名、返回类型等）**必须在 harmony/ 下手动适配**。
 
 ### 3.2 API 签名变更适配
 
@@ -260,6 +291,21 @@ devecocli check lint harmony/src/main/ets/XxxModule.ets
 
 > `pure-js` 库跳过本节。
 
+### 3.6 完成度检查门禁（进入 Step 4 前必须通过）
+
+在开始编译验证之前，**必须**逐项确认以下检查通过。任何一项未通过都意味着适配不完整，**禁止进入 Step 4**：
+
+| 检查项 | 通过标准 |
+|--------|---------|
+| TurboModule 模块名一致 | `src/native-module/Native*.ts` 的名称与 `harmony/` 下 Package 注册一致 |
+| 所有 spec 方法已实现 | `interface Spec` 的每个方法在 TurboModule 中都有对应实现 |
+| C++ 方法注册完整 | `methodMap_` 包含所有 spec 方法的元数据，方法名和参数数匹配 |
+| C++ 元数据宏正确 | Promise 方法用 `ARK_ASYNC_METHOD_METADATA`，callback 用 `ARK_METHOD_METADATA` |
+| 旧文件已清理 | 不存在以旧模块名命名的 `.ts`/`.h`/`.cpp` 文件 |
+| codegenConfig 一致 | `package.json` 的 `codegenConfig.name` 和 `javaPackageName` 已同步上游 |
+
+> 详细检查命令见 [references/api-migration-checklist.md](references/api-migration-checklist.md)。
+
 ---
 
 ## Step 4：编译验证
@@ -308,9 +354,11 @@ cd /path/to/react-native-xxx
 # 清理 rnoh-build-har 产生的临时文件（避免 oh_modules 913MB 导致 npm pack 超时）
 rm -rf harmony/oh_modules harmony/AppScope harmony/build-profile.json5 harmony/hvigor harmony/oh-package.json5 harmony/<module>/build
 
-npm pack                        # 产出: <name>-<version>.tgz
+npm pack                        # 产出: <name>-<version>.tgz（含 prepack 构建，禁止 --ignore-scripts）
 npm pack --dry-run | grep '\.har'  # 验证 tgz 包含 HAR
 ```
+
+> ⚠️ **禁止使用 `npm pack --ignore-scripts`**：prepack 执行 `bob build`（tsc + babel），是 TGZ 完整性保证。TS 编译错误必须修复，见 [references/har-tgz-build.md](references/har-tgz-build.md) 的「prepack TypeScript 编译错误修复」。
 
 > ⚠️ 务必验证 tgz 包含 HAR 文件。如果 `package.json` 的 `files` 字段不含 `harmony/`，`npm pack` 不会包含 HAR。
 
@@ -443,13 +491,10 @@ devecocli build --product default --build-mode debug
 
 跨版本升级、codegen 冲突、缺少 RNOH 分支、peer dependency 冲突、compileSdkVersion 不匹配、RNOH 框架警告、codegen 与 autolinking 关系、源码 `file:` 依赖问题等边界情况，详见 [references/edge-cases.md](references/edge-cases.md)。
 
-
 ## 输出物清单
 
-完成本 skill 后，应产出以下文件供后续 skill 使用：
-
 1. **适配变更清单**（Markdown 格式）— 记录所有修改的文件、内容、原因
-2. **HAR 包**（`harmony/<module>.har`）— 鸿蒙原生编译产物，由 `rnoh-build-har` 生成
+2. **HAR 包**（`harmony/<module>.har`）— 由 `rnoh-build-har` 生成
 3. **TGZ 包**（`<name>-<version>.tgz`）— 最终 npm 包产物，含 JS 代码 + HAR 包，由 `npm pack` 生成
-4. **编译通过的本地工程** — 以 tgz 包依赖方式构建通过的 example 工程，供 rnoh-lib-test-align 移植测试用例
+4. **编译通过的本地工程** — tgz 依赖方式构建通过的 example 工程，供 rnoh-lib-test-align
 5. **变更分类清单** — 供 rnoh-lib-func-test 生成测试清单

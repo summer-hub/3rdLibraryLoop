@@ -115,6 +115,9 @@ const StepStatus = Object.freeze({
 /** 默认最大重试次数 */
 const DEFAULT_MAX_RETRIES = 3;
 
+/** 经验总结环节等待文件生成超时（ms），默认 5 分钟 */
+const SUMMARY_TIMEOUT_MS = 5 * 60 * 1000;
+
 /** 轮询间隔（ms），用于等待 opencode session 执行完成 */
 const POLL_INTERVAL_MS = 5000;
 
@@ -411,20 +414,24 @@ class FlexRunner {
     }
 
     /**
-     * executeStart — 驱动单次执行流程（5 步）。
+     * executeStart — 驱动单次执行流程（6 步）。
      *
      * 本方法为**单次执行**，不内部循环。外部执行机构根据返回值决定是否
      * 再次调用本方法进行重试。每次调用 #executeStep 递增，生成的文件
      * 以 loopCount 区分。
      *
      * 流程：
-     *   1. matchSkill     → 匹配最佳 Skill（未匹配到时返回 null，降级为无 SKILL 模式）
-     *   2. invokeSkill    → 通过 opencode 执行 Skill，生成 result .md 文件
+     *   1. matchSkill          → 匹配最佳 Skill（未匹配到时返回 null，降级为无 SKILL 模式）
+     *   2. invokeSkill         → 通过 opencode 执行 Skill，生成 result .md 文件
      *      （skillDir 为 null 时，基于任务描述本身直接执行，不使用 SKILL）
      *      （第 N 次执行时，自动收集历史 result/summary .md 作为上下文）
-     *   3. checkResult    → 读取 result .md，判断成功/失败
-     *   4. persistKnowledge → 读取 Summary .md，持久化经验
-     *   5. 返回 { resultPath, success, nextStepId }
+     *      （初始 prompt 仅负责执行任务 + 生成 result .md，不包含经验总结指令）
+     *   3. checkResult         → 读取 result .md，判断成功/失败
+     *   4. 返回 { resultPath, success, nextStepId }
+     *   5.（后台异步）_summarizeAndPersist → 仅在成功后，向同一 Session 追加经验总结 prompt
+     *      （通过 sendAndWaitMessage 等待 AI 生成 Summary .md，再 persistKnowledge）
+     *      （fire-and-forget：不阻塞 executeStart 返回，不影响步骤流转）
+     *      （失败/超时降级：不影响步骤成功状态，仅记录 warn 日志）
      *
      * 文件命名（按大循环轮次 + 步骤内重试次数区分）：
      *   - 结果文件: stepId{actualStepId}_loop{bigLoopIndex}_result_{retryCount}.md
@@ -490,7 +497,7 @@ class FlexRunner {
                     this.#taskDescription,
                     this.#matchedSkillDir,
                     this.#inputReport || undefined,
-                    { resultFilePath: resultPath, summaryFilePath, historyDocs }
+                    { resultFilePath: resultPath, historyDocs }
                 );
 
                 if (!invoked) {
@@ -510,10 +517,14 @@ class FlexRunner {
 
                 if (ok) {
                     success = true;
-                    // ── 步骤 4：persistKnowledge（读取 Summary .md） ──
-                    await this._waitIfPaused();
-                    await this.persistKnowledge(summaryFilePath);
-                    this._log('info', '✅ 执行成功，经验已持久化');
+                    this._log('info', '✅ 执行成功，经验总结将在后台异步进行');
+                    // ── 后台异步：经验总结 + 知识持久化（不阻塞 executeStart 返回） ──
+                    // capture sessionId 防止实例复用时被覆盖
+                    const sid = this.#sessionId;
+                    const skillDir = this.#matchedSkillDir;
+                    this._summarizeAndPersist(summaryFilePath, skillDir, sid).catch((err) => {
+                        this._log('warn', `后台经验总结/持久化异常: ${err.message}`);
+                    });
                 } else {
                     this._log('warn', `checkResult 未通过（loopCount=${loopCount}）`);
                 }
@@ -620,21 +631,21 @@ class FlexRunner {
      *
      * 流程：
      *   1. 创建 opencode Session（标题=taskId+stepId+loopCount）
-     *   2. 发送初始 prompt（任务描述 + SKILL 目录 + 报告路径 + 结果/经验文件路径）
+     *   2. 发送初始 prompt（任务描述 + SKILL 目录 + 报告路径 + 结果文件路径）
      *      — skillDir 为 null 时，prompt 不包含 SKILL 目录，改为基于任务描述直接执行
+     *      — 初始 prompt 仅负责执行任务 + 生成 result .md，**不包含经验总结指令**
+     *      — 经验总结在 checkResult 成功后由 _summarizeExperience 独立追加
      *   3. 轮询 Session 状态直到完成或超时
      *   4. 记录 sessionId
      *
      * opencode 执行过程中会固定生成：
      *   - resultFilePath:  stepId{actualStepId}_loop{bigLoopIndex}_result_{retryCount}.md
-     *   - summaryFilePath: stepId{actualStepId}_loop{bigLoopIndex}_Summary_{retryCount}.md
      *
      * @param {string} taskDescription   - 任务描述字符串
      * @param {string|null} skillDir     - 选定的 SKILL 目录路径；null 表示无 SKILL 模式
      * @param {string} [reportPath]      - 输入报告路径（可选）
-     * @param {object} [filePaths]       - 结果/经验文件路径
+     * @param {object} [filePaths]       - 文件路径
      * @param {string} [filePaths.resultFilePath]  - 结果文件输出路径
-     * @param {string} [filePaths.summaryFilePath] - 经验文件输出路径
      * @returns {Promise<boolean>} 是否成功
      */
     async invokeSkill(taskDescription, skillDir, reportPath, filePaths = {}) {
@@ -697,10 +708,16 @@ class FlexRunner {
      * 读取 Summary .md 文件内容，将其作为经验知识记录到 TaskStepStore，
      * 并登记到知识沉淀系统（KnowledgeManager）。
      *
+     * 调用时序（由 executeStart 驱动）：
+     *   1. invokeSkill 执行任务（生成 result .md）
+     *   2. checkResult 判断成功
+     *   3. _summarizeExperience 追加经验总结 prompt（AI 生成 Summary .md）
+     *   4. persistKnowledge（本方法）读取 Summary .md 并持久化
+     *
      * 判断逻辑：
-     *   - 有 SKILL 模式：Summary .md 由 SKILL 指令保证生成，存在则登记。
-     *   - 无 SKILL 模式：提示词中要求 AI 自行判断是否有有价值经验，
-     *     有则生成 Summary .md，无则不生成。文件不存在时跳过登记。
+     *   - _summarizeExperience 成功后，Summary .md 通常已生成。
+     *   - AI 可能判断无有价值经验而不生成文件（沉淀类型 = 无），此时跳过登记。
+     *   - 文件不存在时静默跳过，返回 false。
      *
      * 流程：
      *   1. 检查 summaryFilePath 对应的文件是否存在（不存在 → 跳过，返回 false）
@@ -1124,14 +1141,16 @@ class FlexRunner {
     }
 
     /**
-     * 构建 opencode prompt。
+     * 构建 opencode 初始执行 prompt。
+     *
+     * 仅负责任务执行 + 生成 result .md，**不包含经验总结指令**。
+     * 经验总结在 checkResult 成功后由 _buildSummaryPrompt 独立构建。
      *
      * @param {string} taskDescription - 任务描述
-     * @param {string} skillDir        - SKILL 目录
+     * @param {string|null} skillDir   - SKILL 目录（null 表示无 SKILL 模式）
      * @param {string} [reportPath]    - 输入报告路径
-     * @param {object} [filePaths]     - 结果/经验文件路径
+     * @param {object} [filePaths]     - 文件路径
      * @param {string} [filePaths.resultFilePath]  - 结果文件输出路径
-     * @param {string} [filePaths.summaryFilePath] - 经验文件输出路径
      * @returns {string} 拼接后的 prompt 文本
      * @private
      */
@@ -1154,9 +1173,6 @@ class FlexRunner {
             if (filePaths.resultFilePath) {
                 parts.push(`## 结果文件输出路径\n${filePaths.resultFilePath}`);
             }
-            if (filePaths.summaryFilePath) {
-                parts.push(`## 经验文件输出路径\n${filePaths.summaryFilePath}`);
-            }
             // 历史结果文档路径（第 N 次执行时传入之前的 result .md 路径，不传内容）
             if (filePaths.historyDocs && filePaths.historyDocs.length > 0) {
                 const historyLines = filePaths.historyDocs.map(
@@ -1168,34 +1184,8 @@ class FlexRunner {
             }
             parts.push(
                 '请按照 SKILL 中的指令执行任务。',
-                '执行完成后，请将结果写入上述"结果文件输出路径"，并在"经验文件输出路径"写入经验总结。',
-                '结果文件需包含 `## 执行状态` 字段（值为 `成功` 或 `失败`），用于判断执行结果。',
-                '',
-                '## 经验沉淀判断（重要）',
-                '执行完成后，请评估本次执行是否产生了**有价值的、可复用的经验总结**。',
-                '判断标准：',
-                '- 本次执行中发现了关键的踩坑点、解决方案、最佳实践或可复用的模式',
-                '- 这些经验对未来类似的任务有明确的参考价值',
-                '- 不是简单的执行流水账或重复的通用知识',
-                '',
-                '如果存在有价值的经验，请将经验总结写入上述"经验文件输出路径"（如果路径已提供），',
-                '经验经验文件应包含：关键发现、踩坑记录、解决方案、可复用建议等。',
-                '',
-                '## 经验分类（必须在经验文件末尾输出）',
-                '在经验文件末尾附上以下经验分类块，用于标记本次经验的归属类型：',
-                '```',
-                '## 经验分类',
-                '- 沉淀类型: skill优化 | 知识库 | 无',
-                `- 适用SKILL: ${skillDir}`,
-                '- 优化建议: <对当前SKILL的具体修改/新增点，skill优化类必填>',
-                '```',
-                '字段说明：',
-                '- 沉淀类型：三选一。skill优化=当前SKILL有可改进之处（检查项缺失/规则错误/可复用模式未被覆盖）；知识库=通用领域经验，与具体SKILL逻辑无关；无=无有价值经验，此时不生成经验文件。',
-                '- 适用SKILL：仅 skill优化 类必填，填上面注入的当前 step 调用 SKILL 的路径，原样保留不要改动。',
-                '- 优化建议：仅 skill优化 类必填，描述对当前SKILL的具体修改/新增点（如"新增 XX 检查项"、"修正 YY 规则"）。',
-                '',
-                '如果没有有价值的经验可沉淀（如任务过于简单、未发现新的经验），则**不需要生成经验文件**。',
-                '请勿创建空文件或无实质内容的经验文件。'
+                '执行完成后，请将结果写入上述"结果文件输出路径"。',
+                '结果文件需包含 `## 执行状态` 字段（值为 `成功` 或 `失败`），用于判断执行结果。'
             );
         } else {
             // ── 无 SKILL：基于任务描述本身直接执行 ──
@@ -1204,9 +1194,6 @@ class FlexRunner {
             }
             if (filePaths.resultFilePath) {
                 parts.push(`## 结果文件输出路径\n${filePaths.resultFilePath}`);
-            }
-            if (filePaths.summaryFilePath) {
-                parts.push(`## 经验文件输出路径（可选）\n${filePaths.summaryFilePath}`);
             }
             // 历史结果文档路径（第 N 次执行时传入之前的 result .md 路径，不传内容）
             if (filePaths.historyDocs && filePaths.historyDocs.length > 0) {
@@ -1220,33 +1207,7 @@ class FlexRunner {
             parts.push(
                 '本次任务未匹配到专用 SKILL，请直接基于上述任务描述执行任务。',
                 '执行完成后，请将结果写入上述"结果文件输出路径"。',
-                '结果文件需包含 `## 执行状态` 字段（值为 `成功` 或 `失败`），用于判断执行结果。',
-                '',
-                '## 经验沉淀判断（重要）',
-                '执行完成后，请评估本次执行是否产生了**有价值的、可复用的经验总结**。',
-                '判断标准：',
-                '- 本次执行中发现了关键的踩坑点、解决方案、最佳实践或可复用的模式',
-                '- 这些经验对未来类似的任务有明确的参考价值',
-                '- 不是简单的执行流水账或重复的通用知识',
-                '',
-                '如果存在有价值的经验，请将经验总结写入上述"经验文件输出路径"（如果路径已提供），',
-                '经验经验文件应包含：关键发现、踩坑记录、解决方案、可复用建议等。',
-                '',
-                '## 经验分类（必须在经验文件末尾输出）',
-                '在经验文件末尾附上以下经验分类块，用于标记本次经验的归属类型：',
-                '```',
-                '## 经验分类',
-                '- 沉淀类型: skill优化 | 知识库 | 无',
-                '- 适用SKILL: <无，本次未匹配到SKILL>',
-                '- 优化建议: <skill优化类必填，但本次无SKILL，通常填"无">',
-                '```',
-                '字段说明：',
-                '- 沉淀类型：三选一。skill优化=需为某个SKILL沉淀优化建议；知识库=通用领域经验，与具体SKILL逻辑无关；无=无有价值经验，此时不生成经验文件。',
-                '- 适用SKILL：本次未匹配到 SKILL，此处标记"无"。若沉淀类型为 skill优化，请在优化建议中注明建议沉淀到哪个 SKILL（如期望新增或修改的 SKILL 名称）。',
-                '- 优化建议：仅 skill优化 类必填，描述建议新建或修改的 SKILL 的具体点。',
-                '',
-                '如果没有有价值的经验可沉淀（如任务过于简单、未发现新的经验），则**不需要生成经验文件**。',
-                '请勿创建空文件或无实质内容的经验文件。'
+                '结果文件需包含 `## 执行状态` 字段（值为 `成功` 或 `失败`），用于判断执行结果。'
             );
         }
 
@@ -1259,6 +1220,238 @@ class FlexRunner {
         }
 
         return parts.join('\n\n');
+    }
+
+    /**
+     * _buildSummaryPrompt — 构建经验总结专用 prompt。
+     *
+     * 此 prompt 在 checkResult 成功后，通过 sendAndWaitMessage 向同一 Session
+     * 追加发送，要求 AI 基于已有的执行上下文生成 Summary .md 经验总结文件。
+     *
+     * 与初始执行 prompt 分离的原因：
+     *   - 确保经验总结仅在执行成功后触发
+     *   - AI 在总结时已有完整的执行上下文（同一 Session），总结质量更高
+     *   - 初始 prompt 更简洁，AI 专注执行任务
+     *
+     * @param {string} summaryFilePath - 经验文件输出路径
+     * @param {string|null} skillDir   - SKILL 目录路径（null 表示无 SKILL 模式）
+     * @returns {string} 拼接后的经验总结 prompt 文本
+     * @private
+     */
+    _buildSummaryPrompt(summaryFilePath, skillDir) {
+        const parts = [
+            '## 任务已执行成功，请进行经验总结',
+            '',
+            '以上任务已执行成功。请基于本次执行过程中的实际情况，评估是否产生了**有价值的、可复用的经验总结**。',
+            '',
+            '## 判断标准',
+            '- 本次执行中发现了关键的踩坑点、解决方案、最佳实践或可复用的模式',
+            '- 这些经验对未来类似的任务有明确的参考价值',
+            '- 不是简单的执行流水账或重复的通用知识',
+            '',
+            '## 处理方式',
+            '如果存在有价值的经验，请将经验总结写入以下路径：',
+            `经验文件输出路径：${summaryFilePath}`,
+            '',
+            '经验文件应包含：关键发现、踩坑记录、解决方案、可复用建议等。',
+            '',
+            '## 经验分类（必须在经验文件末尾输出）',
+            '在经验文件末尾附上以下经验分类块，用于标记本次经验的归属类型：',
+            '```',
+            '## 经验分类',
+            '- 沉淀类型: skill优化 | 知识库 | 无'
+        ];
+
+        if (skillDir) {
+            parts.push(
+                `- 适用SKILL: ${skillDir}`,
+                '- 优化建议: <对当前SKILL的具体修改/新增点，skill优化类必填>'
+            );
+        } else {
+            parts.push(
+                '- 适用SKILL: <无，本次未匹配到SKILL>',
+                '- 优化建议: <skill优化类必填，但本次无SKILL，通常填"无">'
+            );
+        }
+
+        parts.push(
+            '```',
+            '',
+            '字段说明：',
+            '- 沉淀类型：三选一。'
+        );
+
+        if (skillDir) {
+            parts.push(
+                '  - skill优化 = 当前SKILL有可改进之处（检查项缺失/规则错误/可复用模式未被覆盖）；',
+                '  - 知识库 = 通用领域经验，与具体SKILL逻辑无关；'
+            );
+        } else {
+            parts.push(
+                '  - skill优化 = 需为某个SKILL沉淀优化建议；',
+                '  - 知识库 = 通用领域经验，与具体SKILL逻辑无关；'
+            );
+        }
+
+        parts.push(
+            '  - 无 = 无有价值经验，此时不生成经验文件。'
+        );
+
+        if (skillDir) {
+            parts.push(
+                '- 适用SKILL：仅 skill优化 类必填，填上面注入的当前 step 调用 SKILL 的路径，原样保留不要改动。',
+                '- 优化建议：仅 skill优化 类必填，描述对当前SKILL的具体修改/新增点（如"新增 XX 检查项"、"修正 YY 规则"）。'
+            );
+        } else {
+            parts.push(
+                '- 适用SKILL：本次未匹配到 SKILL，此处标记"无"。若沉淀类型为 skill优化，请在优化建议中注明建议沉淀到哪个 SKILL（如期望新增或修改的 SKILL 名称）。',
+                '- 优化建议：仅 skill优化 类必填，描述建议新建或修改的 SKILL 的具体点。'
+            );
+        }
+
+        parts.push(
+            '',
+            '如果没有有价值的经验可沉淀（如任务过于简单、未发现新的经验），则**不需要生成经验文件**。',
+            '请勿创建空文件或无实质内容的经验文件。',
+            '',
+            '请现在进行经验总结。'
+        );
+
+        return parts.join('\n');
+    }
+
+    /**
+     * _summarizeAndPersist — 后台异步执行经验总结 + 知识持久化。
+     *
+     * 此方法为 fire-and-forget 入口，由 executeStart 在成功后以 `.catch()` 方式调用，
+     * **不阻塞 executeStart 返回**，不影响 Orchestrator 步骤流转。
+     *
+     * 内部流程：
+     *   1. _summarizeExperience → 向指定 Session 追加经验总结 prompt，等待 AI 回复 + 文件生成
+     *   2. persistKnowledge     → 读取 Summary .md，持久化到步骤记录 + 知识沉淀系统
+     *
+     * 所有异常在方法内部 catch，仅记录日志，不向上抛出。
+     *
+     * @param {string} summaryFilePath - 经验文件输出路径
+     * @param {string|null} skillDir   - SKILL 目录路径（null 表示无 SKILL 模式）
+     * @param {string} sessionId       - 执行任务的 Session ID（显式传入，避免实例复用后被覆盖）
+     * @returns {Promise<void>}
+     * @private
+     */
+    async _summarizeAndPersist(summaryFilePath, skillDir, sessionId) {
+        try {
+            const summarized = await this._summarizeExperience(summaryFilePath, skillDir, sessionId);
+            if (!summarized) {
+                this._log('warn', '后台经验总结未生成（超时/失败），跳过知识持久化');
+                return;
+            }
+            await this.persistKnowledge(summaryFilePath);
+            this._log('info', '✅ 后台经验总结完成，知识已持久化');
+        } catch (err) {
+            this._log('warn', `_summarizeAndPersist 异常: ${err.message}`);
+        }
+    }
+
+    /**
+     * _summarizeExperience — 向指定 Session 追加经验总结 prompt 并等待文件生成。
+     *
+     * 通过 CLI 的 sendAndWaitMessage 向指定 Session 发送经验总结 prompt，
+     * 同步等待 AI 回复完成，然后验证 Summary .md 文件是否已生成。
+     *
+     * 降级策略（不影响步骤成功状态）：
+     *   - 无效 sessionId → 返回 false
+     *   - sendAndWaitMessage 失败 → 返回 false
+     *   - AI 回复完成但未生成 Summary .md → 等待超时后返回 false
+     *   - 任何异常 → 返回 false
+     *
+     * @param {string} summaryFilePath - 经验文件输出路径
+     * @param {string|null} skillDir   - SKILL 目录路径（null 表示无 SKILL 模式）
+     * @param {string} sessionId       - 执行任务的 Session ID
+     * @returns {Promise<boolean>} 经验总结是否成功生成 Summary .md
+     * @private
+     */
+    async _summarizeExperience(summaryFilePath, skillDir, sessionId) {
+        if (!summaryFilePath) {
+            this._log('warn', '_summarizeExperience: summaryFilePath 为空');
+            return false;
+        }
+
+        if (!sessionId) {
+            this._log('warn', '_summarizeExperience: sessionId 为空，无法追加经验总结');
+            return false;
+        }
+
+        this._log('info', `经验总结开始 — session: ${sessionId}`);
+
+        try {
+            // 构建经验总结 prompt
+            const summaryPrompt = this._buildSummaryPrompt(summaryFilePath, skillDir);
+
+            // 直接调用 CLI 的 sendAndWaitMessage，显式传入 sessionId
+            // （不经过 this.sendAndWaitMessage 包装，避免读取 this.#sessionId 被实例复用覆盖）
+            if (typeof this.#cli.sendAndWaitMessage !== 'function') {
+                this._log('warn', '_summarizeExperience: CLI 不支持 sendAndWaitMessage 方法');
+                return false;
+            }
+
+            const result = await this.#cli.sendAndWaitMessage(sessionId, summaryPrompt);
+
+            if (!result || !result.success) {
+                this._log('warn', '_summarizeExperience: sendAndWaitMessage 返回失败，经验总结未完成');
+                return false;
+            }
+
+            this._log('info',
+                `_summarizeExperience: AI 回复完成，content 长度 ${result.content?.length || 0}，` +
+                `等待 Summary 文件生成…`
+            );
+
+            // AI 回复完成，但文件写入可能有延迟，轮询等待文件出现
+            const fileReady = await this._waitForFile(summaryFilePath, SUMMARY_TIMEOUT_MS);
+            if (!fileReady) {
+                this._log('warn',
+                    `_summarizeExperience: 等待 Summary 文件超时（${SUMMARY_TIMEOUT_MS / 1000}s）— ${summaryFilePath}`
+                );
+                return false;
+            }
+
+            this._log('info', `经验总结完成 — Summary 文件已生成: ${summaryFilePath}`);
+            return true;
+        } catch (err) {
+            this._log('error', `_summarizeExperience 异常: ${err.message}`);
+            return false;
+        }
+    }
+
+    /**
+     * _waitForFile — 轮询等待文件出现。
+     *
+     * AI 回复完成后，文件写入可能有延迟（如工具调用尚未 flush），
+     * 此方法按固定间隔轮询文件是否存在，直到超时。
+     *
+     * @param {string} filePath  - 等待的文件路径
+     * @param {number} timeoutMs - 超时时间（ms）
+     * @returns {Promise<boolean>} 文件是否在超时前出现
+     * @private
+     */
+    async _waitForFile(filePath, timeoutMs) {
+        const deadline = Date.now() + timeoutMs;
+        const interval = 3000; // 3s 轮询间隔
+
+        while (Date.now() < deadline) {
+            if (this.#aborted) return false;
+
+            try {
+                await fs.access(filePath);
+                return true;
+            } catch {
+                // 文件尚未出现，继续等待
+            }
+
+            await this._sleep(interval);
+        }
+
+        return false;
     }
 
     /**

@@ -412,6 +412,83 @@ class LoopEngineController {
     }
 
     /**
+     * GET /api/loopengine/check-session?taskId=xxx&loop=N
+     * 获取指定轮次 TestCheck 准出审核的 session 对话归档。
+     *
+     * Query: { taskId, loop }
+     *
+     * 数据来源优先级：
+     *   1. 内存中运行中的 LoopEngine（round.checkResult.sessionId）
+     *   2. 持久化的 loop.json（round.checkSessionId）
+     *   3. 持久化的 testcheck_loopN.json（result.sessionId）
+     *
+     * 获取 sessionId 后通过 SessionStore 读取归档消息。
+     */
+    async checkSession(req, res) {
+        const taskId = req.query?.taskId;
+        const loop = req.query?.loop != null ? Number(req.query.loop) : 0;
+
+        if (!taskId) {
+            return res.error(400, 'taskId 为必填项');
+        }
+
+        try {
+            let sessionId = null;
+
+            // ── 1. 优先从内存获取 ──
+            const engine = this._engines.get(taskId);
+            if (engine) {
+                const ctx = engine.getLoop(taskId);
+                if (ctx && ctx.rounds[loop]) {
+                    sessionId = ctx.rounds[loop].checkResult?.sessionId || null;
+                }
+            }
+
+            // ── 2. 从持久化 loop.json 获取 ──
+            if (!sessionId) {
+                const storage = this._getStorage();
+                const json = storage.json('task');
+                const state = await json.read(`${taskId}/loop`);
+                if (state && Array.isArray(state.rounds) && state.rounds[loop]) {
+                    sessionId = state.rounds[loop].checkSessionId || null;
+                }
+            }
+
+            // ── 3. 从 testcheck_loopN.json 获取 ──
+            if (!sessionId) {
+                const storage = this._getStorage();
+                const json = storage.json('task');
+                const checkResult = await json.read(`${taskId}/testcheck_loop${loop}`);
+                if (checkResult && checkResult.sessionId) {
+                    sessionId = checkResult.sessionId;
+                }
+            }
+
+            if (!sessionId) {
+                return res.error(404, `未找到第 ${loop + 1} 轮审核的 sessionId`);
+            }
+
+            // ── 通过 SessionStore 读取归档消息 ──
+            const storage = this._getStorage();
+            const sessionStore = storage.sessionStore();
+
+            const [meta, messages] = await Promise.all([
+                sessionStore.readMeta(sessionId).catch(() => null),
+                sessionStore.readMessages(sessionId).catch(() => [])
+            ]);
+
+            res.json({
+                status: 'ok',
+                sessionId,
+                meta,
+                messages
+            });
+        } catch (err) {
+            res.error(400, err.message);
+        }
+    }
+
+    /**
      * GET /api/loopengine/status
      * 获取 LoopEngineController 当前状态。
      */

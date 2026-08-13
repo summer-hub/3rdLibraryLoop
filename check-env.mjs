@@ -9,7 +9,8 @@
  *   3. opencode 是否已安装
  *   4. devecocli 是否已安装
  *   5. opencode 默认模型配置读取（跨平台兼容）
- *   6. 项目依赖是否已安装
+ *   6. 项目依赖是否已安装（缺失自动安装）
+ *   7. Server/.signing 签名配置文件是否存在
  *
  * 用法:
  *   node check-env.mjs           # 仅检测，通过返回 exit 0，失败返回 exit 1
@@ -587,7 +588,71 @@ function checkDependencies() {
     checks.push(result);
 }
 
-// ─── 主流程 ────────────────────────────────────────────────────────────────
+/**
+ * 检测 7：Server/.signing 签名配置文件
+ */
+function checkSigningConfig() {
+    const result = { name: 'Server/.signing 签名配置', passed: false, errors: [] };
+
+    const signingFile = path.join(PROJECT_ROOT, 'Server', '.signing');
+
+    if (!fs.existsSync(signingFile)) {
+        fail('Server/.signing 文件不存在');
+        hint(`请在 Server/.signing 中添加 signingConfigs 配置，格式如下：`);
+        hint(`可在 DevEco Studio 中通过 "File → Project Structure → Signing Configs" 自动生成`);
+        result.errors.push('Server/.signing 文件不存在，请添加 signingConfigs 配置');
+    } else {
+        // 文件存在，验证内容是否包含 signingConfigs
+        try {
+            const content = fs.readFileSync(signingFile, 'utf8');
+            const trimmed = content.trim();
+            if (trimmed.length === 0) {
+                fail('Server/.signing 文件为空');
+                hint('请在 Server/.signing 中添加 signingConfigs 配置内容');
+                result.errors.push('Server/.signing 文件为空');
+            } else if (!trimmed.includes('signingConfigs')) {
+                fail('Server/.signing 文件中未找到 signingConfigs 配置');
+                hint('请在 Server/.signing 中添加 signingConfigs 字段');
+                result.errors.push('Server/.signing 中缺少 signingConfigs 配置');
+            } else {
+                // 尝试解析 JSON 验证完整性
+                try {
+                    const parsed = JSON.parse(trimmed);
+                    const configs = parsed?.app?.signingConfigs;
+                    if (!Array.isArray(configs) || configs.length === 0) {
+                        fail('Server/.signing 中 signingConfigs 为空数组或格式不正确');
+                        hint('请确保 signingConfigs 是包含至少一个配置项的数组');
+                        result.errors.push('signingConfigs 为空或格式不正确');
+                    } else {
+                        const cfg = configs[0];
+                        const requiredFields = ['name', 'type', 'material'];
+                        const missingFields = requiredFields.filter(f => !cfg[f]);
+                        if (missingFields.length > 0) {
+                            warn(`signingConfigs 缺少必要字段: ${missingFields.join(', ')}`);
+                        }
+                        ok(`Server/.signing 配置已存在 (${configs.length} 个签名配置)`);
+                        if (cfg.material?.storeFile) {
+                            hint(`密钥库: ${cfg.material.storeFile}`);
+                        }
+                    }
+                } catch (parseErr) {
+                    warn('Server/.signing JSON 解析失败，但文件包含 signingConfigs 关键字');
+                    hint(`解析错误: ${parseErr.message}`);
+                    // 非致命：文件存在且有 signingConfigs 关键字，可能格式不完全标准
+                    result.passed = true;
+                    checks.push(result);
+                    return;
+                }
+            }
+        } catch (readErr) {
+            fail(`读取 Server/.signing 失败: ${readErr.message}`);
+            result.errors.push(`读取 .signing 失败: ${readErr.message}`);
+        }
+    }
+
+    result.passed = result.errors.length === 0;
+    checks.push(result);
+}
 
 /**
  * 执行所有检测，返回是否全部通过
@@ -601,33 +666,38 @@ export function runChecks() {
     console.log();
 
     // ── 1. .env 配置 ──
-    console.log(`${C.bold}  [1/6] 检测 Server/.env 环境配置${C.reset}`);
+    console.log(`${C.bold}  [1/7] 检测 Server/.env 环境配置${C.reset}`);
     console.log();
     checkEnvFile();
 
     // ── 2. Node.js ──
-    console.log(`\n${C.bold}  [2/6] 检测 Node.js${C.reset}`);
+    console.log(`\n${C.bold}  [2/7] 检测 Node.js${C.reset}`);
     console.log();
     checkNodejs();
 
     // ── 3. opencode ──
-    console.log(`\n${C.bold}  [3/6] 检测 opencode${C.reset}`);
+    console.log(`\n${C.bold}  [3/7] 检测 opencode${C.reset}`);
     console.log();
     checkOpencode();
 
     // ── 4. devecocli ──
-    console.log(`\n${C.bold}  [4/6] 检测 devecocli${C.reset}`);
+    console.log(`\n${C.bold}  [4/7] 检测 devecocli${C.reset}`);
     console.log();
     checkDevecocli();
 
     // ── 5. opencode 模型配置 ──
-    console.log(`\n${C.bold}  [5/6] 读取 opencode 模型配置${C.reset}`);
+    console.log(`\n${C.bold}  [5/7] 读取 opencode 模型配置${C.reset}`);
     checkOpencodeConfig();
 
     // ── 6. 项目依赖 ──
-    console.log(`\n${C.bold}  [6/6] 检测项目依赖${C.reset}`);
+    console.log(`\n${C.bold}  [6/7] 检测项目依赖${C.reset}`);
     console.log();
     checkDependencies();
+
+    // ── 7. .signing 签名配置 ──
+    console.log(`\n${C.bold}  [7/7] 检测 Server/.signing 签名配置${C.reset}`);
+    console.log();
+    checkSigningConfig();
 
     // ── 汇总 ──
     banner('📋 检测结果汇总');

@@ -14,7 +14,7 @@ compatibility: 需要 git、node、npm、python3、rsync，以及网络访问能
 allowed-tools: Bash Read Grep Glob Edit Write
 metadata:
   author: rnoh-team
-  version: "1.3"
+  version: "1.4"
   phase: "3-of-4"
 ---
 
@@ -170,9 +170,71 @@ npx jest --config jest.config.js --verbose
 
 编译通过 ≠ 运行时正常。必须在真实鸿蒙设备上验证应用能否启动和渲染。
 
-#### 6a. 部署到设备
+#### 6a. 签名配置与 HAP 部署
 
-通过 DevEco Studio Build → Run 部署 HAP 到设备，或使用 hdc 命令推送 bundle。
+> ⚠️ **签名配置规则（重要）**：当工程的 `build-profile.json5` 中 `signingConfigs` 为空（`[]`）或缺失时，**不要自行创建签名文件**。应从平台统一签名配置文件读取并合并到工程中。
+
+**签名配置文件**：位于 `3rdLibraryLoop/Server/` 目录下的 `.signing` 文件（相对于本 SKILL 目录为 `../../.signing`）。
+
+该文件包含预置的 HarmonyOS 签名材料（证书、密钥库、Profile），格式如下：
+
+```json
+{
+  "app": {
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "$HOME/.ohos/config/xxx.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "xxx",
+          "profile": "$HOME/.ohos/config/xxx.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "$HOME/.ohos/config/xxx.p12",
+          "storePassword": "xxx"
+        }
+      }
+    ]
+  }
+}
+```
+
+> `.signing` 文件中的 `certpath`/`profile`/`storeFile` 路径指向 `$HOME/.ohos/config/` 目录下的签名材料，由 DevEco Studio 自动生成。直接使用文件中的原始路径即可，无需手动修改。
+
+**合并步骤**：
+
+1. 读取 `.signing` 文件中的 `signingConfigs` 数组
+2. 将其写入目标工程的 `build-profile.json5` 的 `app.signingConfigs` 字段
+3. 确保 `products` 中的 `signingConfig` 引用名称匹配（通常为 `"default"`）
+4. 使用 `devecocli build` 构建签名 HAP
+5. 安装到设备：`hdc install <hap-path>`
+
+**判断是否需要合并签名**：
+
+```bash
+# 检查 build-profile.json5 是否已有签名配置
+grep -c "signingConfigs" build-profile.json5
+# 检查 signingConfigs 是否为空
+grep "signingConfigs" build-profile.json5
+# 如果输出 "signingConfigs": [] 则需要合并
+```
+
+**使用 devecocli 构建签名 HAP**：
+
+```bash
+cd <project>/example/harmony
+
+# 清理构建产物
+devecocli build clean
+
+# 构建签名 HAP
+devecocli build --modules entry@default --build-mode debug
+```
+
+构建产物路径：`<project>/example/harmony/entry/build/default/outputs/default/entry-default-unsigned.hap`
+
+> **注意**：文件名虽含 `unsigned`，但配置了 `signingConfigs` 后 hvigor 会自动签名。可通过构建日志中是否出现 `Will skip sign` 警告判断签名是否生效——无此警告即签名成功。
 
 #### 6b. 常见运行时崩溃
 
@@ -181,6 +243,7 @@ npx jest --config jest.config.js --verbose
 | `Element type is invalid: got: object` | `index.tsx` 缺少 `export default` | 在 `AppRegistry.registerComponent` 前添加 `export default ExampleApp;` |
 | `Cannot read property 'useState' of null` | Metro 产生两个 React 实例 | 修复 `metro.config.js`，包装 RNOH 的 resolveRequest |
 | 白屏无渲染 | 设备加载了旧的 rawfile bundle | 重新 `npm run dev` 并重新构建 HAP |
+| `no signature file` (HAP 安装失败) | `build-profile.json5` 中 `signingConfigs` 为空 | 从 `.signing` 文件读取签名配置并合并（见 6a） |
 
 **详细排查步骤和修复代码参考** [references/runtime-troubleshooting.md](references/runtime-troubleshooting.md)。
 

@@ -255,6 +255,80 @@ moduleNameMapper: {
 
 详见 [jest-troubleshooting.md](jest-troubleshooting.md) 问题 1。
 
+## 崩溃 5：HAP 安装失败 — no signature file
+
+### 症状
+
+`hdc install entry-default-unsigned.hap` 返回错误：
+
+```text
+error: failed to install bundle. code:9568320 error: no signature file.
+```
+
+### 根因
+
+工程的 `build-profile.json5` 中 `signingConfigs` 为空数组 `[]` 或缺失。hvigor 构建时跳过签名步骤，生成 unsigned HAP，设备拒绝安装。
+
+### 解决方案
+
+**不要自行创建签名文件**。从平台统一签名配置文件读取并合并：
+
+**签名配置文件**：`3rdLibraryLoop/Server/` 目录下的 `.signing` 文件（相对于本 SKILL 的 references 目录为 `../../../.signing`）
+
+```bash
+# 1. 读取签名配置（路径相对于 Server 目录）
+cat ../../.signing
+
+# 2. 将 signingConfigs 数组合并到工程的 build-profile.json5
+#    将 .signing 文件中的 "signingConfigs" 数组内容
+#    写入 build-profile.json5 的 "app.signingConfigs" 字段
+#    确保 products[0].signingConfig = "default" 引用名称匹配
+
+# 3. 确认签名材料文件存在（路径来自 .signing 文件中的 certpath/profile/storeFile）
+ls -la $HOME/.ohos/config/*.cer $HOME/.ohos/config/*.p7b $HOME/.ohos/config/*.p12
+
+# 4. 清理并使用 devecocli 重新构建
+cd <project>/example/harmony
+devecocli build clean
+devecocli build --modules entry@default --build-mode debug
+
+# 5. 安装到设备
+hdc install <project>/example/harmony/entry/build/default/outputs/default/entry-default-unsigned.hap
+```
+
+**合并后的 build-profile.json5 示例**：
+
+```json5
+{
+  "app": {
+    "products": [
+      {
+        "name": 'default',
+        "signingConfig": 'default',  // 引用下面的 signingConfigs 名称
+        "compatibleSdkVersion": '5.0.0(12)',
+        "runtimeOS": 'HarmonyOS'
+      }
+    ],
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "$HOME/.ohos/config/xxx.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "xxx",
+          "profile": "$HOME/.ohos/config/xxx.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "$HOME/.ohos/config/xxx.p12",
+          "storePassword": "xxx"
+        }
+      }
+    ]
+  },
+  // ... modules 配置保持不变
+}
+```
+
 ## 检查清单
 
 修复运行时崩溃后，逐项确认：
@@ -265,5 +339,7 @@ moduleNameMapper: {
 - [ ] `metro.config.js` 包装了 RNOH 的 `resolveRequest`（未直接覆盖）
 - [ ] dev bundle 中只有 1 个 `react/index.js` 路径
 - [ ] `npm run dev` 重新生成了 `rawfile/bundle.harmony.js`
-- [ ] DevEco Studio 重新 Build → Run 部署了新 HAP
+- [ ] `build-profile.json5` 的 `signingConfigs` 已从 `.signing` 文件合并（非空）
+- [ ] HAP 构建输出无 `Will skip sign` 警告
+- [ ] `hdc install` 成功安装 HAP 到设备
 - [ ] 设备上应用正常启动渲染，无崩溃
