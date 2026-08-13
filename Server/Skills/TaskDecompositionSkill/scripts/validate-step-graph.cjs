@@ -216,14 +216,14 @@ for (const step of steps) {
   }
 }
 
-/** 提取 dependId（支持单值或数组）的所有前置 ID 数组 */
+/** 提取 dependId（支持单值或数组）的所有前置 ID 数组。排除 -1（修复步骤哨兵，仅应经 failStepId 触发，不是真实依赖 ID） */
 function getDepIds(dependId) {
   if (Array.isArray(dependId)) {
-    return dependId.map(String).filter((v) => v !== '0' && v !== '');
+    return dependId.map(String).filter((v) => v !== '0' && v !== '' && v !== '-1');
   }
   if (dependId == null) return [];
   const s = String(dependId);
-  return s === '0' || s === '' ? [] : [s];
+  return s === '0' || s === '' || s === '-1' ? [] : [s];
 }
 
 // 引用有效性检查（引用的 stepId 必须存在，0 除外）
@@ -250,15 +250,27 @@ if (refErrors.length > 0) {
   ok('所有 dependId/nextStepId/failStepId 引用有效');
 }
 
-// 入口步骤（dependId 无前置，或全部前置指向不存在步骤）
+// ── 识别修复步骤集合（被其它步骤 failStepId 指向）─────────────────
+const fixStepIds = new Set();
+for (const step of steps) {
+  const fail = String(step.failStepId ?? 0);
+  if (fail !== '0' && stepIds.has(fail)) fixStepIds.add(fail);
+}
+
+// 入口步骤（dependId 无前置，或全部前置指向不存在步骤）。
+// 排除修复步骤：即使其 dependId=0/空/-1，也只应经 failStepId 触发，不能当作入口。
 const entryIds = Array.from(nodes.keys()).filter((sid) => {
+  if (fixStepIds.has(sid)) return false;
   const deps = getDepIds(nodes.get(sid).dependId);
   return deps.length === 0 || deps.every((d) => !stepIds.has(d));
 });
 if (entryIds.length === 0) {
-  fail('无入口步骤（至少需要一个 dependId=0 的步骤）');
+  fail('无入口步骤（排除修复步骤后，至少需要一个 dependId=0 的步骤）');
 } else {
   ok(`入口步骤存在: ${entryIds.join(', ')}`);
+}
+if (fixStepIds.size > 0) {
+  ok(`修复步骤识别: ${Array.from(fixStepIds).join(', ')}（仅经 failStepId 触发，不计入入口）`);
 }
 
 // ── 1. 成功链环检测（nextStepId）──────────────────────────

@@ -39,8 +39,10 @@ export const NodeStatus = Object.freeze({
 
 /**
  * 归一化 dependId 为字符串前置 ID 数组。
- * - 单值（number/string）→ 非 0 时包装为 [id]，0/null → []
- * - 数组 → 过滤掉 0/空，逐项转字符串
+ * - 单值（number/string）→ 非 0 时包装为 [id]，0/null/-1 → []
+ * - 数组 → 过滤掉 0/空/-1，逐项转字符串
+ * 其中 -1 是"修复步骤哨兵"：表示该步骤仅由 failStepId 触发，不是真实依赖 ID，
+ * 因此不进入 _dependIds（避免 fan-in 聚合误判），同时真实依赖为 0 时仍保留 -1 原值（见构造/updateConfig）。
  * @param {number|string|Array<number|string>|null|undefined} value
  * @returns {string[]}
  */
@@ -48,11 +50,19 @@ function normalizeDependIds(value) {
     if (Array.isArray(value)) {
         return value
             .map(v => String(v))
-            .filter(v => v !== '0' && v !== '');
+            .filter(v => v !== '0' && v !== '' && v !== '-1');
     }
     if (value == null) return [];
     const s = String(value);
-    return s === '0' || s === '' ? [] : [s];
+    return s === '0' || s === '' || s === '-1' ? [] : [s];
+}
+
+/** 原始 dependId 中是否含 -1 哨兵（单值或数组任一项） */
+function hasSentinel(value) {
+    if (Array.isArray(value)) {
+        return value.some(v => String(v) === '-1');
+    }
+    return String(value ?? '') === '-1';
 }
 
 /**
@@ -80,8 +90,11 @@ class StepNode {
         this.taskDescription = config.taskDescription || '';
         // dependId 支持 number | number[]：内部统一归一化为字符串前置 ID 数组（_dependIds）。
         // 对外暴露 dependId 便于兼容——单依赖时为其第一个元素，多依赖时为数组。
+        // 修复步骤哨兵 -1 不算真实依赖：_dependIds 为空，但 dependId 保留 -1 原值作为图数据自解释标记。
         this._dependIds = normalizeDependIds(config.dependId);
-        this.dependId = this._dependIds.length === 1 ? this._dependIds[0] : this._dependIds;
+        this.dependId = hasSentinel(config.dependId)
+            ? '-1'
+            : (this._dependIds.length === 1 ? this._dependIds[0] : this._dependIds);
         this.nextStepId = config.nextStepId != null ? String(config.nextStepId) : '0';
         this.failStepId = config.failStepId != null ? String(config.failStepId) : '0';
         this.maxRetries = typeof config.maxRetries === 'number' ? config.maxRetries : 3;
@@ -241,7 +254,9 @@ class StepNode {
         if (patch.taskDescription !== undefined) this.taskDescription = patch.taskDescription;
         if (patch.dependId !== undefined) {
             this._dependIds = normalizeDependIds(patch.dependId);
-            this.dependId = this._dependIds.length === 1 ? this._dependIds[0] : this._dependIds;
+            this.dependId = hasSentinel(patch.dependId)
+                ? '-1'
+                : (this._dependIds.length === 1 ? this._dependIds[0] : this._dependIds);
         }
         if (patch.nextStepId !== undefined) this.nextStepId = String(patch.nextStepId);
         if (patch.failStepId !== undefined) this.failStepId = String(patch.failStepId);

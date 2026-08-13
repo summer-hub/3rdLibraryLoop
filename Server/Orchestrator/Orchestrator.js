@@ -226,14 +226,29 @@ class Orchestrator {
             }
         }
 
-        // 识别入口步骤（无任何前置依赖，或全部前置指向不存在的步骤）
-        for (const node of this._nodes.values()) {
-            // 归一化后的前置依赖数组为空 → 入口步骤
-            const deps = node.dependencies;
-            const hasValidDep = deps.some(d => this._nodes.has(d));
-            if (deps.length === 0 || !hasValidDep) {
-                this._entryStepIds.push(node.stepId);
+        // 识别入口步骤（无任何前置依赖，或全部前置指向不存在的步骤）。
+        // 修复步骤（被某步骤 failStepId 指向的 node，见 _fixStepIds）默认不作为入口：
+        // 即使其 dependId 为 0/空/-1，也只应经 failStepId 触发，不能与真入口并行启动。
+        // 例外：重试锚点式回退（A.failStepId=B，B 恰为整条链的首个入口步骤，A 失败跳回 B 重跑全链）。
+        // 此时若排除修复步骤后找不到任何入口，则回退为不排除（保证这类图可启动）。
+        const collectEntries = (excludeFixSteps) => {
+            const ids = [];
+            for (const node of this._nodes.values()) {
+                if (excludeFixSteps && this._fixStepIds.has(node.stepId)) continue;
+                // 归一化后的前置依赖数组为空 → 入口步骤
+                const deps = node.dependencies;
+                const hasValidDep = deps.some(d => this._nodes.has(d));
+                if (deps.length === 0 || !hasValidDep) {
+                    ids.push(node.stepId);
+                }
             }
+            return ids;
+        };
+        this._entryStepIds = collectEntries(true);
+        if (this._entryStepIds.length === 0) {
+            // 排除修复步骤后无任何入口：可能是"重试锚点回退"（如 A.failStepId=B，B 为链首入口）。
+            // 回退为不排除修复步骤，让链首入口正常启动。
+            this._entryStepIds = collectEntries(false);
         }
 
         if (this._entryStepIds.length === 0) {
@@ -272,8 +287,11 @@ class Orchestrator {
                     `Orchestrator.loadTask: 步骤 ${node.stepId} 的 failStepId "${node.failStepId}" 不存在`
                 );
             }
-            // dependId（单值或数组）中每个非 0 引用必须存在
+            // dependId（单值或数组）中每个非 0 引用必须存在。
+            // 注意：-1 是"修复步骤哨兵"而非真实依赖 ID，StepNode 归一化时已从
+            // node.dependencies 排除，此处显式跳过以防御历史状态/手写任务中的 -1。
             for (const depId of node.dependencies) {
+                if (depId === '-1') continue;
                 if (!this._nodes.has(depId)) {
                     this._log('warn', `步骤 ${node.stepId} 的 dependId "${depId}" 不存在，视为入口步骤`);
                 }
@@ -1061,6 +1079,17 @@ class Orchestrator {
                 this._nodes.set(node.stepId, node);
             }
         }
+
+        // 重建修复步骤集合（_activateDependents 的 fan-out 兜底依赖此集合）
+        this._fixStepIds.clear();
+        for (const node of this._nodes.values()) {
+            const fail = String(node.failStepId);
+            if (fail !== '0' && this._nodes.has(fail)) {
+                this._fixStepIds.add(fail);
+            }
+        }
+        // 防御：老持久化状态的 entryStepIds 可能误含修复步骤，恢复时过滤掉
+        this._entryStepIds = (this._entryStepIds || []).filter(id => !this._fixStepIds.has(String(id)));
 
         // RUNNING 状态在重启后无法恢复执行上下文，标记为 FAILED
         if (state.status === OrchestratorStatus.RUNNING) {

@@ -17,7 +17,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // ─── 测试参数 ──────────────────────────────────────────────────────────────
 // 场景 A（预期 hit=true）：C++ 库可行性分析
-const TASK = '克隆 FastBle 源仓库（https://gitcode.com/CPF-ApplicationTPC/FastBle）到工作目录，解析 ArkTS 源码结构，扫描所有导出类、接口及公共方法签名（含方法名、参数类型、返回值类型、访问修饰符），输出方法级接口规格 markdown 文档（interface-spec.md）到工作目录';
+const TASK = '对 rntpc_async-storage 移植上游测试 demo 并执行测试验证，补充缺失测试用例（覆盖 setItem/getItem/removeItem/clear 等核心存储 API），输出测试结果。';
 // 场景 B（预期 hit=false）：Go 库可行性分析（语言否决）
 // const TASK = '分析gitserver这个Go开源库能否移植到鸿蒙平台，输出鸿蒙化可行性报告';
 // 场景 C（预期 hit=false）：汇总报告（动作类型否决 + 分差检查）

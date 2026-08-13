@@ -67,7 +67,7 @@ struct {ComponentName} {
     this.isLoading = true;
     this.isError = false;
     try {
-      // TODO: 调用三方库接口
+      // TODO: 调用鸿蒙原生库接口
       // const result = await {libraryCall};
       // this.resultText = `成功：${String(result)}`;
       hilog.info(DOMAIN, TAG, '{actionMethod} succeeded');

@@ -1,6 +1,6 @@
 # 示例：测试 Demo 描述文档
 
-本文档展示使用 `ohos-arkts-demo-doc-generator` 技能针对一个虚构的图像处理三方库（`ohos-blur-kit`）生成的测试 Demo 描述文档示例。
+本文档展示使用 `ohos-arkts-demo-doc-generator` 技能针对一个虚构的图像处理鸿蒙原生库（`ohos-blur-kit`）生成的测试 Demo 描述文档示例。
 
 > 📌 注意：以下所有接口均为示范用途，实际生成时应严格依据真实规格文档。
 

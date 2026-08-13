@@ -52,8 +52,20 @@ export function parseFrontmatter(md) {
 
   const lines = fmMatch[1].split(/\r?\n/);
   let currentKey = null; // 当前所属的顶层 key（用于二级缩进归入 metadata 等嵌套对象）
+  let block = null; // 块标量收集状态：{ key, indicator, lines, indent }
 
   for (const line of lines) {
+    // 块标量收集模式：累积缩进比指示符更深的行（含空行），遇到非块内容行则先落地块
+    if (block) {
+      if (_isBlockContentLine(line, block.indent)) {
+        block.lines.push(line);
+        continue;
+      }
+      result[block.key] = parseBlockScalar(block.indicator, block.lines);
+      block = null;
+      currentKey = null;
+    }
+
     if (!line.trim()) continue;
 
     // 二级缩进行：归属到上一个顶层 key 的子字段（仅处理 metadata 这类对象）
@@ -81,13 +93,118 @@ export function parseFrontmatter(md) {
       // 形如 "metadata:"，后续缩进行归入此 key
       currentKey = key;
       result[currentKey] = {};
+    } else if (/^[|>](?:[-+])?$/.test(rest)) {
+      // 块标量指示符（| / |- / |+ 字面块，> / >- / >+ 折叠块）：
+      // 记录 currentKey 与指示符，后续更深的缩进行累积为该 key 的值
+      currentKey = key;
+      result[key] = '';
+      block = { key, indicator: rest, lines: [], indent: _lineIndent(line) };
     } else {
       currentKey = key;
       result[key] = _stripQuotes(rest);
     }
   }
 
+  // 到文件结尾仍未闭合的块标量
+  if (block) {
+    result[block.key] = parseBlockScalar(block.indicator, block.lines);
+  }
+
   return result;
+}
+
+/**
+ * 解析 YAML 块标量内容（纯函数，便于单测）
+ *
+ * @param {string} indicator - 块标量指示符，如 '|'、'|-'、'|+'、'>'、'>-'、'>+'
+ * @param {string[]} lines - 块内容行（含块内空行，不含指示符行本身）
+ * @returns {string}
+ */
+export function parseBlockScalar(indicator, lines) {
+  const literal = indicator[0] === '|'; // '|' 字面块：保留换行；'>' 折叠块：行间折叠为空
+  // 块为空（无任何内容行）时按 YAML 语义返回空字符串
+  if (!lines.length) return '';
+  // 判断块内是否存在至少一行非空内容；全是空行也按空字符串处理
+  const hasContent = lines.some((l) => l.trim() !== '');
+
+  let out;
+  if (literal) {
+    // 字面块：剔除公共缩进后按行保留 \n（首尾空行剔除）
+    const trimmed = _trimEmptyEdgeLines(lines);
+    const minIndent = _minContentIndent(trimmed);
+    const dedented = trimmed.map((l) => (l.trim() ? l.slice(minIndent) : ''));
+    out = dedented.join('\n');
+  } else {
+    // 折叠块：段内行折叠为空格连接，空行作为段落分隔保留为单个 \n
+    out = '';
+    for (const line of lines) {
+      const text = line.trim();
+      if (!text) {
+        if (out && !out.endsWith('\n')) out += '\n';
+        continue;
+      }
+      if (out && !out.endsWith('\n')) out += ' ';
+      out += text;
+    }
+  }
+
+  if (!hasContent && !out.trim()) return '';
+
+  // chomping：'-' 去除全部尾换行，'+' 保留尾换行，默认 clip 保留单个尾换行
+  const chomping = indicator.slice(1);
+  if (chomping === '-') {
+    out = out.replace(/\n+$/, '');
+  } else if (out && !out.endsWith('\n')) {
+    out += '\n';
+  }
+  return out;
+}
+
+/**
+ * 判断该行是否属于当前块标量的内容行：空行永远属于块；否则缩进必须深于指示符行
+ * @param {string} line
+ * @param {number} blockIndent - 块标量指示符行自身的缩进
+ * @returns {boolean}
+ */
+function _isBlockContentLine(line, blockIndent) {
+  if (!line.trim()) return true; // 空行：段落分隔或尾部空行，均属于块
+  return _lineIndent(line) > blockIndent;
+}
+
+/**
+ * 计算行首空格缩进数（非空格开头视为 0）
+ * @param {string} line
+ * @returns {number}
+ */
+function _lineIndent(line) {
+  const m = line.match(/^ +/);
+  return m ? m[0].length : 0;
+}
+
+/**
+ * 剔除字面块内容的首尾空行（保留中间空行）
+ * @param {string[]} lines
+ * @returns {string[]}
+ */
+function _trimEmptyEdgeLines(lines) {
+  let start = 0;
+  let end = lines.length - 1;
+  while (start <= end && !lines[start].trim()) start++;
+  while (end >= start && !lines[end].trim()) end--;
+  return lines.slice(start, end + 1);
+}
+
+/**
+ * 计算非空内容行的最小缩进（作为字面块的公共缩进基准）
+ * @param {string[]} lines
+ * @returns {number}
+ */
+function _minContentIndent(lines) {
+  let min = Infinity;
+  for (const line of lines) {
+    if (line.trim()) min = Math.min(min, _lineIndent(line));
+  }
+  return min === Infinity ? 0 : min;
 }
 
 /**
