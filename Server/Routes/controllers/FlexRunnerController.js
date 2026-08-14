@@ -74,12 +74,19 @@ class FlexRunnerController {
      *
      * @param {string} taskId
      * @param {number} stepId
+     * @param {number} [loop] - 大循环轮次（0-based）。指定时从磁盘 orchestration_loop{N}.json 读取历史轮次步骤信息
      * @returns {Promise<{sessionId:string, messages:Array, meta:object|null}|null>}
      */
-    async _readSessionArchiveFromStep(taskId, stepId) {
+    async _readSessionArchiveFromStep(taskId, stepId, loop) {
         if (!this._orchestratorController || !this._storage) return null;
 
-        const stepInfo = this._orchestratorController.getStepInfo(taskId, stepId);
+        // 指定轮次：从磁盘读取历史轮次的步骤信息
+        let stepInfo;
+        if (loop != null) {
+            stepInfo = await this._orchestratorController.getStepInfoByLoop(taskId, stepId, loop);
+        } else {
+            stepInfo = this._orchestratorController.getStepInfo(taskId, stepId);
+        }
         if (!stepInfo || !stepInfo.sessionId) return null;
 
         const sessionId = stepInfo.sessionId;
@@ -273,12 +280,30 @@ class FlexRunnerController {
     }
 
     /**
-     * GET /api/flexrunner/live-messages?taskId=xxx&stepId=yyy
+     * GET /api/flexrunner/live-messages?taskId=xxx&stepId=yyy[&loop=N]
      * 获取当前会话的实时对话消息
+     *
+     * - 不传 loop：从内存编排器实例查找（最新轮次）
+     * - 传 loop=N：从磁盘 orchestration_loop{N}.json 读取历史轮次步骤的 sessionId，再读取本地归档
      */
     async liveMessages(req, res) {
         const taskId = req.query.taskId;
         const stepId = Number(req.query.stepId);
+        const loop = req.query.loop != null && req.query.loop !== '' ? Number(req.query.loop) : undefined;
+
+        // 指定历史轮次：直接从磁盘读取该轮次的步骤归档（不查内存最新实例）
+        if (loop != null) {
+            const archive = await this._readSessionArchiveFromStep(taskId, stepId, loop);
+            if (archive) {
+                return res.json({
+                    status: 'ok',
+                    sessionId: archive.sessionId,
+                    count: archive.messages.length,
+                    messages: archive.messages,
+                });
+            }
+            return res.error(404, `未找到第 ${loop} 轮步骤归档: taskId=${taskId}, stepId=${stepId}`);
+        }
 
         let runner;
         try {
@@ -329,16 +354,22 @@ class FlexRunnerController {
      * POST /api/flexrunner/inject-prompt
      * 向当前会话注入提示词/上下文（不触发 AI 回复）
      *
-     * Body: { taskId, stepId, message }
+     * Body: { taskId, stepId, message, [loop] }
      */
     async injectPrompt(req, res) {
         const body = req.body || {};
         const taskId = body.taskId;
         const stepId = Number(body.stepId);
         const { message } = body;
+        const loop = body.loop != null ? Number(body.loop) : undefined;
 
         if (!message || typeof message !== 'string') {
             return res.error(400, 'message 为必填项且必须为字符串');
+        }
+
+        // 指定历史轮次：历史会话已结束，无法注入（仅支持查看归档）
+        if (loop != null) {
+            return res.error(409, `历史轮次(${loop})的会话已结束，不支持注入提示词`);
         }
 
         let runner;
@@ -364,16 +395,22 @@ class FlexRunnerController {
      * POST /api/flexrunner/send-and-wait
      * 向当前会话发送消息并同步等待 AI 回复完成
      *
-     * Body: { taskId, stepId, message }
+     * Body: { taskId, stepId, message, [loop] }
      */
     async sendAndWaitMessage(req, res) {
         const body = req.body || {};
         const taskId = body.taskId;
         const stepId = Number(body.stepId);
         const { message } = body;
+        const loop = body.loop != null ? Number(body.loop) : undefined;
 
         if (!message || typeof message !== 'string') {
             return res.error(400, 'message 为必填项且必须为字符串');
+        }
+
+        // 指定历史轮次：历史会话已结束，无法发送消息
+        if (loop != null) {
+            return res.error(409, `历史轮次(${loop})的会话已结束，不支持发送消息`);
         }
 
         let runner;
@@ -398,12 +435,30 @@ class FlexRunnerController {
     }
 
     /**
-     * GET /api/flexrunner/session?taskId=xxx&stepId=yyy
+     * GET /api/flexrunner/session?taskId=xxx&stepId=yyy[&loop=N]
      * 获取当前会话的完整归档内容
+     *
+     * - 不传 loop：从内存编排器实例查找（最新轮次）
+     * - 传 loop=N：从磁盘 orchestration_loop{N}.json 读取历史轮次步骤的 sessionId，再读取本地归档
      */
     async session(req, res) {
         const taskId = req.query.taskId;
         const stepId = Number(req.query.stepId);
+        const loop = req.query.loop != null && req.query.loop !== '' ? Number(req.query.loop) : undefined;
+
+        // 指定历史轮次：直接从磁盘读取该轮次的步骤归档
+        if (loop != null) {
+            const archive = await this._readSessionArchiveFromStep(taskId, stepId, loop);
+            if (archive) {
+                return res.json({
+                    status: 'ok',
+                    sessionId: archive.sessionId,
+                    meta: archive.meta,
+                    messages: archive.messages,
+                });
+            }
+            return res.error(404, `未找到第 ${loop} 轮步骤归档: taskId=${taskId}, stepId=${stepId}`);
+        }
 
         let runner;
         try {

@@ -140,6 +140,31 @@ class OrchestratorController {
     }
 
     /**
+     * 按大循环轮次从磁盘读取历史步骤的元信息。
+     *
+     * 当用户查看历史轮次的编排详情时，内存中只有最新轮次的编排器实例，
+     * 历史轮次的编排状态持久化在 orchestration_loop{N}.json 中。
+     * 此方法从磁盘读取对应轮次的编排快照，提取指定 stepId 的步骤信息（含 sessionId）。
+     *
+     * @param {string} taskId
+     * @param {string|number} stepId
+     * @param {number} loop - 大循环轮次（0-based）
+     * @returns {Promise<object|null>} 步骤的 JSON 快照
+     */
+    async getStepInfoByLoop(taskId, stepId, loop) {
+        if (!this.storage) return null;
+        try {
+            const state = await this.storage.json('task').read(`${taskId}/orchestration_loop${loop}`);
+            if (!state || !Array.isArray(state.steps)) return null;
+            const sid = String(stepId);
+            return state.steps.find(s => String(s.stepId) === sid) || null;
+        } catch (err) {
+            console.warn(`[OrchestratorController] 读取轮次步骤信息失败: taskId=${taskId}, loop=${loop}, stepId=${stepId}, ${err.message}`);
+            return null;
+        }
+    }
+
+    /**
      * 获取编排器中某任务的所有步骤元信息列表。
      *
      * @param {string} taskId
