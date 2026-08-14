@@ -204,6 +204,8 @@ devecocli docs search "<关键词>" --catalog harmonyos-references --limit 10
 
 使用 [templates/report-template.md](templates/report-template.md) 模板生成结构化版本分析报告。
 
+**关键要求**：报告的「差异文件位置」章节必须列出所有产出文件的**完整绝对路径**，不可使用相对路径。读者通过该表格即可定位到每个生成文件。
+
 风险等级：
 - 🟢 低风险：仅补丁版本差距，无 breaking change
 - 🟡 中风险：小版本差距，有 API 变更但向后兼容
@@ -244,10 +246,10 @@ node scripts/scan-exports.js --compare \
 
 ### 类型 A（上游版本升级 + 框架适配）
 
-1. **版本分析报告**（Markdown）— 版本差距、风险评估、适配检查清单
+1. **版本分析报告**（Markdown）— 版本差距、风险评估、适配检查清单。报告的「差异文件位置」章节须列出所有产出文件的完整绝对路径
 2. **精简 diff patch**（`diff_*.patch`）— 只包含相关 JS 文件，供 code-adapt skill 使用
-3. **接口差异检查清单**（`api-diff_*.md`）— 每个接口变更含 checkbox，指导适配
-4. **适配分析报告**（`structure_*.md`）— 接口驱动的分析 + 文件计数
+3. **接口差异检查清单**（`api-diff_*.md`）— 每个接口变更含 checkbox，指导适配（内容已嵌入报告）
+4. **适配分析报告**（`structure_*.md`）— 接口驱动的分析 + 文件计数（内容已嵌入报告）
 5. **源码目录** — 两个版本的源码导出，供参考
 
 ### 类型 B（纯框架版本适配）

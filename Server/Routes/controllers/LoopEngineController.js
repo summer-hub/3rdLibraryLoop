@@ -362,7 +362,29 @@ class LoopEngineController {
                             isSingleExecution: data.isSingleExecution || false,
                             taskDescription: data.taskDescription || ''
                         });
-                    } catch { /* 单个文件读取失败跳过 */ }
+                    } catch {
+                        // loop.json 不存在或解析失败时，回退读取 orchestration.json
+                        // 确保因系统重启导致 loop.json 未写入的任务也能在列表中可见
+                        try {
+                            const orchFile = join(taskRoot, entry.name, 'orchestration.json');
+                            const orchRaw = await fs.readFile(orchFile, 'utf8');
+                            const orchData = JSON.parse(orchRaw);
+                            if (!orchData || !orchData.taskId) continue;
+                            if (memTaskIds.has(orchData.taskId)) continue;
+
+                            summaries.push({
+                                taskId: orchData.taskId,
+                                status: orchData.status || LoopStatus.IDLE,
+                                currentLoop: orchData.loopCount || 0,
+                                maxLoops: 3,
+                                startTime: orchData.startTime || null,
+                                endTime: orchData.endTime || null,
+                                passed: orchData.status === 'passed',
+                                isSingleExecution: false,
+                                taskDescription: ''
+                            });
+                        } catch { /* orchestration.json 也不存在，跳过 */ }
+                    }
                 }
             } catch (err) {
                 // 持久化扫描失败不阻塞，仅记日志

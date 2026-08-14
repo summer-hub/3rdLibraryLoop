@@ -107,9 +107,16 @@
 
 ## 差异文件位置（仅类型 A）
 
-- diff patch: `diff/diff_{b1}_{b2}.patch`
-- 变更摘要: `diff/summary_{b1}_{b2}.md`
-- 源码目录: `diff/{b1}/` 和 `diff/{b2}/`
+> 工作目录：`{output-dir}`
+
+| 文件 | 完整路径 | 说明 |
+|------|----------|------|
+| 源码目录 (基线) | `{output-dir}/{b1}/` | 基线版本源码导出 |
+| 源码目录 (目标) | `{output-dir}/{b2}/` | 目标版本源码导出 |
+| diff patch | `{output-dir}/diff_{b1}_{b2}.patch` | JS/TS 核心文件变更补丁 |
+| 变更摘要 | `{output-dir}/summary_{b1}_{b2}.md` | 按文件统计增删行数 |
+| 接口差异检查清单 | `{output-dir}/api-diff_{b1}_{b2}.md` | TurboModule Spec 差异 |
+| 适配分析报告 | `{output-dir}/structure_{b1}_{b2}.md` | 接口驱动的适配分析 |
 
 ---
 

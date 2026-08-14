@@ -220,6 +220,11 @@ class LoopEngine {
         };
 
         this._loops.set(taskId, ctx);
+
+        // 立即持久化 loop.json，确保大循环启动后任务即可在列表中可见
+        // 防止系统重启时因 loop.json 未写入导致任务丢失
+        await this._persistLoopState(ctx);
+
         this._emit(channel, SSE_EVENT.LOOP_START, {
             taskId, maxLoops, taskDescription: taskDescription.slice(0, 200), startTime
         });
@@ -252,6 +257,7 @@ class LoopEngine {
                 try {
                     // ── 阶段 1：Brain 拆解 / 重规划 ──
                     ctx.status = LoopStatus.PLANNING;
+                    await this._persistLoopState(ctx);
                     this._emit(channel, SSE_EVENT.LOOP_PLANNING, {
                         taskId, loop: loopNum, isReplan: loopNum > 0
                     });
@@ -261,6 +267,7 @@ class LoopEngine {
 
                     // ── 阶段 2：Orchestrator 编排执行 ──
                     ctx.status = LoopStatus.EXECUTING;
+                    await this._persistLoopState(ctx);
                     this._emit(channel, SSE_EVENT.LOOP_EXECUTING, {
                         taskId, loop: loopNum
                     });
@@ -270,6 +277,7 @@ class LoopEngine {
 
                     // ── 阶段 3：TestCheck 准出审核 ──
                     ctx.status = LoopStatus.CHECKING;
+                    await this._persistLoopState(ctx);
                     this._emit(channel, SSE_EVENT.LOOP_CHECKING, {
                         taskId, loop: loopNum
                     });
