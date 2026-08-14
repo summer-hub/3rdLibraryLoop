@@ -36,6 +36,7 @@ import { fileURLToPath } from 'node:url';
 import fs from 'node:fs/promises';
 
 import { nowCST } from '../library/cstTime.js';
+import { createLogger } from '../library/logger.js';
 
 // dotenv 为可选依赖：生产环境加载 .env，未安装时跳过（如纯 mock 测试场景）
 try {
@@ -1551,20 +1552,20 @@ class FlexRunner {
      * @private
      */
     _log(level, message) {
-        const prefix = `[FlexRunner:${this.#taskId || 'uninit'}]`;
-        const ts = nowCST();
+        const tag = `FlexRunner:${this.#taskId || 'uninit'}`;
+        const logger = createLogger(tag);
         switch (level) {
             case 'error':
-                console.error(`${ts} ${prefix} ❌ ${message}`);
+                logger.error(`❌ ${message}`);
                 break;
             case 'warn':
-                console.warn(`${ts} ${prefix} ⚠  ${message}`);
+                logger.warn(`⚠  ${message}`);
                 break;
             case 'debug':
-                console.debug(`${ts} ${prefix} 🔍 ${message}`);
+                logger.debug(`🔍 ${message}`);
                 break;
             default:
-                console.info(`${ts} ${prefix} ℹ  ${message}`);
+                logger.info(`ℹ  ${message}`);
         }
     }
 }
