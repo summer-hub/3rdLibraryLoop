@@ -104,7 +104,37 @@ node {{skillDir}}/scripts/migrate.cjs --source {{sourcePath}}
 
 > 迁移在编译前执行，确保构建环境兼容。
 
-#### 1.5 真机签名与设备检查
+#### 1.5 Code Linter 静态代码检查（编译前必做）
+
+> 🔴 **编译前静态检查**：在进入步骤 2 弹性编译之前，先通过 Code Linter 静态扫描测试代码，把可静态发现的问题（样式/正确性/性能/安全规则）前置到编译循环之外，减少编译轮次消耗。
+> 由脚本 `code-linter.cjs` 自动化完成（config 检测/创建 → 执行 lint → 解析 JSON → 输出报告）。
+
+1. **调用脚本检查（作用域：ohosTest 测试代码）**：
+
+```powershell
+node {{skillDir}}/scripts/code-linter.cjs --source {{sourcePath}} --target entry/src/ohosTest/ets/test
+```
+
+脚本行为：
+- 探测 `devecocli --version`；不可用 → 报「构建环境不可用」退出码 1，本步骤标注跳过，但**不阻塞进入编译**（编译同样依赖该环境，届时会暴露）
+- 检测工程根 `code-linter.json5`；缺失则按推荐规则集自动创建（否则 `devecocli check lint` 会报 `--config-path does not exist`）
+- 执行 `devecocli check lint "<target>" --format json --output-path code-linter-raw.json`（仅传 1 个路径，满足命令路径参数限制）
+- 解析 `{ issues }`，按 `Error` / `Warning` 统计，输出 `{{sourcePath}}/code-linter-report.json`
+
+2. **结果判定**：
+
+| 情况 | 处理 |
+|------|------|
+| 退出码 0（0 Error） | 静态检查通过，进入步骤 2 弹性编译 |
+| 退出码 2（存在 Error） | 逐条修复（按步骤 2 第三层 P0/P1 映射表），重跑脚本直至 0 Error；计入编译修复轮次 |
+| 退出码 1（环境不可用） | 标注"Code Linter 环境不可用，跳过"，进入编译 |
+
+3. **Warning 处理原则**：
+- `@hw-stylistic/file-naming-convention` Warning：多因数字前缀文件名（要求大驼峰）。**不阻塞编译**，无需强制改命名
+- 其他 Warning：`addTryCatch`/`addAsyncCatch`/未使用变量等属 P2 优化项，编译通过后按需处理
+- **`any`/`unknown` 说明**：Linter 的 `@typescript-eslint/no-explicit-any` 仅对 `.js/.ts` 生效；`.ets` 的 any/unknown 由 ArkTS 编译器强制（`arkts-no-any-unknown`），需在编译验证中确认
+
+#### 1.6 真机签名与设备检查
 
 真机测试需先通过 `devecocli signature generate` 生成调试签名材料并写入 `build-profile.json5`：
 
@@ -229,14 +259,16 @@ glob: {{sourcePath}}/entry/build/default/outputs/ohosTest/*.hap    → 测试 HA
   │
   ├─→ 仅 P2 错误（源库问题）？ → 跳过修复 → 尝试编译 → 判定
   │     ├─→ 编译成功 → 步骤 3
-  │     └─→ 编译失败 → 降级报告
+  │     └─→ 编译失败 → ohpm 线上替换（满足触发条件时）→ 降级报告
   │
-  └─→ 5 轮仍失败 → 降级报告
+  └─→ 5 轮仍失败 → ohpm 线上替换（满足触发条件时）→ 降级报告
 ```
+
+> 若连续 2 轮为源库不可修复错误（❌ 行），立即终止修复循环，同样转入 ohpm 线上替换分支（满足触发条件时）。
 
 **终止判定（立即退出循环）**：
 
-若构建日志中出现以下模式，**立即终止修复循环**，不再尝试后续轮次，直接跳转降级：
+若构建日志中出现以下模式，**立即终止修复循环**，不再尝试后续轮次，直接跳转 ohpm 线上替换分支（若满足触发条件）：
 - 连续 2 轮出现的错误均为源库不可修复错误（❌ 行）
 
 终止后在报告中标注编译跳过原因和修复建议。
@@ -247,7 +279,62 @@ glob: {{sourcePath}}/entry/build/default/outputs/ohosTest/*.hap    → 测试 HA
 powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -JavaHome -Cmd "devecocli build --modules entry@ohosTest"
 ```
 
-编译成功 → 步骤 3；5 轮仍失败 → 降级。
+编译成功 → 步骤 3；5 轮仍失败 → 跳转 ohpm 线上替换分支（若满足触发条件）。
+
+##### ohpm 线上版本替换（源库原生编译失败兜底，脚本驱动）
+
+> 当源库**原生库（.so）需复杂构建**（GN/Ninja、FFmpeg、libyuv、NDK、prebuild 等）导致 `devecocli build` 失败时，
+> 可用 **ohpm 线上发行版本** 替换本地依赖后继续编译，避免被源库构建问题阻塞 XTS 测试执行。
+> 本流程由共享脚本 `ohpm-switch.cjs` 自动化完成（定位/查询/修改/变更记录），使用方法见下文。
+
+**触发条件（必须全部满足，任一条不满足则跳过本分支，直接走降级）：**
+
+| # | 条件 | 判定方式 |
+|---|------|---------|
+| 1 | `ohpm` 可用 | 运行 `ohpm --version` 成功 |
+| 2 | README 明确源码编译步骤复杂 | 读取源工程 `README.md` / `README_zh.md`，出现以下特征词即判定命中：`.so`、`libyuv`、`FFmpeg`、`soundtouch`、`NDK`、`GN`、`Ninja`、`prebuild`、`预编译`、`编译三方依赖库`、`从源码编译` |
+| 3 | 该库存在 ohpm 线上版本 | 脚本查询 `ohpm info <库包名>` 有版本列表即可，或使用 `--version` 显式指定 |
+| 4 | 编译持续失败 | 仅 P2 错误修复后仍编译失败；或 5 轮修复仍失败；或连续 2 轮为源库不可修复错误（❌ 行）时触发 |
+
+**执行步骤（共享脚本，与 DemoCodeSkill / XTSCodeSkill 同源）：**
+
+1. **调用共享脚本替换依赖**：
+
+```powershell
+node {{skillDir}}/scripts/ohpm-switch.cjs --source {{sourcePath}}
+```
+
+> 若脚本定位到多个本地 file 依赖，按脚本输出的候选逐个用 `--pkg <库包名>` 指定重复执行；脚本会：
+> - 扫描工程内所有 `oh-package.json5`，定位 `file:` / 相对路径依赖
+> - 匹配 `build-profile.json5` `modules[]` 中注册的同名本地模块
+> - 通过 `ohpm info <库包名>` 自动查询最新稳定版（亦可 `--version <版本号>` 显式指定，如 `--version 2.0.9`）
+> - 将 `oh-package.json5` 中该库依赖改为线上版本号（如 `"@ohos/ijkplayer": "2.0.9"`）
+> - 从工程级 `build-profile.json5` 的 `modules[]` 中**移除**该库本地模块条目，避免本地原生库模块再次参与构建触发相同失败
+> - 保留 `@ohos/hypium` 等 devDependencies 不变；不修改 `.so`/`.aar`/`.har` 等编译产物映射依赖
+
+2. **核验改动清单**：脚本完成后校验 `{{sourcePath}}/ohpm-switch-report.json`，确认：依赖版本变更、build-profile modules 移除项、涉及的库包名与版本号，均与本次任务目标一致。
+
+3. **重新安装依赖并编译：**
+
+```powershell
+cd /d {{sourcePath}} && ohpm install
+powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -JavaHome -Cmd "cd /d {{sourcePath}} && devecocli build --modules entry@ohosTest"
+```
+
+4. **版本降级 API 兼容性核验（必做，踩坑核心教训）**：线上最新版可能与本地源码版本不一致（如 ijkplayer 本地 `2.0.11-rc.0`，线上最新稳定版 `2.0.9`）。替换后编译通过前，必须对照 `library/index.ets` 导出链逐一确认测试代码 import 的类型/常量/枚举仍存在（如 IjkMediaPlayer、MessageType、PropertiesType、LogUtils 等）：
+   - 全部存在 → 继续后续步骤/执行
+   - 有缺失 → 优先用 `ohpm info <库包名>` 已列出的其他更接近版本重跑脚本（`--version <旧版本>`）；
+   - 所有线上版本均不满足 → 相关用例标注"需手动验证接口"并在报告备注。
+
+5. **结果判定：**
+
+| 情况 | 处理 |
+|------|------|
+| 替换后编译通过 | 跳转步骤 3 安装与执行 XTS 测试，报告标注"源库本地原生编译失败，已切换 @ohos/xxx 线上版本 vX.Y.Z 后编译通过"，并附 `ohpm-switch-report.json` 改动清单 |
+| 替换后仍失败 | 归为源库构建问题，走降级报告，追加"已尝试 ohpm 线上替换仍失败" |
+| 无对应 ohpm 线上版本 | 维持原流程，报告说明"未找到对应 ohpm 线上版本" |
+
+> ⚠️ **修改保留不回滚**，但必须在最终报告中如实记录本次改动（依赖版本变更、build-profile.json5 modules 移除两项，可直接引用 `ohpm-switch-report.json`）。
 
 #### 降级：5 轮仍失败 / 提前终止
 
@@ -320,8 +407,15 @@ cmd /c "hdc shell aa test -b {bundleName} -m entry_test -s unittest /ets/testrun
 ## 2. 构建环境
 - devecocli / Node.js / ohpm 版本
 - hdc 设备：{有/无}（设备名称和 OS 版本）
+- Code Linter 检查：{通过（0 Error / N Warning）/ 有 Error（已修复）/ 环境不可用跳过}，引用 `{{sourcePath}}/code-linter-report.json`
 - 编译结果：{成功 / 失败（修复N轮后）/ 环境不可用}
 - aa test 执行方式：aa test
+
+（若已执行 ohpm 线上版本替换，需附加：）
+- 源库本地原生编译失败：{原因简述}
+- 已切换 ohpm 线上版本：`{库包名}@{版本号}`
+- 依赖改动记录：{entry/oh-package.json5 的依赖变更、build-profile.json5 modules[] 移除的模块，可直接引用 `{{sourcePath}}/ohpm-switch-report.json`
+- **版本降级 API 兼容核验**：{线上版本对照 library/index.ets 导出链的结果，所有 import 类型是否仍存在；缺失类型的降级处理}
 
 ## 3. 源库问题诊断（若编译失败）
 | 错误类型 | 诊断 | 是否已修复 |

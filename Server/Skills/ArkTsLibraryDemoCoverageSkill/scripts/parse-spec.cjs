@@ -25,12 +25,14 @@ function parseArgs() {
 
 // ── 辅助函数 ──────────────────────────────────────────────
 
-/** 将括号内的 | 替换为占位符，防止按 | 切分列时错位 */
+/** 将括号内的 | 或 markdown 转义管道符 \| 替换为占位符，防止按 | 切分列时错位 */
 function protectPipes(line) {
+  // 优先级最高：markdown 转义管道符 \|（语义为单个管道字符，如类型 union a | b）
+  let s = line.replace(/\\\|/g, '%%PIPE%%');
   let depth = 0;
   let result = '';
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
     if (ch === '(' || ch === '<') depth++;
     else if (ch === ')' || ch === '>') depth--;
     else if (ch === '|' && depth > 0) { result += '%%PIPE%%'; continue; }
@@ -68,10 +70,11 @@ function isStructH3(line) {
   return /（struct\s*组件）/.test(line);
 }
 
-/** 判断 H3 标题下的类型标注是 interface 还是 class */
+/** 判断 H3 标题下的类型标注是 interface / class / type */
 function getTypeKindFromH3(line) {
   if (/\(interface\)/i.test(line)) return 'interface';
   if (/\(class\)/i.test(line)) return 'class';
+  if (/\(type\)/i.test(line)) return 'type';
   return null;
 }
 
@@ -85,15 +88,20 @@ function parseClassMember(cell) {
     return { memberName: 'constructor', kind: 'constructor', skip: true };
   }
 
-  // static/async methods: "static methodName(...)" or "async methodName(...)"
-  if (/^(static|async)\s+\w+\s*\(/.test(cleaned)) {
-    const m = cleaned.match(/^(?:static|async)\s+(\w+)\s*\(/);
+  // new(...) 构造签名（.d.ts 类）— 不纳入接口统计，跳过
+  if (/^new\s*\(/.test(cleaned)) {
+    return { memberName: 'new', kind: 'constructor', skip: true };
+  }
+
+  // static/async methods: "static methodName(...)" / "async methodName(...)" / 带泛型 "static methodName<T>(...)"
+  if (/^(?:static|async)\s+\w+(?:<[^>]*>)?\s*\(/.test(cleaned)) {
+    const m = cleaned.match(/^(?:static|async)\s+(\w+)\s*(?:<[^>]*>)?\s*\(/);
     return { memberName: m ? m[1] : cleaned, kind: 'method' };
   }
 
-  // regular method: "methodName(...)"
-  if (/^\w+\s*\(/.test(cleaned)) {
-    const m = cleaned.match(/^(\w+)\s*\(/);
+  // regular method: "methodName(...)" / 带泛型 "methodName<T>(...)"
+  if (/^\w+(?:<[^>]*>)?\s*\(/.test(cleaned)) {
+    const m = cleaned.match(/^(\w+)\s*(?:<[^>]*>)?\s*\(/);
     return { memberName: m ? m[1] : cleaned, kind: 'method' };
   }
 
@@ -103,12 +111,19 @@ function parseClassMember(cell) {
     return { memberName: staticPropM[1], kind: 'property' };
   }
 
+  // readonly property（.d.ts 类常见）: "readonly propName: type" or "readonly propName?: type"
+  const readonlyPropM = cleaned.match(/^readonly\s+(\w+)\??\s*:/);
+  if (readonlyPropM) {
+    return { memberName: readonlyPropM[1], kind: 'property' };
+  }
+
   // property: "propName: type" or "propName?: type"
   const propM = cleaned.match(/^(\w+)\??\s*:/);
   if (propM) {
     return { memberName: propM[1], kind: 'property' };
   }
 
+  // event handler（.d.ts 类常见）: "onxxx: ((this: X, ev: E) => any) | null" — 已被上述 property 正则捕获
   // fallback
   return { memberName: cleaned, kind: 'property' };
 }
@@ -159,12 +174,12 @@ function parseSpec(specPath) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    // 检测章节切换（章节编号: 3=类, 4=接口, 5=函数, 6=变量, 7=Native/跳过, 8=注意事项/跳过）
+    // 检测章节切换（章节编号对齐 SKILL 模板: 3=类, 4=接口, 5=UI 兼容性/跳过, 6=函数, 7=变量, 8=Native/跳过）
     if (isH2(line, 3)) { section = 'class'; currentClassName = null; continue; }
     if (isH2(line, 4)) { section = 'interface'; currentClassName = null; continue; }
-    if (isH2(line, 5)) { section = 'function'; currentClassName = null; continue; }
-    if (isH2(line, 6)) { section = 'variable'; currentClassName = null; continue; }
-    if (isH2(line, 7) || isH2(line, 8)) { section = null; continue; }
+    if (isH2(line, 5) || isH2(line, 8)) { section = null; continue; }
+    if (isH2(line, 6)) { section = 'function'; currentClassName = null; continue; }
+    if (isH2(line, 7)) { section = 'variable'; currentClassName = null; continue; }
 
     if (!section) continue;
     if (!isDataRow(line)) {
@@ -182,6 +197,10 @@ function parseSpec(specPath) {
       }
       continue;
     }
+
+    // (type) 小节整体跳过：类型别名（type alias）为类型定义，非可调用的方法级接口，
+    // 与 count-report.cjs 的 T_TYPE 口径对齐（统一从 N / 方法级接口总数中排除）。
+    if (section === 'interface' && currentTypeKind === 'type') continue;
 
     const cols = splitRow(line);
 
@@ -221,13 +240,62 @@ function parseSpec(specPath) {
         if (!fieldCell) continue;
         let fieldName = fieldCell.replace(/\?$/, '').trim();
 
+        // 去掉 readonly 前缀（.d.ts 接口字段常见：readonly propName → propName）
+        fieldName = fieldName.replace(/^readonly\s+/, '').trim();
+
+        // 检查字段名是否实际为方法签名（如 "release()", "setVolume(volume: number)"）
+        // 接口表格中的方法成员以 "methodName(params)" 形式出现在"字段"列，
+        // 需解析为 method 而非 field，并提取纯方法名（不含参数列表）。
+        const methodInFieldMatch = fieldName.match(/^(\w+)\s*\([^)]*\)/);
+        if (methodInFieldMatch) {
+          const methodName = methodInFieldMatch[1];
+          result.interfaces.push({
+            className: currentClassName,
+            memberName: methodName,
+            fullName: `${currentClassName}.${methodName}`,
+            kind: 'method',
+            isStatic: false,
+            type: currentTypeKind || 'interface',
+            signature: fieldName,
+            description: cols[6] || '',
+          });
+          continue;
+        }
+
         // type alias entries have "—" (em-dash) as field name (no real field).
-        // Use the string literal value from the type column as memberName instead,
-        // so coverage-match.cjs can detect usage like on('audioInterrupt', ...) in demo code.
         if (fieldName === '\u2014' || fieldName === '-' || fieldName === '—') {
-          const typeValue = (cols[4] || '').trim();
-          fieldName = typeValue.replace(/^['"]|['"]$/g, '');
-          if (!fieldName) fieldName = fieldCell;
+          const typeValue = (cols[4] || '').trim().replace(/^['"`]|['"`]$/g, '');
+
+          // 情况 1：type value 是方法签名（如 release(): void, setVolume(volume: number): void）
+          // → 解析为 method，不当作 field
+          const methodSigMatch = typeValue.match(/^(\w+)\s*\([^)]*\)\s*:/);
+          if (methodSigMatch) {
+            const methodName = methodSigMatch[1];
+            result.interfaces.push({
+              className: currentClassName,
+              memberName: methodName,
+              fullName: `${currentClassName}.${methodName}`,
+              kind: 'method',
+              isStatic: false,
+              type: currentTypeKind || 'interface',
+              signature: typeValue,
+              description: cols[6] || '',
+            });
+            continue;
+          }
+
+          // 情况 2：type value 是简单类型别名（如 number, string, boolean）
+          // 或联合类型（如 Algorithm | string, number | ConstrainDoubleRange）
+          // → 这些是 type alias 声明，不是可调用的方法级接口，跳过
+          if (/^(number|string|boolean|undefined|object|any|void)$/.test(typeValue) ||
+              /\s\|\s/.test(typeValue)) {
+            continue;  // 跳过 type alias
+          }
+
+          // 情况 3：type value 是字符串字面量（如 'audioInterrupt'）
+          // → 使用字面量值作为 memberName（用于事件名匹配）
+          fieldName = typeValue.replace(/^['"`]|['"`]$/g, '');
+          if (!fieldName) fieldName = fieldCell.replace(/\?$/, '').trim();
         }
 
         const signature = `${fieldName}: ${cols[4] || ''}`;  // 字段:类型
