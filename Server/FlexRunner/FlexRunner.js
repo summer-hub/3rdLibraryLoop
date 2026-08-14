@@ -36,7 +36,7 @@ import { fileURLToPath } from 'node:url';
 import fs from 'node:fs/promises';
 
 import { nowCST } from '../library/cstTime.js';
-import { createLogger } from '../library/logger.js';
+import { createLogger } from '../Routes/library/logger.js';
 
 // dotenv 为可选依赖：生产环境加载 .env，未安装时跳过（如纯 mock 测试场景）
 try {
