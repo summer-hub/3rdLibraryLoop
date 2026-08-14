@@ -84,10 +84,14 @@ function renderLoopList() {
     if (State.filteredLoops.length === 0) { list.innerHTML = '<div class="detail-empty">暂无大循环任务</div>'; return; }
     list.innerHTML = State.filteredLoops.map(function(l) {
         var st = l.status || 'idle', act = l.taskId === State.selectedTaskId, t = l.startTime || l.endTime || '';
+        var desc = l.taskDescription ? escapeHtml(l.taskDescription) : '';
+        var badge = l.isSingleExecution ? '<span class="status-badge single-exec">⚡ 单次</span>' : '';
+        var loopInfo = l.isSingleExecution ? '单次执行' : ((l.currentLoop||0) + '/' + (l.maxLoops||3) + ' 轮');
         return '<div class="task-item ' + (act?'active':'') + '" onclick="selectLoop(\'' + escapeHtml(l.taskId) + '\')">' +
             '<div class="task-id">' + escapeHtml(l.taskId) + '</div>' +
-            '<div class="task-meta"><span class="status-badge ' + st + '">' + statusLabel(st) + '</span>' +
-            '<span class="task-time">' + (l.currentLoop||0) + '/' + (l.maxLoops||3) + ' 轮</span>' +
+            (desc ? '<div class="task-desc">' + desc + '</div>' : '') +
+            '<div class="task-meta"><span class="status-badge ' + st + '">' + statusLabel(st) + '</span>' + badge +
+            '<span class="task-time">' + loopInfo + '</span>' +
             (t ? '<span class="task-time">' + formatTime(t) + '</span>' : '') + '</div></div>';
     }).join('');
 }
@@ -161,8 +165,11 @@ function renderLoopOverview() {
     $('ovStatus').textContent = statusLabel(p.status);
     var rounds = p.rounds || [];
     var passed = rounds.filter(function(r){return r.passed;}).length;
+    var isSingle = p.isSingleExecution;
     var stats = [
-        '<span class="stat-item">轮次: <strong>' + (p.currentLoop||0) + '/' + (p.maxLoops||3) + '</strong></span>',
+        isSingle
+            ? '<span class="stat-item">⚡ <strong>单次执行</strong></span>'
+            : '<span class="stat-item">轮次: <strong>' + (p.currentLoop||0) + '/' + (p.maxLoops||3) + '</strong></span>',
         '<span class="stat-item">已完成: <strong>' + rounds.length + '</strong></span>',
         '<span class="stat-item">通过: <strong>' + passed + '</strong></span>',
         '<span class="stat-item">开始: <strong>' + formatTime(p.startTime) + '</strong></span>'
@@ -684,7 +691,7 @@ async function runnerControl(tid,sid,type) {
 }
 
 async function checkResultFile(tid,sid) {
-    logControl('检查结果文件...'); try { var d=await API.post('/api/flexrunner/check-result',{taskId:tid,stepId:sid}); if(d.status==='ok'){logControl('结果: '+(d.success?'成功':'失败')+' — '+d.resultFilePath);if(d.content)showModal('结果文件',d.content);} else logControl('失败: '+d.error); } catch(err){ logControl('请求失败: '+err.message); }
+    logControl('检查结果文件...'); try { var d=await API.post('/api/flexrunner/check-result',{taskId:tid,stepId:sid}); if(d.status==='ok'){logControl('结果: '+(d.success?'成功':'失败')+' — '+d.resultFilePath);if(d.content){var fn=(d.resultFilePath||'结果文件').split('/').pop();var ext=(fn.split('.').pop()||'').toLowerCase();if(ext==='md'||ext==='markdown')MarkdownReader.open(fn,d.content);else showModal('结果文件',d.content);}} else logControl('失败: '+d.error); } catch(err){ logControl('请求失败: '+err.message); }
 }
 
 async function refreshRunnerStatus(tid,sid) {
@@ -693,17 +700,55 @@ async function refreshRunnerStatus(tid,sid) {
 
 /* ─── 文件 Tab ──────────────────────────────────────────────────────── */
 async function renderFilesTab(step) {
-    var tid=State.selectedTaskId;
+    var tid=State.selectedTaskId, loop=State.selectedLoop;
     $('detailContent').innerHTML='<div class="detail-section"><h4>加载文件列表...</h4></div>';
-    try { var d=await API.get('/api/flexrunner/steps?taskId='+encodeURIComponent(tid)); if(d.status==='ok'){ var files=(d.files||[]).filter(function(f){return String(f.stepId)===String(step.stepId);}); $('detailContent').innerHTML='<div class="detail-section"><h4>步骤 '+escapeHtml(step.stepId)+' 的文件 ('+files.length+')</h4>'+(files.length===0?'<div class="muted" style="font-size:12px;">暂无文件</div>':'<div class="msg-list">'+files.map(function(f){return '<div class="history-item" style="cursor:pointer;" onclick="viewFile(\''+escapeHtml(f.path)+'\')"><span>📄 '+escapeHtml(f.filename)+'</span><span class="muted">'+f.size+' bytes</span></div>';}).join('')+'</div>')+'</div><div class="detail-section"><h4>所有任务文件</h4><button class="secondary sm" id="btnListAllFiles">查看全部文件</button><div class="msg-list" id="allFilesList" style="margin-top:8px;"></div></div>'; $('btnListAllFiles').onclick=function(){listAllFiles(tid);}; } } catch(err){ toast('error',err.message); }
+    try {
+        var url='/api/flexrunner/steps?taskId='+encodeURIComponent(tid)+'&stepId='+encodeURIComponent(step.stepId);
+        if(loop!=null) url+='&loop='+encodeURIComponent(loop);
+        var d=await API.get(url);
+        if(d.status==='ok'){
+            var files=d.files||[];
+            $('detailContent').innerHTML='<div class="detail-section"><h4>步骤 '+escapeHtml(step.stepId)+' 的文件 ('+files.length+')</h4>'+
+                (files.length===0?'<div class="muted" style="font-size:12px;">暂无文件</div>':
+                '<div class="msg-list">'+files.map(function(f){
+                    var label=f.loop!=null?('L'+f.loop+' — '):'';
+                    return '<div class="history-item" style="cursor:pointer;" onclick="viewFile(\''+escapeHtml(f.path)+'\')"><span>📄 '+label+escapeHtml(f.filename)+'</span><span class="muted">'+f.size+' bytes</span></div>';
+                }).join('')+'</div>')+'</div>'+
+                '<div class="detail-section"><h4>所有任务文件</h4><button class="secondary sm" id="btnListAllFiles">查看全部文件</button><div class="msg-list" id="allFilesList" style="margin-top:8px;"></div></div>';
+            $('btnListAllFiles').onclick=function(){listAllFiles(tid,loop);};
+        }
+    } catch(err){ toast('error',err.message); }
 }
 
-async function listAllFiles(tid) {
-    try { var d=await API.get('/api/flexrunner/steps?taskId='+encodeURIComponent(tid)); if(d.status==='ok'){ var files=d.files||[]; $('allFilesList').innerHTML=files.map(function(f){return '<div class="history-item" style="cursor:pointer;" onclick="viewFile(\''+escapeHtml(f.path)+'\')"><span>📄 步骤'+escapeHtml(f.stepId)+'/'+escapeHtml(f.filename)+'</span><span class="muted">'+f.size+'B</span></div>';}).join(''); } } catch(err){ toast('error',err.message); }
+async function listAllFiles(tid,loop) {
+    try {
+        var url='/api/flexrunner/steps?taskId='+encodeURIComponent(tid);
+        if(loop!=null) url+='&loop='+encodeURIComponent(loop);
+        var d=await API.get(url);
+        if(d.status==='ok'){
+            var files=d.files||[];
+            $('allFilesList').innerHTML=files.map(function(f){
+                var label=f.loop!=null?('L'+f.loop+' — '):'';
+                return '<div class="history-item" style="cursor:pointer;" onclick="viewFile(\''+escapeHtml(f.path)+'\')"><span>📄 '+label+'步骤'+escapeHtml(f.stepId)+'/'+escapeHtml(f.filename)+'</span><span class="muted">'+f.size+'B</span></div>';
+            }).join('');
+        }
+    } catch(err){ toast('error',err.message); }
 }
 
 async function viewFile(fp) {
-    try { var d=await API.get('/api/flexrunner/file?path='+encodeURIComponent(fp)); if(d.status==='ok')showModal(fp.split('/').pop(),d.content); else toast('error',d.error); } catch(err){ toast('error',err.message); }
+    try {
+        var d = await API.get('/api/flexrunner/file?path=' + encodeURIComponent(fp));
+        if (d.status !== 'ok') { toast('error', d.error); return; }
+        var filename = fp.split('/').pop();
+        var ext = filename.split('.').pop().toLowerCase();
+        if (ext === 'md' || ext === 'markdown') {
+            MarkdownReader.open(filename, d.content);
+        } else {
+            showModal(filename, d.content);
+        }
+    } catch(err) {
+        toast('error', err.message);
+    }
 }
 
 /* ─── Brain 拆解 ────────────────────────────────────────────────────── */
@@ -831,9 +876,9 @@ function connectSSE(tid) {
         es.addEventListener('loop:aborted',function(){toast('warn','大循环已终止');stopPolling();loadLoopProgress(tid);loadLoopList();});
         es.addEventListener('loop:error',function(e){try{var d=JSON.parse(e.data);toast('error','大循环出错: '+(d.error||''));}catch(x){}stopPolling();loadLoopProgress(tid);loadLoopList();});
         es.addEventListener('orch:step:status',function(e){try{var d=JSON.parse(e.data);toast('info','步骤 '+d.stepId+': '+statusLabel(d.status));if(State.selectedLoop==null)loadOrchestratorProgress(tid);}catch(x){}});
-        es.addEventListener('orch:task:complete',function(){toast('success','编排任务完成');if(State.selectedLoop==null)loadOrchestratorProgress(tid);loadLoopList();});
-        es.addEventListener('orch:task:error',function(){toast('error','编排任务出错');if(State.selectedLoop==null)loadOrchestratorProgress(tid);loadLoopList();});
-        es.addEventListener('orch:task:aborted',function(){toast('warn','编排任务已终止');if(State.selectedLoop==null)loadOrchestratorProgress(tid);loadLoopList();});
+        es.addEventListener('orch:task:complete',function(){toast('success','编排任务完成');if(State.selectedLoop==null)loadOrchestratorProgress(tid);loadLoopProgress(tid);loadLoopList();});
+        es.addEventListener('orch:task:error',function(){toast('error','编排任务出错');if(State.selectedLoop==null)loadOrchestratorProgress(tid);loadLoopProgress(tid);loadLoopList();});
+        es.addEventListener('orch:task:aborted',function(){toast('warn','编排任务已终止');if(State.selectedLoop==null)loadOrchestratorProgress(tid);loadLoopProgress(tid);loadLoopList();});
         es.onerror=function(){
             // 连接错误（含后端限流主动关闭连接）：主动关闭并置空，
             // 阻止浏览器对 EventSource 的无限自动重连，避免连接泄漏
@@ -889,6 +934,34 @@ async function submitNewLoop() {
     catch(err){ btn.disabled=false; btn.textContent='🚀 启动大循环'; toast('error','请求失败: '+err.message); }
 }
 
+/* ─── 单次执行弹窗 ────────────────────────────────────────────────── */
+function openNewSingleModal() {
+    $('newSingleDesc').value=''; $('newSingleTaskId').value=''; $('newSingleSkillDir').value='';
+    $('newSingleTaskDir').value=''; $('newSingleInputReport').value=''; $('newSingleMaxRetries').value='3';
+    $('singleAdvancedSection').classList.remove('show'); $('singleAdvancedToggle').classList.remove('open');
+    $('newSingleOverlay').classList.add('show');
+}
+function closeNewSingleModal() { $('newSingleOverlay').classList.remove('show'); }
+
+async function submitNewSingle() {
+    var desc=$('newSingleDesc').value.trim(); if(!desc){toast('warn','请输入任务描述');return;}
+    var tid=$('newSingleTaskId').value.trim()||undefined;
+    var sd=$('newSingleSkillDir').value.trim()||undefined;
+    var td=$('newSingleTaskDir').value.trim()||undefined;
+    var ir=$('newSingleInputReport').value.trim()||undefined;
+    var mr=parseInt($('newSingleMaxRetries').value,10)||3;
+    var body={taskDescription:desc,maxRetries:mr};
+    if(tid)body.taskId=tid; if(sd)body.skillDirectory=sd; if(td)body.taskDir=td; if(ir)body.inputReport=ir;
+    var btn=$('btnNewSingleSubmit'); btn.disabled=true; btn.textContent='⏳ 启动中...';
+    try {
+        var d=await API.post('/api/flexrunner/start-single',body);
+        btn.disabled=false; btn.textContent='⚡ 启动单次执行';
+        if(d.status==='ok'){toast('success','单次执行已启动: '+d.taskId);closeNewSingleModal();loadLoopList();selectLoop(d.taskId);}
+        else toast('error',d.error||d.message||'启动失败');
+    }
+    catch(err){ btn.disabled=false; btn.textContent='⚡ 启动单次执行'; toast('error','请求失败: '+err.message); }
+}
+
 /* ─── Tab 切换 ──────────────────────────────────────────────────────── */
 function switchToOrchTab(loop) {
     document.querySelectorAll('.main-tab').forEach(function(t){t.classList.remove('active');});
@@ -938,6 +1011,14 @@ $('btnLoopRefresh').onclick=function(){if(State.selectedTaskId){State.selectedLo
 $('modalClose').onclick=closeModal;
 $('modalOverlay').onclick=function(e){if(e.target===$('modalOverlay'))closeModal();};
 $('advancedToggle').onclick=function(){$('advancedSection').classList.toggle('show');$('advancedToggle').classList.toggle('open');};
+
+/* ─── 单次执行事件绑定 ─── */
+$('btnNewSingle').onclick=openNewSingleModal;
+$('newSingleClose').onclick=closeNewSingleModal;
+$('newSingleOverlay').onclick=function(e){if(e.target===$('newSingleOverlay'))closeNewSingleModal();};
+$('btnNewSingleCancel').onclick=closeNewSingleModal;
+$('btnNewSingleSubmit').onclick=submitNewSingle;
+$('singleAdvancedToggle').onclick=function(){$('singleAdvancedSection').classList.toggle('show');$('singleAdvancedToggle').classList.toggle('open');};
 $('btnGraphFit').onclick=graphFitToView;
 $('btnGraphZoomIn').onclick=function(){graphZoomBy(1.2);};
 $('btnGraphZoomOut').onclick=function(){graphZoomBy(0.83);};

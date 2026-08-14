@@ -1,4 +1,6 @@
 import { FlexRunner, ControlType } from '../../FlexRunner/FlexRunner.js';
+import { OrchestratorStatus } from '../../Orchestrator/Orchestrator.js';
+import { nowCST } from '../../library/cstTime.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
@@ -595,11 +597,16 @@ class FlexRunnerController {
     }
 
     /**
-     * GET /api/flexrunner/steps?taskId=xxx
+     * GET /api/flexrunner/steps?taskId=xxx[&stepId=yyy][&loop=N]
      * 列出任务目录下的步骤记录文件
+     *
+     * - 可选 stepId：只返回该步骤的文件
+     * - 可选 loop：只返回该大循环轮次的文件（匹配文件名中的 _loop{N}_ 段）
      */
     async steps(req, res) {
         const { taskId } = req.query;
+        const filterStepId = req.query.stepId != null && req.query.stepId !== '' ? String(req.query.stepId) : null;
+        const filterLoop = req.query.loop != null && req.query.loop !== '' ? Number(req.query.loop) : null;
 
         if (!taskId) {
             return res.error(400, 'taskId 为必填项');
@@ -627,33 +634,38 @@ class FlexRunnerController {
             }
         }
 
-        // 同时扫描任务目录下的 .md 文件
-        const taskDir = stepList[0]?.taskDir
-            ? path.dirname(stepList[0].taskDir)
-            : null;
-
+        // 扫描该 task 自己的目录下的 .md 文件
+        // taskDir 直接就是 db/task/{taskId}，文件直接放在该目录下（不在子目录中）
         let files = [];
+        const taskDir = stepList[0]?.taskDir || null;
         if (taskDir) {
             try {
-                const stepDirs = await fs.readdir(taskDir);
-                for (const dir of stepDirs) {
-                    const dirPath = path.join(taskDir, dir);
-                    const stat = await fs.stat(dirPath);
-                    if (stat.isDirectory()) {
-                        const mdFiles = await fs.readdir(dirPath);
-                        for (const f of mdFiles) {
-                            if (f.endsWith('.md')) {
-                                const fp = path.join(dirPath, f);
-                                const fstat = await fs.stat(fp);
-                                files.push({
-                                    stepId: dir,
-                                    filename: f,
-                                    path: fp,
-                                    size: fstat.size,
-                                });
-                            }
-                        }
-                    }
+                const allFiles = await fs.readdir(taskDir);
+                for (const f of allFiles) {
+                    if (!f.endsWith('.md')) continue;
+                    const fp = path.join(taskDir, f);
+                    const fstat = await fs.stat(fp);
+                    if (!fstat.isFile()) continue;
+
+                    // 从文件名中解析 stepId 和 loop
+                    // 文件命名格式: stepId{N}_loop{L}_result_{R}.md 或 stepId{N}_loop{L}_Summary_{R}.md
+                    const stepIdMatch = f.match(/^stepId(\d+)/);
+                    const loopMatch = f.match(/_loop(\d+)_/);
+                    const fileStepId = stepIdMatch ? stepIdMatch[1] : null;
+                    const fileLoop = loopMatch != null ? Number(loopMatch[1]) : null;
+
+                    // 按 stepId 筛选
+                    if (filterStepId && fileStepId !== filterStepId) continue;
+                    // 按 loop 筛选
+                    if (filterLoop != null && fileLoop !== filterLoop) continue;
+
+                    files.push({
+                        stepId: fileStepId || f,
+                        loop: fileLoop,
+                        filename: f,
+                        path: fp,
+                        size: fstat.size,
+                    });
                 }
             } catch { /* 目录不存在 */ }
         }
@@ -702,6 +714,270 @@ class FlexRunnerController {
             count: list.length,
             runners: list,
         });
+    }
+
+    // ─── 单次执行 ─────────────────────────────────────────────────────
+
+    /**
+     * POST /api/flexrunner/start-single
+     * 启动单次执行 — 创建一个只含单步骤的编排任务，不走 Brain 拆解和 LoopEngine 循环。
+     *
+     * 内部流程：
+     *   1. 生成 taskId（如果未指定）
+     *   2. 构造单步骤 taskDef（stepId=1, dependId=0, nextStepId=0, failStepId=0）
+     *   3. 委托 OrchestratorController.load() 加载任务 → 写 orchestration.json
+     *   4. 委托 OrchestratorController.start() 异步启动编排
+     *   5. 写精简版 loop.json（isSingleExecution=true）使任务列表可见
+     *   6. 编排结束后更新 loop.json 终态 + 释放重型引用
+     *
+     * Body: {
+     *   taskDescription: string,       // 必填
+     *   skillDirectory?: string,       // 可选
+     *   taskDir?: string,              // 可选
+     *   inputReport?: string,          // 可选
+     *   maxRetries?: number,           // 可选，默认 3
+     *   taskId?: string                // 可选
+     * }
+     *
+     * 响应：异步启动，立即返回 taskId 和 stepId。
+     */
+    async startSingle(req, res) {
+        const body = req.body || {};
+        const { taskDescription } = body;
+
+        if (!taskDescription) {
+            return res.error(400, 'taskDescription 为必填项');
+        }
+        if (!this._orchestratorController) {
+            return res.error(500, 'orchestratorController 未初始化');
+        }
+
+        try {
+            // ── 1. 生成 taskId ──
+            const taskId = body.taskId ||
+                `single_${Date.now().toString(36)}${Math.random().toString(36).substring(2, 6)}`;
+
+            // 幂等保护：同一 taskId 若已有编排在运行，直接返回
+            let existingOrch;
+            try {
+                existingOrch = this._orchestratorController._getOrchestrator(taskId);
+            } catch { /* 不存在，正常 */ }
+            if (existingOrch && existingOrch.status === OrchestratorStatus.RUNNING) {
+                return res.json({
+                    status: 'ok',
+                    message: `单次执行已在运行中: taskId=${taskId}`,
+                    taskId,
+                    stepId: 1,
+                    progress: existingOrch.getProgress()
+                });
+            }
+
+            // 若已存在同 taskId 的旧编排（已结束），先终止并移除
+            if (existingOrch) {
+                try { await existingOrch.abort(); } catch { /* 已结束 */ }
+                this._orchestratorController.disposeOrchestrator(taskId, { removeInstance: true });
+            }
+
+            // ── 2. 构造单步骤 taskDef ──
+            const maxRetries = typeof body.maxRetries === 'number' && body.maxRetries > 0
+                ? body.maxRetries
+                : 3;
+            const skillDirectory = body.skillDirectory || '';
+
+            // taskDir 默认推导（Orchestrator.loadTask 内部也会推导，但 loop.json 需要提前知道）
+            const rootDir = this._storage?.manager?.rootDir;
+            const taskDir = body.taskDir ||
+                (rootDir
+                    ? path.resolve(rootDir, 'task', taskId)
+                    : path.resolve(process.cwd(), 'db', 'task', taskId));
+
+            // 确保 taskDir 存在（opencode session 需要工作目录存在）
+            await fs.mkdir(taskDir, { recursive: true });
+
+            const taskDef = {
+                taskId,
+                taskDir,
+                skillDirectory,
+                loopCount: 0,  // 单次执行固定为第 0 轮
+                steps: [{
+                    stepId: 1,
+                    taskDescription,
+                    dependId: 0,       // 入口步骤
+                    nextStepId: 0,     // 无后续
+                    failStepId: 0,     // 失败即终止
+                    maxRetries,
+                    skillDirectory,
+                    taskDir,
+                    inputReport: body.inputReport || ''
+                }]
+            };
+
+            // ── 3. 委托 OrchestratorController 加载任务 ──
+            const loadReq = { body: taskDef };
+            const loadRes = this._createMockResponse();
+            await this._orchestratorController.load(loadReq, loadRes);
+
+            if (loadRes._status >= 400) {
+                return res.error(loadRes._status, loadRes._data?.error || loadRes._data?.message || '编排任务加载失败');
+            }
+
+            // ── 4. 启动编排（直接调用 orch.start()，便于跟踪完成） ──
+            const orch = this._orchestratorController._getOrchestrator(taskId);
+
+            // ── 5. 写精简版 loop.json（使任务列表可见） ──
+            await this._writeSingleLoopJson(taskId, taskDescription, taskDir, skillDirectory, 'executing', null, null);
+
+            // ── 6. 异步启动编排，完成后更新 loop.json 终态 + 释放重型引用 ──
+            orch.start()
+                .catch(err => {
+                    console.error(`[FlexRunnerController] 单次执行异常: taskId=${taskId}, ${err.message}`);
+                })
+                .finally(() => {
+                    this._onSingleExecutionComplete(taskId, orch).catch(err => {
+                        console.warn(`[FlexRunnerController] 单次执行收尾失败: taskId=${taskId}, ${err.message}`);
+                    });
+                });
+
+            res.json({
+                status: 'ok',
+                message: `单次执行已启动: taskId=${taskId}`,
+                taskId,
+                stepId: 1,
+                progress: orch.getProgress()
+            });
+
+        } catch (err) {
+            res.error(400, err.message);
+        }
+    }
+
+    /**
+     * 创建模拟 Response 对象（供调用 OrchestratorController 的 load/start）。
+     * @private
+     */
+    _createMockResponse() {
+        const mock = {
+            _status: 200,
+            _data: null,
+            statusCode: 200,
+            headersSent: false,
+            writableEnded: false,
+            json(data) {
+                this._data = data;
+                this.writableEnded = true;
+            },
+            error(code, message) {
+                this._status = code;
+                this._data = { status: 'error', error: message };
+                this.writableEnded = true;
+            }
+        };
+        return mock;
+    }
+
+    /**
+     * 写精简版 loop.json（单次执行任务专用）。
+     *
+     * 格式与 LoopEngine._persistLoopState 兼容，附加 isSingleExecution 标记。
+     *
+     * @param {string} taskId
+     * @param {string} taskDescription
+     * @param {string} taskDir
+     * @param {string} skillDirectory
+     * @param {string} status - executing | completed | failed | aborted
+     * @param {string|null} startTime
+     * @param {string|null} endTime
+     * @private
+     */
+    async _writeSingleLoopJson(taskId, taskDescription, taskDir, skillDirectory, status, startTime, endTime) {
+        if (!this._storage) return;
+        try {
+            // 映射 loop 状态到 orchestrator 状态（用于前端 rounds 渲染）
+            var orchStatus;
+            if (status === 'executing') orchStatus = 'running';
+            else if (status === 'passed') orchStatus = 'completed';
+            else if (status === 'aborted') orchStatus = 'aborted';
+            else orchStatus = 'failed';
+
+            const state = {
+                taskId,
+                taskDescription,
+                userAcceptanceCriteria: '',
+                taskDir,
+                skillDirectory,
+                maxLoops: 1,
+                currentLoop: 1,
+                status,
+                startTime: startTime || nowCST(),
+                endTime,
+                error: null,
+                aborted: status === 'aborted',
+                isSingleExecution: true,
+                rounds: [{
+                    loop: 0,
+                    startTime: startTime || nowCST(),
+                    endTime,
+                    passed: status === 'passed',
+                    error: null,
+                    planningIsReplan: false,
+                    planningStepCount: 1,
+                    orchestratorStatus: orchStatus
+                }],
+                persistedAt: nowCST()
+            };
+            await this._storage.json('task').write(`${taskId}/loop`, state);
+        } catch (err) {
+            console.warn(`[FlexRunnerController] 写 loop.json 失败: taskId=${taskId}, ${err.message}`);
+        }
+    }
+
+    /**
+     * 单次执行编排完成后的收尾处理。
+     *
+     * 1. 更新 loop.json 的终态状态
+     * 2. 释放 Orchestrator 重型引用（FlexRunner/CLI/LLM 等）
+     *
+     * @param {string} taskId
+     * @param {object} orch - Orchestrator 实例
+     * @private
+     */
+    async _onSingleExecutionComplete(taskId, orch) {
+        const status = orch.status;
+
+        // 映射编排终态到 loop.json 状态
+        let loopStatus;
+        if (status === OrchestratorStatus.COMPLETED) {
+            loopStatus = 'passed';
+        } else if (status === OrchestratorStatus.ABORTED) {
+            loopStatus = 'aborted';
+        } else {
+            loopStatus = 'failed';
+        }
+
+        const startTime = orch.startTime;
+        const endTime = orch.endTime;
+
+        // 读取 taskDescription（从编排器获取）
+        const progress = orch.getProgress();
+        const step = progress.steps && progress.steps[0];
+        const taskDescription = step ? step.taskDescription : '';
+        const taskDir = orch._taskDir || '';
+        const skillDirectory = orch._skillDirectory || '';
+
+        // 更新 loop.json
+        await this._writeSingleLoopJson(
+            taskId, taskDescription, taskDir, skillDirectory,
+            loopStatus, startTime, endTime
+        );
+
+        // 释放重型引用
+        if (this._orchestratorController) {
+            try {
+                this._orchestratorController.disposeOrchestrator(taskId, { removeInstance: true });
+            } catch (err) {
+                console.warn(`[FlexRunnerController] 释放 Orchestrator 失败: taskId=${taskId}, ${err.message}`);
+            }
+        }
     }
 
     /**

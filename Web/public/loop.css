@@ -164,6 +164,21 @@ html, body {
 }
 .new-task-btn:hover { background: var(--blue-hover); }
 
+.new-task-btn.single {
+    background: var(--green);
+}
+.new-task-btn.single:hover { background: var(--green); filter: brightness(0.92); }
+
+.status-badge.single-exec {
+    background: var(--green-light);
+    color: var(--green);
+    border: 1px solid var(--green);
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
 /* ─── 主内容区 ──────────────────────────────────────────────────────── */
 .main-content {
     flex: 1;

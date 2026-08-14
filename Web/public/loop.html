@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Loop - 大循环控制台</title>
+    <title>OHOS CPF-ApplicationTPC - Loop控制台</title>
     <link rel="stylesheet" href="loop.css">
+    <link rel="stylesheet" href="md-reader.css">
 </head>
 <body>
 
 <div class="app-header">
-    <h1>🔁 AI Loop 大循环控制台</h1>
+    <h1>OHOS CPF-ApplicationTPC - Loop控制台</h1>
     <nav class="nav-links">
         <a href="/" class="nav-link active">循环控制台</a>
         <a href="/knowledge" class="nav-link">📚 知识导入</a>
@@ -25,6 +26,7 @@
         <div class="sidebar-header">
             <h2>📋 大循环任务 <span class="count-badge" id="loopCount">0</span></h2>
             <button class="new-task-btn" id="btnNewLoop">🚀 启动大循环</button>
+            <button class="new-task-btn single" id="btnNewSingle">⚡ 启动单次执行</button>
             <input class="search-box" id="loopSearch" placeholder="搜索任务 ID..." />
         </div>
         <div class="task-list" id="loopList">
@@ -156,6 +158,49 @@
     </div>
 </div>
 
+<div class="modal-overlay" id="newSingleOverlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>⚡ 启动单次执行</h3>
+            <button class="modal-close" id="newSingleClose">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>任务描述 *</label>
+                <textarea class="large" id="newSingleDesc" placeholder="输入自然语言任务描述，将直接执行不经过 Brain 拆解..."></textarea>
+                <div class="hint">单步骤直接执行，不循环、不拆解，结果可在编排详情中查看</div>
+            </div>
+            <div class="advanced-toggle" id="singleAdvancedToggle">高级选项</div>
+            <div class="advanced-section" id="singleAdvancedSection">
+                <div class="form-group">
+                    <label>任务 ID（可选）</label>
+                    <input id="newSingleTaskId" placeholder="留空则自动生成 single_xxx">
+                </div>
+                <div class="form-group">
+                    <label>SKILL 目录（可选）</label>
+                    <input id="newSingleSkillDir" placeholder="留空则使用默认 SKILL 目录">
+                </div>
+                <div class="form-group">
+                    <label>工作目录（可选）</label>
+                    <input id="newSingleTaskDir" placeholder="留空则自动生成 task/{taskId}">
+                </div>
+                <div class="form-group">
+                    <label>输入报告（可选）</label>
+                    <textarea id="newSingleInputReport" placeholder="前置报告/上下文内容，传递给执行步骤..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>最大重试次数</label>
+                    <input id="newSingleMaxRetries" type="number" min="1" max="10" value="3">
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="secondary" id="btnNewSingleCancel">取消</button>
+            <button class="primary" id="btnNewSingleSubmit">⚡ 启动单次执行</button>
+        </div>
+    </div>
+</div>
+
 <div class="modal-overlay" id="modalOverlay">
     <div class="modal">
         <div class="modal-header">
@@ -168,6 +213,7 @@
 
 <div class="toast-container" id="toastContainer"></div>
 
+<script src="md-reader.js"></script>
 <script src="loop.js"></script>
 </body>
 </html>

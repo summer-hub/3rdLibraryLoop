@@ -10,6 +10,7 @@ import FlexRunnerController from '../controllers/FlexRunnerController.js';
  *  POST   /init              — 初始化 FlexRunner 实例
  *  POST   /execute           — 执行单次 executeStart
  *  POST   /execute-loop      — 自动循环执行直到成功/不可重试
+ *  POST   /start-single      — 启动单次执行（创建单步骤编排任务，不走 Brain/LoopEngine）
  *  GET    /status            — 查询实例状态
  *  GET    /live-messages     — 获取实时对话消息
  *  GET    /session           — 获取会话归档内容
@@ -40,6 +41,7 @@ export function createFlexRunnerRouter(dependencies) {
     router.post('/init',          controller.init.bind(controller));
     router.post('/execute',       controller.execute.bind(controller));
     router.post('/execute-loop',  controller.executeLoop.bind(controller));
+    router.post('/start-single',  controller.startSingle.bind(controller));
 
     // ── 查询 ──
     router.get('/status',         controller.status.bind(controller));

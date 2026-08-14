@@ -228,6 +228,63 @@ class LoopEngineController {
                 }
             }
 
+            // ── 1b. 单次执行任务：检查 OrchestratorController 中是否有活跃编排 ──
+            // 单次执行任务由 FlexRunnerController.startSingle 创建，编排器在 OrchestratorController 中。
+            // 执行期间内存中没有 LoopEngine 实例，但 Orchestrator 正在运行。
+            // 此时需要从 Orchestrator 实时获取进度，而非从磁盘 loop.json（可能已过时）。
+            if (this.orchestratorController) {
+                let orch;
+                try {
+                    orch = this.orchestratorController._getOrchestrator(taskId);
+                } catch { /* 不存在，继续 */ }
+
+                if (orch) {
+                    const orchProgress = orch.getProgress();
+                    // 判断是否为单次执行（步骤数为 1 且 loopCount === 0）
+                    const isSingle = orchProgress &&
+                        Array.isArray(orchProgress.steps) && orchProgress.steps.length === 1;
+
+                    if (isSingle) {
+                        // 构造兼容 LoopEngine.getProgress 的响应格式
+                        const loopProgress = {
+                            taskId,
+                            status: orchProgress.status === 'running' ? 'executing'
+                                : (orchProgress.status === 'completed' ? 'passed'
+                                : (orchProgress.status === 'aborted' ? 'aborted'
+                                : (orchProgress.status === 'failed' ? 'failed' : orchProgress.status))),
+                            currentLoop: 1,
+                            maxLoops: 1,
+                            startTime: orchProgress.startTime,
+                            endTime: orchProgress.endTime,
+                            error: orchProgress.error,
+                            isSingleExecution: true,
+                            rounds: [{
+                                loop: 0,
+                                passed: orchProgress.status === 'completed',
+                                startTime: orchProgress.startTime,
+                                endTime: orchProgress.endTime,
+                                error: orchProgress.error,
+                                planningPlanId: null,
+                                planningIsReplan: false,
+                                planningStepCount: 1,
+                                planningIntent: null,
+                                planningDomain: null,
+                                planningComplexity: null,
+                                planningFailureAnalysis: null,
+                                planningAdjustmentStrategy: null,
+                                orchestratorStatus: orchProgress.status,
+                                checkSummary: null,
+                                checkPassed: null,
+                                checkStatus: null,
+                                checkId: null,
+                                checkSessionId: null
+                            }]
+                        };
+                        return res.json({ status: 'ok', progress: loopProgress });
+                    }
+                }
+            }
+
             // ── 2. 内存没有，从持久化恢复 ──
             if (!engine) {
                 engine = this._createEngine();
@@ -270,7 +327,9 @@ class LoopEngineController {
                         maxLoops: ctx.maxLoops,
                         startTime: ctx.startTime,
                         endTime: ctx.endTime,
-                        passed: ctx.status === LoopStatus.PASSED
+                        passed: ctx.status === LoopStatus.PASSED,
+                        isSingleExecution: false,
+                        taskDescription: ctx.taskDescription || ''
                     });
                 }
             }
@@ -299,7 +358,9 @@ class LoopEngineController {
                             maxLoops: data.maxLoops || 3,
                             startTime: data.startTime || null,
                             endTime: data.endTime || null,
-                            passed: data.status === LoopStatus.PASSED
+                            passed: data.status === LoopStatus.PASSED,
+                            isSingleExecution: data.isSingleExecution || false,
+                            taskDescription: data.taskDescription || ''
                         });
                     } catch { /* 单个文件读取失败跳过 */ }
                 }
@@ -342,6 +403,24 @@ class LoopEngineController {
         try {
             const engine = this._engines.get(taskId);
             if (!engine) {
+                // ── 单次执行任务：委托 OrchestratorController 终止 ──
+                // 单次执行任务由 FlexRunnerController.startSingle 创建，
+                // 编排器实例在 OrchestratorController 中管理，不在 LoopEngine 中。
+                if (this.orchestratorController) {
+                    let orch;
+                    try {
+                        orch = this.orchestratorController._getOrchestrator(taskId);
+                    } catch {
+                        return res.error(404, `未找到大循环任务: taskId=${taskId}`);
+                    }
+                    const ok = await orch.abort();
+                    res.json({
+                        status: ok ? 'ok' : 'error',
+                        message: ok ? '单次执行已终止' : '终止失败（可能已结束）',
+                        taskId
+                    });
+                    return;
+                }
                 return res.error(404, `未找到大循环任务: taskId=${taskId}`);
             }
 
