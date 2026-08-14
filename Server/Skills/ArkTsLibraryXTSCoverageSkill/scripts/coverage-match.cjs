@@ -44,7 +44,12 @@ function walkDir(dir, ext, excludeTopDirs, srcRoot) {
 
 function extractImports(content, libName) {
   const importedSymbols = [];
-  const importRegex = /import\s*\{([^}]*?)\}\s*from\s*['"]([^'"]+)['"]/gs;
+  // 支持单行/多行 import，包含：
+  //   import { A } from 'lib'
+  //   import A, { B } from 'lib'          （默认导出 + 具名导出混合）
+  //   import type { A } from 'lib'        （类型导入，不产生运行时符号）
+  //   import * as Lib from 'lib'          （命名空间导入，返回空符号列表）
+  const importRegex = /import\s+(?:type\s+)?(?:[A-Za-z_$][\w$]*\s*,\s*)?\{([^}]*?)\}\s*from\s*['"]([^'"]+)['"]/gs;
   let match;
   while ((match = importRegex.exec(content)) !== null) {
     const symbolsStr = match[1];
