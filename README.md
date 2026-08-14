@@ -253,6 +253,7 @@ node Web/server.js --port 8080 --backend http://127.0.0.1:3000
 | `arkts-library-memory-leak-check` | Phase 4 | 内存泄露检视（生命周期、NAPI 引用管理） |
 | `arkts-library-documentation-quality-check` | Phase 5 | 文档质量检视（完整性、准确性、JSDoc） |
 | `arkts-library-test-coverage-check` | Phase 6 | 用例覆盖度检视（公开接口测试覆盖） |
+| `arkts-library-compile-validate` | 收尾 | ArkTS 生成代码质量检查与编译验证（迁移 + Linter + 编译修复 + ohpm 兜底） |
 
 ---
 

@@ -4,7 +4,7 @@ description: 分析鸿蒙原生库现有 Demo 对接口的覆盖情况。读取�
 license: Apache-2.0
 metadata:
   author: AIWeb
-  version: "2.2.0"
+  version: "2.3.0"
   category: harmonyos-development
   language: ArkTS/ETS
 ---
@@ -69,6 +69,8 @@ node "{{skillDir}}/scripts/parse-spec.cjs" --spec "{{interfaceSpecPath}}" --outp
 ### 步骤 2：运行覆盖率匹配脚本
 
 > ⚠️ **此步骤完全自动化，无需人工 grep 或逐行解析。脚本自动处理单行 import、多行 import、库名过滤、非 demo 文件排除。**
+
+> ⚠️ **Demo 范围界定（重要，v2.3.0）**：扫描范围默认 `entry/src/main/ets/`，**仅指主工程 demo 页面代码**。绝对不要将范围扩展到 `entry/src/ohosTest/`（XTS 单元测试目录）或任何 `test/`、`tests/`、`__tests__/`、`testability/` 目录——这些是测试代码而非 demo，混入会让接口覆盖率虚高。若任务描述使用"demo 代码（.ets 与 .ts 文件）"等宽泛表述，应默认按 `entry/src/main/ets/` 解释；只有在任务明确要求统计测试覆盖时才例外。`coverage-match.cjs` 已在脚本层面对这些测试目录做了双重排除（顶层黑名单 + 递归目录名黑名单），即使误传 `--src entry/src` 也不会混入测试文件。
 
 **操作：**
 
@@ -255,7 +257,7 @@ Remove-Item -LiteralPath "{{interfaceSpecDir}}/coverage-result.json" -Force
 
 1. **精确匹配**：接口名称必须与规格文档完全一致，大小写敏感
 2. **步骤 1 由脚本完成**：v2.1.0 起，接口规格文档解析由 `parse-spec.cjs` 脚本自动完成，不再由 AI 手工解析 Markdown 表格。脚本自动校验条目总数与摘要行 N 的一致性
-3. **import 分析由脚本完成**：`coverage-match.cjs` 自动处理 `import { X } from 'library'`（单行+多行）、`import * as Lib from`、`import type { X } from`、`A as Alias` 别名等所有形式，无需人工解析
+3. **import 分析由脚本完成**：`coverage-match.cjs` 自动处理 `import { X } from 'library'`（单行+多行）、`import default, { X } from`（v2.3.0 起支持默认+具名混合导入）、`import type { X } from`、`A as Alias` 别名等所有形式，无需人工解析
 4. **类的方法覆盖**：Demo 中使用 `ClassName.methodName()` 或 `instance.methodName()` 时，计 `ClassName.methodName` 方法为已覆盖，不再只计类名
 5. **对象字面量自动检测**：v2.2.0 起，`coverage-match.cjs` 自动检测对象字面量中的属性使用（`memberName:` 模式），不再需要 AI 手工搜索。这解决了 ArkTS 声明式 UI 中配置项以对象字面量传递的问题
 6. **动态调用**：`obj[method]()` 形式的调用无法识别，报告中标注此限制
@@ -263,3 +265,5 @@ Remove-Item -LiteralPath "{{interfaceSpecDir}}/coverage-result.json" -Force
 8. **PowerShell 兼容**：v2.0.0 起，所有文件扫描、import 提取、符号匹配均由 Node.js 脚本完成，不再使用 CMD `findstr`/`dir`/`del` 命令，彻底避免 PowerShell 5.1 兼容性问题
 9. **多行 import 自动处理**：脚本使用 `[^}]*` 跨行正则，自动捕获 `import {` 和 `} from` 分行的多行导入，无需人工补齐
 10. **中间文件清理**：步骤 4 报告生成后，**必须删除**中间文件 `arkts-demo-interfaces.json` 和 `coverage-result.json`（见步骤 5）
+11. **Demo 范围界定**：v2.3.0 起，脚本对 `ohosTest/`、`test/`、`tests/`、`__tests__/`、`testability/` 目录做了双层排除（顶层黑名单 + 递归目录名黑名单）。Demo 范围特指 `entry/src/main/ets/` 下的页面代码，XTS 单元测试（`entry/src/ohosTest/ets/test/`）不计入 Demo 覆盖率
+12. **混合导入支持**：v2.3.0 起，脚本支持 `import webrtc, { Logging } from '@ohos/webrtc'` 这种"默认导出 + 具名导出"混合导入形式（HAR/HSP 库 demo 中常见），修复了此类库覆盖率误报 0% 的问题

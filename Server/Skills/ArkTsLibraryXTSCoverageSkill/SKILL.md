@@ -4,7 +4,7 @@ description: 分析鸿蒙ArkTs原生库现有 XTS 测试用例对接口的覆盖
 license: Apache-2.0
 metadata:
   author: AIWeb
-  version: "2.0.0"
+  version: "2.1.0"
   category: ohos-testing
   language: ArkTS/ETS
 ---
@@ -167,3 +167,4 @@ Remove-Item -LiteralPath "{{interfaceSpecDir}}/coverage-result.json" -Force
 6. **动态调用**：`obj[methodName]()` 无法识别，报告中标注此限制
 7. **ohosTest 目录不存在**：输出覆盖率 0%，在报告中标注原因
 8. **中间文件清理**：步骤 4 报告生成后，必须删除中间文件 `arkts-xts-interfaces.json` 和 `coverage-result.json`
+9. **混合导入支持**：v2.1.0 起，脚本支持 `import webrtc, { Logging } from '@ohos/webrtc'` 这种"默认导出 + 具名导出"混合导入形式（HAR/HSP 库的 XTS 测试文件中常见），修复了此类库覆盖率误报 0% 的问题

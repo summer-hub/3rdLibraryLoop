@@ -17,7 +17,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // ─── 测试参数 ──────────────────────────────────────────────────────────────
 // 场景 A（预期 hit=true）：C++ 库可行性分析
-const TASK = '对 rntpc_react-native-netinfo 进行版本差异分析，对比 br_rnoh0.82 基线版本与 0.84 目标框架版本的差异，检查 br_rnoh0.84 分支是否存在，输出版本分析报告。推荐使用 rnoh-lib-version-diff SKILL 执行。';
+
+const TASK = '对 rntpc_async-storage 进行版本差异分析，对比 br_rnoh0.82 基线版本与 0.84 目标框架版本的差异以及库版本升级到 3.1.1 的差异，检查 br_rnoh0.84 分支是否存在，输出版本分析报告。';
+
 // 场景 B（预期 hit=false）：Go 库可行性分析（语言否决）
 // const TASK = '分析gitserver这个Go开源库能否移植到鸿蒙平台，输出鸿蒙化可行性报告';
 // 场景 C（预期 hit=false）：汇总报告（动作类型否决 + 分差检查）
