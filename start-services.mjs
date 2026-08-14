@@ -147,6 +147,7 @@ const services = [
         url: 'http://127.0.0.1:3000',
         port: 3000,
         restart: true,               // 先关闭旧进程再启动
+        critical: true,              // 启动失败则停止所有服务
     },
     {
         name: 'Web 前端',
@@ -157,6 +158,7 @@ const services = [
         url: 'http://localhost:8080',
         port: 8080,
         restart: true,               // 先关闭旧进程再启动
+        critical: true,              // 启动失败则停止所有服务
     },
     {
         name: 'MCP Gateway',
@@ -230,11 +232,17 @@ for (const svc of services) {
 
         child.on('error', (err) => {
             console.error(`  ${svc.color}${prefix}${C.reset} ${C.red}启动失败: ${err.message}${C.reset}`);
+            if (svc.critical) {
+                shutdown(`${svc.name} 启动失败: ${err.message}`);
+            }
         });
 
         child.on('exit', (code) => {
             if (code !== null && code !== 0) {
-                console.log(`  ${svc.color}${prefix}${C.reset} ${C.yellow}进程退出 (code=${code})${C.reset}`);
+                console.log(`  ${svc.color}${prefix}${C.reset} ${C.red}进程异常退出 (code=${code})${C.reset}`);
+                if (svc.critical) {
+                    shutdown(`${svc.name} 异常退出 (code=${code})`);
+                }
             }
         });
 
@@ -246,8 +254,13 @@ for (const svc of services) {
     }
 }
 
+// 标记是否有关键服务失败，避免在失败后仍显示成功 banner
+let criticalFailed = false;
+
 // 等待片刻后显示访问信息
 setTimeout(() => {
+    // 关键服务已失败则不显示成功 banner（shutdown 已在处理）
+    if (criticalFailed) return;
     console.log();
     banner('✅ 服务启动完成');
     console.log(`  ${C.bold}访问地址:${C.reset}`);
@@ -268,8 +281,19 @@ setTimeout(() => {
 
 // ─── 优雅退出 ──────────────────────────────────────────────────────────────
 
-const shutdown = () => {
-    console.log(`\n\n  ${C.yellow}正在停止所有服务...${C.reset}`);
+let isShuttingDown = false;
+
+const shutdown = (reason) => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+
+    if (reason) {
+        criticalFailed = true;
+        console.log(`\n  ${C.bgRed}${C.bold} ✗ ${reason} — 正在停止所有服务 ${C.reset}\n`);
+    } else {
+        console.log(`\n\n  ${C.yellow}正在停止所有服务...${C.reset}`);
+    }
+
     for (const { name, child } of processes) {
         try {
             if (!child.killed) {
@@ -286,7 +310,7 @@ const shutdown = () => {
             } catch { /* ignore */ }
         }
     }
-    process.exit(0);
+    process.exit(reason ? 1 : 0);
 };
 
 process.on('SIGINT', shutdown);
