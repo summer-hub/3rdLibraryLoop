@@ -125,10 +125,7 @@ class SseHub {
         // 客户端断开时自动清理
         res.on('close', () => {
             this._removeConnection(channel, conn);
-            logger.info('SSE 连接关闭', { channel, userId });
         });
-
-        logger.info('SSE 订阅成功', { channel, userId, subscribers: this.subscriberCount(channel) });
 
         // 立即推送初始数据（如有）
         if (initialData) {

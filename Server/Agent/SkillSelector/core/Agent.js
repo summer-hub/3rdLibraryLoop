@@ -24,6 +24,9 @@ import { LLMClient } from '../llm/llmClient.js';
 import { scanSkills } from '../scanner/skillScanner.js';
 import { fuzzyMatch, createFuzzyMatcher } from '../matcher/fuzzyMatcher.js';
 import { analyzeTask, rankSkills } from '../llm/reactSteps.js';
+import { createLogger } from '../../../Routes/library/logger.js';
+
+const log = createLogger('SkillSelector');
 
 // 加载 Server/.env（本文件在 core/ 下，上三级目录为 Server/）
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -63,7 +66,10 @@ export class Agent {
    */
   async selectSkill(task, skillDirectory) {
     if (!task) throw new Error('Agent.selectSkill: task 不能为空');
+
     if (!skillDirectory) throw new Error('Agent.selectSkill: skillDirectory 不能为空');
+
+    log.debug('selectSkill 入参', { task, skillDirectory });
 
     const trace = [];
 
@@ -157,7 +163,7 @@ export class Agent {
     }
     // 未命中时 best 保持 null，skillPath 也为 null
 
-    return {
+    const result = {
       best,
       // SKILL 绝对目录（命中时为 best.skillPath，未命中为 null）
       skillPath: best ? best.skillPath : null,
@@ -171,6 +177,16 @@ export class Agent {
       analysis,
       trace,
     };
+
+    log.debug('selectSkill 输出', {
+      hit: result.hit,
+      topScore: result.topScore,
+      best: result.best ? result.best.dirName : null,
+      skillPath: result.skillPath,
+      rankedCount: result.ranked.length,
+    });
+
+    return result;
   }
 }
 
