@@ -464,23 +464,36 @@ info('[Demo 覆盖率分析]');
 info(`库名: ${libName} (完整: ${fullLibName})`);
 info(`源码目录: ${srcDir}`);
 
-if (!fs.existsSync(srcDir)) { warn(`源码目录不存在: ${srcDir}`); process.exit(0); }
-
-const testFiles = walkDir(srcDir, { exts: ['.ts', '.tsx', '.js', '.jsx'], excludeDirs: ['node_modules', 'harmony', 'android', 'ios', '__tests__', '__mocks__', 'tests', 'test'] }, srcDir);
-info(`扫描到 ${testFiles.length} 个源文件`);
-
-let result = null;
-if (mode === 'ast' || (mode === 'auto' && ts)) {
-  info('使用 AST 模式匹配...');
-  try { result = matchCoverageAST(interfaces, testFiles, libName, fullLibName, libRoot); } catch (e) { warn(`AST 模式出错: ${e.message}`); result = null; }
-  if (!result && mode === 'auto') warn('AST 模式失败，降级到正则模式...');
+let result;
+if (!fs.existsSync(srcDir)) {
+  warn(`Demo 源码目录不存在: ${srcDir}`);
+  result = aggregateResults(interfaces, {}, libName, 0);
+} else {
+  const testFiles = walkDir(srcDir, { exts: ['.ts', '.tsx', '.js', '.jsx'], excludeDirs: ['node_modules', 'harmony', 'android', 'ios', '__tests__', '__mocks__', 'tests', 'test'] }, srcDir);
+  info(`扫描到 ${testFiles.length} 个源文件`);
+  result = null;
+  if (testFiles.length > 0) {
+    if (mode === 'ast' || (mode === 'auto' && ts)) {
+      info('使用 AST 模式匹配...');
+      try { result = matchCoverageAST(interfaces, testFiles, libName, fullLibName, libRoot); } catch (e) { warn(`AST 模式出错: ${e.message}`); result = null; }
+      if (!result && mode === 'auto') warn('AST 模式失败，降级到正则模式...');
+    }
+    if (!result) { info('使用正则模式匹配...'); result = matchCoverageRegex(interfaces, testFiles, libName, fullLibName); }
+  } else {
+    warn('未找到 Demo 源文件');
+    result = aggregateResults(interfaces, {}, libName, 0);
+  }
 }
-if (!result) { info('使用正则模式匹配...'); result = matchCoverageRegex(interfaces, testFiles, libName, fullLibName); }
 result.specSummary = spec.summary;
+result.noDemoFiles = !fs.existsSync(srcDir) || (result.sourceFileCount === 0);
 ok(`匹配完成: ${result.coveredMethodCount}/${result.totalInterfacesMethodLevel} (${result.coverageRateMethodLevel}%)`);
 
 const title = args.title || `${spec.libraryName} Demo 覆盖率分析报告`;
-const parts = [renderHeader(result, title), renderOverview(result), renderByKind(result), renderClassCoverage(result), renderUncoveredDetails(result), renderCoveredDetails(result), renderFileCoverage(result), renderRecommendations(result)];
+const parts = [renderHeader(result, title)];
+if (result.noDemoFiles) {
+  parts.push(`## 无 Demo 文档声明\n\n> **该库未找到 Demo 源文件。**\n>\n> Demo 源码目录: \`${srcDir}\`\n>\n> 覆盖率: **0%**（所有 ${result.totalInterfacesMethodLevel} 个接口均未被 Demo 覆盖）\n\n请添加 Demo 文件后重新运行分析。\n`);
+}
+parts.push(renderOverview(result), renderByKind(result), renderClassCoverage(result), renderUncoveredDetails(result), renderCoveredDetails(result), renderFileCoverage(result), renderRecommendations(result));
 const markdown = parts.join('\n---\n\n');
 
 const outputPath = args.output || path.join(libRoot, `02-${specBasename}-Demo覆盖率报告.md`);

@@ -134,7 +134,14 @@ function findTurboModuleSpecFiles(dir) {
   }
   for (const tsFile of allTsFiles) {
     if (results.includes(tsFile)) continue;
-    try { if (/interface\s+Spec\s+extends\s+TurboModule/.test(readText(tsFile))) results.push(tsFile); } catch {}
+    try {
+      const content = readText(tsFile);
+      if (/interface\s+Spec\s+extends\s+TurboModule/.test(content) ||
+          /codegenNativeComponent/.test(content) ||
+          /codegenNativeCommands/.test(content)) {
+        results.push(tsFile);
+      }
+    } catch {}
   }
   return [...new Set(results)];
 }
@@ -143,7 +150,7 @@ function scanDirForNativeSpec(dir, results) {
   let entries;
   try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
   for (const entry of entries) {
-    if (['node_modules', 'lib', 'dist', '.git'].includes(entry.name)) continue;
+    if (['node_modules', 'lib', 'dist', '.git', '.upstream-cache'].includes(entry.name)) continue;
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) scanDirForNativeSpec(fullPath, results);
     else if (entry.isFile() && /^Native[A-Z].*\.(ts|tsx)$/.test(entry.name)) results.push(fullPath);
@@ -154,7 +161,7 @@ function collectTsFiles(dir, results) {
   let entries;
   try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
   for (const entry of entries) {
-    if (['node_modules', 'lib', 'dist', '.git', 'harmony', 'android', 'ios'].includes(entry.name)) continue;
+    if (['node_modules', 'lib', 'dist', '.git', '.upstream-cache', 'harmony', 'android', 'ios'].includes(entry.name)) continue;
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) collectTsFiles(fullPath, results);
     else if (entry.isFile() && /\.(ts|tsx)$/.test(entry.name)) results.push(fullPath);
@@ -164,10 +171,23 @@ function collectTsFiles(dir, results) {
 function resolveRelativePath(fromFile, relativePath) {
   if (!relativePath) return null;
   const base = path.resolve(path.dirname(fromFile), relativePath);
-  for (const c of [base + '.ts', base + '.tsx', base + '.d.ts', base + '.js', base + '.jsx', path.join(base, 'index.ts'), path.join(base, 'index.tsx'), path.join(base, 'index.js'), path.join(base, 'index.jsx')]) {
+  for (const c of [base + '.ts', base + '.tsx', base + '.d.ts', base + '.js', base + '.jsx', path.join(base, 'index.d.ts'), path.join(base, 'index.ts'), path.join(base, 'index.tsx'), path.join(base, 'index.js'), path.join(base, 'index.jsx')]) {
     if (fs.existsSync(c)) return c;
   }
   return null;
+}
+
+function resolveRelativePathDts(fromFile, relativePath) {
+  if (!relativePath) return null;
+  const base = path.resolve(path.dirname(fromFile), relativePath);
+  const candidates = [
+    base + '.d.ts', base + '.ts',
+    path.join(base, 'index.d.ts'), path.join(base, 'index.ts'),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return resolveRelativePath(fromFile, relativePath);
 }
 
 function stripComments(content) { return content.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, ''); }
@@ -187,9 +207,31 @@ function findSignatureEnd(text, start) {
   let depth = 0, i = start;
   while (i < text.length) {
     const ch = text[i];
-    if (ch === '{' || ch === '(' || ch === '[') depth++;
+    if (ch === '{') {
+      if (depth === 0) {
+        // Check if this is a method body or an object type
+        let k = i - 1;
+        while (k >= 0 && /[ \t\r\n]/.test(text[k])) k--;
+        const prevCh = k >= 0 ? text[k] : '';
+        if (!'|=,&<'.includes(prevCh)) return i; // Method body start
+      }
+      depth++;
+    }
+    else if (ch === '(' || ch === '[') depth++;
     else if (ch === '}' || ch === ')' || ch === ']') { if (depth === 0) return i; depth--; }
     else if (ch === ';' && depth === 0) return i;
+    else if (ch === '\n' && depth === 0) {
+      // ASI: stop at newline if next line starts a new declaration
+      // and current line doesn't end with a continuation character
+      let j = i + 1;
+      while (j < text.length && /[ \t\r]/.test(text[j])) j++;
+      let k = i - 1;
+      while (k >= 0 && /[ \t\r]/.test(text[k])) k--;
+      const prevCh = k >= 0 ? text[k] : '';
+      if (/[a-zA-Z_$]/.test(text[j]) && !'|&({[,<.'.includes(prevCh)) {
+        return i;
+      }
+    }
     i++;
   }
   return text.length;
@@ -266,18 +308,27 @@ function extractMethodsFromInterfaceBody(body) {
     while (i < body.length && /\s/.test(body[i])) i++;
     if (i >= body.length) break;
     if (body[i] === '?' || body[i] === ':') {
+      if (body[i] === '?') { i++; while (i < body.length && /\s/.test(body[i])) i++; }
       if (body[i] === ':') {
         const sigEnd = findSignatureEnd(body, nameStart);
         const fullSig = body.substring(nameStart, sigEnd).trim();
-        if (fullSig.includes('=>') || (fullSig.includes('(') && fullSig.includes(')'))) methods.push({ name, signature: normalizeSignature(fullSig) });
-        i = sigEnd + 1;
-      } else { i++; const sigEnd = findSignatureEnd(body, i); i = sigEnd + 1; }
+        methods.push({ name, signature: normalizeSignature(fullSig) });
+        if (body[sigEnd] === '{') {
+          let bd = 1, j = sigEnd + 1;
+          while (j < body.length && bd > 0) { if (body[j] === '{') bd++; else if (body[j] === '}') bd--; if (bd === 0) break; j++; }
+          i = j + 1;
+        } else { i = sigEnd + 1; }
+      } else { const sigEnd = findSignatureEnd(body, i); i = sigEnd + 1; }
       continue;
     }
     if (body[i] === '(') {
       const sigEnd = findSignatureEnd(body, nameStart);
       methods.push({ name, signature: normalizeSignature(body.substring(nameStart, sigEnd).trim()) });
-      i = sigEnd + 1;
+      if (body[sigEnd] === '{') {
+        let bd = 1, j = sigEnd + 1;
+        while (j < body.length && bd > 0) { if (body[j] === '{') bd++; else if (body[j] === '}') bd--; if (bd === 0) break; j++; }
+        i = j + 1;
+      } else { i = sigEnd + 1; }
       continue;
     }
     while (i < body.length && body[i] !== ';' && body[i] !== '\n') i++;
@@ -303,6 +354,90 @@ function extractClassMethods(content, className) {
   if (!match) return [];
   const body = extractBalancedBraces(cleaned, match.index + match[0].length);
   return body ? extractMethodsFromInterfaceBody(body) : [];
+}
+
+function extractClassAndInterfaceDefs(content) {
+  const cleaned = stripComments(content);
+  const defs = [];
+
+  // Classes: use simple regex to find class name, then manually skip generic params to find body
+  const classRegex = /(?:export\s+)?(?:declare\s+)?(?:abstract\s+)?class\s+(\w+)\b/g;
+  let m;
+  while ((m = classRegex.exec(cleaned)) !== null) {
+    const className = m[1];
+    let bracePos = m.index + m[0].length;
+    let angleDepth = 0;
+    while (bracePos < cleaned.length) {
+      const ch = cleaned[bracePos];
+      if (ch === '<') angleDepth++;
+      else if (ch === '>') angleDepth--;
+      else if (ch === '{' && angleDepth === 0) break;
+      bracePos++;
+    }
+    if (bracePos >= cleaned.length) continue;
+    const body = extractBalancedBraces(cleaned, bracePos + 1);
+    if (!body) continue;
+    const members = extractMethodsFromInterfaceBody(body);
+    defs.push({ typeKind: 'class', name: className, members });
+  }
+
+  // Interfaces
+  const ifaceRegex = /(?:export\s+)?interface\s+(\w+)\s*(?:extends\s+[^{]+)?\s*\{/g;
+  while ((m = ifaceRegex.exec(cleaned)) !== null) {
+    const ifaceName = m[1];
+    const body = extractBalancedBraces(cleaned, m.index + m[0].length);
+    if (!body) continue;
+    const members = extractMethodsFromInterfaceBody(body);
+    defs.push({ typeKind: 'interface', name: ifaceName, members });
+  }
+
+  // Type aliases
+  const typeRegex = /(?:export\s+)?type\s+(\w+)\s*=/g;
+  while ((m = typeRegex.exec(cleaned)) !== null) {
+    const typeName = m[1];
+    defs.push({ typeKind: 'type-alias', name: typeName, members: [] });
+  }
+
+  return defs;
+}
+
+function defsToInterfaces(defs, repoDir, sourceFile, typeLabel, layerLabel) {
+  const type = typeLabel || 'type-decl';
+  const layer = layerLabel || 'js';
+  const interfaces = [];
+  const sourceRel = rel(sourceFile, repoDir);
+  for (const def of defs) {
+    for (const member of def.members) {
+      const isField = member.signature.includes(':') && !member.signature.includes('(') && !member.signature.includes('=>');
+      if (isField) {
+        const typeMatch = member.signature.match(/^\w+\??\s*:\s*(.+)$/);
+        const fieldType = typeMatch ? typeMatch[1].trim() : '-';
+        interfaces.push({
+          className: def.name, memberName: member.name, fullName: `${def.name}.${member.name}`,
+          kind: 'field', isStatic: false, isReadonly: /\breadonly\b/.test(member.signature),
+          isOptional: member.signature.includes('?'), isEvent: /(?:onAnimation|onLayout)/.test(member.name),
+          type, layer, signature: member.signature, params: [], returnType: fieldType,
+          description: '-', source: sourceRel, startLine: 0,
+        });
+      } else {
+        const parsed = parseMethodSignature(member.signature);
+        interfaces.push({
+          className: def.name, memberName: member.name, fullName: `${def.name}.${member.name}`,
+          kind: 'method', isStatic: /\bstatic\b/.test(member.signature), isReadonly: false,
+          isOptional: false, isEvent: /(?:onAnimation|onLayout|Listener)/.test(member.name),
+          type, layer, signature: member.signature, params: parsed.params, returnType: parsed.returnType,
+          description: '-', source: sourceRel, startLine: 0,
+        });
+      }
+    }
+    interfaces.push({
+      className: def.name, memberName: def.name, fullName: def.name, kind: 'type',
+      isStatic: false, isReadonly: false, isOptional: false, isEvent: false,
+      type, layer, signature: `${def.typeKind} ${def.name}`, params: [], returnType: def.name,
+      description: '-', source: sourceRel, startLine: 0,
+    });
+  }
+  return interfaces;
 }
 
 function escapeRegex(str) { return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
@@ -490,6 +625,60 @@ function extractTurboModuleSpecs(repoDir) {
   return { files, interfaces };
 }
 
+function extractFabricComponentSpecs(repoDir) {
+  const specFiles = findTurboModuleSpecFiles(repoDir);
+  const files = [], interfaces = [];
+
+  for (const specFile of specFiles) {
+    const content = readText(specFile);
+    const cleaned = stripComments(content);
+    const sourceRel = rel(specFile, repoDir);
+
+    // Check if this is a Fabric Component spec (not a TurboModule)
+    const isFabric = /codegenNativeComponent/.test(cleaned) || /codegenNativeCommands/.test(cleaned);
+    const isTurboModule = /interface\s+Spec\s+extends\s+TurboModule/.test(cleaned);
+    if (!isFabric && !isTurboModule) continue;
+
+    files.push(sourceRel);
+
+    // Extract interfaces and type aliases via extractClassAndInterfaceDefs
+    const defs = extractClassAndInterfaceDefs(content);
+    interfaces.push(...defsToInterfaces(defs, repoDir, specFile, 'fabric-spec', 'fabric'));
+
+    // Extract Readonly<{...}> type aliases (event types)
+    const readonlyTypeRegex = /(?:export\s+)?type\s+(\w+)\s*=\s*Readonly\s*<\s*\{/g;
+    let m;
+    while ((m = readonlyTypeRegex.exec(cleaned)) !== null) {
+      const typeName = m[1];
+      const body = extractBalancedBraces(cleaned, m.index + m[0].length);
+      if (!body) continue;
+      const members = extractMethodsFromInterfaceBody(body);
+      for (const member of members) {
+        const typeMatch = member.signature.match(/^\w+\??\s*:\s*(.+)$/);
+        const fieldType = typeMatch ? typeMatch[1].trim() : '-';
+        interfaces.push({
+          className: typeName, memberName: member.name, fullName: `${typeName}.${member.name}`,
+          kind: 'field', isStatic: false, isReadonly: false, isOptional: member.signature.includes('?'),
+          isEvent: false, type: 'fabric-spec', layer: 'fabric', signature: member.signature,
+          params: [], returnType: fieldType, description: '-', source: sourceRel, startLine: 0,
+        });
+      }
+      // Add type declaration if not already present
+      const existing = interfaces.find(i => i.fullName === typeName && i.kind === 'type');
+      if (!existing) {
+        interfaces.push({
+          className: typeName, memberName: typeName, fullName: typeName, kind: 'type',
+          isStatic: false, isReadonly: false, isOptional: false, isEvent: false,
+          type: 'fabric-spec', layer: 'fabric', signature: `type ${typeName}`,
+          params: [], returnType: typeName, description: '-', source: sourceRel, startLine: 0,
+        });
+      }
+    }
+  }
+
+  return { files, interfaces };
+}
+
 function extractCommonJSExports(content, repoDir, entryFile) {
   const cleaned = stripComments(content);
   const interfaces = [];
@@ -602,6 +791,56 @@ function extractESModuleExports(content, repoDir, entryFile) {
       params: [], returnType: name, description: '-', source: rel(entryFile, repoDir), startLine: 0,
     });
   }
+
+  // ── re-export 链追踪 ──────────────────────────────────
+
+  // 1. Wildcard re-export tracking (export * from './types')
+  for (const reExport of exports.reExports) {
+    if (!reExport.isWildcard) continue;
+    const targetFile = resolveRelativePath(entryFile, reExport.from);
+    if (!targetFile) continue;
+    const targetContent = readText(targetFile);
+    const defs = extractClassAndInterfaceDefs(targetContent);
+    interfaces.push(...defsToInterfaces(defs, repoDir, targetFile));
+
+    // Recursively process re-exports in the target file
+    const targetExports = extractExports(targetContent);
+    for (const subReExport of targetExports.reExports) {
+      if (!subReExport.isWildcard) continue;
+      const subTarget = resolveRelativePath(targetFile, subReExport.from);
+      if (!subTarget) continue;
+      const subContent = readText(subTarget);
+      const subDefs = extractClassAndInterfaceDefs(subContent);
+      interfaces.push(...defsToInterfaces(subDefs, repoDir, subTarget));
+    }
+  }
+
+  // 2. Named re-export tracking (export { Foo } from './bar')
+  for (const reExport of exports.reExports) {
+    if (reExport.isWildcard) continue;
+    const targetFile = resolveRelativePath(entryFile, reExport.from);
+    if (!targetFile) continue;
+    const targetContent = readText(targetFile);
+    const defs = extractClassAndInterfaceDefs(targetContent);
+    const filteredDefs = defs.filter(d => d.name === reExport.original || d.name === reExport.name);
+    interfaces.push(...defsToInterfaces(filteredDefs, repoDir, targetFile));
+  }
+
+  // 3. Default export import tracking (import { LottieView } from './LottieView'; export default LottieView)
+  if (exports.defaultExport && !exports.named.includes(exports.defaultExport)) {
+    const importRegex = new RegExp(`import\\s+\\{[^}]*\\b${escapeRegex(exports.defaultExport)}\\b[^}]*\\}\\s+from\\s+['"]([^'"]+)['"]`);
+    const importMatch = cleaned.match(importRegex);
+    if (importMatch) {
+      const targetFile = resolveRelativePath(entryFile, importMatch[1]);
+      if (targetFile) {
+        const targetContent = readText(targetFile);
+        const defs = extractClassAndInterfaceDefs(targetContent);
+        const filteredDefs = defs.filter(d => d.name === exports.defaultExport);
+        interfaces.push(...defsToInterfaces(filteredDefs, repoDir, targetFile));
+      }
+    }
+  }
+
   return interfaces;
 }
 
@@ -633,43 +872,68 @@ function extractSideEffectExports(content, repoDir, entryFile) {
 }
 
 function extractTypeDefinitions(repoDir) {
-  const dtsPath = path.join(repoDir, 'index.d.ts');
-  if (!fs.existsSync(dtsPath)) return { found: false, interfaces: [], source: null };
-  const content = readText(dtsPath);
+  const pkg = readPackageJson(repoDir);
+  const candidates = [
+    path.join(repoDir, 'index.d.ts'),
+    path.join(repoDir, 'lib', 'typescript', 'index.d.ts'),
+    path.join(repoDir, 'types', 'index.d.ts'),
+    path.join(repoDir, 'dist', 'index.d.ts'),
+  ];
+  if (pkg && pkg.types) candidates.unshift(path.resolve(repoDir, pkg.types));
+  if (pkg && pkg.typings) candidates.unshift(path.resolve(repoDir, pkg.typings));
+
+  let dtsPath = null;
+  for (const c of candidates) {
+    if (fs.existsSync(c)) { dtsPath = c; break; }
+  }
+  if (!dtsPath) return { found: false, interfaces: [], source: null, allSources: [] };
+
+  const allSources = [];
   const interfaces = [];
-  const cleaned = stripComments(content);
-  const classRegex = /(?:declare\s+)?(?:abstract\s+)?class\s+(\w+)\s*(?:extends\s+[^{]+)?\s*\{/g;
-  let m;
-  while ((m = classRegex.exec(cleaned)) !== null) {
-    const body = extractBalancedBraces(cleaned, m.index + m[0].length);
-    if (!body) continue;
-    for (const method of extractMethodsFromInterfaceBody(body)) {
-      const parsed = parseMethodSignature(method.signature);
-      interfaces.push({
-        className: m[1], memberName: method.name, fullName: `${m[1]}.${method.name}`, kind: 'method',
-        isStatic: /\bstatic\b/.test(method.signature), isReadonly: false, isOptional: false, isEvent: false,
-        type: 'type-decl', layer: 'js', signature: method.signature,
-        params: parsed.params, returnType: parsed.returnType, description: '-',
-        source: rel(dtsPath, repoDir), startLine: 0,
-      });
+  const visited = new Set();
+
+  function processDts(filePath) {
+    if (visited.has(filePath)) return;
+    visited.add(filePath);
+    allSources.push(rel(filePath, repoDir));
+
+    const content = readText(filePath);
+    const defs = extractClassAndInterfaceDefs(content);
+    interfaces.push(...defsToInterfaces(defs, repoDir, filePath));
+
+    // Track re-exports
+    const exports = extractExports(content);
+    for (const reExport of exports.reExports) {
+      const targetFile = resolveRelativePathDts(filePath, reExport.from);
+      if (targetFile) processDts(targetFile);
+    }
+
+    // Track default export import source
+    if (exports.defaultExport) {
+      const importRegex = new RegExp(`import\\s+\\{[^}]*\\b${escapeRegex(exports.defaultExport)}\\b[^}]*\\}\\s+from\\s+['"]([^'"]+)['"]`);
+      const cleaned = stripComments(content);
+      const importMatch = cleaned.match(importRegex);
+      if (importMatch) {
+        const targetFile = resolveRelativePathDts(filePath, importMatch[1]);
+        if (targetFile) processDts(targetFile);
+      }
+    }
+
+    // Track named export import sources
+    for (const namedExport of exports.named) {
+      const importRegex = new RegExp(`import\\s+\\{[^}]*\\b${escapeRegex(namedExport)}\\b[^}]*\\}\\s+from\\s+['"]([^'"]+)['"]`);
+      const cleaned = stripComments(content);
+      const importMatch = cleaned.match(importRegex);
+      if (importMatch) {
+        const targetFile = resolveRelativePathDts(filePath, importMatch[1]);
+        if (targetFile) processDts(targetFile);
+      }
     }
   }
-  const interfaceRegex = /(?:declare\s+)?interface\s+(\w+)\s*(?:extends\s+[^{]+)?\s*\{/g;
-  while ((m = interfaceRegex.exec(cleaned)) !== null) {
-    const body = extractBalancedBraces(cleaned, m.index + m[0].length);
-    if (!body) continue;
-    for (const method of extractMethodsFromInterfaceBody(body)) {
-      const parsed = parseMethodSignature(method.signature);
-      interfaces.push({
-        className: m[1], memberName: method.name, fullName: `${m[1]}.${method.name}`, kind: 'method',
-        isStatic: false, isReadonly: false, isOptional: false, isEvent: false,
-        type: 'type-decl', layer: 'js', signature: method.signature,
-        params: parsed.params, returnType: parsed.returnType, description: '-',
-        source: rel(dtsPath, repoDir), startLine: 0,
-      });
-    }
-  }
-  return { found: true, interfaces, source: rel(dtsPath, repoDir) };
+
+  processDts(dtsPath);
+
+  return { found: true, interfaces, source: rel(dtsPath, repoDir), allSources };
 }
 
 // ════════════════════════════════════════════════════════════
@@ -698,9 +962,27 @@ function generateRNSpec(repoDir, opts = {}) {
 
   info(`JS 层导出 (模式: ${exportStyle}, 来源: 上游)...`);
   let jsInterfaces = [];
-  if (exportStyle === 'commonjs') { jsInterfaces = extractCommonJSExports(entryContent, upstreamDir, entryFile); for (const i of jsInterfaces) i.source = upstreamRel(entryFile); }
-  else if (exportStyle === 'es-module') { jsInterfaces = extractESModuleExports(entryContent, upstreamDir, entryFile); for (const i of jsInterfaces) i.source = upstreamRel(entryFile); }
-  else if (exportStyle === 'side-effect') { jsInterfaces = extractSideEffectExports(entryContent, upstreamDir, entryFile); for (const i of jsInterfaces) i.source = upstreamRel(entryFile); }
+  if (exportStyle === 'commonjs') {
+    jsInterfaces = extractCommonJSExports(entryContent, upstreamDir, entryFile);
+    for (const i of jsInterfaces) i.source = upstreamRel(entryFile);
+  }
+  else if (exportStyle === 'es-module') {
+    jsInterfaces = extractESModuleExports(entryContent, upstreamDir, entryFile);
+    const entryRel = rel(entryFile, upstreamDir);
+    for (const i of jsInterfaces) {
+      if (i.source && !i.source.startsWith('upstream:') && i.source !== entryRel) {
+        const fullSrc = `upstream:${upstreamInfo.pkgName}@${upstreamInfo.version}/${i.source.replace(/^\.\//, '')}`;
+        i.source = fullSrc;
+        if (!sources.includes(fullSrc)) sources.push(fullSrc);
+      } else if (!i.source || i.source === entryRel) {
+        i.source = upstreamRel(entryFile);
+      }
+    }
+  }
+  else if (exportStyle === 'side-effect') {
+    jsInterfaces = extractSideEffectExports(entryContent, upstreamDir, entryFile);
+    for (const i of jsInterfaces) i.source = upstreamRel(entryFile);
+  }
   interfaces.push(...jsInterfaces);
   ok(`JS 层导出: ${jsInterfaces.length} 个接口`);
 
@@ -708,16 +990,35 @@ function generateRNSpec(repoDir, opts = {}) {
   info('提取类型定义 (index.d.ts, 来源: 上游)...');
   const typeDefs = extractTypeDefinitions(upstreamDir);
   if (typeDefs.found) {
-    const tdSource = `upstream:${upstreamInfo.pkgName}@${upstreamInfo.version}/${typeDefs.source.replace(/^\.\//, '')}`;
-    sources.push(tdSource);
+    for (const src of typeDefs.allSources || [typeDefs.source]) {
+      const fullSrc = `upstream:${upstreamInfo.pkgName}@${upstreamInfo.version}/${src.replace(/^\.\//, '')}`;
+      if (!sources.includes(fullSrc)) sources.push(fullSrc);
+    }
     interfaces.push(...typeDefs.interfaces);
-    for (const i of typeDefs.interfaces) i.source = tdSource;
+    for (const i of typeDefs.interfaces) {
+      const fullSrc = `upstream:${upstreamInfo.pkgName}@${upstreamInfo.version}/${(i.source || typeDefs.source).replace(/^\.\//, '')}`;
+      i.source = fullSrc;
+    }
     ok(`类型定义: ${typeDefs.interfaces.length} 个接口`);
   } else { info('上游源码未找到 index.d.ts，跳过类型定义提取'); }
+
+  // Fabric Component / TurboModule Spec — 从鸿蒙化仓库提取
+  info('提取 Fabric Component / TurboModule Spec (来源: 鸿蒙化仓库)...');
+  const fabricSpecs = extractFabricComponentSpecs(absDir);
+  if (fabricSpecs.files.length > 0) {
+    for (const f of fabricSpecs.files) {
+      const fullSrc = `ohos:${f}`;
+      if (!sources.includes(fullSrc)) sources.push(fullSrc);
+    }
+    for (const i of fabricSpecs.interfaces) { i.source = `ohos:${i.source}`; }
+    interfaces.push(...fabricSpecs.interfaces);
+    ok(`Fabric/TurboModule Spec: ${fabricSpecs.interfaces.length} 个接口`);
+  } else { info('未找到 Fabric/TurboModule Spec 文件'); }
 
   const seen = new Set();
   const deduped = interfaces.filter(i => { if (seen.has(i.fullName)) return false; seen.add(i.fullName); return true; });
   const methods = deduped.filter(i => i.kind === 'method' || i.kind === 'function');
+  const fields = deduped.filter(i => i.kind === 'field');
   const classSet = new Set(deduped.filter(i => i.className).map(i => i.className));
 
   ok(`接口提取完成: ${deduped.length} 个接口, ${classSet.size} 个类/模块`);
@@ -727,7 +1028,7 @@ function generateRNSpec(repoDir, opts = {}) {
     exportStyle,
     upstream: { pkgName: upstreamInfo.pkgName, version: upstreamInfo.version, isUpstream: true },
     extractedAt: new Date().toISOString(),
-    summary: { S: classSet.size, N: deduped.length, M: 0, methods: methods.length, properties: 0, fields: 0 },
+    summary: { S: classSet.size, N: deduped.length, M: 0, methods: methods.length, properties: 0, fields: fields.length },
     sources, interfaces: deduped,
   };
 }
@@ -758,10 +1059,12 @@ module.exports = {
   fetchUpstream, resolveUpstream,
   // 供 rn-scan-exports.cjs 等外部模块使用
   readText, rel, walkDir, readPackageJson, getLibraryAlias,
-  detectEntryFile, findTurboModuleSpecFiles, resolveRelativePath,
+  detectEntryFile, findTurboModuleSpecFiles, resolveRelativePath, resolveRelativePathDts,
   stripComments, extractBalancedBraces, findSignatureEnd, normalizeSignature,
   extractMethodsFromInterfaceBody, extractExports, extractTurboModuleSpec,
   extractInterfaceMethods, extractClassMethods,
+  extractClassAndInterfaceDefs, defsToInterfaces,
+  extractFabricComponentSpecs,
   escapeRegex, escapeMd, formatParams, coverageBadge,
   parseArgs, loadTypeScript, info, ok, warn, error,
 };
