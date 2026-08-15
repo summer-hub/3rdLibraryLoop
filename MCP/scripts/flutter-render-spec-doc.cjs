@@ -143,7 +143,11 @@ function renderClassSection(className, members, index) {
     const label = typeLabel(typeStr);
     lines.push(`## ${num}${className}`);
     lines.push('');
-    lines.push(`> 类型: ${label}`);
+    if (typeStr === 'extension' && firstMember && firstMember.onType) {
+      lines.push(`> 类型: ${label} (on \`${firstMember.onType}\`)`);
+    } else {
+      lines.push(`> 类型: ${label}`);
+    }
     lines.push('');
   }
 

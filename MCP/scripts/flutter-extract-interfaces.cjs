@@ -607,7 +607,7 @@ function removeAllBraceBlocks(content) {
  * 在清理后的类体内提取成员
  * 策略：先匹配方法/getter/构造函数（行首锚定），然后移除方法体后再匹配字段
  */
-function extractClassMembers(classBody, className, classType, filePath, repoDir, bodyStartLine, rawContent, exportedNames, hideShowMap) {
+function extractClassMembers(classBody, className, classType, filePath, repoDir, bodyStartLine, rawContent, exportedNames, hideShowMap, onType) {
   const members = [];
   const DART_KEYWORDS = ['class','extends','implements','with','void','return','final','const','late','static','var','get','set','operator','if','else','for','while','switch','case','break','continue','try','catch','finally','throw','new','import','export','part','library','show','hide','as','is','enum','mixin','extension','typedef','abstract','factory','this','super','do','in','yield','sync','async','await','dynamic','covariant','required','external','native','assert','default'];
 
@@ -636,6 +636,7 @@ function extractClassMembers(classBody, className, classType, filePath, repoDir,
     if (memberName === className) continue;
     if (DART_KEYWORDS.includes(memberName)) continue;
     if (DART_KEYWORDS.includes(returnType)) continue;
+    if (returnType.endsWith(':')) continue;
 
     const charIdx = m.index;
     const lineNum = bodyStartLine + getLineNum(classBody, charIdx);
@@ -644,7 +645,7 @@ function extractClassMembers(classBody, className, classType, filePath, repoDir,
     members.push({
       className, memberName, fullName: `${className}.${memberName}`,
       kind: 'method', isStatic, isReadonly: false, isOptional: false, isEvent,
-      type: classType,
+      type: classType, onType: onType || null,
       signature: `${isStatic ? 'static ' : ''}${returnType} ${memberName}(${paramStr})`,
       params: parseParameters(paramStr), returnType: returnType || 'void',
       description: extractDocComment(rawContent, lineNum),
@@ -667,7 +668,7 @@ function extractClassMembers(classBody, className, classType, filePath, repoDir,
     members.push({
       className, memberName, fullName: `${className}.${memberName}`,
       kind: 'property', isStatic, isReadonly: true, isOptional: false, isEvent: false,
-      type: classType,
+      type: classType, onType: onType || null,
       signature: `${isStatic ? 'static ' : ''}${returnType} get ${memberName}`,
       params: [], returnType,
       description: extractDocComment(rawContent, lineNum),
@@ -701,7 +702,7 @@ function extractClassMembers(classBody, className, classType, filePath, repoDir,
       className, memberName,
       fullName: namedCtor ? `${className}.${namedCtor}` : `${className}.constructor`,
       kind: 'constructor', isStatic: false, isReadonly: false, isOptional: false, isEvent: false,
-      type: classType,
+      type: classType, onType: onType || null,
       signature: `${isFactory ? 'factory ' : ''}${ctorClassName}${namedCtor ? '.' + namedCtor : ''}(${paramStr})`,
       params: parseParameters(paramStr), returnType: className,
       description: extractDocComment(rawContent, lineNum),
@@ -727,16 +728,16 @@ function extractClassMembers(classBody, className, classType, filePath, repoDir,
     if (DART_KEYWORDS.includes(memberName)) continue;
     if (DART_KEYWORDS.includes(fieldType)) continue;
     if (fieldType.length === 0) continue;
+    if (fieldType.startsWith('_')) continue;
 
     const charIdx = m.index;
     const lineNum = bodyStartLine + getLineNum(classBody, charIdx);
-    // 类内只有 const 才是真正的常量；final 是只读字段（Widget 参数等），应计入覆盖率
     const isConstant = modifier === 'const';
 
     members.push({
       className, memberName, fullName: `${className}.${memberName}`,
       kind: isConstant ? 'constant' : 'field', isStatic, isReadonly: modifier === 'const' || modifier === 'final', isOptional: false, isEvent: false,
-      type: classType,
+      type: classType, onType: onType || null,
       signature: `${isStatic ? 'static ' : ''}${modifier ? modifier + ' ' : ''}${fieldType} ${memberName}`,
       params: [], returnType: fieldType,
       description: extractDocComment(rawContent, lineNum),
@@ -1042,7 +1043,7 @@ function findDeclarations(cleanContent) {
   }
 
   // extension [Name] on Type { ... }
-  const extPattern = /\bextension\s+(\w+)?\s*(?:on\s+[\w<>\?,\s@\[\]{}.]+)?\s*\{/g;
+  const extPattern = /\bextension\s+(\w+)?\s*(?:on\s+([\w<>\?,\s@\[\]{}.]+?))?\s*\{/g;
   while ((m = extPattern.exec(cleanContent)) !== null) {
     if (isInsideDocComment(cleanContent, m.index)) continue;
     const name = m[1] || `(ext_${m.index})`;
@@ -1051,6 +1052,7 @@ function findDeclarations(cleanContent) {
     declarations.push({
       type: 'extension',
       name: m[1] || '(anonymous)',
+      onType: m[2] ? m[2].trim() : null,
       declIndex: m.index,
       braceIndex: m.index + m[0].length - 1, // { 在正则匹配的最后一个字符
     });
@@ -1125,7 +1127,7 @@ function parseLibrary(repoDir) {
 
         interfaces.push(...extractClassMembers(
           block.body, decl.name, decl.type, filePath, repoDir,
-          bodyStartLine, rawContent, null, hideShowMap
+          bodyStartLine, rawContent, null, hideShowMap, decl.onType
         ));
       }
     }
