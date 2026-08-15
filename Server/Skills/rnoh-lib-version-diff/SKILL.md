@@ -11,7 +11,7 @@ description: >-
   也适用于：使用 devecocli docs search 核查鸿蒙 API 可行性、生成版本对比报告
   供后续代码适配阶段使用。
 license: MIT
-compatibility: 需要 git、node、npm，以及网络访问能力（用于查询 npm registry 和克隆上游仓库）；鸿蒙 API 核查需 devecocli CLI
+compatibility: 需要 node、npm、tar、diff；仅需 npm registry 访问；鸿蒙 API 核查需 devecocli CLI
 allowed-tools: Bash Read Grep Glob Write
 metadata:
   author: rnoh-team
@@ -30,8 +30,8 @@ metadata:
 ├── SKILL.md
 ├── scripts/
 │   ├── detect-upstream-version.js   # 提取基线版本 + 查询 npm 最新版本
-│   ├── generate-diff.js             # 两阶段 diff 生成（全量 + 精简）
-│   └── scan-exports.js              # 扫描 JS 导出接口 + TurboModule Spec
+│   └── generate-diff.js             # 两阶段 diff 生成（全量 + 精简）
+│     # 注: 接口扫描功能由 ../../../MCP/scripts/rn-scan-exports.cjs 提供
 ├── references/
 │   ├── OHOS_API_LOOKUP.md           # 鸿蒙 API 核查流程（devecocli docs search）
 │   ├── OHOS_ADAPTATION.md           # 鸿蒙化适配判断规则
@@ -117,29 +117,27 @@ git ls-remote --heads <鸿蒙化仓库URL>
 
 ## Step 4：两阶段 diff 生成（仅类型 A）
 
-### 版本标签格式
+### 版本格式
 
 | 格式 | 示例 | 适用场景 |
 |------|------|----------|
 | `v` + 版本号 | `v7.2.2`, `v7.4.0` | 大多数非 scoped 包 |
 | 纯版本号 | `7.2.2`, `7.4.0` | 部分仓库 |
 | `@scope/name@version` | `@react-native-async-storage/async-storage@3.1.1` | **scoped 包**（`@scope/` 前缀） |
-| commit hash | `a1b2c3d` | 无标签的仓库 |
 
-如果不确定标签格式，先查看可用标签：
+如果不确定有哪些可用版本，通过 npm 查看：
 
 ```bash
-git ls-remote --tags <上游仓库URL>
+npm view <npm包名> versions --json
 ```
 
 ### Phase 1：生成全量 diff + 接口差异分析
 
 ```bash
 node scripts/generate-diff.js \
-  --repo <上游仓库URL> \
-  --branch1 <基线版本标签> \
-  --branch2 <目标版本标签> \
-  --find-renames 30 \
+  --npm-package <npm包名> \
+  --tgz1 <基线版本号> \
+  --tgz2 <目标版本号> \
   --output-dir <输出目录>
 ```
 
@@ -152,7 +150,7 @@ node scripts/generate-diff.js \
 | `structure_*.md` | 适配分析报告（以接口差异为锚点：接口未变更→只需合并 JS；接口变更→按变更项展开 + 文件计数） |
 | `api-diff_*.md` | 接口差异适配检查清单（每个变更项含 checkbox、方法签名、适配动作） |
 
-其中 `structure_*.md` 和 `api-diff_*.md` 由脚本内部调用 `scan-exports.js` 对比两个版本的 JS 导出和 TurboModule Spec 自动生成。
+其中 `structure_*.md` 和 `api-diff_*.md` 由脚本内部调用 `rn-scan-exports.cjs`（位于 `../../../MCP/scripts/`）对比两个版本的 JS 导出和 TurboModule Spec 自动生成。
 
 **核心逻辑**：如果 JS 层接口未变更 → "无需原生适配，只需合并 JS + codegen"。如果接口变更 → 列出每个变更的方法及其签名作为适配检查项。
 
@@ -170,9 +168,9 @@ Phase 1 的全量 patch 可能仍包含与适配无关的文件（已删除的�
 
 ```bash
 node scripts/generate-diff.js \
-  --repo <上游仓库URL> \
-  --branch1 <基线版本标签> \
-  --branch2 <目标版本标签> \
+  --npm-package <npm包名> \
+  --tgz1 <基线版本号> \
+  --tgz2 <目标版本号> \
   --files relevant-files.txt \
   --output-dir <输出目录>
 ```
@@ -221,16 +219,16 @@ devecocli docs search "<关键词>" --catalog harmonyos-references --limit 10
 
 检查仓库根目录的 `README.OpenSource` 文件——其中包含 `Version Number` 和 `Upstream URL` 字段，比 package.json 依赖列表更可靠。
 
-### monorepo 包重命名场景
+### 文件重命名 / 跨目录移动
 
-使用 `--find-renames 30` 检测跨目录文件移动。`structure_*.md` 报告会展示文件移动（旧路径 → 新路径）。
+脚本不支持 rename 检测。如果上游版本间存在文件移动，diff 会显示为「旧路径删除 + 新路径新增」。通过对比 `summary_*.md` 中删除和新增的文件路径，人工识别文件移动。`structure_*.md` 报告中的文件分类统计也可辅助判断。
 
-### scan-exports.js 在 monorepo 中找不到入口文件
+### rn-scan-exports.cjs 在 monorepo 中找不到入口文件
 
-如果仓库是 monorepo 结构，`scan-exports.js` 可能需要指定子包目录。直接运行：
+如果仓库是 monorepo 结构，`rn-scan-exports.cjs` 可能需要指定子包目录。直接运行：
 
 ```bash
-node scripts/scan-exports.js --compare \
+node ../../../MCP/scripts/rn-scan-exports.cjs --compare \
   <分支1目录>/packages/<包名> \
   <分支2目录>/packages/<包名> \
   --output api-diff.md

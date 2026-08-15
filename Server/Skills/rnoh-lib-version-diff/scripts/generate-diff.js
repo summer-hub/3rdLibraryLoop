@@ -2,71 +2,79 @@
 /**
  * generate-diff.js
  *
- * 从同一 Git 仓库的两个分支/tag 中生成对比 diff 文件 (.patch)。
+ * 通过 npm tgz 发行版对比 RN 三方库的两个版本, 生成 diff 文件 (.patch)。
  *
- * 默认聚焦三方库核心代码变更, 自动排除 lock 文件、example/、CI 配置、文档等
- * 与鸿蒙化升级排查无关的噪音文件。使用 --full 可生成包含所有变更的完整 diff。
+ * 工作流:
+ *   1. 通过 npm pack 下载指定版本的 tgz (或使用本地 .tgz 文件)
+ *   2. 解压到输出目录 (strip package/ 一级)
+ *   3. 用文件系统 diff 对比两个目录, 生成 unified diff
+ *   4. 生成变更摘要、适配分析报告、接口差异检查清单
  *
- * ## 两阶段 diff + rename 检测
+ * 默认聚焦三方库核心代码变更, 自动排除 lock 文件、example/、CI 配置、文档、
+ * 编译产物 (lib/, dist/, build/) 等与鸿蒙化升级排查无关的噪音文件。
+ * 使用 --full 可生成包含所有变更的完整 diff。
  *
- * 对于 monorepo 架构重组场景 (如包重命名、目录迁移), 脚本使用 git 的 rename
- * 检测能力 (--find-renames) 来识别文件移动, 确保即使整个目录被重命名, 文件级
- * 的内容变更也不会丢失。
- *
- * 脚本会生成一个额外的结构变更摘要文件 (structure_<b1>_<b2>.md), 其中按状态
- * (Renamed/Modified/Added/Deleted/Copied) 分类展示所有变更文件, 方便人工识别
- * 哪些是真实内容变更、哪些是位置移动。
- *
- * 默认在当前目录下创建 diff/ 文件夹，其中包含:
- *   - 两个分支的源代码目录 (<branch1>/ 和 <branch2>/)
- *   - 对比 diff 文件 (diff_<branch1>_<branch2>.patch)
- *   - 变更摘要文件 (summary_<branch1>_<branch2>.md)
- *   - 结构变更摘要 (structure_<branch1>_<branch2>.md)
+ * 输出文件各有侧重:
+ *   diff_*.patch       — diff 补丁 (应用排除规则, 聚焦可合并的代码变更)
+ *   summary_*.md       — 变更摘要 (同 diff 的排除范围, 按目录统计增删行数)
+ *   structure_*.md     — 适配分析报告 (以接口差异为锚点:
+ *                        先用 rn-scan-exports.cjs 判定是否需要原生适配,
+ *                        有接口变更时按变更项展开 + 附其他平台实现参考,
+ *                        无接口变更时只列 JS 合并清单 + 文件计数)
+ *   api-diff_*.md      — 接口差异适配检查清单 (每个变更项含 checkbox, 直接指导适配)
  *
  * 输出结构:
  *   diff/
- *   ├── <branch1>/                          (分支1 源代码, 无 .git)
- *   ├── <branch2>/                          (分支2 源代码, 无 .git)
- *   ├── diff_<b1>_<b2>.patch                (对比 diff 文件)
- *   ├── summary_<b1>_<b2>.md                (变更摘要, 按文件统计增删行数)
- *   └── structure_<b1>_<b2>.md              (结构变更摘要, 按 R/M/A/D 状态分类)
+ *   ├── <version1>/                         (版本1 源代码)
+ *   ├── <version2>/                         (版本2 源代码)
+ *   ├── diff_<v1>_<v2>.patch                (对比 diff 文件)
+ *   ├── summary_<v1>_<v2>.md                (变更摘要, 按文件统计增删行数)
+ *   ├── structure_<v1>_<v2>.md              (适配分析报告, 接口驱动)
+ *   └── api-diff_<v1>_<v2>.md               (接口差异适配检查清单)
  *
  * 默认排除的路径模式 (聚焦核心代码):
  *   yarn.lock, package-lock.json, *.lock
  *   .yarn/, .github/, example/, docs/
  *   CHANGELOG.md, CONTRIBUTING.md, MIGRATION*.md, README.md
  *   .gitignore, .yarnrc.yml, .npmrc, .idea/
+ *   android/, ios/, apple/, windows/ (其他平台原生代码, glob 匹配任意层级)
+ *
+ * tgz 额外排除 (npm 包含编译产物):
+ *   lib/, dist/, build/, *.map, *.tsbuildinfo
+ *   apple-frameworks/, xcframework/, framework/
  *
  * 用法:
- *   node generate-diff.js --repo <url> --branch1 <name> --branch2 <name> [选项]
+ *   node generate-diff.js --npm-package <name> --tgz1 <ver> --tgz2 <ver> [选项]
  *
  * 示例:
- *   # 对比 lottie-react-native 的 v7.2.2 和 v7.4.0 (默认排除噪音)
+ *   # 对比 async-storage 的 2.2.0 和 3.1.1 (默认排除噪音)
  *   node generate-diff.js \
- *     --repo https://github.com/lottie-react-native/lottie-react-native \
- *     --branch1 v7.2.2 \
- *     --branch2 v7.4.0
+ *     --npm-package @react-native-async-storage/async-storage \
+ *     --tgz1 2.2.0 \
+ *     --tgz2 3.1.1 \
+ *     --output-dir ./diff-output
+ *
+ *   # 使用本地已下载的 tgz 文件
+ *   node generate-diff.js \
+ *     --npm-package @react-native-async-storage/async-storage \
+ *     --tgz1 ./pkg-2.2.0.tgz \
+ *     --tgz2 ./pkg-3.1.1.tgz \
+ *     --output-dir ./diff-output
  *
  *   # 生成完整 diff (不排除任何文件)
  *   node generate-diff.js \
- *     --repo https://github.com/lottie-react-native/lottie-react-native \
- *     --branch1 v7.2.2 \
- *     --branch2 v7.4.0 \
+ *     --npm-package @react-native-async-storage/async-storage \
+ *     --tgz1 2.2.0 \
+ *     --tgz2 3.1.1 \
  *     --full
  *
- *   # 在默认排除基础上追加额外排除
+ *   # 两阶段流程: 第二轮只对 AI 筛选的文件生成精简 patch
  *   node generate-diff.js \
- *     --repo https://github.com/lottie-react-native/lottie-react-native \
- *     --branch1 v7.2.2 \
- *     --branch2 v7.4.0 \
- *     --exclude packages/core/windows/
- *
- *   # 调整 rename 检测相似度阈值 (默认 50%, 降低可检测更多跨目录移动)
- *   node generate-diff.js \
- *     --repo https://github.com/react-native-async-storage/async-storage \
- *     --branch1 v2.2.0 \
- *     --branch2 v3.1.1 \
- *     --find-renames 30
+ *     --npm-package @react-native-async-storage/async-storage \
+ *     --tgz1 2.2.0 \
+ *     --tgz2 3.1.1 \
+ *     --files relevant-files.txt \
+ *     --output-dir ./diff-focused
  */
 
 'use strict';
@@ -76,8 +84,9 @@ const os = require('os');
 const path = require('path');
 const fs = require('fs');
 
-// 引入 scan-exports.js 模块 (接口扫描 + 对比)
-const scanExports = require('./scan-exports');
+// 引入 rn-scan-exports.cjs 模块 (接口扫描 + 对比)
+// 位于 3rdLibraryLoop/MCP/scripts/，通过相对路径引用
+const scanExports = require('../../../../MCP/scripts/rn-scan-exports.cjs');
 
 // ── 颜色输出 ─────────────────────────────────────────────
 const COLORS = {
@@ -103,20 +112,17 @@ function debug(msg) {
 }
 
 // ── 默认值 ───────────────────────────────────────────────
-let REPO_URL = '';
-let BRANCH1 = '';
-let BRANCH2 = '';
 let OUTPUT_DIR = '';
 let VERBOSE = false;
-let KEEP_REPO = false;
 let FULL_DIFF = false;
-let FIND_RENAMES = 50;
 let FILES_LIST = '';
+let TGZ1 = '';
+let TGZ2 = '';
+let NPM_PACKAGE = '';
 const EXCLUDES = [];
 
 // ── 默认排除规则 (聚焦三方库核心代码, 过滤与鸿蒙化升级排查无关的噪音) ──
 // 这些路径在 --full 模式下不会被排除
-// 含 ** 的模式使用 git glob pathspec 匹配任意层级目录
 const DEFAULT_EXCLUDES = [
   // lock 文件
   'yarn.lock',
@@ -133,7 +139,7 @@ const DEFAULT_EXCLUDES = [
   'example/',
   'examples/',
   // 其他平台原生代码 (鸿蒙适配只关心 JS/TS 源码 + TurboModule Spec)
-  // **/pattern/** 使用 glob 匹配任意层级的目录内文件
+  // 含 ** 的模式使用 glob 匹配任意层级目录内文件
   '**/android/**',
   '**/ios/**',
   '**/apple/**',
@@ -149,47 +155,43 @@ const DEFAULT_EXCLUDES = [
 // ── 参数解析 ─────────────────────────────────────────────
 function usage() {
   console.log(`
-RNOH 三方库分支对比脚本
+RNOH 三方库版本对比脚本 (tgz 模式)
 
-从同一 Git 仓库的两个分支/tag 生成对比 diff 文件 (.patch)。
-默认聚焦核心代码, 自动排除 lock 文件、example/、CI 配置、文档等噪音。
+通过 npm tgz 发行版对比两个版本, 无需 git clone。
+--tgz1/--tgz2 可以是本地 .tgz 路径或 npm 版本号 (自动 npm pack 下载)。
+默认聚焦核心代码, 自动排除 lock 文件、example/、CI 配置、文档、编译产物等噪音。
 使用 --full 可生成包含所有变更的完整 diff。
-使用 --find-renames 启用跨目录文件移动检测 (monorepo 重构场景)。
 
 输出文件各有侧重:
   diff_*.patch       — diff 补丁 (应用排除规则, 聚焦可合并的代码变更)
   summary_*.md       — 变更摘要 (同 diff 的排除范围, 按目录统计增删行数)
   structure_*.md     — 适配分析报告 (以接口差异为锚点:
-                       先用 scan-exports.js 判定是否需要原生适配,
+                       先用 rn-scan-exports.cjs 判定是否需要原生适配,
                        有接口变更时按变更项展开 + 附其他平台实现参考,
                        无接口变更时只列 JS 合并清单 + 文件计数)
   api-diff_*.md      — 接口差异适配检查清单 (每个变更项含 checkbox, 直接指导适配)
 
 输出结构:
   diff/
-  ├── <branch1>/                          (分支1 源代码, 无 .git)
-  ├── <branch2>/                          (分支2 源代码, 无 .git)
-  ├── diff_<b1>_<b2>.patch                (对比 diff 文件)
-  ├── summary_<b1>_<b2>.md                (变更摘要, 按文件统计增删行数)
-  ├── structure_<b1>_<b2>.md              (适配分析报告, 接口驱动)
-  └── api-diff_<b1>_<b2>.md               (接口差异适配检查清单)
+  ├── <version1>/                         (版本1 源代码)
+  ├── <version2>/                         (版本2 源代码)
+  ├── diff_<v1>_<v2>.patch                (对比 diff 文件)
+  ├── summary_<v1>_<v2>.md                (变更摘要, 按文件统计增删行数)
+  ├── structure_<v1>_<v2>.md              (适配分析报告, 接口驱动)
+  └── api-diff_<v1>_<v2>.md               (接口差异适配检查清单)
 
 用法:
   node generate-diff.js [选项]
 
 必选参数:
-  --repo <url>           Git 仓库地址
-  --branch1 <name>       第一个分支/tag 名称
-  --branch2 <name>       第二个分支/tag 名称
+  --npm-package <name>   npm 包名 (如 @react-native-async-storage/async-storage)
+  --tgz1 <spec>          第一个版本: 版本号 (如 2.2.0) 或本地 .tgz 文件路径
+  --tgz2 <spec>          第二个版本: 版本号 (如 3.1.1) 或本地 .tgz 文件路径
 
 可选参数:
   --output-dir <path>    输出目录 (默认: 当前目录下的 diff/ 文件夹)
   --exclude <pattern>    排除文件路径模式, 在默认排除基础上追加 (可多次指定)
   --full                 生成完整 diff, 不使用默认排除规则 (仍可配合 --exclude)
-  --find-renames <n>     rename 检测相似度阈值百分比 (默认: 50, 设为 0 关闭)
-                          降低阈值可检测更多跨目录移动 (如 monorepo 重构)
-                          git 默认为 50%, 设为 30% 可识别大幅重写的文件移动
-  --keep-repo            保留克隆的仓库 (默认生成后自动删除)
   --files <path>         只对指定文件列表生成精简 diff patch (每行一个文件路径)
                           用于两阶段流程: 第一轮生成全量清单 → AI 筛选 → 第二轮精简 patch
                           与 --full 互斥; 指定后跳过排除规则, 只生成指定文件的 diff
@@ -199,43 +201,45 @@ RNOH 三方库分支对比脚本
 默认排除的路径 (除非使用 --full):
   yarn.lock, package-lock.json, *.lock
   .yarn/, .github/, example/, examples/, docs/
-  **/android/**, **/ios/**, **/apple/**, **/windows/**  (其他平台原生代码, glob 匹配任意层级)
+  android/, ios/, apple/, windows/ (其他平台原生代码, glob 匹配任意层级)
   CHANGELOG.md, CONTRIBUTING.md, MIGRATION*.md, README.md
   .gitignore, .yarnrc.yml, .npmrc, .idea/
+  lib/, dist/, build/, *.map, *.tsbuildinfo (tgz 编译产物)
 
 示例:
-  # 对比 lottie-react-native 的 v7.2.2 和 v7.4.0 (默认排除噪音)
+  # 对比 async-storage 的 2.2.0 和 3.1.1 (默认排除噪音)
   node generate-diff.js \\
-    --repo https://github.com/lottie-react-native/lottie-react-native \\
-    --branch1 v7.2.2 \\
-    --branch2 v7.4.0
+    --npm-package @react-native-async-storage/async-storage \\
+    --tgz1 2.2.0 \\
+    --tgz2 3.1.1 \\
+    --output-dir ./diff-output
 
-  # monorepo 重构场景: 降低 rename 阈值以检测跨目录文件移动
+  # 使用本地已下载的 tgz 文件
   node generate-diff.js \\
-    --repo https://github.com/react-native-async-storage/async-storage \\
-    --branch1 v2.2.0 \\
-    --branch2 v3.1.1 \\
-    --find-renames 30
+    --npm-package @react-native-async-storage/async-storage \\
+    --tgz1 ./pkg-2.2.0.tgz \\
+    --tgz2 ./pkg-3.1.1.tgz \\
+    --output-dir ./diff-output
 
   # 生成完整 diff (不排除任何文件)
   node generate-diff.js \\
-    --repo https://github.com/lottie-react-native/lottie-react-native \\
-    --branch1 v7.2.2 \\
-    --branch2 v7.4.0 \\
+    --npm-package @react-native-async-storage/async-storage \\
+    --tgz1 2.2.0 \\
+    --tgz2 3.1.1 \\
     --full
 
   # 在默认排除基础上追加额外排除
   node generate-diff.js \\
-    --repo https://github.com/lottie-react-native/lottie-react-native \\
-    --branch1 v7.2.2 \\
-    --branch2 v7.4.0 \\
+    --npm-package @react-native-async-storage/async-storage \\
+    --tgz1 2.2.0 \\
+    --tgz2 3.1.1 \\
     --exclude packages/core/windows/
 
   # 两阶段流程: 第二轮只对 AI 筛选的文件生成精简 patch
   node generate-diff.js \\
-    --repo https://github.com/react-native-async-storage/async-storage \\
-    --branch1 v2.2.0 \\
-    --branch2 v3.1.1 \\
+    --npm-package @react-native-async-storage/async-storage \\
+    --tgz1 2.2.0 \\
+    --tgz2 3.1.1 \\
     --files relevant-files.txt \\
     --output-dir ./diff-focused
 `);
@@ -247,23 +251,13 @@ function parseArgs() {
   let i = 0;
   while (i < args.length) {
     switch (args[i]) {
-      case '--repo':          REPO_URL = args[i + 1]; i += 2; break;
-      case '--branch1':       BRANCH1 = args[i + 1]; i += 2; break;
-      case '--branch2':       BRANCH2 = args[i + 1]; i += 2; break;
       case '--output-dir':    OUTPUT_DIR = args[i + 1]; i += 2; break;
       case '--exclude':       EXCLUDES.push(args[i + 1]); i += 2; break;
       case '--full':          FULL_DIFF = true; i += 1; break;
-      case '--find-renames':  {
-        const val = parseInt(args[i + 1], 10);
-        if (isNaN(val) || val < 0 || val > 100) {
-          error(`--find-renames 值必须为 0-100 的整数, 收到: ${args[i + 1]}`);
-        }
-        FIND_RENAMES = val;
-        i += 2;
-        break;
-      }
-      case '--keep-repo':     KEEP_REPO = true; i += 1; break;
       case '--files':         FILES_LIST = args[i + 1]; i += 2; break;
+      case '--tgz1':          TGZ1 = args[i + 1]; i += 2; break;
+      case '--tgz2':          TGZ2 = args[i + 1]; i += 2; break;
+      case '--npm-package':   NPM_PACKAGE = args[i + 1]; i += 2; break;
       case '--verbose':       VERBOSE = true; i += 1; break;
       case '--help':
       case '-h':              usage(); break;
@@ -273,32 +267,6 @@ function parseArgs() {
 }
 
 // ── 工具函数 ─────────────────────────────────────────────
-
-/**
- * 执行 git 命令，返回 stdout (同步)。
- * @param {string[]} gitArgs git 命令参数
- * @param {object} [options] execFileSync 选项
- * @returns {string} stdout 输出
- */
-function git(gitArgs, options = {}) {
-  return execFileSync('git', gitArgs, {
-    encoding: 'utf-8',
-    stdio: ['pipe', 'pipe', 'pipe'],
-    ...options,
-  }).trim();
-}
-
-/**
- * 执行 git 命令，直接继承终端 stdio (用于 clone 等需要显示进度的场景)。
- * @param {string[]} gitArgs git 命令参数
- * @param {object} [options] execSync 选项
- */
-function gitInherit(gitArgs, options = {}) {
-  execSync('git ' + gitArgs.map(a => `'${a.replace(/'/g, "'\\''")}'`).join(' '), {
-    stdio: 'inherit',
-    ...options,
-  });
-}
 
 /**
  * 清理分支名用于文件名 (去除特殊字符)。
@@ -323,60 +291,317 @@ function formatSize(bytes) {
 }
 
 /**
- * 使用 git archive 将指定 ref 的源代码导出到目标目录 (不含 .git)。
- * @param {string} repoDir 仓库目录
- * @param {string} ref git ref (分支/tag)
+ * tgz 模式额外排除规则。
+ *
+ * npm tgz 包含编译产物 (lib/, dist/, build/) 和 source maps (*.map),
+ * 这些在 git 仓库中通常被 .gitignore 排除, 不会出现在 diff 中。
+ * tgz 模式需要额外排除以聚焦源码变更。
+ */
+const TGZ_EXTRA_EXCLUDES = [
+  'lib/',
+  'dist/',
+  'build/',
+  '*.map',
+  '*.tsbuildinfo',
+  // 预编译二进制框架 (npm 包中的 xcframework 等)
+  'apple-frameworks/',
+  '**/*.xcframework/**',
+  '**/*.framework/**',
+];
+
+/**
+ * 构建最终的排除列表。
+ * --full 模式下只用用户 --exclude 指定的; 否则合并默认排除 + 用户追加。
+ * tgz 模式始终合并编译产物排除规则。
+ * @returns {string[]} 排除路径模式数组
+ */
+function buildExcludeList() {
+  if (FULL_DIFF) {
+    return [...TGZ_EXTRA_EXCLUDES, ...EXCLUDES];
+  }
+  return [...DEFAULT_EXCLUDES, ...TGZ_EXTRA_EXCLUDES, ...EXCLUDES];
+}
+
+// ── tgz 模式: npm 包下载 + 解压 ──────────────────────────
+
+/**
+ * 判断字符串是否为有效的 npm 语义版本号。
+ * 匹配 x.y.z 格式 (可含 prerelease 标签如 -next.0)。
+ * @param {string} str 待判断的字符串
+ * @returns {boolean}
+ */
+function isVersionString(str) {
+  return /^\d+\.\d+\.\d+/.test(str);
+}
+
+/**
+ * 获取 tgz 文件: 如果是本地路径直接返回, 如果是版本号则通过 npm pack 下载。
+ * @param {string} tgzSpec 本地 .tgz 路径或版本号 (如 "2.2.0")
+ * @param {string} npmPackage npm 包名 (如 @react-native-async-storage/async-storage)
+ * @param {string} workDir 临时工作目录
+ * @returns {string} tgz 文件的绝对路径
+ */
+function resolveTgz(tgzSpec, npmPackage, workDir) {
+  // 如果是本地文件路径
+  if (fs.existsSync(tgzSpec) && tgzSpec.endsWith('.tgz')) {
+    const absPath = path.resolve(tgzSpec);
+    ok(`使用本地 tgz 文件: ${absPath}`);
+    return absPath;
+  }
+
+  // 如果是版本号, 通过 npm pack 下载
+  if (isVersionString(tgzSpec)) {
+    if (!npmPackage) {
+      error(`--tgz1/--tgz2 指定了版本号 "${tgzSpec}" 但未指定 --npm-package`);
+    }
+    info(`通过 npm pack 下载: ${npmPackage}@${tgzSpec}`);
+    const tgzFile = execSync(`npm pack ${npmPackage}@${tgzSpec}`, {
+      cwd: workDir,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+      timeout: 60000,
+    }).trim();
+    const absPath = path.join(workDir, tgzFile);
+    if (!fs.existsSync(absPath)) {
+      error(`npm pack 下载失败: ${npmPackage}@${tgzSpec} (预期文件: ${absPath})`);
+    }
+    ok(`已下载: ${tgzFile}`);
+    return absPath;
+  }
+
+  error(`无效的 tgz 参数: "${tgzSpec}" — 应为本地 .tgz 文件路径或版本号 (如 2.2.0)`);
+}
+
+/**
+ * 解压 tgz 文件到目标目录 (npm tgz 内部为 package/ 目录, 去除一级)。
+ * @param {string} tgzFile tgz 文件路径
  * @param {string} destDir 目标目录
  */
-function exportBranchSource(repoDir, ref, destDir) {
+function extractTgz(tgzFile, destDir) {
   fs.mkdirSync(destDir, { recursive: true });
-  // git archive 输出 tar 到 stdout, 管道给 tar 解压到目标目录
-  execSync(`git archive "${ref}" | tar -x -C "${destDir}"`, {
-    cwd: repoDir,
+  // npm pack 生成的 tgz 内部结构为 package/..., 用 --strip-components=1 去除
+  execSync(`tar xzf "${tgzFile}" -C "${destDir}" --strip-components=1`, {
     stdio: 'pipe',
     timeout: 60000,
   });
 }
 
+// ── 文件系统遍历 + diff ────────────────────────────────
+
 /**
- * 构建最终的排除列表。
- * --full 模式下只用用户 --exclude 指定的; 否则合并默认排除 + 用户追加。
- * @returns {string[]} 排除路径模式数组
+ * 将排除模式转换为正则表达式 (用于文件系统遍历)。
+ * 支持两种模式:
+ *  - 含 glob 双星号的模式 (如 android 子树): 匹配任意层级同名目录下的文件
+ *  - 普通路径: example/ → 匹配根目录 example/ 下的文件
+ * @param {string} pattern 排除模式
+ * @returns {RegExp} 匹配正则
  */
-function buildExcludeList() {
-  if (FULL_DIFF) {
-    return [...EXCLUDES];
+function excludePatternToRegex(pattern) {
+  // 去除尾部 /
+  let p = pattern.replace(/\/$/, '');
+  if (p.includes('**')) {
+    // glob 双星号模式: 匹配任意路径中包含对应目录名的文件
+    const escaped = p
+      .replace(/\*\*/g, '<<<GLOB>>>')
+      .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+      .replace(/<<<GLOB>>>/g, '.*')
+      .replace(/\*/g, '[^/]*');
+    return new RegExp(`(^|/)${escaped}(/|$)`);
   }
-  return [...DEFAULT_EXCLUDES, ...EXCLUDES];
+  // 普通模式: 匹配根目录或任意层级同名目录
+  const escaped = p.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*');
+  return new RegExp(`(^|/)${escaped}(/|$)`);
 }
 
 /**
- * 构建 git diff 的 pathspec 参数数组。
- * 含 ** 的模式使用 :(glob,exclude) 语法匹配任意层级目录;
- * 普通模式使用 :! 前缀匹配根目录路径。
- * @param {string[]} excludePatterns 排除模式列表
- * @returns {string[]} git pathspec 参数 (含前导 '--')
+ * 判断文件相对路径是否应被排除。
+ * @param {string} relPath 相对于源码根目录的路径
+ * @param {RegExp[]} excludeRegexes 排除正则数组
+ * @returns {boolean} 是否应排除
  */
-function buildPathspecArgs(excludePatterns) {
-  if (excludePatterns.length === 0) return [];
-  const args = ['--'];
-  for (const pattern of excludePatterns) {
-    if (pattern.includes('**')) {
-      args.push(`:(glob,exclude)${pattern}`);
-    } else {
-      args.push(`:!${pattern}`);
+function shouldExclude(relPath, excludeRegexes) {
+  return excludeRegexes.some(re => re.test(relPath));
+}
+
+/**
+ * 递归遍历目录, 返回所有文件的相对路径列表。
+ * @param {string} dir 根目录
+ * @param {RegExp[]} excludeRegexes 排除正则数组
+ * @returns {string[]} 相对路径列表 (POSIX 风格 / 分隔)
+ */
+function walkDir(dir, excludeRegexes = []) {
+  const results = [];
+  function walk(currentDir, relPrefix) {
+    let entries;
+    try {
+      entries = fs.readdirSync(currentDir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const relPath = relPrefix ? `${relPrefix}/${entry.name}` : entry.name;
+      // 检查是否被排除
+      if (shouldExclude(relPath, excludeRegexes)) continue;
+      if (entry.isDirectory()) {
+        walk(path.join(currentDir, entry.name), relPath);
+      } else if (entry.isFile()) {
+        results.push(relPath);
+      }
     }
   }
-  return args;
+  walk(dir, '');
+  return results.sort();
 }
 
 /**
- * 构建 git diff 的 --find-renames 参数。
- * @returns {string[]} git 参数数组 (如 ['--find-renames=30%'] 或 [])
+ * 用 GNU diff 对比两个目录, 生成 unified diff 输出。
+ *
+ * @param {string} dir1 目录1
+ * @param {string} dir2 目录2
+ * @param {string[]} excludePatterns 排除模式列表
+ * @returns {string} diff 输出
  */
-function buildFindRenamesArgs() {
-  if (FIND_RENAMES <= 0) return [];
-  return [`--find-renames=${FIND_RENAMES}%`];
+function diffDirsWithFs(dir1, dir2, excludePatterns) {
+  const excludeRegexes = excludePatterns.map(excludePatternToRegex);
+
+  // 收集两个目录的文件列表 (应用排除)
+  const files1 = walkDir(dir1, excludeRegexes);
+  const files2 = walkDir(dir2, excludeRegexes);
+
+  const set1 = new Set(files1);
+  const set2 = new Set(files2);
+
+  // 合并所有文件 (排序)
+  const allFiles = [...new Set([...files1, ...files2])].sort();
+
+  const lines = [];
+
+  for (const file of allFiles) {
+    const in1 = set1.has(file);
+    const in2 = set2.has(file);
+    const path1 = path.join(dir1, file);
+    const path2 = path.join(dir2, file);
+
+    if (in1 && in2) {
+      // 两边都有: 用 diff 对比内容
+      try {
+        const output = execSync(
+          `diff -u --label "a/${file}" --label "b/${file}" "${path1}" "${path2}"`,
+          { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 50 * 1024 * 1024 }
+        );
+        // diff 返回 0=相同, 1=有差异(输出到stdout), 2=错误
+        if (output) {
+          lines.push(`diff --git a/${file} b/${file}`);
+          lines.push(output);
+        }
+      } catch (err) {
+        // diff 返回 1 时 execSync 抛异常但 stdout 有内容
+        if (err.stdout) {
+          lines.push(`diff --git a/${file} b/${file}`);
+          lines.push(err.stdout.toString('utf-8'));
+        }
+      }
+    } else if (in1 && !in2) {
+      // 仅在 dir1: 删除
+      lines.push(`diff --git a/${file} b/${file}`);
+      lines.push(`deleted file mode 100644`);
+      lines.push(`--- a/${file}`);
+      lines.push(`+++ /dev/null`);
+      try {
+        const content = fs.readFileSync(path1, 'utf-8');
+        for (const line of content.split('\n')) {
+          lines.push(`-${line}`);
+        }
+      } catch { /* binary */ }
+      lines.push('');
+    } else if (!in1 && in2) {
+      // 仅在 dir2: 新增
+      lines.push(`diff --git a/${file} b/${file}`);
+      lines.push(`new file mode 100644`);
+      lines.push(`--- /dev/null`);
+      lines.push(`+++ b/${file}`);
+      try {
+        const content = fs.readFileSync(path2, 'utf-8');
+        for (const line of content.split('\n')) {
+          lines.push(`+${line}`);
+        }
+      } catch { /* binary */ }
+      lines.push('');
+    }
+    // rename 检测: tgz 模式不做跨文件相似度匹配
+    // (npm 包之间的文件移动较少见, 且 diff -u 已能展示内容差异)
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * 统计文件增删行数 (文件系统遍历, 替代 git diff --numstat)。
+ * 对每个有差异的文件, 用 diff 统计 +N / -N。
+ *
+ * @param {string} dir1 目录1
+ * @param {string} dir2 目录2
+ * @param {string[]} excludePatterns 排除模式列表
+ * @returns {Map<string, {added: number, deleted: number}>} filepath → numstat
+ */
+function fetchNumstatWithFs(dir1, dir2, excludePatterns) {
+  const excludeRegexes = excludePatterns.map(excludePatternToRegex);
+  const files1 = walkDir(dir1, excludeRegexes);
+  const files2 = walkDir(dir2, excludeRegexes);
+  const set1 = new Set(files1);
+  const set2 = new Set(files2);
+  const allFiles = [...new Set([...files1, ...files2])].sort();
+
+  const result = new Map();
+
+  for (const file of allFiles) {
+    const in1 = set1.has(file);
+    const in2 = set2.has(file);
+    const path1 = path.join(dir1, file);
+    const path2 = path.join(dir2, file);
+
+    let added = 0;
+    let deleted = 0;
+
+    if (in1 && in2) {
+      try {
+        const output = execSync(`diff "${path1}" "${path2}"`, {
+          encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 50 * 1024 * 1024,
+        });
+        if (output) {
+          for (const line of output.split('\n')) {
+            if (line.startsWith('> ')) added++;
+            if (line.startsWith('< ')) deleted++;
+          }
+        }
+      } catch (err) {
+        if (err.stdout) {
+          for (const line of err.stdout.toString('utf-8').split('\n')) {
+            if (line.startsWith('> ')) added++;
+            if (line.startsWith('< ')) deleted++;
+          }
+        }
+      }
+    } else if (!in1 && in2) {
+      // 新文件: 全部为新增行
+      try {
+        const content = fs.readFileSync(path2, 'utf-8');
+        added = content.split('\n').filter(Boolean).length;
+      } catch { /* binary */ }
+    } else if (in1 && !in2) {
+      // 删除文件: 全部为删除行
+      try {
+        const content = fs.readFileSync(path1, 'utf-8');
+        deleted = content.split('\n').filter(Boolean).length;
+      } catch { /* binary */ }
+    }
+
+    if (added > 0 || deleted > 0) {
+      result.set(file, { added, deleted });
+    }
+  }
+
+  return result;
 }
 
 // ── 结构变更分析: 鸿蒙相关性分类 ─────────────────────────
@@ -539,7 +764,7 @@ const RELEVANCE_ORDER = [
   'not-relevant',
 ];
 
-// ── 结构变更分析: 状态解析 ─────────────────────────────────
+// ── 结构变更分析 ─────────────────────────────────────────
 
 /**
  * 变更文件的状态类型。
@@ -564,218 +789,75 @@ const RELEVANCE_ORDER = [
  */
 
 /**
- * 解析 git diff --name-status 输出的单行。
+ * 分析两个目录之间的结构变更。
  *
- * --name-status 行格式:
- *   M\tpath/to/file                         (Modified)
- *   A\tpath/to/file                         (Added)
- *   D\tpath/to/file                         (Deleted)
- *   T\tpath/to/file                         (Type changed)
- *   R90\told/path\tnew/path                 (Renamed, 90% similar)
- *   C80\told/path\tnew/path                 (Copied, 80% similar)
+ * 通过文件存在性判断状态:
+ *  - 两边都有 → Modified
+ *  - 仅 dir2 有 → Added
+ *  - 仅 dir1 有 → Deleted
+ *  (rename 检测在 tgz 模式下降级为 modified + added + deleted)
  *
- * 注意: R/C 的相似度百分比可能与状态码写在一起 (R90) 或分开 (R\t90\told\tnew)
- * git 默认格式为 R90\told\tnew
- *
- * @param {string} line 单行输出
- * @returns {ChangeEntry|null} 解析结果, 无法解析返回 null
+ * @param {string} dir1 目录1源码
+ * @param {string} dir2 目录2源码
+ * @param {string[]} extraExcludes 额外排除模式
+ * @returns {{entries: ChangeEntry[], stats: Object}} 变更条目列表和统计信息
  */
-function parseNameStatusLine(line) {
-  if (!line.trim()) return null;
+function analyzeStructuralChangesWithFs(dir1, dir2, extraExcludes = []) {
+  const structureExcludes = [...MINIMAL_EXCLUDES, ...TGZ_EXTRA_EXCLUDES, ...extraExcludes];
+  const excludeRegexes = structureExcludes.map(excludePatternToRegex);
 
-  const parts = line.split('\t');
-  const statusField = parts[0];
+  const files1 = walkDir(dir1, excludeRegexes);
+  const files2 = walkDir(dir2, excludeRegexes);
+  const set1 = new Set(files1);
+  const set2 = new Set(files2);
+  const allFiles = [...new Set([...files1, ...files2])].sort();
 
-  // 提取状态字母和相似度
-  const statusLetter = statusField[0];
-  let similarity = 100;
-
-  // R90 / C75 等格式: 状态字母后面跟着数字
-  if (statusLetter === 'R' || statusLetter === 'C') {
-    const numMatch = statusField.match(/^([RC])(\d+)$/);
-    if (numMatch) {
-      similarity = parseInt(numMatch[2], 10);
-    }
-  }
-
-  switch (statusLetter) {
-    case 'M':
-    case 'A':
-    case 'D':
-    case 'T':
-      return {
-        status: statusLetter,
-        oldPath: parts[1] || '',
-        newPath: parts[1] || '',
-        similarity: 100,
-        added: 0,
-        deleted: 0,
-      };
-    case 'R':
-    case 'C':
-      return {
-        status: statusLetter,
-        oldPath: parts[1] || '',
-        newPath: parts[2] || '',
-        similarity,
-        added: 0,
-        deleted: 0,
-      };
-    default:
-      // 未知状态, 跳过
-      debug(`  未知状态码: ${statusField} (line: ${line})`);
-      return null;
-  }
-}
-
-/**
- * 使用 git diff --numstat 获取每个文件的增删行数。
- *
- * numstat 行格式:
- *   <added>\t<deleted>\t<filepath>
- *   对于 rename, filepath 格式可能是 "old => new" 或仅 "new"
- *
- * @param {string} repoDir 仓库目录
- * @param {string} ref1 分支1 ref
- * @param {string} ref2 分支2 ref
- * @param {string[]} excludePatterns 排除模式列表
- * @returns {Map<string, {added: number, deleted: number}>} filepath → numstat
- */
-function fetchNumstat(repoDir, ref1, ref2, excludePatterns) {
-  const numstatArgs = ['diff', '--numstat', ...buildFindRenamesArgs(), ref1, ref2];
-  numstatArgs.push(...buildPathspecArgs(excludePatterns));
-
-  const result = new Map();
-
-  let output = '';
-  try {
-    output = git(numstatArgs, { cwd: repoDir, stdio: 'pipe', maxBuffer: 10 * 1024 * 1024 });
-  } catch { /* ignore */ }
-
-  if (!output) return result;
-
-  for (const line of output.split('\n').filter(Boolean)) {
-    const parts = line.split('\t');
-    if (parts.length < 3) continue;
-    const added = parts[0] === '-' ? 0 : parseInt(parts[0], 10) || 0;
-    const deleted = parts[1] === '-' ? 0 : parseInt(parts[1], 10) || 0;
-    // filepath 可能含 "old => new" (rename) 或纯路径
-    const filepath = parts.slice(2).join('\t');
-    result.set(filepath, { added, deleted });
-  }
-
-  return result;
-}
-
-/**
- * 从 numstat 的 filepath 字段中提取 rename 的旧路径和新路径。
- *
- * numstat 对于 rename 的输出格式:
- *   0\t0\told/path => new/path
- *   10\t5\t{old => new}/path/to/file
- *   10\t5\tpath/{old => new}/file.ts
- *
- * @param {string} rawPath numstat 的 filepath 字段
- * @returns {{oldPath: string, newPath: string}} 解析后的路径对
- */
-function parseRenameFromNumstatPath(rawPath) {
-  // 匹配 "old => new" 或 "{old => new}" 模式
-  const arrowMatch = rawPath.match(/^(.*?)\{?(.+?)\s*=>\s*(.+?)\}?(.*)$/);
-  if (arrowMatch) {
-    const prefix = arrowMatch[1] || '';
-    const oldPart = arrowMatch[2];
-    const newPart = arrowMatch[3];
-    const suffix = arrowMatch[4] || '';
-    const oldPath = (prefix + oldPart + suffix).replace(/\/+/g, '/');
-    const newPath = (prefix + newPart + suffix).replace(/\/+/g, '/');
-    return { oldPath, newPath };
-  }
-
-  // 匹配 "a => b" (无花括号)
-  const simpleMatch = rawPath.match(/^(.+?)\s*=>\s*(.+)$/);
-  if (simpleMatch) {
-    return { oldPath: simpleMatch[1].trim(), newPath: simpleMatch[2].trim() };
-  }
-
-  return { oldPath: rawPath, newPath: rawPath };
-}
-
-/**
- * 分析两个分支之间的结构变更。
- *
- * 使用 git diff --name-status -M -C 获取每个文件的变更状态,
- * 结合 numstat 获取增删行数, 生成结构化的变更列表。
- * 每个条目会附加 relevance 字段 (鸿蒙相关性分类)。
- *
- * 注意: 此函数使用 MINIMAL_EXCLUDES (而非完整的 DEFAULT_EXCLUDES),
- * 以便捕获 android/ios 等原生文件的变更作为鸿蒙适配参考。
- *
- * @param {string} repoDir 仓库目录
- * @param {string} ref1 分支1 ref
- * @param {string} ref2 分支2 ref
- * @param {string[]} extraExcludes 额外排除模式 (用户 --exclude 指定的)
- * @returns {{entries: ChangeEntry[], stats: Object, relevantCount: number, irrelevantCount: number}} 变更条目列表和统计信息
- */
-function analyzeStructuralChanges(repoDir, ref1, ref2, extraExcludes = []) {
-  // 结构分析使用最小排除集 + 用户额外排除, 保留原生文件可见
-  const structureExcludes = [...MINIMAL_EXCLUDES, ...extraExcludes];
-
-  // 1. 获取 name-status (含 rename 检测)
-  const nameStatusArgs = ['diff', '--name-status', ...buildFindRenamesArgs(), ref1, ref2];
-  nameStatusArgs.push(...buildPathspecArgs(structureExcludes));
-
-  let nameStatusOutput = '';
-  try {
-    nameStatusOutput = git(nameStatusArgs, {
-      cwd: repoDir,
-      stdio: 'pipe',
-      maxBuffer: 10 * 1024 * 1024,
-    });
-  } catch { /* ignore */ }
-
-  // 2. 获取 numstat (增删行数)
-  const numstatMap = fetchNumstat(repoDir, ref1, ref2, structureExcludes);
-
-  // 3. 解析 name-status 行, 合并 numstat 数据
+  const numstatMap = fetchNumstatWithFs(dir1, dir2, structureExcludes);
   const entries = [];
-  if (nameStatusOutput) {
-    for (const line of nameStatusOutput.split('\n').filter(Boolean)) {
-      const entry = parseNameStatusLine(line);
-      if (!entry) continue;
 
-      // 尝试从 numstat 匹配增删行数
-      // numstat 的 filepath 对于 rename 是 "old => new" 格式
-      if (entry.status === 'R' || entry.status === 'C') {
-        const numstatKey = `${entry.oldPath} => ${entry.newPath}`;
-        const numstatKey2 = `{${entry.oldPath} => ${entry.newPath}}`;
-        const ns = numstatMap.get(numstatKey) || numstatMap.get(numstatKey2)
-          || numstatMap.get(entry.newPath) || numstatMap.get(entry.oldPath);
-        if (ns) {
-          entry.added = ns.added;
-          entry.deleted = ns.deleted;
-        }
-      } else {
-        const ns = numstatMap.get(entry.newPath);
-        if (ns) {
-          entry.added = ns.added;
-          entry.deleted = ns.deleted;
-        }
-      }
+  for (const file of allFiles) {
+    const in1 = set1.has(file);
+    const in2 = set2.has(file);
 
-      entries.push(entry);
+    let status, oldPath, newPath;
+    if (in1 && in2) {
+      // 检查是否有实际差异
+      const ns = numstatMap.get(file);
+      if (!ns) continue; // 无差异, 跳过
+      status = 'M';
+      oldPath = file;
+      newPath = file;
+    } else if (!in1 && in2) {
+      status = 'A';
+      oldPath = '';
+      newPath = file;
+    } else if (in1 && !in2) {
+      status = 'D';
+      oldPath = file;
+      newPath = '';
+    } else {
+      continue;
     }
+
+    const ns = numstatMap.get(file) || { added: 0, deleted: 0 };
+    entries.push({
+      status,
+      oldPath,
+      newPath,
+      similarity: 100,
+      added: ns.added,
+      deleted: ns.deleted,
+    });
   }
 
-  // 4. 对每个条目进行鸿蒙相关性分类
+  // 鸿蒙相关性分类
   for (const entry of entries) {
     entry.relevance = classifyFileRelevance(entry);
   }
 
-  // 5. 统计
+  // 统计
   const relevantEntries = entries.filter(e => e.relevance !== 'not-relevant');
   const irrelevantEntries = entries.filter(e => e.relevance === 'not-relevant');
-
-  // 按相关性类别统计
   const relevanceCounts = {};
   for (const cat of RELEVANCE_ORDER) {
     relevanceCounts[cat] = entries.filter(e => e.relevance === cat).length;
@@ -785,18 +867,84 @@ function analyzeStructuralChanges(repoDir, ref1, ref2, extraExcludes = []) {
     total: entries.length,
     relevant: relevantEntries.length,
     irrelevant: irrelevantEntries.length,
-    renamed: entries.filter(e => e.status === 'R').length,
+    renamed: 0,
     modified: entries.filter(e => e.status === 'M').length,
     added: entries.filter(e => e.status === 'A').length,
     deleted: entries.filter(e => e.status === 'D').length,
-    copied: entries.filter(e => e.status === 'C').length,
-    typeChanged: entries.filter(e => e.status === 'T').length,
+    copied: 0,
+    typeChanged: 0,
     totalAdded: entries.reduce((sum, e) => sum + e.added, 0),
     totalDeleted: entries.reduce((sum, e) => sum + e.deleted, 0),
     relevanceCounts,
   };
 
   return { entries, stats };
+}
+
+/**
+ * 生成变更摘要 Markdown。
+ *
+ * @param {string} dir1 目录1源码
+ * @param {string} dir2 目录2源码
+ * @param {string[]} excludePatterns 排除模式列表
+ * @param {object} meta 元信息
+ * @returns {string} 摘要 Markdown 内容
+ */
+function generateSummaryWithFs(dir1, dir2, excludePatterns, meta) {
+  const numstatMap = fetchNumstatWithFs(dir1, dir2, excludePatterns);
+
+  const files = [];
+  let totalAdded = 0;
+  let totalDeleted = 0;
+
+  for (const [filepath, { added, deleted }] of numstatMap) {
+    files.push({ filepath, added, deleted });
+    totalAdded += added;
+    totalDeleted += deleted;
+  }
+
+  // 按目录分组
+  const groups = {};
+  for (const f of files) {
+    const sep = f.filepath.lastIndexOf('/');
+    const dir = sep >= 0 ? f.filepath.substring(0, sep) : '(根目录)';
+    if (!groups[dir]) groups[dir] = [];
+    groups[dir].push(f);
+  }
+
+  const lines = [];
+  lines.push(`# 变更摘要: ${meta.branch1} → ${meta.branch2}`);
+  lines.push('');
+  lines.push(`| 项目 | 值 |`);
+  lines.push(`|------|------|`);
+  lines.push(`| 仓库 | ${meta.repoUrl} |`);
+  lines.push(`| 版本 1 | ${meta.branch1} (${meta.commit1Hash}) |`);
+  lines.push(`| 版本 2 | ${meta.branch2} (${meta.commit2Hash}) |`);
+  lines.push(`| 变更文件数 | ${files.length} |`);
+  lines.push(`| 新增行数 | +${totalAdded} |`);
+  lines.push(`| 删除行数 | -${totalDeleted} |`);
+  lines.push(`| 对比方式 | tgz (npm 发行版) |`);
+  if (excludePatterns.length > 0) {
+    lines.push(`| 排除模式 | ${excludePatterns.join(', ')} |`);
+  } else {
+    lines.push(`| 排除模式 | 无 (--full 模式) |`);
+  }
+  lines.push('');
+  lines.push('---');
+  lines.push('');
+
+  for (const dir of Object.keys(groups).sort()) {
+    lines.push(`## ${dir}/`);
+    lines.push('');
+    lines.push('| 文件 | 新增 | 删除 |');
+    lines.push('|------|------|------|');
+    for (const f of groups[dir].sort((a, b) => (b.added + b.deleted) - (a.added + a.deleted))) {
+      lines.push(`| ${f.filepath} | +${f.added} | -${f.deleted} |`);
+    }
+    lines.push('');
+  }
+
+  return lines.join('\n');
 }
 
 /**
@@ -860,24 +1008,22 @@ function scanDirectoryForExports(dir) {
  * 生成接口驱动的结构变更摘要。
  *
  * 核心逻辑:
- *   1. 调用 scan-exports.js 对比两个版本的 JS 层接口 (导出 + TurboModule Spec)
+ *   1. 调用 rn-scan-exports.cjs 对比两个版本的 JS 层接口 (导出 + TurboModule Spec)
  *   2. 如果接口未变更 → 报告"仅 JS 合并 + codegen, 无需原生适配", 文件变更只计数
  *   3. 如果接口有变更 → 以接口变更项为锚点组织内容:
  *      - 每个新增/变更的接口方法下, 附上其他平台 (Android/iOS) 的实现文件作为参考
  *      - 纯 bug 修复 / 文档 / CI 等 → 只计数, 不展开
  *
- * @param {string} repoDir 仓库目录
- * @param {string} ref1 分支1 ref
- * @param {string} ref2 分支2 ref
+ * @param {string} dir1 目录1源码
+ * @param {string} dir2 目录2源码
  * @param {string[]} extraExcludes 用户额外排除模式
  * @param {object} meta 元信息
- * @param {string} branch1Dir 分支1 导出目录 (用于 scan-exports)
- * @param {string} branch2Dir 分支2 导出目录 (用于 scan-exports)
- * @returns {{content: string, stats: Object, apiDiff: Object}} 结构摘要内容、统计、接口差异
+ * @param {string} branch1Dir 分支1 导出目录 (用于 rn-scan-exports.cjs)
+ * @param {string} branch2Dir 分支2 导出目录 (用于 rn-scan-exports.cjs)
+ * @returns {{content: string, stats: Object, apiDiff: Object, scan1: Object, scan2: Object}}
  */
-function generateStructureSummary(repoDir, ref1, ref2, extraExcludes, meta, branch1Dir, branch2Dir) {
+function generateStructureSummaryTgz(dir1, dir2, extraExcludes, meta, branch1Dir, branch2Dir) {
   // ── Step 1: 扫描接口差异 ──
-  // monorepo: 需要找到包含 codegenConfig 的子包目录
   let scan1 = null;
   let scan2 = null;
   let apiDiff = null;
@@ -893,8 +1039,8 @@ function generateStructureSummary(repoDir, ref1, ref2, extraExcludes, meta, bran
     warn(`接口扫描失败: ${err.message}`);
   }
 
-  // ── Step 2: 分析结构变更 (文件级) ──
-  const { entries, stats } = analyzeStructuralChanges(repoDir, ref1, ref2, extraExcludes);
+  // ── Step 2: 分析结构变更 (文件级, 用文件系统遍历) ──
+  const { entries, stats } = analyzeStructuralChangesWithFs(dir1, dir2, extraExcludes);
 
   const lines = [];
 
@@ -904,10 +1050,10 @@ function generateStructureSummary(repoDir, ref1, ref2, extraExcludes, meta, bran
   lines.push(`| 项目 | 值 |`);
   lines.push(`|------|------|`);
   lines.push(`| 仓库 | ${meta.repoUrl} |`);
-  lines.push(`| 分支 1 | ${meta.branch1} (${meta.commit1Hash}) |`);
-  lines.push(`| 分支 2 | ${meta.branch2} (${meta.commit2Hash}) |`);
+  lines.push(`| 版本 1 | ${meta.branch1} (${meta.commit1Hash}) |`);
+  lines.push(`| 版本 2 | ${meta.branch2} (${meta.commit2Hash}) |`);
   lines.push(`| 文件变更总数 | ${stats.total} |`);
-  lines.push(`| rename 检测阈值 | ${FIND_RENAMES <= 0 ? '关闭' : FIND_RENAMES + '%'} |`);
+  lines.push(`| 对比方式 | tgz (npm 发行版, 无 rename 检测) |`);
   lines.push('');
 
   // ── 判定结果 ──
@@ -1146,7 +1292,6 @@ function generateStructureSummary(repoDir, ref1, ref2, extraExcludes, meta, bran
     lines.push('> 包配置变更需同步到 package.json。');
     lines.push('');
 
-    // 列出 JS/TS 源码变更
     const jsEntries = entries.filter(e => e.relevance === 'js-ts-source' || e.relevance === 'turbo-module-spec');
     if (jsEntries.length > 0) {
       const groups = {};
@@ -1180,7 +1325,6 @@ function generateStructureSummary(repoDir, ref1, ref2, extraExcludes, meta, bran
   lines.push('> 以下变更与接口适配无关, 不展开详情。');
   lines.push('');
 
-  // 包配置
   const configEntries = entries.filter(e => e.relevance === 'package-config');
   if (configEntries.length > 0) {
     lines.push(`**包配置 (${configEntries.length}):**`);
@@ -1194,7 +1338,6 @@ function generateStructureSummary(repoDir, ref1, ref2, extraExcludes, meta, bran
     lines.push('');
   }
 
-  // 构建规格
   const buildEntries = entries.filter(e => e.relevance === 'build-spec');
   if (buildEntries.length > 0) {
     lines.push(`**构建规格 (${buildEntries.length}):**`);
@@ -1208,169 +1351,83 @@ function generateStructureSummary(repoDir, ref1, ref2, extraExcludes, meta, bran
     lines.push('');
   }
 
-  // 不相关变更
   if (stats.irrelevant > 0) {
     lines.push(`**不相关变更 (${stats.irrelevant}):** 文档/图片/CI/lock/原生平台代码等, 已过滤`);
     lines.push('');
   }
 
   if (entries.length === 0) {
-    lines.push('*两个分支之间没有结构差异。*');
+    lines.push('*两个版本之间没有结构差异。*');
   }
 
   return { content: lines.join('\n'), stats, apiDiff, scan1, scan2 };
 }
 
-/**
- * 生成变更摘要 Markdown 文件。
- * 按文件统计新增/删除行数, 并按目录分组展示。
- *
- * @param {string} repoDir 仓库目录
- * @param {string} ref1 分支1 ref
- * @param {string} ref2 分支2 ref
- * @param {string[]} excludePatterns 排除模式列表
- * @param {object} meta 元信息 { repoUrl, branch1, branch2, commit1Hash, commit2Hash }
- * @returns {string} 摘要 Markdown 内容
- */
-function generateSummary(repoDir, ref1, ref2, excludePatterns, meta) {
-  // 获取 --stat 输出 (含每个文件的增删行数), 启用 rename 检测
-  const statArgs = ['diff', '--numstat', ...buildFindRenamesArgs(), ref1, ref2];
-  statArgs.push(...buildPathspecArgs(excludePatterns));
-
-  let statOutput = '';
-  try {
-    statOutput = git(statArgs, { cwd: repoDir, stdio: 'pipe', maxBuffer: 10 * 1024 * 1024 });
-  } catch { /* ignore */ }
-
-  // 解析 numstat: 每行格式 "<added>\t<deleted>\t<filepath>"
-  // rename 的 filepath 可能是 "old => new" 格式
-  const files = [];
-  let totalAdded = 0;
-  let totalDeleted = 0;
-
-  if (statOutput) {
-    for (const line of statOutput.split('\n').filter(Boolean)) {
-      const parts = line.split('\t');
-      if (parts.length < 3) continue;
-      const added = parts[0] === '-' ? 0 : parseInt(parts[0], 10) || 0;
-      const deleted = parts[1] === '-' ? 0 : parseInt(parts[1], 10) || 0;
-      let filepath = parts.slice(2).join('\t');
-
-      // 处理 rename 的 "old => new" 格式, 提取新路径用于展示
-      const renameInfo = parseRenameFromNumstatPath(filepath);
-      if (renameInfo.oldPath !== renameInfo.newPath) {
-        filepath = `${renameInfo.oldPath} → ${renameInfo.newPath}`;
-      }
-
-      files.push({ filepath, added, deleted });
-      totalAdded += added;
-      totalDeleted += deleted;
-    }
-  }
-
-  // 按目录分组
-  const groups = {};
-  for (const f of files) {
-    const sep = f.filepath.lastIndexOf('/');
-    const dir = sep >= 0 ? f.filepath.substring(0, sep) : '(根目录)';
-    if (!groups[dir]) groups[dir] = [];
-    groups[dir].push(f);
-  }
-
-  // 构建 Markdown
-  const lines = [];
-  lines.push(`# 变更摘要: ${meta.branch1} → ${meta.branch2}`);
-  lines.push('');
-  lines.push(`| 项目 | 值 |`);
-  lines.push(`|------|------|`);
-  lines.push(`| 仓库 | ${meta.repoUrl} |`);
-  lines.push(`| 分支 1 | ${meta.branch1} (${meta.commit1Hash}) |`);
-  lines.push(`| 分支 2 | ${meta.branch2} (${meta.commit2Hash}) |`);
-  lines.push(`| 变更文件数 | ${files.length} |`);
-  lines.push(`| 新增行数 | +${totalAdded} |`);
-  lines.push(`| 删除行数 | -${totalDeleted} |`);
-  lines.push(`| rename 检测阈值 | ${FIND_RENAMES <= 0 ? '关闭' : FIND_RENAMES + '%'} |`);
-  if (excludePatterns.length > 0) {
-    lines.push(`| 排除模式 | ${excludePatterns.join(', ')} |`);
-  } else {
-    lines.push(`| 排除模式 | 无 (--full 模式) |`);
-  }
-  lines.push('');
-  lines.push('---');
-  lines.push('');
-
-  // 按目录输出表格
-  const sortedDirs = Object.keys(groups).sort();
-  for (const dir of sortedDirs) {
-    lines.push(`## ${dir}/`);
-    lines.push('');
-    lines.push('| 文件 | 新增 | 删除 |');
-    lines.push('|------|------|------|');
-    // 按新增+删除行数降序
-    for (const f of groups[dir].sort((a, b) => (b.added + b.deleted) - (a.added + a.deleted))) {
-      const name = f.filepath.substring(f.filepath.lastIndexOf('/') + 1);
-      lines.push(`| ${name} | +${f.added} | -${f.deleted} |`);
-    }
-    lines.push('');
-  }
-
-  if (files.length === 0) {
-    lines.push('*两个分支之间没有差异 (在当前排除规则下)。*');
-  }
-
-  return lines.join('\n');
-}
-
 // ── 主流程 ───────────────────────────────────────────────
 
+/**
+ * 主流程: 通过 npm 包发行版对比两个版本, 无需 git。
+ *
+ * 工作流:
+ * 1. 创建临时工作目录
+ * 2. 下载/定位两个 tgz 文件 (本地路径或 npm pack)
+ * 3. 解压到输出目录
+ * 4. 用文件系统 diff 生成 patch + summary + structure + api-diff
+ * 5. 清理临时文件
+ */
 function main() {
   parseArgs();
 
   // 参数校验
-  if (!REPO_URL) error('必须指定 --repo <url>');
-  if (!BRANCH1) error('必须指定 --branch1 <name>');
-  if (!BRANCH2) error('必须指定 --branch2 <name>');
-  if (BRANCH1 === BRANCH2) error(`两个分支不能相同: ${BRANCH1}`);
+  if (!NPM_PACKAGE) error('必须指定 --npm-package <name>');
+  if (!TGZ1) error('必须指定 --tgz1 <版本号或.tgz路径>');
+  if (!TGZ2) error('必须指定 --tgz2 <版本号或.tgz路径>');
+  if (TGZ1 === TGZ2) error(`两个版本不能相同: ${TGZ1}`);
 
-  // 检查依赖
-  try {
-    execFileSync('git', ['--version'], { stdio: 'pipe' });
-  } catch {
-    error('未找到 git, 请先安装');
-  }
+  // 检查依赖 (需要 tar, diff, npm)
   try {
     execFileSync('tar', ['--version'], { stdio: 'pipe' });
   } catch {
     error('未找到 tar, 请先安装');
   }
+  try {
+    execFileSync('diff', ['--version'], { stdio: 'pipe' });
+  } catch {
+    error('未找到 diff, 请先安装');
+  }
+  try {
+    execFileSync('npm', ['--version'], { stdio: 'pipe' });
+  } catch {
+    error('未找到 npm, 请先安装');
+  }
 
-  // 默认输出目录: 当前目录下的 diff/ 文件夹
+  // 默认输出目录
   if (!OUTPUT_DIR) {
     OUTPUT_DIR = path.join(process.cwd(), 'diff');
   }
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
   // 生成文件名/目录名
-  const fileBranch1 = cleanBranchName(BRANCH1);
-  const fileBranch2 = cleanBranchName(BRANCH2);
+  const fileBranch1 = isVersionString(TGZ1) ? `v${TGZ1}` : cleanBranchName(path.basename(TGZ1, '.tgz'));
+  const fileBranch2 = isVersionString(TGZ2) ? `v${TGZ2}` : cleanBranchName(path.basename(TGZ2, '.tgz'));
   const outputFile = path.join(OUTPUT_DIR, `diff_${fileBranch1}_${fileBranch2}.patch`);
   const branch1Dir = path.join(OUTPUT_DIR, fileBranch1);
   const branch2Dir = path.join(OUTPUT_DIR, fileBranch2);
 
   console.log('');
   console.log('==========================================');
-  console.log('  RNOH 三方库分支对比');
+  console.log('  RNOH 三方库版本对比 (tgz 模式)');
   console.log('==========================================');
   console.log('');
-  // 构建最终排除列表
+
   const effectiveExcludes = buildExcludeList();
 
-  info(`仓库地址:   ${REPO_URL}`);
-  info(`分支 1:     ${BRANCH1}`);
-  info(`分支 2:     ${BRANCH2}`);
+  info(`npm 包名:   ${NPM_PACKAGE}`);
+  info(`版本 1:     ${TGZ1}`);
+  info(`版本 2:     ${TGZ2}`);
   info(`输出目录:   ${OUTPUT_DIR}`);
   info(`输出文件:   ${outputFile}`);
-  info(`rename 检测: ${FIND_RENAMES <= 0 ? '关闭' : `相似度阈值 ${FIND_RENAMES}%`}`);
+  info(`对比方式:   tgz (npm 发行版, 无 rename 检测)`);
   if (FULL_DIFF) {
     info(`模式:       完整 diff (--full)`);
   } else {
@@ -1381,72 +1438,20 @@ function main() {
   }
   console.log('');
 
-  // ── 1. 创建临时工作目录并克隆仓库 ──────────────────────
-  const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'generate-diff-'));
-  const repoDir = path.join(workDir, 'repo');
-
+  // ── 1. 创建临时工作目录 ────────────────────────────────
+  const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'generate-diff-tgz-'));
   debug(`临时目录: ${workDir}`);
 
-  info('克隆仓库 (完整克隆, 需要获取两个分支)...');
-
-  try {
-    gitInherit(['clone', REPO_URL, repoDir], { timeout: 120000 });
-  } catch (err) {
-    error(`git clone 失败: ${REPO_URL}`);
-  }
-
-  if (!fs.existsSync(path.join(repoDir, '.git'))) {
-    error(`git clone 失败: ${REPO_URL}`);
-  }
-
-  ok('仓库克隆完成');
+  // ── 2. 下载/定位 tgz 文件 ──────────────────────────────
+  info('获取 tgz 文件...');
+  const tgzFile1 = resolveTgz(TGZ1, NPM_PACKAGE, workDir);
+  const tgzFile2 = resolveTgz(TGZ2, NPM_PACKAGE, workDir);
   console.log('');
 
-  // ── 2. 确认两个分支/tag 都存在 ─────────────────────────
-  info('验证分支/tag 存在性...');
+  // ── 3. 解压到输出目录 ──────────────────────────────────
+  info('解压 tgz 文件...');
 
-  /**
-   * 检查 ref 是否存在 (origin/<branch>、<branch>、tags/<branch>)。
-   * @param {string} ref 分支/tag 名称
-   * @returns {string|null} 可用的 git ref，不存在返回 null
-   */
-  function resolveRef(ref) {
-    // 尝试 origin/<branch>
-    try {
-      git(['rev-parse', '--verify', `origin/${ref}`], { cwd: repoDir, stdio: 'pipe' });
-      return `origin/${ref}`;
-    } catch { /* continue */ }
-
-    // 尝试直接 ref (本地分支或 tag)
-    try {
-      git(['rev-parse', '--verify', ref], { stdio: 'pipe' });
-      return ref;
-    } catch { /* continue */ }
-
-    // 尝试 fetch tags 后再检查
-    try {
-      git(['fetch', '--tags'], { cwd: repoDir, stdio: 'pipe' });
-      git(['rev-parse', '--verify', ref], { cwd: repoDir, stdio: 'pipe' });
-      return ref;
-    } catch { /* continue */ }
-
-    return null;
-  }
-
-  const ref1 = resolveRef(BRANCH1);
-  const ref2 = resolveRef(BRANCH2);
-
-  if (!ref1) error(`分支/tag 不存在: ${BRANCH1}`);
-  if (!ref2) error(`分支/tag 不存在: ${BRANCH2}`);
-
-  ok(`  ✓ ${BRANCH1} 存在`);
-  ok(`  ✓ ${BRANCH2} 存在`);
-  console.log('');
-
-  // ── 3. 导出两个分支的源代码 ────────────────────────────
-  info(`导出分支源代码到 ${OUTPUT_DIR}/ ...`);
-
-  // 如果目录已存在则先清理 (避免残留文件干扰)
+  // 清理旧目录
   for (const dir of [branch1Dir, branch2Dir]) {
     if (fs.existsSync(dir)) {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -1454,35 +1459,35 @@ function main() {
   }
 
   try {
-    exportBranchSource(repoDir, ref1, branch1Dir);
-    ok(`  ✓ ${BRANCH1} 源代码已导出到: ${branch1Dir}`);
+    extractTgz(tgzFile1, branch1Dir);
+    ok(`  ✓ ${TGZ1} 已解压到: ${branch1Dir}`);
   } catch (err) {
-    error(`导出 ${BRANCH1} 源代码失败: ${err.message}`);
+    error(`解压 ${TGZ1} 失败: ${err.message}`);
   }
 
   try {
-    exportBranchSource(repoDir, ref2, branch2Dir);
-    ok(`  ✓ ${BRANCH2} 源代码已导出到: ${branch2Dir}`);
+    extractTgz(tgzFile2, branch2Dir);
+    ok(`  ✓ ${TGZ2} 已解压到: ${branch2Dir}`);
   } catch (err) {
-    error(`导出 ${BRANCH2} 源代码失败: ${err.message}`);
+    error(`解压 ${TGZ2} 失败: ${err.message}`);
   }
-
   console.log('');
 
-  // ── 4. 生成 diff ──────────────────────────────────────
-  info('生成 diff...');
+  // 版本标签用于报告
+  const version1Label = isVersionString(TGZ1) ? TGZ1 : fileBranch1;
+  const version2Label = isVersionString(TGZ2) ? TGZ2 : fileBranch2;
+  const commit1Hash = 'npm-tgz';
+  const commit2Hash = 'npm-tgz';
 
-  // 获取 commit 简要信息
-  let commit1Hash = 'unknown';
-  let commit2Hash = 'unknown';
-  try {
-    commit1Hash = git(['rev-parse', '--short', ref1], { cwd: repoDir, stdio: 'pipe' });
-  } catch { /* ignore */ }
-  try {
-    commit2Hash = git(['rev-parse', '--short', ref2], { cwd: repoDir, stdio: 'pipe' });
-  } catch { /* ignore */ }
+  const meta = {
+    repoUrl: `npm:${NPM_PACKAGE}`,
+    branch1: version1Label,
+    branch2: version2Label,
+    commit1Hash,
+    commit2Hash,
+  };
 
-  // ── --files 模式: 只对指定文件生成精简 patch ──
+  // ── 4. --files 模式: 精简 patch ────────────────────────
   if (FILES_LIST) {
     info(`--files 模式: 从 ${FILES_LIST} 读取文件列表`);
 
@@ -1493,50 +1498,83 @@ function main() {
     } catch (err) {
       error(`无法读取文件列表: ${FILES_LIST} (${err.message})`);
     }
-
     if (fileEntries.length === 0) {
       error('文件列表为空');
     }
-
     info(`  共 ${fileEntries.length} 个文件`);
 
-    // 构建 git diff 参数: 只对指定文件生成 diff
-    // 不应用排除规则, 因为文件列表本身就是筛选结果
-    const focusedDiffArgs = ['diff', ...buildFindRenamesArgs(), ref1, ref2, '--', ...fileEntries];
+    // 逐文件生成 diff
+    const lines = [];
+    for (const file of fileEntries) {
+      const path1 = path.join(branch1Dir, file);
+      const path2 = path.join(branch2Dir, file);
+      const exists1 = fs.existsSync(path1);
+      const exists2 = fs.existsSync(path2);
 
-    let focusedDiffContent = '';
-    try {
-      focusedDiffContent = git(focusedDiffArgs, { cwd: repoDir, stdio: 'pipe', maxBuffer: 50 * 1024 * 1024 });
-    } catch (err) {
-      error(`git diff (focused) 执行失败: ${err.message}`);
+      if (exists1 && exists2) {
+        try {
+          const output = execSync(
+            `diff -u --label "a/${file}" --label "b/${file}" "${path1}" "${path2}"`,
+            { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 50 * 1024 * 1024 }
+          );
+          if (output) {
+            lines.push(`diff --git a/${file} b/${file}`);
+            lines.push(output);
+          }
+        } catch (err) {
+          if (err.stdout) {
+            lines.push(`diff --git a/${file} b/${file}`);
+            lines.push(err.stdout.toString('utf-8'));
+          }
+        }
+      } else if (!exists1 && exists2) {
+        lines.push(`diff --git a/${file} b/${file}`);
+        lines.push(`new file mode 100644`);
+        lines.push(`--- /dev/null`);
+        lines.push(`+++ b/${file}`);
+        try {
+          const content = fs.readFileSync(path2, 'utf-8');
+          for (const line of content.split('\n')) lines.push(`+${line}`);
+        } catch { /* binary */ }
+        lines.push('');
+      } else if (exists1 && !exists2) {
+        lines.push(`diff --git a/${file} b/${file}`);
+        lines.push(`deleted file mode 100644`);
+        lines.push(`--- a/${file}`);
+        lines.push(`+++ /dev/null`);
+        try {
+          const content = fs.readFileSync(path1, 'utf-8');
+          for (const line of content.split('\n')) lines.push(`-${line}`);
+        } catch { /* binary */ }
+        lines.push('');
+      }
     }
 
-    // 写入精简 patch
     const focusedHeader = [
-      `From ${REPO_URL}`,
+      `From npm:${NPM_PACKAGE}`,
       `Date: ${new Date().toISOString()}`,
-      `Subject: [PATCH] Focused diff between ${BRANCH1} (${commit1Hash}) and ${BRANCH2} (${commit2Hash})`,
+      `Subject: [PATCH] Focused diff between ${version1Label} and ${version2Label} (tgz)`,
       '',
-      `Repository: ${REPO_URL}`,
-      `Branch 1:   ${BRANCH1} (${commit1Hash})`,
-      `Branch 2:   ${BRANCH2} (${commit2Hash})`,
+      `npm Package: ${NPM_PACKAGE}`,
+      `Version 1:   ${version1Label}`,
+      `Version 2:   ${version2Label}`,
       `Files: ${fileEntries.length} (from ${FILES_LIST})`,
-      `Rename detection: ${FIND_RENAMES <= 0 ? 'disabled' : FIND_RENAMES + '% similarity threshold'}`,
+      `Mode: tgz (npm release)`,
       '',
     ].join('\n');
 
-    fs.writeFileSync(outputFile, focusedHeader + focusedDiffContent, 'utf-8');
+    fs.writeFileSync(outputFile, focusedHeader + lines.join('\n'), 'utf-8');
 
     const focusedSize = fs.statSync(outputFile).size;
     ok(`精简 diff 已生成: ${outputFile} (${formatSize(focusedSize)}, ${fileEntries.length} 文件)`);
 
     console.log('');
     console.log('==========================================');
-    console.log('  精简 diff 生成完成');
+    console.log('  精简 diff 生成完成 (tgz)');
     console.log('==========================================');
-    console.log(`  仓库:     ${REPO_URL}`);
-    console.log(`  分支 1:   ${BRANCH1} (${commit1Hash})`);
-    console.log(`  分支 2:   ${BRANCH2} (${commit2Hash})`);
+    console.log(`  包名:     ${NPM_PACKAGE}`);
+    console.log(`  版本 1:   ${version1Label}`);
+    console.log(`  版本 2:   ${version2Label}`);
     console.log(`  文件数:   ${fileEntries.length}`);
     console.log(`  patch:    ${formatSize(focusedSize)}`);
     console.log(`  输出:     ${outputFile}`);
@@ -1544,96 +1582,67 @@ function main() {
     console.log('');
 
     // 清理
-    if (!KEEP_REPO) {
-      fs.rmSync(workDir, { recursive: true, force: true });
-    }
+    fs.rmSync(workDir, { recursive: true, force: true });
+    debug(`已清理临时目录: ${workDir}`);
     return;
   }
 
-  // 构建 git diff 参数 (含排除 pathspec + rename 检测)
-  const diffArgs = ['diff', ...buildFindRenamesArgs(), ref1, ref2, ...buildPathspecArgs(effectiveExcludes)];
+  // ── 5. 生成完整 diff patch ─────────────────────────────
+  info('生成 diff (文件系统对比)...');
+
+  const diffContent = diffDirsWithFs(branch1Dir, branch2Dir, effectiveExcludes);
 
   // 统计变更文件数
-  let changedFiles = 0;
-  try {
-    const nameOnlyArgs = ['diff', '--name-only', ...buildFindRenamesArgs(), ref1, ref2, ...buildPathspecArgs(effectiveExcludes)];
-    const output = git(nameOnlyArgs, { cwd: repoDir, stdio: 'pipe' });
-    changedFiles = output ? output.split('\n').filter(Boolean).length : 0;
-  } catch { /* ignore */ }
+  const numstatMap = fetchNumstatWithFs(branch1Dir, branch2Dir, effectiveExcludes);
+  const changedFiles = numstatMap.size;
 
   info(`  变更文件数: ${changedFiles}`);
-
   if (changedFiles === 0) {
-    warn('两个分支之间没有差异');
+    warn('两个版本之间没有差异');
   }
 
-  // 生成 diff 内容
-  let diffContent = '';
-  try {
-    diffContent = git(diffArgs, { cwd: repoDir, stdio: 'pipe', maxBuffer: 50 * 1024 * 1024 });
-  } catch (err) {
-    error(`git diff 执行失败: ${err.message}`);
-  }
-
-  // 写入 patch 文件 (附带头部元信息)
   const header = [
-    `From ${REPO_URL}`,
+    `From npm:${NPM_PACKAGE}`,
     `Date: ${new Date().toISOString()}`,
-    `Subject: [PATCH] Diff between ${BRANCH1} (${commit1Hash}) and ${BRANCH2} (${commit2Hash})`,
+    `Subject: [PATCH] Diff between ${version1Label} and ${version2Label} (tgz)`,
     '',
-    `Repository: ${REPO_URL}`,
-    `Branch 1:   ${BRANCH1} (${commit1Hash})`,
-    `Branch 2:   ${BRANCH2} (${commit2Hash})`,
+    `npm Package: ${NPM_PACKAGE}`,
+    `Version 1:   ${version1Label}`,
+    `Version 2:   ${version2Label}`,
     `Changed files: ${changedFiles}`,
-    `Rename detection: ${FIND_RENAMES <= 0 ? 'disabled' : FIND_RENAMES + '% similarity threshold'}`,
+    `Mode: tgz (npm release, no rename detection)`,
     FULL_DIFF ? 'Mode: full (no default excludes)' : 'Mode: filtered (default excludes applied)',
     effectiveExcludes.length > 0 ? `Excludes: ${effectiveExcludes.join(', ')}` : 'Excludes: none',
     '',
   ].join('\n');
 
   fs.writeFileSync(outputFile, header + diffContent, 'utf-8');
-
   ok(`diff 文件已生成: ${outputFile}`);
 
-  // ── 4b. 生成变更摘要 summary.md ───────────────────────
+  // ── 5b. 生成变更摘要 summary.md ───────────────────────
   const summaryFile = path.join(OUTPUT_DIR, `summary_${fileBranch1}_${fileBranch2}.md`);
   info('生成变更摘要...');
   try {
-    const summaryContent = generateSummary(repoDir, ref1, ref2, effectiveExcludes, {
-      repoUrl: REPO_URL,
-      branch1: BRANCH1,
-      branch2: BRANCH2,
-      commit1Hash,
-      commit2Hash,
-    });
+    const summaryContent = generateSummaryWithFs(branch1Dir, branch2Dir, effectiveExcludes, meta);
     fs.writeFileSync(summaryFile, summaryContent, 'utf-8');
     ok(`变更摘要已生成: ${summaryFile}`);
   } catch (err) {
     warn(`生成变更摘要失败: ${err.message}`);
   }
 
-  // ── 4c. 生成适配分析报告 structure.md ─────────────────
-  // 结构摘要使用 scan-exports.js 对比接口差异 + 结构变更分析
-  // 传入导出的源码目录供 scan-exports 扫描
+  // ── 5c. 生成适配分析报告 structure.md ─────────────────
   const structureFile = path.join(OUTPUT_DIR, `structure_${fileBranch1}_${fileBranch2}.md`);
   info('生成适配分析报告 (接口驱动)...');
   let structureStats = null;
   let apiDiffResult = null;
   let scanResult = null;
   try {
-    scanResult = generateStructureSummary(repoDir, ref1, ref2, EXCLUDES, {
-      repoUrl: REPO_URL,
-      branch1: BRANCH1,
-      branch2: BRANCH2,
-      commit1Hash,
-      commit2Hash,
-    }, branch1Dir, branch2Dir);
+    scanResult = generateStructureSummaryTgz(branch1Dir, branch2Dir, EXCLUDES, meta, branch1Dir, branch2Dir);
     fs.writeFileSync(structureFile, scanResult.content, 'utf-8');
     structureStats = scanResult.stats;
     apiDiffResult = scanResult.apiDiff;
     ok(`适配分析报告已生成: ${structureFile}`);
 
-    // 打印判定结果
     if (apiDiffResult) {
       console.log('');
       if (apiDiffResult.summary.needsNativeAdaptation) {
@@ -1643,7 +1652,6 @@ function main() {
       }
     }
 
-    // 打印结构统计
     if (structureStats) {
       console.log('');
       info(`文件变更统计 (总数 ${structureStats.total}):`);
@@ -1659,15 +1667,15 @@ function main() {
     warn(`生成适配分析报告失败: ${err.message}`);
   }
 
-  // ── 4d. 生成接口差异适配检查清单 api-diff.md ──────────
+  // ── 5d. 生成接口差异适配检查清单 api-diff.md ──────────
   const apiDiffFile = path.join(OUTPUT_DIR, `api-diff_${fileBranch1}_${fileBranch2}.md`);
   if (apiDiffResult && scanResult && scanResult.scan1 && scanResult.scan2) {
     info('生成接口差异适配检查清单...');
     try {
       const apiReport = scanExports.generateMarkdownReport(scanResult.scan1, scanResult.scan2, apiDiffResult, {
-        version1: BRANCH1,
-        version2: BRANCH2,
-        repoUrl: REPO_URL,
+        version1: version1Label,
+        version2: version2Label,
+        repoUrl: `npm:${NPM_PACKAGE}`,
       });
       fs.writeFileSync(apiDiffFile, apiReport, 'utf-8');
       ok(`接口差异检查清单已生成: ${apiDiffFile}`);
@@ -1677,22 +1685,21 @@ function main() {
   }
   console.log('');
 
-  // ── 5. 显示摘要 ────────────────────────────────────────
+  // ── 6. 显示摘要 ────────────────────────────────────────
   const fileSize = fs.statSync(outputFile).size;
 
   console.log('==========================================');
-  console.log('  对比完成');
+  console.log('  对比完成 (tgz 模式)');
   console.log('==========================================');
-  console.log(`  仓库:     ${REPO_URL}`);
-  console.log(`  分支 1:   ${BRANCH1} (${commit1Hash})`);
-  console.log(`  分支 2:   ${BRANCH2} (${commit2Hash})`);
+  console.log(`  包名:     ${NPM_PACKAGE}`);
+  console.log(`  版本 1:   ${version1Label}`);
+  console.log(`  版本 2:   ${version2Label}`);
   console.log(`  变更文件: ${changedFiles}`);
-  console.log(`  rename:   ${FIND_RENAMES <= 0 ? '关闭' : FIND_RENAMES + '%'}`);
   console.log(`  模式:     ${FULL_DIFF ? '完整 diff (--full)' : '聚焦核心代码 (默认排除噪音)'}`);
   console.log('');
   console.log(`  输出目录:   ${OUTPUT_DIR}/`);
-  console.log(`  ├── ${fileBranch1}/                              (分支1 源代码)`);
-  console.log(`  ├── ${fileBranch2}/                              (分支2 源代码)`);
+  console.log(`  ├── ${fileBranch1}/                              (版本1 源代码)`);
+  console.log(`  ├── ${fileBranch2}/                              (版本2 源代码)`);
   console.log(`  ├── diff_${fileBranch1}_${fileBranch2}.patch              (${formatSize(fileSize)})`);
   console.log(`  ├── summary_${fileBranch1}_${fileBranch2}.md               (变更摘要)`);
   console.log(`  ├── structure_${fileBranch1}_${fileBranch2}.md             (适配分析报告)`);
@@ -1704,13 +1711,9 @@ function main() {
   console.log('==========================================');
   console.log('');
 
-  // ── 6. 清理 ────────────────────────────────────────────
-  if (KEEP_REPO) {
-    info(`保留克隆的仓库: ${repoDir}`);
-  } else {
-    fs.rmSync(workDir, { recursive: true, force: true });
-    debug(`已清理临时目录: ${workDir}`);
-  }
+  // ── 7. 清理临时目录 ────────────────────────────────────
+  fs.rmSync(workDir, { recursive: true, force: true });
+  debug(`已清理临时目录: ${workDir}`);
 }
 
 main();
