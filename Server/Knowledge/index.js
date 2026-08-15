@@ -9,7 +9,7 @@
  *
  * 对外接口：
  *   - KnowledgeManager: 知识管理器（经验增加/删除/更新/查询）
- *   - KnowledgeImporter: 知识导入执行引擎（通过 CLI + KnowledgeImportSkill 执行导入）
+ *   - KnowledgeImporter: 知识导入执行引擎（通过 CLI + knowledge-import SKILL 执行导入）
  *
  * 使用示例：
  *   import { KnowledgeManager } from './Knowledge/index.js';

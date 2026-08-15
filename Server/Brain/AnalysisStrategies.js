@@ -2,7 +2,7 @@
  * AnalysisStrategies —— 任务分析策略（CLI 优先 + LLM fallback）
  *
  * 职责：
- *   - 通过 CLI 执行 TaskAnalysisSkill（opencode 路径）
+ *   - 通过 CLI 执行 task-analysis SKILL（opencode 路径）
  *   - CLI 不可用时降级为直接 LLM 调用
  *   - 支持首轮分析和重规划场景的上下文分析
  *   - 规范化分析结果
@@ -84,9 +84,9 @@ export class AnalysisStrategies {
     // ─── 首轮分析 ──────────────────────────────────────────────────────
 
     /**
-     * 分析任务意图 — 通过 CLI 执行 TaskAnalysisSkill 提取任务关键信息 + 生成验收标准
+     * 分析任务意图 — 通过 CLI 执行 task-analysis SKILL 提取任务关键信息 + 生成验收标准
      *
-     * 调用路径：Brain → 构建 prompt → opencode CLI → TaskAnalysisSkill → 结果文件
+     * 调用路径：Brain → 构建 prompt → opencode CLI → task-analysis SKILL → 结果文件
      *
      * 如果用户提供了验收标准，SKILL 会基于用户标准进行细化和补充；
      * 如果用户未提供，SKILL 会根据任务描述自动生成合理的验收标准。
@@ -105,14 +105,14 @@ export class AnalysisStrategies {
     async analyzeTask(taskDescription, userCriteria = '', execCtx = {}) {
         const { taskId, taskDir, skillDir, loopCount = 0 } = execCtx;
 
-        // ── 尝试通过 CLI 执行 TaskAnalysisSkill ──
+        // ── 尝试通过 CLI 执行 task-analysis SKILL ──
         if (taskId && taskDir && skillDir) {
             try {
                 return await this._analyzeViaCLI(taskDescription, userCriteria, {
                     taskId, taskDir, skillDir, loopCount
                 });
             } catch (err) {
-                console.warn(`[Brain] CLI 执行 TaskAnalysisSkill 失败，降级为 LLM 直接调用: ${err.message}`);
+                console.warn(`[Brain] CLI 执行 task-analysis SKILL 失败，降级为 LLM 直接调用: ${err.message}`);
             }
         }
 
@@ -122,7 +122,7 @@ export class AnalysisStrategies {
     }
 
     /**
-     * 通过 CLI 执行 TaskAnalysisSkill。
+     * 通过 CLI 执行 task-analysis SKILL。
      *
      * @param {string} taskDescription
      * @param {string} userCriteria
@@ -132,7 +132,7 @@ export class AnalysisStrategies {
      */
     async _analyzeViaCLI(taskDescription, userCriteria, ctx) {
         const { taskId, taskDir, skillDir, loopCount } = ctx;
-        const analysisSkillDir = path.join(skillDir, 'TaskAnalysisSkill');
+        const analysisSkillDir = path.join(skillDir, 'task-analysis');
         const resultFilePath = path.join(taskDir, `brain_analysis_loop${loopCount}.json`);
 
         // 构建上下文段落
@@ -149,7 +149,7 @@ export class AnalysisStrategies {
         );
 
         if (!success || !json) {
-            throw new Error('TaskAnalysisSkill 执行失败或结果解析为空');
+            throw new Error('task-analysis SKILL 执行失败或结果解析为空');
         }
 
         return { analysis: this.normalizeAnalysis(json), sessionId: sessionId || null };
@@ -211,7 +211,7 @@ ${criteriaSection}
     /**
      * 带上下文重新分析任务 — 在重规划时调用，融入上轮审核失败信息。
      *
-     * 通过 CLI 执行 TaskAnalysisSkill，将失败上下文作为 context 传入。
+     * 通过 CLI 执行 task-analysis SKILL，将失败上下文作为 context 传入。
      * CLI 不可用时降级为直接 LLM 调用（fallback）。
      *
      * @param {string} taskDescription
@@ -228,14 +228,14 @@ ${criteriaSection}
     async analyzeTaskWithContext(taskDescription, userCriteria, context, execCtx = {}) {
         const { taskId, taskDir, skillDir } = execCtx;
 
-        // ── 尝试通过 CLI 执行 TaskAnalysisSkill（带重规划上下文） ──
+        // ── 尝试通过 CLI 执行 task-analysis SKILL（带重规划上下文） ──
         if (taskId && taskDir && skillDir) {
             try {
                 return await this._analyzeWithContextViaCLI(
                     taskDescription, userCriteria, context, { taskId, taskDir, skillDir }
                 );
             } catch (err) {
-                console.warn(`[Brain] CLI 执行 TaskAnalysisSkill（重规划）失败，降级为 LLM 直接调用: ${err.message}`);
+                console.warn(`[Brain] CLI 执行 task-analysis SKILL（重规划）失败，降级为 LLM 直接调用: ${err.message}`);
             }
         }
 
@@ -245,7 +245,7 @@ ${criteriaSection}
     }
 
     /**
-     * 通过 CLI 执行 TaskAnalysisSkill（重规划模式）。
+     * 通过 CLI 执行 task-analysis SKILL（重规划模式）。
      *
      * @param {string} taskDescription
      * @param {string} userCriteria
@@ -257,7 +257,7 @@ ${criteriaSection}
     async _analyzeWithContextViaCLI(taskDescription, userCriteria, context, ctx) {
         const { taskId, taskDir, skillDir } = ctx;
         const { failedCriteria, improvementSuggestions, prevCheckSummary, prevOrchStatus, loopCount } = context;
-        const analysisSkillDir = path.join(skillDir, 'TaskAnalysisSkill');
+        const analysisSkillDir = path.join(skillDir, 'task-analysis');
         const resultFilePath = path.join(taskDir, `brain_analysis_loop${loopCount}.json`);
 
         const failedText = failedCriteria.length > 0
@@ -291,7 +291,7 @@ ${criteriaSection}
         );
 
         if (!success || !json) {
-            throw new Error('TaskAnalysisSkill（重规划）执行失败或结果解析为空');
+            throw new Error('task-analysis SKILL（重规划）执行失败或结果解析为空');
         }
 
         return { analysis: this.normalizeAnalysis(json), sessionId: sessionId || null };

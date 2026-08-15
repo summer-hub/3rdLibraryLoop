@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import MessageArchive from '../../DbUse/MessageArchive.js';
 import { nowCST } from '../../library/cstTime.js';
+import { createLogger } from '../../Routes/library/logger.js';
 
 /**
  * OpenCode CLI 适配器
@@ -47,7 +48,6 @@ class OpenCodeCLI {
     // ─── 运行状态检查 ──────────────────────────────────────────────────────────
 
     async checkHealth() {
-        this._log('info', `checkHealth → ${this.baseUrl}`);
         try {
             // 轻量健康检查：只调用 session.list() 验证连通性
             // 不再为每个 session 拉取全量消息（原 listSessions 会拉所有 session 的所有消息）
@@ -353,7 +353,6 @@ class OpenCodeCLI {
                 // 初始 prompt 的用户消息不由这里归档，统一由 checkSessionStatus /
                 // getSessionMessages 从远端拉取归档，确保用 opencode id 去重
                 await this.archive.patchMeta(sessionId, { status: 'running' }).catch(() => {});
-                this._log('info', `初始 prompt 已发送 id=${sessionId}`);
             }
 
             return {
@@ -790,10 +789,20 @@ class OpenCodeCLI {
     // ─── 内部方法 ──────────────────────────────────────────────────────────────
 
     _log(level, msg) {
-        const prefix = '[OpenCodeCLI]';
-        if (level === 'error') console.error(`❌ ${prefix} ${msg}`);
-        else if (level === 'warn') console.warn(`⚠️  ${prefix} ${msg}`);
-        else console.log(`ℹ️  ${prefix} ${msg}`);
+        const logger = createLogger('OpenCodeCLI');
+        switch (level) {
+            case 'error':
+                logger.error(`❌ ${msg}`);
+                break;
+            case 'warn':
+                logger.warn(`⚠️  ${msg}`);
+                break;
+            case 'debug':
+                logger.debug(`🔍 ${msg}`);
+                break;
+            default:
+                logger.info(`ℹ️  ${msg}`);
+        }
     }
 }
 

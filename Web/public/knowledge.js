@@ -151,19 +151,18 @@ async function viewDoc() {
     var exp = KnState.selectedExp;
     if (!exp) { toast('warn', '请先选择一条知识'); return; }
 
-    $('docTitle').textContent = '经验文档 - ' + exp.id;
-    $('docContent').textContent = '加载中...';
-    $('docOverlay').classList.add('show');
+    var title = '经验文档 - ' + exp.id;
+    MarkdownReader.open(title, '加载中...');
 
     try {
         var d = await API.get('/api/knowledge/doc?id=' + encodeURIComponent(exp.id));
         if (d && d.status === 'ok') {
-            $('docContent').textContent = d.content || '(文档内容为空)';
+            MarkdownReader.open(title, d.content || '(文档内容为空)');
         } else {
-            $('docContent').textContent = '加载失败: ' + escapeHtml(d && d.message || d && d.error || '未知错误');
+            MarkdownReader.open(title, '加载失败: ' + (d && d.message || d && d.error || '未知错误'));
         }
     } catch (err) {
-        $('docContent').textContent = '后端不可达: ' + escapeHtml(err.message);
+        MarkdownReader.open(title, '后端不可达: ' + err.message);
     }
 }
 
@@ -393,8 +392,6 @@ $('btnStopPoll').onclick = function () {
 };
 
 // 弹窗关闭
-$('docClose').onclick = function () { $('docOverlay').classList.remove('show'); };
-$('docOverlay').onclick = function (e) { if (e.target === $('docOverlay')) $('docOverlay').classList.remove('show'); };
 $('resultClose').onclick = function () { $('resultOverlay').classList.remove('show'); };
 $('resultOk').onclick = function () { $('resultOverlay').classList.remove('show'); };
 $('resultOverlay').onclick = function (e) { if (e.target === $('resultOverlay')) $('resultOverlay').classList.remove('show'); };

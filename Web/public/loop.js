@@ -691,7 +691,7 @@ async function runnerControl(tid,sid,type) {
 }
 
 async function checkResultFile(tid,sid) {
-    logControl('检查结果文件...'); try { var d=await API.post('/api/flexrunner/check-result',{taskId:tid,stepId:sid}); if(d.status==='ok'){logControl('结果: '+(d.success?'成功':'失败')+' — '+d.resultFilePath);if(d.content){var fn=(d.resultFilePath||'结果文件').split('/').pop();var ext=(fn.split('.').pop()||'').toLowerCase();if(ext==='md'||ext==='markdown')MarkdownReader.open(fn,d.content);else showModal('结果文件',d.content);}} else logControl('失败: '+d.error); } catch(err){ logControl('请求失败: '+err.message); }
+    logControl('检查结果文件...'); try { var d=await API.post('/api/flexrunner/check-result',{taskId:tid,stepId:sid}); if(d.status==='ok'){logControl('结果: '+(d.success?'成功':'失败')+' — '+d.resultFilePath);if(d.content){var fn=(d.resultFilePath||'结果文件').split(/[/\\]/).pop();var ext=(fn.split('.').pop()||'').toLowerCase();if(ext==='md'||ext==='markdown')MarkdownReader.open(fn,d.content);else showModal('结果文件',d.content);}} else logControl('失败: '+d.error); } catch(err){ logControl('请求失败: '+err.message); }
 }
 
 async function refreshRunnerStatus(tid,sid) {
@@ -739,7 +739,7 @@ async function viewFile(fp) {
     try {
         var d = await API.get('/api/flexrunner/file?path=' + encodeURIComponent(fp));
         if (d.status !== 'ok') { toast('error', d.error); return; }
-        var filename = fp.split('/').pop();
+        var filename = fp.split(/[/\\]/).pop();
         var ext = filename.split('.').pop().toLowerCase();
         if (ext === 'md' || ext === 'markdown') {
             MarkdownReader.open(filename, d.content);

@@ -18,5 +18,8 @@
   },
   "optionalDependencies": {
     "jieba-wasm": "^2.4.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
   }
 }

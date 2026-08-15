@@ -2,7 +2,7 @@
  * DecompositionStrategies —— 任务拆解策略（CLI 优先 + LLM fallback）
  *
  * 职责：
- *   - 通过 CLI 执行 TaskDecompositionSkill（opencode 路径）
+ *   - 通过 CLI 执行 task-decomposition SKILL（opencode 路径）
  *   - CLI 不可用时降级为直接 LLM 调用
  *   - 支持首轮拆解和重规划场景的上下文拆解
  *   - 规范化步骤数据
@@ -83,9 +83,9 @@ export class DecompositionStrategies {
     // ─── 首轮拆解 ──────────────────────────────────────────────────────
 
     /**
-     * 拆解任务 — 通过 CLI 执行 TaskDecompositionSkill 将任务拆解为多个步骤
+     * 拆解任务 — 通过 CLI 执行 task-decomposition SKILL 将任务拆解为多个步骤
      *
-     * 调用路径：Brain → 构建 prompt → opencode CLI → TaskDecompositionSkill → 结果文件
+     * 调用路径：Brain → 构建 prompt → opencode CLI → task-decomposition SKILL → 结果文件
      *
      * 每个步骤的 acceptanceCriteria 是从任务级验收标准中拆分出来的子标准，
      * 确保所有步骤的验收标准合并后能覆盖任务级验收标准。
@@ -102,14 +102,14 @@ export class DecompositionStrategies {
     async decomposeTask(taskDescription, analysis, skillDir, userCriteria = '', execCtx = {}) {
         const { taskId, taskDir, loopCount = 0 } = execCtx;
 
-        // ── 尝试通过 CLI 执行 TaskDecompositionSkill ──
+        // ── 尝试通过 CLI 执行 task-decomposition SKILL ──
         if (taskId && taskDir) {
             try {
                 return await this._decomposeViaCLI(taskDescription, analysis, skillDir, userCriteria, {
                     taskId, taskDir, loopCount
                 });
             } catch (err) {
-                console.warn(`[Brain] CLI 执行 TaskDecompositionSkill 失败，降级为 LLM 直接调用: ${err.message}`);
+                console.warn(`[Brain] CLI 执行 task-decomposition SKILL 失败，降级为 LLM 直接调用: ${err.message}`);
             }
         }
 
@@ -119,7 +119,7 @@ export class DecompositionStrategies {
     }
 
     /**
-     * 通过 CLI 执行 TaskDecompositionSkill。
+     * 通过 CLI 执行 task-decomposition SKILL。
      *
      * @param {string} taskDescription
      * @param {object} analysis
@@ -131,7 +131,7 @@ export class DecompositionStrategies {
      */
     async _decomposeViaCLI(taskDescription, analysis, skillDir, userCriteria, ctx) {
         const { taskId, taskDir, loopCount } = ctx;
-        const decompSkillDir = path.join(skillDir, 'TaskDecompositionSkill');
+        const decompSkillDir = path.join(skillDir, 'task-decomposition');
         const resultFilePath = path.join(taskDir, `brain_decomposition_loop${loopCount}.json`);
 
         // 格式化任务级验收标准
@@ -155,7 +155,7 @@ export class DecompositionStrategies {
         );
 
         if (!success || !json || !json.steps) {
-            throw new Error('TaskDecompositionSkill 执行失败或结果中未包含有效步骤');
+            throw new Error('task-decomposition SKILL 执行失败或结果中未包含有效步骤');
         }
 
         return { steps: this.normalizeSteps(json.steps), sessionId: sessionId || null };
@@ -172,7 +172,7 @@ export class DecompositionStrategies {
      * @private
      */
     async _decomposeViaLLM(taskDescription, analysis, skillDir, userCriteria) {
-        const skillPath = path.join(skillDir, 'TaskDecompositionSkill', 'SKILL.md');
+        const skillPath = path.join(skillDir, 'task-decomposition', 'SKILL.md');
 
         // 尝试读取 SKILL.md，获取拆解指令
         let skillInstructions = '';
@@ -270,9 +270,9 @@ ${skillInstructions}
     // ─── 重规划拆解 ────────────────────────────────────────────────────
 
     /**
-     * 重规划场景下的任务拆解 — 通过 CLI 执行 TaskDecompositionSkill（带重规划上下文）
+     * 重规划场景下的任务拆解 — 通过 CLI 执行 task-decomposition SKILL（带重规划上下文）
      *
-     * 调用路径：Brain → 构建 prompt（含失败信息）→ opencode CLI → TaskDecompositionSkill → 结果文件
+     * 调用路径：Brain → 构建 prompt（含失败信息）→ opencode CLI → task-decomposition SKILL → 结果文件
      *
      * CLI 不可用时降级为直接 LLM 调用（fallback）。
      *
@@ -288,14 +288,14 @@ ${skillInstructions}
         const { taskId, taskDir } = execCtx;
         const { loopCount } = context;
 
-        // ── 尝试通过 CLI 执行 TaskDecompositionSkill（带重规划上下文）──
+        // ── 尝试通过 CLI 执行 task-decomposition SKILL（带重规划上下文）──
         if (taskId && taskDir) {
             try {
                 return await this._decomposeWithContextViaCLI(
                     taskDescription, analysis, skillDir, userCriteria, context, { taskId, taskDir, loopCount }
                 );
             } catch (err) {
-                console.warn(`[Brain] CLI 执行 TaskDecompositionSkill（重规划）失败，降级为 LLM 直接调用: ${err.message}`);
+                console.warn(`[Brain] CLI 执行 task-decomposition SKILL（重规划）失败，降级为 LLM 直接调用: ${err.message}`);
             }
         }
 
@@ -305,7 +305,7 @@ ${skillInstructions}
     }
 
     /**
-     * 通过 CLI 执行 TaskDecompositionSkill（重规划上下文）。
+     * 通过 CLI 执行 task-decomposition SKILL（重规划上下文）。
      *
      * @param {string} taskDescription
      * @param {object} analysis
@@ -319,7 +319,7 @@ ${skillInstructions}
     async _decomposeWithContextViaCLI(taskDescription, analysis, skillDir, userCriteria, context, ctx) {
         const { taskId, taskDir, loopCount } = ctx;
         const { failedCriteria, improvementSuggestions, prevCheckSummary } = context;
-        const decompSkillDir = path.join(skillDir, 'TaskDecompositionSkill');
+        const decompSkillDir = path.join(skillDir, 'task-decomposition');
         const resultFilePath = path.join(taskDir, `brain_decomposition_loop${loopCount}.json`);
 
         const taskCriteriaText = (analysis.acceptanceCriteria || [])
@@ -355,7 +355,7 @@ ${skillInstructions}
         );
 
         if (!success || !json || !json.steps) {
-            throw new Error('TaskDecompositionSkill（重规划）执行失败或结果中未包含有效步骤');
+            throw new Error('task-decomposition SKILL（重规划）执行失败或结果中未包含有效步骤');
         }
 
         return { steps: this.normalizeSteps(json.steps), sessionId: sessionId || null };
@@ -377,7 +377,7 @@ ${skillInstructions}
 
         let skillInstructions = '';
         try {
-            const skillPath = path.join(skillDir, 'TaskDecompositionSkill', 'SKILL.md');
+            const skillPath = path.join(skillDir, 'task-decomposition', 'SKILL.md');
             skillInstructions = fs.readFileSync(skillPath, 'utf-8');
         } catch {
             skillInstructions = DEFAULT_DECOMPOSITION_PROMPT;

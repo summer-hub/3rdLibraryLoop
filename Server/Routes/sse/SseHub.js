@@ -161,13 +161,6 @@ class SseHub {
                 sent++;
             }
         }
-
-        logger.info('SSE 事件已推送', {
-            channel,
-            eventType,
-            eventId,
-            subscribers: sent
-        });
     }
 
     /**

@@ -21,8 +21,8 @@
   "scripts": {
     "enabled": true,
     "hotReload": true,
-    "timeout": 30000,
-    "allowedExtensions": [".sh", ".py", ".js"]
+    "timeout": 120000,
+    "allowedExtensions": [".sh", ".py", ".js", ".cjs"]
   },
   "knowledgeBase": {
     "enabled": true,

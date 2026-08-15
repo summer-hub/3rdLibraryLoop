@@ -26,6 +26,7 @@ const INTERPRETERS = {
     '.sh': 'bash',
     '.py': 'python3',
     '.js': 'node',
+    '.cjs': 'node',
     '.ts': 'npx',
     '.mjs': 'node'
 };

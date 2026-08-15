@@ -3,7 +3,7 @@
  *
  * 职责：
  *   1. 接收知识条目信息，构建导入 prompt
- *   2. 通过 CLIController 创建 opencode Session 执行 KnowledgeImportSkill
+ *   2. 通过 CLIController 创建 opencode Session 执行 knowledge-import SKILL
  *   3. 轮询等待执行完成
  *   4. 读取结果文件，判断导入成功/失败
  *   5. 维护异步导入任务状态
@@ -85,7 +85,7 @@ class KnowledgeImporter {
         this._skillDirectory = deps.skillDirectory || null;
         this._knowledgeManager = deps.knowledgeManager || null;
 
-        /** KnowledgeImportSkill 目录路径（延迟计算） */
+        /** knowledge-import SKILL 目录路径（延迟计算） */
         this._skillDir = null;
 
         /** 正在执行的导入任务 Map（key = importId） */
@@ -120,7 +120,7 @@ class KnowledgeImporter {
     }
 
     /**
-     * 获取 KnowledgeImportSkill 目录路径。
+     * 获取 knowledge-import SKILL 目录路径。
      * @returns {string}
      */
     getSkillDir() {
@@ -131,7 +131,7 @@ class KnowledgeImporter {
             // Server/Knowledge/ → Server/Skills
             this._skillDirectory = path.resolve(here, '..', 'Skills');
         }
-        this._skillDir = path.resolve(this._skillDirectory, 'KnowledgeImportSkill');
+        this._skillDir = path.resolve(this._skillDirectory, 'knowledge-import');
         return this._skillDir;
     }
 
@@ -377,7 +377,7 @@ class KnowledgeImporter {
      * 构建发送给 opencode 的 prompt。
      *
      * @param {object} knowledgeInfo  - 知识条目信息
-     * @param {string} skillDir       - KnowledgeImportSkill 目录路径
+     * @param {string} skillDir       - knowledge-import SKILL 目录路径
      * @param {string} workDir        - 工作目录
      * @param {string} resultFilePath - 结果文件输出路径
      * @param {string} [userPrompt]   - 用户额外输入的提示文字（可选）

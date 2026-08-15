@@ -15,6 +15,15 @@
  * 脚本头部注释约定（与 MCP/src/registry/ScriptRegistry.js 一致）：
  *   # @tool <名称>              — 必填，工具名（中文可用）
  *   # @description <描述>        — 工具描述
+ *   # @hidden                   — 可选，标记此脚本不展示在引导 prompt 中
+ *
+ * config.json 控制项（可选，位于 scripts 节点下）：
+ *   "guideExclude": ["tool_name", ...]  — 黑名单：列出的工具不展示
+ *   "guideInclude": ["tool_name", ...]  — 白名单：仅展示列出的工具（优先于 guideExclude）
+ *
+ * 对于下游 Server，可在 server 配置中加 "guideHidden": true 隐藏该 Server。
+ *
+ * 优先级：脚本 @hidden > guideInclude 白名单 > guideExclude 黑名单
  *
  * @example
  * import { McpToolGuide } from '../library/McpToolGuide.js';
@@ -80,7 +89,14 @@ class McpToolGuide {
     }
 
     /**
-     * 收集所有可用工具信息（下游 Server + 脚本）。
+     * 收集所有可用工具信息（下游 Server + 脚本），并应用可见性过滤。
+     *
+     * 过滤优先级：
+     *   1. 脚本 @hidden 注释 → 永久隐藏
+     *   2. config scripts.guideInclude 白名单 → 仅展示列出的（Server + 脚本统一）
+     *   3. config scripts.guideExclude 黑名单 → 排除列出的
+     *   4. Server 配置 guideHidden: true → 隐藏该 Server
+     *
      * @returns {Array<{label: string, hint: string}>}
      * @private
      */
@@ -88,22 +104,40 @@ class McpToolGuide {
         const config = this._readConfig();
         if (!config) return [];
 
+        const scriptsConfig = config.scripts || {};
+        const guideInclude = scriptsConfig.guideInclude; // string[] | undefined
+        const guideExclude = scriptsConfig.guideExclude || []; // string[]
+        const excludeSet = new Set(guideExclude);
+
         const tools = [];
 
         // ── 1. 下游 MCP Server ──
         const servers = config.downstreamServers || {};
         for (const [name, conf] of Object.entries(servers)) {
-            if (conf && conf.enabled !== false) {
-                tools.push({
-                    label: name,
-                    hint: this._serverHint(name, conf)
-                });
-            }
+            if (!conf || conf.enabled === false) continue;
+            // Server 级隐藏
+            if (conf.guideHidden === true) continue;
+            // 白名单模式：不在白名单中的隐藏
+            if (guideInclude && !guideInclude.includes(name)) continue;
+            // 黑名单
+            if (excludeSet.has(name)) continue;
+
+            tools.push({
+                label: name,
+                hint: this._serverHint(name, conf)
+            });
         }
 
         // ── 2. 本地脚本工具 ──
         const scripts = this._scanScripts(config);
         for (const s of scripts) {
+            // 脚本 @hidden 注释
+            if (s.hidden) continue;
+            // 白名单模式
+            if (guideInclude && !guideInclude.includes(s.toolName)) continue;
+            // 黑名单
+            if (excludeSet.has(s.toolName)) continue;
+
             tools.push({
                 label: s.toolName,
                 hint: s.description
@@ -183,11 +217,11 @@ class McpToolGuide {
 
     /**
      * 解析单个脚本的元数据。
-     * 复用 ScriptRegistry._parseScriptMeta 的正则逻辑。
+     * 复用 ScriptRegistry._parseScriptMeta 的正则逻辑，额外解析 @hidden 标记。
      *
      * @param {string} filePath - 脚本文件绝对路径
      * @param {string[]} allowed - 允许的扩展名
-     * @returns {{toolName: string, description: string}|null} 无 @tool 注释返回 null
+     * @returns {{toolName: string, description: string, hidden: boolean}|null} 无 @tool 注释返回 null
      * @private
      */
     _parseScriptMeta(filePath, allowed) {
@@ -213,6 +247,7 @@ class McpToolGuide {
 
         let rawName = '';
         let description = '';
+        let hidden = false;
 
         for (const line of lines) {
             const toolMatch = line.match(/@tool\s+(.+)/);
@@ -225,13 +260,18 @@ class McpToolGuide {
                 description = descMatch[1].trim();
                 continue;
             }
+            if (/@hidden\b/.test(line)) {
+                hidden = true;
+                continue;
+            }
         }
 
         if (!rawName) return null;
 
         return {
             toolName: `script_${rawName}`,
-            description: description || `Script: ${rawName}`
+            description: description || `Script: ${rawName}`,
+            hidden
         };
     }
 }

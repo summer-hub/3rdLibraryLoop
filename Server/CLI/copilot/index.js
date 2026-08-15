@@ -71,7 +71,6 @@ class CopilotCLI {
         this._log('info', 'checkHealth: 检测 Copilot SDK 连接');
         try {
             const client = await this._getClient();
-            this._log('info', `checkHealth: 连接正常，state=${client.state}`);
             return { status: 'ok', message: 'Copilot SDK is connected', target: 'copilot-cli' };
         } catch (error) {
             this._log('warn', `checkHealth: 连接失败 — ${error.message}`);
@@ -306,8 +305,6 @@ class CopilotCLI {
      * @param {object} [options] - 可选参数（copilot 适配器暂不支持 cwd，忽略此参数）
      */
     async startSession(title, prompt, options = {}) {
-        this._log('info', `startSession title="${title}"`);
-        this._log('info', `  prompt 长度: ${prompt ? prompt.length : 0} 字符`);
 
         try {
             const client = await this._getClient();
