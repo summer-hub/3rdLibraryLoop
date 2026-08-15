@@ -58,6 +58,10 @@
 | `catch(e)` 中直接 `throw e` | `arkts-limited-throw` | **禁止重新抛出任意类型异常**。改用 try-catch + 布尔标记模式，catch 中仅设标记，不 throw |
 | `null as SomeType` 强转 | 类型不兼容错误 | `{} as common.Context`（用于不需要实际功能的参数），或 null 检查 + `throw new Error()` |
 | `undefined as SomeType` | 类型不兼容错误 | null 检查 + 安全默认值或 `throw new Error()` |
+| catch 子句类型注解 | `arkts-no-types-in-catch` | `catch (e)` 不带类型注解，e 默认为 Object 类型（非 any），不违反 `arkts-no-any-unknown` |
+| `as Object` 后访问属性 | `Property 'X' does not exist on type 'Object'` | 保留原始类型不做 `as Object` 转型；仅在不需要属性访问时用 `as Object`（如验证非 null） |
+| 枚举成员直接比较 | `types 'A' and 'B' have no overlap` | `(Enum.A as number) !== (Enum.B as number)` 转型后比较 |
+| 无类型对象字面量 | `arkts-no-untyped-obj-literals` | `{}` 或 `{ key: value }` 必须对应命名 interface/class；定义 `class MockTarget { prop: string = ''; }` 代替 `let x: Object = {}` |
 
 ---
 
@@ -447,14 +451,28 @@ export default function testsuite() {
 - ✅ 语义联想禁止：禁止从报告描述（如"0-255 循环"、"递增序列"）直接推断具体索引处的期望值，必须基于生成公式计算
 - ✅ 计算过程注释：硬编码期望值旁建议添加注释记录计算依据（如 `// 9999 % 256 = 15`）
 
+### 7.8 访问修饰符预检检查
+
+- ✅ Phase 1.5 预检已执行：`precheck-access-modifiers.cjs` 脚本已运行，`precheck-access-modifiers.json` 已生成
+- ✅ private/protected 成员排除清单已建立：所有 `private`/`protected` 属性和方法已记录
+- ✅ 桩断言已生成：对 private/protected 成员的测试用例，使用 `expect(true).assertTrue()` + 注释说明间接覆盖路径
+- ✅ 并行 Agent 预检规则已注入：每个 Agent 的 prompt 包含排除清单
+- ✅ 无 `Property 'X' is private` 编译错误残留
+
 ---
 
 ## 八、常见编译错误及修复
 
 | 错误 | 常见原因 | 修复方法 |
 |------|---------|---------|
+| private/protected 访问 | 接口规格未标注访问修饰符，测试代码直接调用 | Phase 1.5 预检排除；残留的替换为桩断言 `expect(true).assertTrue()` |
 | arkts-no-any | 使用了 any 类型 | 定义具体类型 `interface ResultType { ... }` |
 | arkts-no-any-unknown | 使用了 `unknown` 关键字或 `null as unknown as Type` 双重转换 | `unknown` 被完全禁止。改用空但合法的对象（如 `new BleDevice('', '')`）、构造最小字段对象字面量 `as Type`、或 `{} as Type`（不需实际功能的参数） |
+| arkts-no-types-in-catch | catch 子句带类型注解 `catch (e: Object)` | `catch (e)` 不带类型注解，e 默认为 Object 类型 |
+| Property does not exist on type 'Object' | `as Object` 转型后访问属性 | 保留原始类型不做 `as Object` 转型；或用 `as SpecificType` |
+| types have no overlap | 枚举成员直接 `===` 比较 | `(Enum.A as number) !== (Enum.B as number)` |
+| arkts-no-untyped-obj-literals | `{}` 赋值给 Object 类型变量 | 定义命名 class/interface，用 `new MockClass()` 代替 `{}` |
+| Type 'null' is not assignable to type 'Object' | `null as Object` 转型 | 直接用 `null`，不做 `as Object` 转型 |
 | arkts-no-esobj | 使用了 Object 类型 | 定义命名 interface |
 | arkts-limited-throw | `throw e` 其中 e 非Error类型 | 仅允许 `throw new Error(msg)`，改用 try-catch + 布尔标记 |
 | 类型不兼容 | `null as SomeType` 强转 | 使用 `{} as common.Context` 或 null 检查 + throw new Error |
