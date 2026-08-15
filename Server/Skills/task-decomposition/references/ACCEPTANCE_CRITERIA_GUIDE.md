@@ -1,6 +1,6 @@
 # 验收标准编写指南
 
-> 如何生成高质量、可验证的步骤级验收标准。步骤级验收标准是 task-decomposition SKILL 的核心产出之一，直接影响 AcceptanceCheckSkill 的准出评估准确性。
+> 如何生成高质量、可验证的步骤级验收标准。步骤级验收标准是 task-decomposition SKILL 的核心产出之一，直接影响 acceptance-check SKILL 的准出评估准确性。
 
 ---
 

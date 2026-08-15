@@ -131,12 +131,12 @@ taskDef.replanInfo = {
   - 循环检测 = `_execPathTrace` Set，重复 stepId → `markBlocked`
   - 全局上限 = `GLOBAL_EXEC_LIMIT = 200`
 
-### 4.5 下游消费 — TestCheck / AcceptanceCheckSkill
+### 4.5 下游消费 — TestCheck / acceptance-check
 
 ```
 LoopEngine._runTestCheck()
   └─ TestCheck.runCheck({ acceptanceCriteria: 任务级AC, orchestratorResult, ... })
-       └─ SkillSelector 匹配 AcceptanceCheckSkill
+       └─ SkillSelector 匹配 acceptance-check
             └─ 读取 stepId{N}_result_{loop}.md 产物（FlexRunner 写入）
             └─ 按 stepId 分组形成产物清单
             └─ LLM 评估每条任务级 AC → criteriaResults[{id, satisfied, evidence}]
@@ -145,7 +145,7 @@ LoopEngine._runTestCheck()
 **步骤级 AC 的实际消费路径**：
 - 步骤级 `acceptanceCriteria` 不被 Orchestrator 程序化读取
 - 步骤执行时 FlexRunner 生成 `stepId{N}_result_{loop}.md` 产物文件
-- AcceptanceCheckSkill 收集这些产物后，参考步骤级 AC 做准出评估
+- acceptance-check SKILL 收集这些产物后，参考步骤级 AC 做准出评估
 - `taskACIds` 追溯字段目前仅作为 SKILL 指令中的文档性约束，无代码程序化读取
 
 ---
@@ -155,7 +155,7 @@ LoopEngine._runTestCheck()
 | 层级 | 来源 | ID 格式 | 消费者 |
 |------|------|---------|--------|
 | **任务级** `acceptanceCriteria[]` | task-analysis SKILL 输出 → Brain 写入 taskDef | `ac1, ac2...` | TestCheck（准出审核） |
-| **步骤级** `acceptanceCriteria[]` | task-decomposition SKILL 每步生成 | `ac{stepId}_{n}` 如 `ac1_1` | AcceptanceCheckSkill（产物收集时按 stepId 分组） |
+| **步骤级** `acceptanceCriteria[]` | task-decomposition SKILL 每步生成 | `ac{stepId}_{n}` 如 `ac1_1` | acceptance-check（产物收集时按 stepId 分组） |
 
 设计意图：合并所有步骤 AC 的 `taskACIds` 后应覆盖所有任务级 AC ID。
 

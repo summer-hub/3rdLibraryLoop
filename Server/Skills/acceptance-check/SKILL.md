@@ -8,7 +8,7 @@ metadata:
   version: "1.0"
 ---
 
-# AcceptanceCheckSkill — 任务准出审核
+# acceptance-check SKILL — 任务准出审核
 
 ## 任务参数
 

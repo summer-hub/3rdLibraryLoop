@@ -121,7 +121,7 @@ taskDef.replanInfo = {
 
 ### 4.5 准出审核 — TestCheck
 
-`taskDef.acceptanceCriteria` 最终传给 `AcceptanceCheckSkill` / `TestCheck`，用于每轮执行后的准出审核。审核结果决定是否进入下一轮重规划。
+`taskDef.acceptanceCriteria` 最终传给 `acceptance-check` SKILL / `TestCheck`，用于每轮执行后的准出审核。审核结果决定是否进入下一轮重规划。
 
 ---
 

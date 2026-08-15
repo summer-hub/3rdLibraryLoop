@@ -3,7 +3,7 @@
  *
  * 设计原则：
  *   - ACTION_WORDS 只保留真正的"动作/意图"词（动词类），决定匹配哪个动作型 SKILL
- *     （如"准出审核/验收测试"→ AcceptanceCheckSkill）。
+ *     （如"准出审核/验收测试"→ acceptance-check SKILL）。
  *   - DOMAIN_WORDS 是"领域/产出物特征词"（语义上不是动作，如"接口规格/覆盖率/XTS"），
  *     由领域通道用于召回时匹配 SKILL 的 useWhen / searchableText，不参与动作加权。
  *   - 历史教训：曾把"接口规格/接口签名/方法签名/方法级接口/导出链"等语义非动作词

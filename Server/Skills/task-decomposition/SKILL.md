@@ -11,7 +11,7 @@ metadata:
   invoked-by: DecompositionStrategies._decomposeViaCLI / _decomposeWithContextViaCLI
   consumed-by: DecompositionStrategies.normalizeSteps → Brain.taskDef → Orchestrator.loadTask
   upstream: task-analysis（提供 intent/domain/techStack/estimatedSteps/acceptanceCriteria）
-  downstream: Orchestrator（调度步骤图）、TestCheck（消费任务级验收标准）、AcceptanceCheckSkill（消费步骤级产物）
+  downstream: Orchestrator（调度步骤图）、TestCheck（消费任务级验收标准）、acceptance-check（消费步骤级产物）
 ---
 
 # 任务拆解技能
@@ -430,6 +430,6 @@ node scripts/validate-param-consistency.cjs <resultFile>
 4. **步骤级 AC 的 taskACIds 要覆盖任务级 AC** — 合并所有步骤的 taskACIds 应覆盖所有任务级标准 ID
 5. **重规划时保持目标一致** — 调整的是步骤设计与验收标准，不是任务目标
 6. **输出纯 JSON** — 下游有容错机制但应输出纯 JSON，不依赖容错
-7. **步骤级 AC 实际由 AcceptanceCheckSkill 消费** — Orchestrator 仅消费图字段调度，步骤级 AC 通过产物文件传递给 AcceptanceCheckSkill 评估
+7. **步骤级 AC 实际由 acceptance-check SKILL 消费** — Orchestrator 仅消费图字段调度，步骤级 AC 通过产物文件传递给 acceptance-check SKILL 评估
 8. **关键参数逐字保真** — 版本号、分支名、仓库 URL、库名等关键参数必须从任务描述中原样提取到 `keyParameters`，步骤描述中引用时必须与 `keyParameters` 一致。LLM 生成时易将版本号臆造为相似但错误的值（如 `0.82`→`0.72`），由 `validate-param-consistency.cjs` 强制拦截
 9. **RN 三方库升级步骤描述追加推荐 SKILL** — 当任务命中「RN 三方库框架升级适配」领域模板时，每个步骤的 `taskDescription` 末尾追加`推荐使用 {SKILL目录名} SKILL 执行。`，帮助 SkillSelector 更精准匹配执行 SKILL（详见 Phase 2.4）
