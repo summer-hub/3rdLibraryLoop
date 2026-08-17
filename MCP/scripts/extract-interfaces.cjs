@@ -238,11 +238,37 @@ function extractLibraryName(repoDir) {
 // ── 源文件收集 ──────────────────────────────────────────────
 
 /**
- * 收集库中所有 .d.ts 和 .ets 源文件路径
+ * 收集库中所有 .d.ts / .ets / .ts 源文件路径
+ *
+ * 模块根目录定位策略（与 locateEntryFile 保持一致）:
+ *   1. {libRoot}/library              ← 标准结构（lottie_turbo 等），向后兼容
+ *   2. entryFile 向上最近的含 oh-package.json5 / oh-package.json 的目录
+ *      ← 非标准结构（ohos_mqtt 用 ohos_Mqtt/ 作模块根）
+ *   3. entryFile 所在目录              ← 兜底
+ *
+ * @param {string} libRoot   库源码根目录
+ * @param {string} entryFile 入口 Index.ets 路径（用于定位非标准结构的模块根）
  */
-function collectSourceFiles(libRoot) {
+function collectSourceFiles(libRoot, entryFile) {
   const sources = [];
-  const libraryDir = path.join(libRoot, 'library');
+
+  // 定位模块根目录
+  let moduleRoot = path.join(libRoot, 'library');
+  if (!fs.existsSync(moduleRoot) && entryFile) {
+    let dir = path.dirname(entryFile);
+    for (let i = 0; i < 6 && dir && dir.startsWith(libRoot); i++) {
+      if (fs.existsSync(path.join(dir, 'oh-package.json5')) ||
+          fs.existsSync(path.join(dir, 'oh-package.json'))) {
+        moduleRoot = dir;
+        break;
+      }
+      const parent = path.dirname(dir);
+      if (parent === dir) break;
+      dir = parent;
+    }
+    // 兜底：entryFile 所在目录
+    if (!fs.existsSync(moduleRoot)) moduleRoot = path.dirname(entryFile);
+  }
 
   function walk(dir) {
     if (!fs.existsSync(dir)) return;
@@ -250,7 +276,7 @@ function collectSourceFiles(libRoot) {
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        if (entry.name === 'node_modules' || entry.name === 'oh_modules') continue;
+        if (entry.name === 'node_modules' || entry.name === 'oh_modules' || entry.name === 'build') continue;
         walk(fullPath);
       } else if (entry.isFile()) {
         if (entry.name.endsWith('.d.ts') || entry.name.endsWith('.ets') || entry.name.endsWith('.ts')) {
@@ -260,7 +286,7 @@ function collectSourceFiles(libRoot) {
     }
   }
 
-  walk(libraryDir);
+  walk(moduleRoot);
   return sources;
 }
 
@@ -897,14 +923,23 @@ function detectNativeSo(repoDir, entryFile) {
  */
 function parseLibraryWithTS(repoDir, entryFile, nativeSoInfo) {
   const libRoot = repoDir;
-  const sourceFiles = collectSourceFiles(repoDir);
+  const sourceFiles = collectSourceFiles(repoDir, entryFile);
 
-  // 收集 Native .d.ts 文件（可能在 library/ 目录外）
+  // 大小写归一化：macOS/Windows 文件系统大小写不敏感，locateEntryFile 可能返回
+  // Index.ets 而磁盘实际文件名为 index.ets，导致 entryFile 不在 sourceFiles 中。
+  // 用 sourceFiles 中的实际路径替换 entryFile（大小写不敏感匹配）。
+  if (!sourceFiles.includes(entryFile)) {
+    const lower = entryFile.toLowerCase();
+    const real = sourceFiles.find((f) => f.toLowerCase() === lower);
+    if (real) entryFile = real;
+  }
+
+  // 收集 Native .d.ts 文件（可能在模块根目录外）
   if (nativeSoInfo.nativeDPath && !sourceFiles.includes(nativeSoInfo.nativeDPath)) {
     sourceFiles.push(nativeSoInfo.nativeDPath);
   }
   if (sourceFiles.length === 0) {
-    console.error(`错误: 在 ${path.join(repoDir, 'library')} 下未找到源文件`);
+    console.error(`错误: 未找到源文件（入口: ${entryFile}）`);
     process.exit(1);
   }
 
