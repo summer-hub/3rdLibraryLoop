@@ -12,11 +12,11 @@
 
 | # | 检查项 | 命令 | 通过标准 |
 |---|--------|------|---------|
-| 1.1.1 | demo 文件全部迁移 | `diff <(cd <demoPath> && find . -type f -not -path './node_modules/*' -not -path './build/*' | sort) <(cd <targetExampleSrc> && find . -type f -not -path './node_modules/*' -not -path './build/*' | sort)` | 无差异（排除项除外） |
+| 1.1.1 | demo 新增文件全部迁移 | `diff <(cd <demoPath> && find . -type f -not -path './node_modules/*' -not -path './build/*' | sort) <(cd <targetExampleSrc> && find . -type f -not -path './node_modules/*' -not -path './build/*' | sort)` | **本次新增文件**全部到位（冲突文件保留目标版本，不计入缺失） |
 | 1.1.2 | 入口文件存在 | `find <targetExampleSrc> -name "App.tsx" -o -name "index.tsx"` | 两个文件都存在（可在嵌套子目录中） |
 | 1.1.3 | testerino 注册存在 | `find <targetExampleSrc> -path "*/Test/index.tsx" -o -path "*/tests/index.tsx"` | 退出码 0（路径可为嵌套） |
 | 1.1.4 | 无排除项残留 | `ls <targetExampleSrc>/node_modules 2>/dev/null` | 无输出（应被排除） |
-| 1.1.5 | index.tsx 引用 demo 入口 | `grep -r "testCase/App\|demo/App\|./App" <targetExampleSrc>/index.tsx` | index.tsx 已接入 demo 入口 |
+| 1.1.5 | index.tsx 引用 demo 入口 | `grep -r "testCase/App\|demo/App\|./App" <targetExampleSrc>/index.tsx` | index.tsx 已接入 demo 入口（若为已有文件未接入，标注待人工确认） |
 
 ### 1.2 路径正确性
 
@@ -29,9 +29,9 @@
 
 | # | 检查项 | 命令 | 通过标准 |
 |---|--------|------|---------|
-| 1.3.1 | 目标库引用方式一致 | `grep -rn "import.*from.*'<alias>\|<packageName>'" <targetExampleSrc>/` | 引用方式统一（全部用 alias 或全部用 packageName） |
+| 1.3.1 | 目标库引用方式一致 | `grep -rn "import.*from.*'<alias>\|<packageName>'" <targetExampleSrc>/` | 引用方式统一（全部用 alias 或全部用 packageName），仅检查本次新增文件 |
 | 1.3.2 | displayName 存在 | `grep -rn "displayName" <targetExampleSrc>/` | 存在且与 demo 名称一致 |
-| 1.3.3 | 无硬编码其他库标题 | `grep -rn "RN.*Tester" <targetExampleSrc>/` | 无遗留的其他库名称（Phase 6.5 已修正） |
+| 1.3.3 | 无硬编码其他库标题 | `grep -rn "RN.*Tester" <targetExampleSrc>/` | 本次新增文件无遗留的其他库名称（Phase 6.5 已修正）；已有文件中的硬编码标题标注为待人工处理 |
 
 ### 1.4 依赖完整性
 
@@ -76,12 +76,17 @@
 **场景**：迁移时发现 `targetExampleSrc` 已有同名文件。
 
 **处理**：
-- **默认（无 --clean）**：列出冲突文件清单，rsync 覆盖（demo 文件优先），在报告中标注冲突项
+- **默认（无 --clean）**：**增量添加，不覆盖**。列出冲突文件清单，**保留目标版本**，demo 版本不写入（`rsync --ignore-existing`），在报告中标注冲突项供人工确认是否合并
 - **--clean 启用**：直接清空目标，但**必须**用户明确同意
 
 **通用组件保留**：
 - `components/Navigation.tsx` 等 example 模板通用组件，若 demo 仍引用，**保留**
 - 脚本默认 `--clean` 时不清除 `components/Navigation.tsx`，可通过 `--clean-all` 强制全清
+
+**冲突文件后续处理**：
+- Agent 在报告中列出冲突文件清单
+- 询问用户是否需要手动合并（demo 版本 vs 目标版本的差异）
+- 若用户不需要合并，保持目标版本即可
 
 ### 2.4 demo 引用目标库内部路径
 
@@ -153,11 +158,12 @@
 
 | 失败项 | 处理 |
 |--------|------|
-| 文件完整性失败 | 重新执行 `port-demo.sh`，检查排除项配置 |
-| 路径错误 | Agent 用 `Edit` 工具逐个修正 |
+| 文件完整性失败 | 重新执行 `port-demo.sh`，检查排除项配置（冲突文件保留目标版本属正常，不计入失败） |
+| 路径错误 | Agent 用 `Edit` 工具逐个修正（仅本次新增文件） |
 | 引用不一致 | 在报告中标注，由 `rn-lib-add-example` 配置 alias 时统一 |
 | 依赖未列出 | 重新运行 `analyze-demo-deps.cjs`，检查 demo 新增的 import |
 | displayName 冲突 | 询问用户保留哪个 |
+| 冲突文件需合并 | 列出 demo 版本与目标版本差异，由用户决策是否手动合并 |
 
 ---
 
@@ -169,10 +175,11 @@
 |------|------|
 | demo 来源路径 | rnt 工程路径 + demo 子目录 |
 | 命中候选名 | `searchNames` 中实际匹配到的名称 |
-| 迁移文件清单 | 相对路径列表 + 文件总数 |
+| 迁移文件清单 | 相对路径列表 + 文件总数（区分「本次新增」与「冲突保留」） |
+| 冲突文件清单 | demo 与目标同名文件列表，标注「目标版本已保留，demo 版本未写入」 |
 | 依赖增量清单 | 分类列表（目标库 / RNOH / RN 通用 / 待确认） |
-| 路径修正记录 | 修正的文件 + 改动内容 |
+| 路径修正记录 | 修正的文件 + 改动内容（仅本次新增文件） |
 | 入口文件信息 | App.tsx / index.tsx 路径 + displayName |
-| 待人工确认项 | 业务无关依赖、冲突、原生代码、特殊引用 |
+| 待人工确认项 | 业务无关依赖、冲突文件合并、入口文件接入、原生代码、特殊引用 |
 | 验证检查结果 | 1.1-1.4 各项通过/失败状态 |
 | 后续步骤建议 | 引导执行 `rn-lib-add-example` 完成壳层适配 |

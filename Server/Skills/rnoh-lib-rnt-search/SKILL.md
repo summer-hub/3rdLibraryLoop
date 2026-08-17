@@ -1,7 +1,7 @@
 ---
 name: rnoh-lib-rnt-search
 description: >-
-  从 rnt（React Native Tester）工程中定位 RN 鸿蒙三方库的 demo 并迁移到指定 RN 目标工程的 example/src 下。读取目标库 package.json 元数据生成候选名，扫描 {rnt-root}/*/rn-tester/examples/ 匹配 demo 目录，分析 demo 结构与外部依赖，复制 demo 文件并修正 import 路径与依赖。当用户需要从 rnt 工程查找并迁移 demo 到 RN 鸿蒙三方库 example 工程、单独执行 demo 查找/迁移步骤、替换 example/src 内容、分析 rnt demo 依赖时使用。适用于 rnt demo 定位、demo 迁移、demo 依赖分析、example 内容替换等场景。
+  从 rnt（React Native Tester）工程中定位 RN 鸿蒙三方库的 demo 并增量迁移到指定 RN 目标工程的 example/src 下。读取目标库 package.json 元数据生成候选名，扫描 {rnt-root}/*/rn-tester/examples/ 匹配 demo 目录，分析 demo 结构与外部依赖，复制 demo 文件（增量添加，不覆盖目标已有文件）并修正 import 路径与依赖。当用户需要从 rnt 工程查找并迁移 demo 到 RN 鸿蒙三方库 example 工程、单独执行 demo 查找/迁移步骤、向 example/src 增量添加 demo、分析 rnt demo 依赖时使用。适用于 rnt demo 定位、demo 迁移、demo 依赖分析、example 内容增量添加等场景。
 license: Apache-2.0
 compatibility: 需要 bash、node、npm；目标 RN 工程需已有 example/ 目录（缺失时引导使用 rn-lib-add-example 创建）
 allowed-tools: Bash Read Grep Glob Edit Write
@@ -20,7 +20,8 @@ metadata:
 > ⚠️ **核心原则**：
 > 1. 通过 RNOH 框架版本（git 分支或元数据）自动对齐库与 rnt，版本一致时自动选择 demo 并直接迁移，无需人工确认。
 > 2. 本 SKILL 只负责「查找 + 迁移 demo 内容」，不创建/重建 example 工程模板、不做 Harmony 壳层（RNPackagesFactory/CMakeLists/build-profile 等）适配——这些由 `rn-lib-add-example` 完成。
-> 3. 迁移完成后必须输出迁移报告，列出 demo 来源、文件清单、依赖增量、待人工确认项。
+> 3. **增量添加，不覆盖**：迁移时目标 `example/src/` 已有的文件**保留不动**，仅添加 demo 中目标不存在的文件。冲突文件保留目标版本，在报告中列出供人工确认。
+> 4. 迁移完成后必须输出迁移报告，列出 demo 来源、文件清单、依赖增量、冲突文件（保留目标版本）、待人工确认项。
 
 ---
 
@@ -31,7 +32,7 @@ metadata:
 ## 何时使用
 
 - 用户要求从 rnt 工程查找并迁移某个 RN 三方库的 demo。
-- 用户要求替换已有 RN 工程的 `example/src/` 内容。
+- 用户要求向已有 RN 工程的 `example/src/` **增量添加** demo 内容（不覆盖已有文件）。
 - 用户在 `rn-lib-add-example` 流程中需要单独执行 Step 2（demo 查找与迁移）。
 - 用户想分析 rnt demo 的外部依赖，决定 example 需要补哪些包。
 - 用户拿到一个 rnt 工程根路径，想自动定位某个库的 demo 子目录。
@@ -44,7 +45,7 @@ metadata:
 | `rntPath` | string | ✅* | rnt 工程根目录（含多个子工程，每个有 `rn-tester/examples/`） |
 | `demoPath` | string | ✅* | demo 目录绝对路径（用户已明确时直接传入，跳过扫描） |
 | `targetExampleSrc` | string | ❌ | 目标 RN 工程 `example/src/` 路径；缺省时按 `libPath/example/src` 推断 |
-| `cleanTarget` | boolean | ❌ | 迁移前是否清空目标 `example/src/`；默认 `false`（增量合并） |
+| `cleanTarget` | boolean | ❌ | 迁移前是否清空目标 `example/src/`；默认 `false`（**增量添加，不覆盖已有文件**） |
 | `rnohVersion` | string | ❌ | 目标 RNOH 框架版本号（如 "0.82"）。未提供时自动从 rnt 分支检测。用于版本对齐与分支切换。 |
 
 > `rntPath` 与 `demoPath` 二选一：用户已明确 demo 路径时传 `demoPath` 跳过扫描；否则必须传 `rntPath` 由脚本扫描定位。
@@ -273,8 +274,9 @@ bash scripts/port-demo.sh \
 1. 校验 `demoPath` 与 `targetExampleSrc` 存在
 2. `--clean` 时清空目标 `example/src/`（**默认不清空**，避免误删用户已有内容；执行前必须由用户确认）
 3. 默认排除 `node_modules/`、`build/`、`__tests__/`、`.cxx/`、`oh_modules/`
-4. 使用 `rsync -a` 保留文件元数据，复制 demo 全部内容到 `example/src/`
-5. 输出迁移文件清单（相对路径）
+4. 使用 `rsync -a --ignore-existing` 保留文件元数据，**仅添加目标不存在的文件**，已有文件保留不动
+5. 冲突文件（demo 与目标同名）保留目标版本，在输出中列出供 Agent 写入报告
+6. 输出迁移文件清单（相对路径）+ 冲突文件清单
 
 **迁移后目录约定**（典型 demo 结构）：
 
@@ -289,13 +291,15 @@ example/src/
 └── components/          # demo 复用组件
 ```
 
-> 迁移细节与边界情况（已有文件冲突、保留通用组件 `Navigation.tsx` 等）参见 [references/DEMO_PORTING_GUIDE.md](references/DEMO_PORTING_GUIDE.md)。
+> 迁移细节与边界情况（已有文件冲突处理、保留通用组件 `Navigation.tsx` 等）参见 [references/DEMO_PORTING_GUIDE.md](references/DEMO_PORTING_GUIDE.md)。**默认增量添加，冲突文件保留目标版本。**
 
 ---
 
 ## Phase 6：修正 import 路径与 displayName
 
-迁移后**必须**检查并修正以下内容（使用 `Edit` 工具逐文件处理）：
+迁移后**必须**检查并修正以下内容（使用 `Edit` 工具逐文件处理）。
+
+> ⚠️ **仅修正本次新增的文件**：如果某文件是目标已有的（冲突保留项），**不修改它**，仅在报告中标注需人工处理。
 
 ### 6.1 相对路径修正
 
@@ -322,12 +326,13 @@ example/src/
 
 ### 6.4 入口文件接入
 
-迁移后检查 demo 入口文件（如 `testCase/App.tsx`）是否已被 `example/src/index.tsx` 引用。若未接入，更新 `index.tsx` 使迁移的 demo 生效。
+迁移后检查 demo 入口文件（如 `testCase/App.tsx`）是否已被 `example/src/index.tsx` 引用。若未接入，**仅在 `index.tsx` 是本次新增文件时**才更新它；若 `index.tsx` 是目标已有文件，不覆盖，在报告中标注需人工接入。
 
 | 场景 | 处理 |
 |------|------|
 | `index.tsx` 已引用 demo 入口 | ✅ 无需处理 |
-| `index.tsx` 是独立内容，未引用 demo 入口 | 更新 `index.tsx`，re-export demo 入口的默认导出和元数据 |
+| `index.tsx` 是本次新增文件，未引用 demo 入口 | 更新 `index.tsx`，re-export demo 入口的默认导出和元数据 |
+| `index.tsx` 是目标已有文件，未引用 demo 入口 | ❌ 不覆盖；报告中标注「入口未接入，需人工在已有 index.tsx 中添加 re-export」 |
 | demo 入口即为 `index.tsx` | ✅ 无需处理 |
 
 **示例**（demo 入口在 `testCase/App.tsx`，`index.tsx` 原有独立内容）：
@@ -367,7 +372,7 @@ rnt demo 中的 `Navigation.tsx`（或类似共享组件）常包含**其他库�
 |------|-----|
 | 匹配模式 | `RN\s+\w+(?:\s+\w+)*\s+(?:Capi\s+)?Tester` |
 | 替换值 | `RN <Alias> Tester`（Alias 从 `libMeta.alias` 取，首字母大写） |
-| 替换范围 | 仅替换 `hardcodedTitles` 中列出的文件 |
+| 替换范围 | 仅替换 `hardcodedTitles` 中列出的**本次新增**文件；目标已有文件不修改，在报告中标注 |
 
 **示例**：
 
@@ -379,7 +384,7 @@ rnt demo 中的 `Navigation.tsx`（或类似共享组件）常包含**其他库�
 <Text>RN Pdf Tester</Text>
 ```
 
-**执行**：Agent 使用 `Edit` 工具，逐个替换 `hardcodedTitles` 中列出的文件里的硬编码文本。
+**执行**：Agent 使用 `Edit` 工具，逐个替换 `hardcodedTitles` 中列出的**本次新增**文件里的硬编码文本。目标已有文件中的硬编码标题不修改，在报告中标注「需人工修正」。
 
 > 未修正的硬编码标题会导致 demo 界面显示错误的库名，属于必修正项。
 
@@ -400,11 +405,12 @@ rnt demo 中的 `Navigation.tsx`（或类似共享组件）常包含**其他库�
 
 1. **版本信息**：库分支、rnt 分支、RNOH 版本、example/package.json 版本一致性
 2. **demo 来源**：rnt 工程路径、demo 子目录、命中候选名
-3. **迁移文件清单**：相对路径列表 + 文件数
-4. **依赖增量**：新增依赖、版本、来源（demo import 分析）
-5. **路径修正记录**：每个修正的文件与改动（含入口接入、Navigation.tsx 标题修正）
-6. **待人工确认项**：业务无关依赖、版本不一致、入口文件覆盖等
-7. **后续步骤**：建议执行 `rn-lib-add-example` 完成 Harmony 壳层适配与依赖写入
+3. **迁移文件清单**：相对路径列表 + 文件数（区分「本次新增」与「冲突保留目标版本」）
+4. **冲突文件清单**：demo 与目标同名的文件列表，标注「目标版本已保留，demo 版本未写入」
+5. **依赖增量**：新增依赖、版本、来源（demo import 分析）
+6. **路径修正记录**：每个修正的文件与改动（仅本次新增文件；含入口接入、Navigation.tsx 标题修正）
+7. **待人工确认项**：业务无关依赖、版本不一致、冲突文件需人工合并、入口文件需人工接入等
+8. **后续步骤**：建议执行 `rn-lib-add-example` 完成 Harmony 壳层适配与依赖写入
 
 > 报告模板参见 [assets/PORT_REPORT_TEMPLATE.md](assets/PORT_REPORT_TEMPLATE.md)。
 
@@ -438,7 +444,7 @@ rnt demo 中的 `Navigation.tsx`（或类似共享组件）常包含**其他库�
 
 - **目标 example/ 不存在**：提示用户先执行 `rn-lib-add-example` 创建模板，本 SKILL 终止。
 - **rnt 工程无 `rn-tester/examples/` 子目录**：报告终止，提示用户检查 rnt 根路径。
-- **demo 与已有 example/src 内容冲突**：默认增量合并，rsync 覆盖冲突文件并在报告中标注。
+- **demo 与已有 example/src 内容冲突**：**增量添加，不覆盖**。冲突文件保留目标版本，demo 版本不写入，在报告中列出供人工确认是否合并。
 - **版本无法对齐**：库与 rnt 均无对应版本分支时报错终止，列出可用分支供用户参考。
 - **工作区有未提交修改**：切换分支前自动 `git stash`，迁移完成后 `git stash pop` 恢复。
 - **example/package.json 版本不匹配**：example 的 react-native/react-native-harmony 版本与目标 RNOH 版本不一致时，报告中标注为高优先级待确认项，不阻塞迁移。
@@ -461,7 +467,7 @@ rnt demo 中的 `Navigation.tsx`（或类似共享组件）常包含**其他库�
 | 3 | 版本无法自动对齐 | 库与 rnt 均无对应版本分支时，提示用户手动指定 |
 | 4 | 是否清空目标 example/src | `--clean` 启用时必须确认 |
 | 5 | 业务无关依赖是否写入 | 列出后请用户决策 |
-| 6 | 入口文件覆盖冲突 | demo 与已有 App.tsx/index.tsx 冲突时 |
+| 6 | 冲突文件是否需要合并 | demo 与目标同名文件保留目标版本后，询问用户是否需要手动合并 |
 
 ---
 
@@ -470,11 +476,13 @@ rnt demo 中的 `Navigation.tsx`（或类似共享组件）常包含**其他库�
 - **禁止**在版本未对齐时跳过版本检测直接迁移（必须先执行 Phase 2 确认版本一致或已切换分支）。
 - **禁止**在有未提交修改时直接 `git checkout`（必须先 `git stash`）。
 - **禁止**自动启用 `--clean` 清空目标 `example/src/`（必须用户明确同意）。
+- **禁止**覆盖目标 `example/src/` 已有文件（默认 `--ignore-existing`，冲突文件保留目标版本）。
+- **禁止**修改目标已有的文件（路径修正、入口接入、标题修正仅针对本次新增文件）。
 - **禁止**修改目标库 `src/`、`harmony/` 源码（本 SKILL 只动 `example/src/`）。
 - **禁止**自动写入 `example/package.json` 依赖（由 `rn-lib-add-example` 统一处理；本 SKILL 只产出依赖增量清单供下游使用）。
 - **禁止**跳过迁移报告生成。
 - **禁止**跳过入口文件接入检查（Phase 6.4 必须执行）。
-- **禁止**跳过 Navigation.tsx 硬编码标题修正（Phase 6.5 必须执行）。
+- **禁止**跳过 Navigation.tsx 硬编码标题修正（Phase 6.5 必须执行，仅针对本次新增文件）。
 - **禁止**自动执行 `npm install` 或 `npm run dev`（验证由下游 SKILL 完成）。
 - **禁止**迁移 demo 中的 `node_modules/`、`build/`、`__tests__/`（脚本默认排除，Agent 不得绕过）。
 
@@ -482,7 +490,8 @@ rnt demo 中的 `Navigation.tsx`（或类似共享组件）常包含**其他库�
 
 ## 输出物清单
 
-1. **迁移后的 `example/src/` 文件** — demo 源码已就位，路径已修正
-2. **迁移报告 Markdown**（`rnt-demo-port-report.md`） — 含来源、文件清单、依赖增量、待办项
+1. **迁移后的 `example/src/` 文件** — demo 源码已增量添加（不覆盖已有文件），新增文件路径已修正
+2. **迁移报告 Markdown**（`rnt-demo-port-report.md`） — 含来源、文件清单、冲突文件清单、依赖增量、待办项
 3. **依赖增量清单**（报告内章节） — 供 `rn-lib-add-example` 写入 `example/package.json` 使用
-4. **待人工确认项清单**（报告内章节） — 业务无关依赖、冲突、原生代码标注
+4. **冲突文件清单**（报告内章节） — demo 与目标同名文件列表，标注目标版本已保留，供人工确认是否合并
+5. **待人工确认项清单**（报告内章节） — 业务无关依赖、冲突文件合并、入口文件接入、原生代码标注

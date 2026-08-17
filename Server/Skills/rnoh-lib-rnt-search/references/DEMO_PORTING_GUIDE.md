@@ -85,7 +85,7 @@
 | `demoPath` 存在 | 目录可访问 | 报错终止，提示用户重新提供 |
 | `targetExampleSrc` 存在 | 目录可访问 | 引导用户先执行 `rn-lib-add-example` 创建模板 |
 | `targetExampleSrc` 可写 | 有写权限 | 报错并终止 |
-| 目标已有同名文件 | 列出冲突文件 | rsync 覆盖（demo 优先），报告中标注 |
+| 目标已有同名文件 | 列出冲突文件 | **保留目标版本**，demo 版本不写入（`--ignore-existing`），报告中标注冲突项供人工确认 |
 
 ### 3.2 --clean 选项
 
@@ -97,7 +97,7 @@ rm -rf <targetExampleSrc>/*
 # 然后复制 demo 内容
 ```
 
-> ⚠️ `--clean` **必须**由用户明确同意。Agent 不得自动启用。建议保留通用组件 `Navigation.tsx`（若 demo 仍使用）——脚本默认不清除 `components/Navigation.tsx`，可通过 `--clean-all` 强制全清。
+> ⚠️ `--clean` **必须**由用户明确同意。Agent 不得自动启用。**默认模式为增量添加（`--ignore-existing`），不覆盖已有文件**。建议保留通用组件 `Navigation.tsx`（若 demo 仍使用）——脚本默认不清除 `components/Navigation.tsx`，可通过 `--clean-all` 强制全清。
 
 ### 3.3 默认排除项
 
@@ -116,10 +116,10 @@ rm -rf <targetExampleSrc>/*
 
 ### 3.4 rsync 复制
 
-使用 `rsync -a` 保留文件元数据（mtime、权限）：
+使用 `rsync -a --ignore-existing` 保留文件元数据（mtime、权限），**仅添加目标不存在的文件，不覆盖已有文件**：
 
 ```bash
-rsync -a \
+rsync -a --ignore-existing \
   --exclude 'node_modules/' \
   --exclude 'build/' \
   --exclude '__tests__/' \
@@ -131,12 +131,16 @@ rsync -a \
 ```
 
 > 注意末尾 `/`：`<demoPath>/` 表示复制目录内容，`<demoPath>`（无 `/`）会复制目录本身。
+>
+> `--ignore-existing` 确保目标已有文件保留不动，冲突文件在脚本输出中列出供 Agent 写入报告。
 
 ---
 
 ## 4. 路径修正检查清单
 
-迁移完成后，**逐文件**检查以下内容（使用 `Edit` 工具）：
+迁移完成后，**逐文件**检查以下内容（使用 `Edit` 工具）。
+
+> ⚠️ **仅修正本次新增的文件**：如果某文件是目标已有的（冲突保留项），**不修改它**，仅在报告中标注需人工处理。
 
 ### 4.1 相对路径修正
 
@@ -173,9 +177,10 @@ import { Navigation } from '../components/Navigation';
 grep -l "testCase/App\|demo/App\|./App" example/src/index.tsx
 ```
 
-若未引用，更新 `index.tsx` 为 re-export：
+若未引用，**仅在 `index.tsx` 是本次新增文件时**才更新为 re-export；若 `index.tsx` 是目标已有文件，不覆盖，在报告中标注「入口未接入，需人工处理」：
 
 ```tsx
+// index.tsx — 更新为 re-export demo 入口（仅当 index.tsx 是本次新增文件时）
 export {
   default,
   displayName,
@@ -194,7 +199,7 @@ export {
 
 **检测**：`analyze-demo-deps.cjs` 的 `hardcodedTitles` 字段列出所有匹配 `RN <Xxx> (Capi )?Tester` 的文本。
 
-**修正**：
+**修正**（**仅针对本次新增的文件**，目标已有文件不修改，在报告中标注）：
 
 ```tsx
 // ❌ 迁移前（遗留的 Svg 库标题）
@@ -224,12 +229,12 @@ export {
 
 | 检查项 | 方法 | 通过标准 |
 |--------|------|---------|
-| 文件完整性 | 对比 `demoPath` 与 `targetExampleSrc` 文件清单 | 排除项外文件全部迁移 |
+| 文件完整性 | 对比 `demoPath` 与 `targetExampleSrc` 文件清单 | **本次新增文件**全部迁移到位（冲突文件保留目标版本，不计入缺失） |
 | 入口文件存在 | `find example/src -name "App.tsx" -o -name "index.tsx"` | 两个文件都存在（可嵌套） |
-| index.tsx 接入 | `grep "testCase/App\|demo/App\|./App" example/src/index.tsx` | index.tsx 引用 demo 入口 |
-| 相对路径有效 | grep `from '\./` 在子目录下 | 无错误的同级引用 |
-| 目标库引用一致 | grep `import.*from.*'<alias>\|<packageName>'` | 引用方式与 example 配置一致 |
-| 无硬编码标题 | grep `RN.*Tester` 在 Navigation.tsx 等 | 无其他库的遗留标题 |
+| index.tsx 接入 | `grep "testCase/App\|demo/App\|./App" example/src/index.tsx` | index.tsx 引用 demo 入口（若 index.tsx 为已有文件未接入，标注为待人工确认） |
+| 相对路径有效 | grep `from '\./` 在子目录下 | 无错误的同级引用（仅检查本次新增文件） |
+| 目标库引用一致 | grep `import.*from.*'<alias>\|<packageName>'` | 引用方式与 example 配置一致（仅检查本次新增文件） |
+| 无硬编码标题 | grep `RN.*Tester` 在 Navigation.tsx 等 | 无其他库的遗留标题（仅本次新增文件已修正；已有文件标注待人工处理） |
 | 无残留排除项 | `ls example/src/node_modules` 等 | 不存在（应被排除） |
 
 > 自检脚本由 Agent 串联执行，结果写入迁移报告。

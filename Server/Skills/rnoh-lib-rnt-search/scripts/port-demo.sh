@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # @tool port-demo
-# @description 将 rnt demo 目录内容复制到目标 RN 工程的 example/src/ 下。
+# @description 将 rnt demo 目录内容**增量添加**到目标 RN 工程的 example/src/ 下。
+#              默认不覆盖目标已有文件（--ignore-existing），冲突文件保留目标版本并记录。
 #              支持默认排除项（node_modules/build/__tests__ 等）、--clean 清空目标、
 #              --clean-all 强制全清（含通用组件 Navigation.tsx）、--exclude 追加排除项。
 # @param demo-path: string - rnt demo 目录绝对路径
@@ -21,7 +22,9 @@ usage() {
   cat <<'EOF'
 Usage: port-demo.sh --demo-path <demo-dir> --target <example-src> [--clean] [--clean-all] [--exclude 'a,b,c']
 
-Copy rnt demo contents into target example/src/, excluding node_modules/build/__tests__ etc.
+Incrementally add rnt demo contents into target example/src/.
+Default mode: do NOT overwrite existing files (rsync --ignore-existing).
+Conflicting files are kept as-is (target version wins) and listed in output.
 
 Options:
   --clean        Clear target before copy (requires user confirmation in SKILL flow)
@@ -111,10 +114,10 @@ done < <(
   done
 )
 
-if [[ -n "$CONFLICTS" && "$CLEAN" != "true" ]]; then
-  log "Conflicting files found in target (use --clean to overwrite, or resolve manually):"
+if [[ -n "$CONFLICTS" ]]; then
+  log "Conflicting files found in target (target version will be KEPT, demo version SKIPPED):"
   printf '%s\n' "$CONFLICTS" >&2
-  log "Proceeding with rsync (will overwrite conflicts). Pass --clean to clear target first."
+  log "These files will NOT be overwritten. Review the report and manually merge if needed."
 fi
 
 # Clean target if requested
@@ -143,23 +146,23 @@ if [[ "$CLEAN" == "true" ]]; then
   fi
 fi
 
-# Copy using rsync
-log "Copying demo $DEMO_PATH -> $TARGET"
+# Copy using rsync (incremental: do NOT overwrite existing files)
+log "Copying demo $DEMO_PATH -> $TARGET (incremental, no overwrite)"
 log "Excludes: ${EXCLUDE_ARGS[*]}"
 
 if ! command -v rsync >/dev/null 2>&1; then
   log "rsync not found, falling back to cp"
-  # Fallback: cp -R with manual excludes
+  # Fallback: cp -Rn with manual excludes (-n = no clobber, do not overwrite)
   cd "$DEMO_PATH"
   for item in *; do
     [[ -e "$item" ]] || continue
     case "$item" in
       node_modules|build|__tests__|.cxx|oh_modules|.git|.hg|dist|coverage|.cache) continue ;;
-      *) cp -R "$item" "$TARGET/" ;;
+      *) cp -Rn "$item" "$TARGET/" ;;
     esac
   done
 else
-  rsync -a "${EXCLUDE_ARGS[@]}" "$DEMO_PATH/" "$TARGET/"
+  rsync -a --ignore-existing "${EXCLUDE_ARGS[@]}" "$DEMO_PATH/" "$TARGET/"
 fi
 
 # Output migrated file list
@@ -174,3 +177,10 @@ cd "$TARGET" && find . -type f \
   -not -name '*.log' | sort
 
 log "Done. File count: $(cd "$TARGET" && find . -type f -not -path './node_modules/*' -not -path './build/*' | wc -l | tr -d ' ')"
+
+# Output conflict files (kept target version) for report generation
+if [[ -n "$CONFLICTS" ]]; then
+  log "=== CONFLICT FILES (target version kept, demo version skipped) ==="
+  printf '%s\n' "$CONFLICTS" >&2
+  log "=== END CONFLICT FILES ==="
+fi

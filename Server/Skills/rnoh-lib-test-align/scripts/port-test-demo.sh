@@ -710,6 +710,11 @@ for dir in "${DETECTED_DEMO_DIRS[@]}"; do
     dest_file="${TEMPLATE_SRC_DIR}/${rel_path}"
     dest_parent=$(dirname "$dest_file")
     mkdir -p "$dest_parent"
+    # 如果目标文件已存在, 跳过 (保留本地已适配的文件, 只拷贝缺失的文件)
+    if [[ -f "$dest_file" ]]; then
+      info "    已存在, 跳过: ${rel_path}"
+      continue
+    fi
     cp "$file" "$dest_file"
     debug "    拷贝: ${rel_path}"
   done < <(find "$src_dir" -type f "${find_exclude_args[@]}" -print0)
@@ -744,9 +749,16 @@ info "合并入口文件到 src/index.tsx..."
 
 # 备份原始 index.tsx
 BACKUP_INDEX="${TEMPLATE_SRC_DIR}/index.backup.tsx"
+# 首次运行: 备份原始模板 index.tsx
 if [[ ! -f "$BACKUP_INDEX" ]]; then
   cp "${TEMPLATE_SRC_DIR}/index.tsx" "$BACKUP_INDEX"
   info "  已备份原始 index.tsx → index.backup.tsx"
+fi
+# 二次运行保护: 如果 index.tsx 已被修改 (与原始备份不同), 先备份当前版本再覆盖
+if [[ -f "$BACKUP_INDEX" ]] && ! cmp -s "${TEMPLATE_SRC_DIR}/index.tsx" "$BACKUP_INDEX"; then
+  backup_ts=$(date +%s)
+  cp "${TEMPLATE_SRC_DIR}/index.tsx" "${TEMPLATE_SRC_DIR}/index.tsx.bak.${backup_ts}"
+  warn "  index.tsx 已被修改 (可能已移植过 demo), 已备份当前版本 → index.tsx.bak.${backup_ts}"
 fi
 
 if [[ ${#ENTRY_FILES[@]} -eq 0 ]]; then
