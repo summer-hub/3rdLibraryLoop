@@ -611,6 +611,10 @@ function extractClassMembers(classBody, className, classType, filePath, repoDir,
   const members = [];
   const DART_KEYWORDS = ['class','extends','implements','with','void','return','final','const','late','static','var','get','set','operator','if','else','for','while','switch','case','break','continue','try','catch','finally','throw','new','import','export','part','library','show','hide','as','is','enum','mixin','extension','typedef','abstract','factory','this','super','do','in','yield','sync','async','await','dynamic','covariant','required','external','native','assert','default'];
 
+  // Object 基类内置成员：所有 Dart 对象自动继承，不属于库自身公开 API
+  // 即使有 @override 也不计入接口覆盖率
+  const OBJECT_BUILTIN_MEMBERS = ['hashCode', 'toString', 'noSuchMethod', 'runtimeType'];
+
   // 正则模式（行首锚定 + 类型不含空格，避免回溯匹配 static）
   const patterns = {
     // 方法: [static] [async] ReturnType methodName(params) [async*] { ... } | => ... | ;
@@ -637,6 +641,7 @@ function extractClassMembers(classBody, className, classType, filePath, repoDir,
     if (DART_KEYWORDS.includes(memberName)) continue;
     if (DART_KEYWORDS.includes(returnType)) continue;
     if (returnType.endsWith(':')) continue;
+    if (OBJECT_BUILTIN_MEMBERS.includes(memberName)) continue;
 
     const charIdx = m.index;
     const lineNum = bodyStartLine + getLineNum(classBody, charIdx);
@@ -660,6 +665,7 @@ function extractClassMembers(classBody, className, classType, filePath, repoDir,
     const memberName = m[3];
     if (memberName.startsWith('_')) continue;
     if (DART_KEYWORDS.includes(memberName)) continue;
+    if (OBJECT_BUILTIN_MEMBERS.includes(memberName)) continue;
     if (members.some(mem => mem.memberName === memberName)) continue;
 
     const charIdx = m.index;

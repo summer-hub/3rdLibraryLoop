@@ -358,7 +358,8 @@ function aggregateResults(interfaces, fileCoverageMap, libName, demoFileCount) {
   //   type — 类型别名 (typedef)，不是可调用的方法/属性
   const EXCLUDE_KINDS = ['constant', 'enumValue', 'constructor', 'type'];
   // 框架生命周期方法，通过 testWidgets/pumpWidget 间接覆盖，正则无法追踪
-  const EXCLUDE_METHODS = ['createState'];
+  // Object 基类内置成员：所有 Dart 对象自动继承，不属于库自身公开 API
+  const EXCLUDE_METHODS = ['createState', 'hashCode', 'toString', 'noSuchMethod', 'runtimeType'];
   const countedInterfaces = interfaces.filter(i =>
     !EXCLUDE_KINDS.includes(i.kind) &&
     !(i.kind === 'method' && EXCLUDE_METHODS.includes(i.memberName))
@@ -468,7 +469,7 @@ function renderOverview(result) {
   lines.push(`| 方法/属性总数 (N) | ${result.totalInterfacesMethodLevel} |`);
   lines.push(`| 已覆盖 (M) | ${result.coveredMethodCount} |`);
   lines.push(`| 未覆盖 | ${result.totalInterfacesMethodLevel - result.coveredMethodCount} |`);
-  lines.push(`| 排除类型 | 常量 (constant) / 枚举值 (enumValue) / 构造函数 (constructor) / 类型别名 (type) / 框架方法 (createState) |`);
+  lines.push(`| 排除类型 | 常量 (constant) / 枚举值 (enumValue) / 构造函数 (constructor) / 类型别名 (type) / 框架方法 (createState) / Object 内置方法 (hashCode/toString/noSuchMethod/runtimeType) |`);
   lines.push('');
   const filled = Math.round(rate / 5);
   const empty = 20 - filled;
