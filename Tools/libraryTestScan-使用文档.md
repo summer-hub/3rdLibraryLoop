@@ -1,29 +1,29 @@
-# libraryTestScan.js 使用文档
+# libraryTestScan.cjs 使用文档
 
 > 三方库接口 / Demo / XTS 覆盖率扫描统一入口
 
 ## 一、简介
 
-`libraryTestScan.js` 是一个 Node.js 命令行工具，用于对 **ArkTS / React Native / Flutter** 三类三方库进行：
+`libraryTestScan.cjs` 是一个 Node.js 命令行工具，用于对 **ArkTS / React Native / Flutter** 三类三方库进行：
 
 - **api** — 接口规格说明书生成
 - **xts** — XTS / 测试用例覆盖率分析
 - **demo** — Demo 覆盖率分析
 
-工具本身不实现分析逻辑，而是在线依赖 gitcode 仓库 [`lalhanOrz/3rdLibraryLoop`](https://gitcode.com/lalhanOrz/3rdLibraryLoop/tree/main/MCP/scripts) 下的 12 个 cjs 分析脚本。每次执行时从线上下载最新脚本到本地缓存目录，然后以子进程方式调用对应脚本完成分析。
+工具本身不实现分析逻辑，而是在线依赖 gitcode 仓库 [`lalhanOrz/3rdLibraryLoop`](https://gitcode.com/lalhanOrz/3rdLibraryLoop/tree/main/MCP/scripts) 下的 13 个 cjs 分析脚本。每次执行时通过 **git clone + sparse checkout** 只拉取 `MCP/scripts` 子目录，然后以子进程方式调用对应脚本完成分析。走 git 协议，不受 gitcode API 匿名限流影响，**无需 token**。
 
 ```
 用户输入
    │
    ▼
-┌─────────────────────────────────────────────┐
-│  libraryTestScan.js                          │
-│  1. 解析参数 (platform + scanType + libroot) │
-│  2. 若 libroot 是 gitcode URL → git clone    │
-│  3. 从 gitcode 下载最新 cjs 脚本             │
-│  4. 定位 typescript 模块                     │
-│  5. 子进程执行下游脚本 → 输出 Markdown       │
-└─────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│  libraryTestScan.cjs                                 │
+│  1. 解析参数 (platform + scanType + libroot)         │
+│  2. 若 libroot 是 gitcode URL → git clone 仓库       │
+│  3. git clone + sparse checkout 拉取 MCP/scripts     │
+│  4. 定位 typescript 模块（通过 TYPESCRIPT_PATH 注入）│
+│  5. 子进程执行下游脚本 → 输出 Markdown               │
+└─────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -33,25 +33,27 @@
 | 依赖 | 要求 | 说明 |
 |------|------|------|
 | Node.js | ≥ 16 | 需支持 `fs.rmSync`（递归删除） |
-| git | 已安装且在 PATH 中 | 仅当 `--libroot` 使用 gitcode URL 时需要 |
-| typescript | arkts 分析需要 | flutter / rn 不强制 |
+| git | 已安装且在 PATH 中 | 用于克隆目标仓库和脚本仓库 |
+| typescript | arkts/rn 分析需要 | flutter 不强制，见下方安装说明 |
 
-### typescript 模块定位
+### typescript 安装（重要）
 
-arkts 分析依赖 `typescript` 模块。工具按以下顺序查找：
+arkts 和 rn 的接口提取、覆盖率分析基于 TypeScript Compiler API，依赖 `typescript` 模块。**首次使用前必须在 `Tools/` 目录执行一次 `npm install`**：
 
-1. `require.resolve('typescript')`（全局或当前路径可见）
-2. 从脚本所在目录、库路径、`3rdLibraryLoop/MCP` 向上逐级查找 `node_modules/typescript`
+```bash
+cd Tools
+npm install
+```
 
-找不到时 arkts 分析会告警，flutter / rn 不受影响。
+这会根据 `Tools/package.json` 安装 `typescript` 到 `Tools/node_modules/`。
 
 ---
 
 ## 三、命令格式
 
 ```
-node libraryTestScan.js <platform> <scanType> --libroot <库路径|URL> --output <文档路径>
-                      [--title <标题>] [--lib <库名>]
+node libraryTestScan.cjs <platform> <scanType> --libroot <库路径|URL> --output <文档路径>
+                        [--title <标题>] [--lib <库名>]
 ```
 
 ### 位置参数
@@ -96,7 +98,7 @@ node libraryTestScan.js <platform> <scanType> --libroot <库路径|URL> --output
 | **flutter** | `flutter-render-spec-doc.cjs` | `flutter-analyze-xts-coverage.cjs` | `flutter-analyze-demo-coverage.cjs` |
 | **rn** | `rn-render-spec-doc.cjs` | `rn-analyze-test-coverage.cjs` | `rn-analyze-demo-coverage.cjs` |
 
-每个主脚本（main）通过相对 `require` 依赖对应的 extract 脚本（deps），工具会一并下载：
+每个主脚本（main）通过相对 `require` 依赖对应的 extract 脚本（deps），工具会一并拉取：
 
 | 平台 | deps |
 |------|------|
@@ -212,44 +214,46 @@ node libraryTestScan.js arkts api \
 
 ---
 
-## 六、在线脚本下载机制
+## 六、脚本拉取机制
 
-### 下载源
+### 下载方式
+
+通过 **git clone + sparse checkout** 只拉取脚本仓库的 `MCP/scripts` 子目录：
 
 ```
-https://gitcode.com/api/v5/repos/lalhanOrz/3rdLibraryLoop/raw/MCP/scripts/<file>?ref=main
+git clone --depth 1 --branch main --no-checkout https://gitcode.com/lalhanOrz/3rdLibraryLoop.git
+git sparse-checkout init --no-cone
+echo "/MCP/scripts/" > .git/info/sparse-checkout
+git checkout main
 ```
 
-使用 gitcode 的 `api/v5` 端点而非 `raw` 端点，因为后者对部分文件返回 403（WAF "暂不支持预览"）。
+走 git 协议，**不受 gitcode API 匿名限流影响，无需 token**。
 
 ### 缓存策略
 
-**每次执行都重新下载**，覆盖本地缓存，确保始终使用线上最新版本。
+**每次执行都重新克隆**，先删除旧目录再重新 sparse checkout，确保始终使用线上最新版本。
 
 ```
 .libraryTestScan-cache/
-├── extract-interfaces.cjs
-├── render-spec-doc.cjs
-├── analyze-demo-coverage.cjs
-├── analyze-xts-coverage.cjs
-├── flutter-extract-interfaces.cjs
-├── flutter-render-spec-doc.cjs
-├── flutter-analyze-demo-coverage.cjs
-├── flutter-analyze-xts-coverage.cjs
-├── rn-extract-interfaces.cjs
-├── rn-render-spec-doc.cjs
-├── rn-analyze-demo-coverage.cjs
-└── rn-analyze-test-coverage.cjs
+└── MCP/
+    └── scripts/
+        ├── extract-interfaces.cjs
+        ├── render-spec-doc.cjs
+        ├── analyze-demo-coverage.cjs
+        ├── analyze-xts-coverage.cjs
+        ├── flutter-extract-interfaces.cjs
+        ├── flutter-render-spec-doc.cjs
+        ├── flutter-analyze-demo-coverage.cjs
+        ├── flutter-analyze-xts-coverage.cjs
+        ├── rn-extract-interfaces.cjs
+        ├── rn-render-spec-doc.cjs
+        ├── rn-analyze-demo-coverage.cjs
+        ├── rn-analyze-test-coverage.cjs
+        ├── rn-scan-exports.cjs
+        └── deveco_docs.js
 ```
 
-### 下载失败处理
-
-若下载失败（网络问题或匿名限流），可设置环境变量 `GITCODE_TOKEN` 使用个人 token：
-
-```bash
-export GITCODE_TOKEN=你的gitcode_token
-node libraryTestScan.js arkts api --libroot ./libs/lottie_turbo --output report.md
-```
+> sparse checkout 只拉取 `MCP/scripts/` 下的脚本文件，不拉取 `MCP/` 父目录的其他文件（AGENTS.md、config.json 等）。
 
 ---
 
@@ -259,17 +263,17 @@ node libraryTestScan.js arkts api --libroot ./libs/lottie_turbo --output report.
 
 ```bash
 # 接口规格说明书
-node libraryTestScan.js arkts api \
+node libraryTestScan.cjs arkts api \
   --libroot /path/to/lottie_turbo \
   --output 01-lottie-接口规格说明书.md
 
 # Demo 覆盖率
-node libraryTestScan.js arkts demo \
+node libraryTestScan.cjs arkts demo \
   --libroot /path/to/lottie_turbo \
   --output 02-lottie-Demo覆盖率报告.md
 
 # XTS 覆盖率
-node libraryTestScan.js arkts xts \
+node libraryTestScan.cjs arkts xts \
   --libroot /path/to/lottie_turbo \
   --output 03-lottie-XTS覆盖率报告.md
 ```
@@ -278,17 +282,17 @@ node libraryTestScan.js arkts xts \
 
 ```bash
 # 接口规格说明书
-node libraryTestScan.js rn api \
+node libraryTestScan.cjs rn api \
   --libroot /path/to/rn_netinfo \
   --output 01-netinfo-接口规格说明书.md
 
 # 测试覆盖率（xts 类型对 rn 映射为 test 覆盖率）
-node libraryTestScan.js rn xts \
+node libraryTestScan.cjs rn xts \
   --libroot /path/to/rn_netinfo \
   --output 03-netinfo-Test覆盖率报告.md
 
 # Demo 覆盖率
-node libraryTestScan.js rn demo \
+node libraryTestScan.cjs rn demo \
   --libroot /path/to/rn_netinfo \
   --output 02-netinfo-Demo覆盖率报告.md
 ```
@@ -297,17 +301,17 @@ node libraryTestScan.js rn demo \
 
 ```bash
 # 接口规格说明书
-node libraryTestScan.js flutter api \
+node libraryTestScan.cjs flutter api \
   --libroot /path/to/advertising_id \
   --output 01-advertising-接口规格说明书.md
 
 # XTS 覆盖率
-node libraryTestScan.js flutter xts \
+node libraryTestScan.cjs flutter xts \
   --libroot /path/to/advertising_id \
   --output 03-advertising-XTS覆盖率报告.md
 
 # Demo 覆盖率
-node libraryTestScan.js flutter demo \
+node libraryTestScan.cjs flutter demo \
   --libroot /path/to/advertising_id \
   --output 02-advertising-Demo覆盖率报告.md
 ```
@@ -315,13 +319,18 @@ node libraryTestScan.js flutter demo \
 ### 7.4 使用 gitcode URL
 
 ```bash
+# 裸仓库 URL（自动探测默认分支）
+node libraryTestScan.cjs arkts api \
+  --libroot https://gitcode.com/CPF-ApplicationTPC/ohos_mqtt \
+  --output 01-mqtt-接口规格说明书.md
+
 # 整个仓库（指定分支）
-node libraryTestScan.js rn api \
+node libraryTestScan.cjs rn api \
   --libroot https://gitcode.com/CPF-RN/rntpc_lottie-react-native/tree/br_rnoh0.82 \
   --output 01-lottie-rn-接口规格说明书.md
 
 # 仅 harmony 子文件夹（sparse checkout 浅拷贝）
-node libraryTestScan.js rn api \
+node libraryTestScan.cjs rn api \
   --libroot https://gitcode.com/CPF-RN/rntpc_lottie-react-native/tree/br_rnoh0.82/harmony \
   --output 01-lottie-rn-接口规格说明书.md
 ```
@@ -330,13 +339,13 @@ node libraryTestScan.js rn api \
 
 ```bash
 # 自定义报告标题
-node libraryTestScan.js arkts demo \
+node libraryTestScan.cjs arkts demo \
   --libroot /path/to/lottie_turbo \
   --output report.md \
   --title "Lottie Turbo Demo 覆盖率专项报告"
 
-# 自定义库名
-node libraryTestScan.js flutter api \
+# 自定义库名（库自身 oh-package.json5 缺 name 字段时有用）
+node libraryTestScan.cjs flutter api \
   --libroot /path/to/flutter_lib \
   --output spec.md \
   --lib my_flutter_lib
@@ -354,15 +363,18 @@ node libraryTestScan.js flutter api \
          │
 2. 解析 --libroot
    ├── 是 gitcode URL?
-   │   ├── 是 → git clone (浅拷贝 + 可能的 sparse checkout)
-   │   └── 否 → 校验本地目录存在且为目录
+   │   ├── 裸仓库 URL → 探测默认分支 → git clone 整个仓库
+   │   ├── 指定分支 → git clone 整个仓库
+   │   └── 指定分支+子目录 → git clone + sparse checkout
+   └── 否 → 校验本地目录存在且为目录
          │
-3. 从 gitcode 下载最新 cjs 脚本（每次都下载）
-   ├── 下载主脚本 (main)
-   └── 下载依赖脚本 (deps)
+3. git clone + sparse checkout 拉取 MCP/scripts 脚本
+   └── 每次先删除旧目录再重新克隆
          │
 4. 定位 typescript 模块
-   └── 向上查找 node_modules/typescript → 注入 NODE_PATH
+   ├── Tools/node_modules/typescript（npm install 后）
+   ├── 向上查找 MCP/node_modules 等
+   └── 找到 → 注入 TYPESCRIPT_PATH 环境变量
          │
 5. 子进程执行下游脚本
    ├── node <main.cjs> --libroot <path> --output <path> [--title] [--lib]
@@ -406,70 +418,103 @@ Markdown 文档，包含：
 工具运行时会在脚本同级目录生成两个工作目录：
 
 ```
-libraryTestScan.js
-├── .libraryTestScan-cache/          ← 在线脚本缓存（每次重新下载）
-│   ├── extract-interfaces.cjs
-│   ├── render-spec-doc.cjs
-│   └── ... (共 12 个 cjs)
-└── .libraryTestScan-repos/          ← git 克隆的仓库（仅 --libroot 为 URL 时）
-    └── rntpc_lottie-react-native-br_rnoh0.82/
+Tools/
+├── libraryTestScan.cjs
+├── package.json                      ← 声明 typescript 依赖
+├── node_modules/                     ← npm install 后生成
+│   └── typescript/
+├── .libraryTestScan-cache/           ← 脚本仓库 sparse checkout（每次重新克隆）
+│   ├── .git/
+│   └── MCP/
+│       └── scripts/                  ← 只包含此目录的脚本文件
+│           ├── extract-interfaces.cjs
+│           ├── render-spec-doc.cjs
+│           └── ... (共 13 个 cjs + 1 个 deveco_docs.js)
+└── .libraryTestScan-repos/           ← git 克隆的目标仓库（仅 --libroot 为 URL 时）
+    └── ohos_mqtt-master/
         ├── .git/
         └── ... (仓库内容)
 ```
 
 | 目录 | 何时生成 | 生命周期 |
 |------|----------|----------|
-| `.libraryTestScan-cache` | 每次执行 | 每次覆盖更新 |
+| `node_modules` | 用户执行 `npm install` 后 | 持久（除非手动删除） |
+| `.libraryTestScan-cache` | 每次执行 | 每次先删除再克隆 |
 | `.libraryTestScan-repos` | `--libroot` 为 URL 时 | 每次先删除再克隆 |
 
 ---
 
 ## 十一、常见问题
 
-### Q1: arkts 分析报错 "无法加载 typescript 模块"
+### Q1: arkts/rn 分析报错 "无法加载 typescript 模块"
 
-**原因**：arkts 的接口提取基于 TypeScript Compiler API，需要 `typescript` 模块。
+**原因**：arkts 和 rn 的接口提取、覆盖率分析基于 TypeScript Compiler API，需要 `typescript` 模块。
 
-**解决**：
-
-```bash
-# 方式一：在脚本上级目录安装
-npm install typescript
-
-# 方式二：将已有的 typescript 放到查找路径中
-# 工具会从以下位置向上查找（最多 12 级）：
-#   - 脚本所在目录
-#   - libroot 目录
-#   - 3rdLibraryLoop/MCP 目录
-```
-
-### Q2: 脚本下载失败 HTTP 403
-
-**原因**：gitcode 匿名访问触发限流。
-
-**解决**：
+**解决**：在 `Tools/` 目录执行 `npm install`：
 
 ```bash
-export GITCODE_TOKEN=你的个人访问令牌
-node libraryTestScan.js arkts api --libroot ./lib --output report.md
+cd Tools
+npm install
 ```
 
-### Q3: git clone 失败
+这会根据 `Tools/package.json` 安装 `typescript` 到 `Tools/node_modules/`。工具会自动找到它并通过 `TYPESCRIPT_PATH` 环境变量注入给下游脚本。
+
+> flutter 走纯正则匹配，不依赖 typescript，可跳过安装。
+
+### Q2: 脚本仓库克隆失败
+
+**原因**：网络问题或 git 配置问题。
+
+**排查**：
+
+```bash
+# 1. 确认 git 能访问 gitcode
+git ls-remote https://gitcode.com/lalhanOrz/3rdLibraryLoop.git HEAD
+
+# 2. 若报 407（Proxy Authentication Required）→ 代理认证问题
+#    检查代理配置：
+git config --global --get http.proxy
+git config --global --get https.proxy
+#    不需要代理时清除：
+git config --global --unset http.proxy
+git config --global --unset https.proxy
+```
+
+### Q3: 目标仓库克隆失败
 
 **排查**：
 
 1. 确认 `git` 已安装且在 PATH 中：`git --version`
-2. 确认 URL 格式正确：必须包含 `/tree/{branch}`
+2. 确认 URL 格式正确（裸仓库 URL 或含 `/tree/{branch}`）
 3. 确认分支存在：`git ls-remote https://gitcode.com/{owner}/{repo}.git {branch}`
 4. 私有仓库需配置 git 凭证
+5. 报 407 时见 Q2 的代理排查步骤
 
-### Q4: rn 分析提取 0 个接口
+### Q4: Windows 下覆盖率报告显示 0%
+
+**原因**：Windows 路径分隔符 `\` 与 TS 编译器内部的 `/` 不一致，导致源文件加载失败。
+
+**状态**：已修复。所有 arkts/rn 覆盖率脚本已统一用 `toPosix()` 归一化路径。确保 `git pull` 拿到最新脚本即可。
+
+### Q5: 库名识别错误导致覆盖率 0%
+
+**原因**：部分库（如 `ohos_mqtt`）的 `oh-package.json5` 缺顶层 `name` 字段，工具误取工程名或 `author.name`。
+
+**解决**：
+
+- **方式一**：用 `--lib` flag 手动指定真实包名
+  ```bash
+  node libraryTestScan.cjs arkts demo --libroot https://gitcode.com/CPF-ApplicationTPC/ohos_mqtt --output demo.md --lib @ohos/mqtt
+  ```
+- **方式二**：已修复的脚本会从 `entry/oh-package.json5` 的 dependencies 反查真实包名，`git pull` 拿到最新脚本即可自动识别。
+
+### Q6: rn 分析提取 0 个接口
 
 **原因**：rn 库的 JS 层源码从上游 npm 拉取，若 `package.json` 中无法推断上游包名/版本，或上游包在 npm 上不存在，会导致提取失败。
 
 **排查**：检查 `package.json` 的 `dependencies` 是否包含上游 RN 包，或 README 中是否声明了上游包信息。
 
-### Q5: flutter 子文件夹 URL 克隆后提取 0 接口
+### Q7: flutter 子文件夹 URL 克隆后提取 0 接口
 
 **原因**：sparse checkout 只下载了子文件夹，若该文件夹下没有 `pubspec.yaml` 和 `lib/` 目录，flutter 接口提取无法定位入口。
 
@@ -488,7 +533,7 @@ node libraryTestScan.js arkts api --libroot ./lib --output report.md
 
 ## 十三、在线脚本源码
 
-所有 12 个 cjs 脚本位于 gitcode 仓库：
+所有 cjs 脚本位于 gitcode 仓库：
 
 > https://gitcode.com/lalhanOrz/3rdLibraryLoop/tree/main/MCP/scripts
 
@@ -500,9 +545,14 @@ node libraryTestScan.js arkts api --libroot ./lib --output report.md
 | `analyze-xts-coverage.cjs` | arkts | XTS 覆盖率分析（AST + 正则） |
 | `flutter-extract-interfaces.cjs` | flutter | 接口提取（Dart 正则） |
 | `flutter-render-spec-doc.cjs` | flutter | 接口规格文档渲染 |
-| `flutter-analyze-demo-coverage.cjs` | flutter | Demo 覆盖率分析 |
-| `flutter-analyze-xts-coverage.cjs` | flutter | XTS 覆盖率分析 |
+| `flutter-analyze-demo-coverage.cjs` | flutter | Demo 覆盖率分析（纯正则） |
+| `flutter-analyze-xts-coverage.cjs` | flutter | XTS 覆盖率分析（纯正则） |
 | `rn-extract-interfaces.cjs` | rn | 接口提取（npm 拉取 + JS 导出解析） |
 | `rn-render-spec-doc.cjs` | rn | 接口规格文档渲染 |
-| `rn-analyze-demo-coverage.cjs` | rn | Demo 覆盖率分析 |
-| `rn-analyze-test-coverage.cjs` | rn | 测试覆盖率分析 |
+| `rn-analyze-demo-coverage.cjs` | rn | Demo 覆盖率分析（AST） |
+| `rn-analyze-test-coverage.cjs` | rn | 测试覆盖率分析（AST） |
+| `rn-scan-exports.cjs` | rn | 导出接口扫描 + 双目录对比 |
+| `deveco_docs.js` | 通用 | 鸿蒙 API 文档检索（devecocli 封装） |
+
+> flutter 脚本走纯正则匹配，不依赖 typescript，Windows 下无路径兼容问题。
+> arkts/rn 脚本走 TS Compiler API，已修复 Windows 路径分隔符兼容性。
