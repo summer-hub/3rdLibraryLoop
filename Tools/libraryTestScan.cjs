@@ -60,25 +60,15 @@
 
 const fs = require('fs');
 const path = require('path');
-const https = require('https');
 const { spawnSync } = require('child_process');
 
 // ── 仓库与下载配置 ──────────────────────────────────────────
 const REPO_OWNER = 'lalhanOrz';
 const REPO_NAME = '3rdLibraryLoop';
 const SCRIPTS_SUBDIR = 'MCP/scripts';
+const SCRIPTS_REPO_URL = `https://gitcode.com/${REPO_OWNER}/${REPO_NAME}.git`;
+const SCRIPTS_REPO_BRANCH = 'main';
 const CACHE_DIR = path.join(__dirname, '.libraryTestScan-cache');
-
-/**
- * 构造 gitcode api/v5 raw 下载 URL（避开 raw 端点对部分文件的 WAF 预览限制）
- * @param {string} file  脚本文件名
- * @param {string=} token 可选 access_token（应对匿名限流）
- */
-function buildRawUrl(file, token) {
-  let url = `https://gitcode.com/api/v5/repos/${REPO_OWNER}/${REPO_NAME}/raw/${SCRIPTS_SUBDIR}/${encodeURIComponent(file)}?ref=main`;
-  if (token) url += `&access_token=${encodeURIComponent(token)}`;
-  return url;
-}
 
 // ── 平台 × 扫描类型 → 脚本映射 ───────────────────────────────
 // main: 直接执行的脚本；deps: main 通过相对 require 依赖的脚本（需一并缓存）
@@ -142,89 +132,47 @@ function parseArgs(argv) {
   return { positional, flags };
 }
 
-// ── 在线脚本下载 ─────────────────────────────────────────────
+// ── 脚本仓库克隆（git clone + sparse checkout）──────────────────
 
 /**
- * 下载单个文件到 destPath（支持重定向，原子写入：先写 .download 再 rename）
- * @param {string} url
- * @param {string} destPath
- * @param {number} maxRedirects
- * @returns {Promise<void>}
+ * 浅拷贝脚本仓库的 MCP/scripts 子目录到 CACHE_DIR
+ *
+ * 使用非 cone 模式的 sparse checkout，精确匹配 /MCP/scripts/ 路径，
+ * 只拉取 scripts 目录内容，不拉取 MCP/ 下的其他文件（AGENTS.md 等）。
+ * git 协议不受 gitcode API 匿名限流影响，无需 token。
+ *
+ * @returns {string} 脚本目录路径（CACHE_DIR/MCP/scripts）
  */
-function downloadFile(url, destPath, maxRedirects = 5) {
-  return new Promise((resolve, reject) => {
-    const tmpPath = destPath + '.download';
-    fs.mkdirSync(path.dirname(destPath), { recursive: true });
-    const file = fs.createWriteStream(tmpPath);
+function cloneScriptsRepo() {
+  rmrf(CACHE_DIR);
+  fs.mkdirSync(path.dirname(CACHE_DIR), { recursive: true });
 
-    const req = https.get(url, (res) => {
-      // 处理重定向
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location && maxRedirects > 0) {
-        res.resume();
-        file.close();
-        try { fs.unlinkSync(tmpPath); } catch (_) { /* ignore */ }
-        const next = res.headers.location.startsWith('http')
-          ? res.headers.location
-          : new URL(res.headers.location, url).href;
-        downloadFile(next, destPath, maxRedirects - 1).then(resolve, reject);
-        return;
-      }
-      if (res.statusCode !== 200) {
-        res.resume();
-        file.close();
-        try { fs.unlinkSync(tmpPath); } catch (_) { /* ignore */ }
-        reject(new Error(`下载失败 HTTP ${res.statusCode}: ${url}`));
-        return;
-      }
-      res.pipe(file);
-      file.on('finish', () => {
-        file.close(() => {
-          try {
-            fs.renameSync(tmpPath, destPath);
-            resolve();
-          } catch (e) {
-            reject(new Error(`缓存写入失败: ${destPath} — ${e.message}`));
-          }
-        });
-      });
-    });
-
-    req.on('error', (err) => {
-      file.close();
-      try { fs.unlinkSync(tmpPath); } catch (_) { /* ignore */ }
-      reject(new Error(`网络错误: ${err.message}`));
-    });
-    req.setTimeout(60_000, () => {
-      req.destroy(new Error('下载超时（60s）'));
-    });
-  });
-}
-
-/**
- * 每次都从线上下载最新脚本覆盖本地缓存（保证始终使用线上最新版）
- * @param {string} file
- * @param {string=} token
- * @returns {Promise<string>} 本地文件路径
- */
-async function ensureScriptCached(file, token) {
-  const dest = path.join(CACHE_DIR, file);
-  log.info(`从 gitcode 下载: ${file}`);
-  await downloadFile(buildRawUrl(file, token), dest);
-  const kb = (fs.statSync(dest).size / 1024).toFixed(1);
-  log.ok(`已更新: ${dest} (${kb} KB)`);
-  return dest;
-}
-
-/**
- * 批量下载 main + deps（相对 require 才能解析）
- * @param {string[]} files
- * @param {string=} token
- * @returns {Promise<void>}
- */
-async function ensureScriptsCached(files, token) {
-  for (const f of files) {
-    await ensureScriptCached(f, token);
+  log.info(`git clone --depth 1 --branch ${SCRIPTS_REPO_BRANCH} --no-checkout (sparse: ${SCRIPTS_SUBDIR})`);
+  const clone = spawnSync('git', [
+    'clone', '--depth', '1', '--branch', SCRIPTS_REPO_BRANCH, '--no-checkout',
+    SCRIPTS_REPO_URL, CACHE_DIR,
+  ], { stdio: 'inherit' });
+  if (clone.status !== 0) {
+    throw new Error(`git clone 脚本仓库失败（分支 ${SCRIPTS_REPO_BRANCH}），退出码 ${clone.status}`);
   }
+
+  // 非 cone 模式：精确匹配 /MCP/scripts/ 路径，只拉取该子目录
+  spawnSync('git', ['-C', CACHE_DIR, 'sparse-checkout', 'init', '--no-cone'], { stdio: 'inherit' });
+  // 直接写入 sparse-checkout 模式文件（非 cone 模式按路径模式匹配）
+  const sparseFile = path.join(CACHE_DIR, '.git', 'info', 'sparse-checkout');
+  fs.writeFileSync(sparseFile, `/${SCRIPTS_SUBDIR}/\n`);
+  const co = spawnSync('git', ['-C', CACHE_DIR, 'checkout', SCRIPTS_REPO_BRANCH], { stdio: 'inherit' });
+  if (co.status !== 0) {
+    throw new Error(`git checkout 脚本仓库失败（分支 ${SCRIPTS_REPO_BRANCH}），退出码 ${co.status}`);
+  }
+
+  const scriptsDir = path.join(CACHE_DIR, SCRIPTS_SUBDIR);
+  if (!fs.existsSync(scriptsDir)) {
+    throw new Error(`脚本目录不存在: ${scriptsDir}`);
+  }
+  const cjsFiles = fs.readdirSync(scriptsDir).filter(f => f.endsWith('.cjs'));
+  log.ok(`脚本已就绪: ${scriptsDir} (${cjsFiles.length} 个 cjs)`);
+  return scriptsDir;
 }
 
 // ── TypeScript 模块定位（arkts 脚本依赖 typescript）──────────
@@ -487,7 +435,7 @@ function printHelp() {
 
 // ── 主流程 ────────────────────────────────────────────────────
 
-(async () => {
+(() => {
   const { positional, flags } = parseArgs(process.argv.slice(2));
 
   if (flags.help || flags.h) {
@@ -547,26 +495,23 @@ function printHelp() {
   }
   const output = path.resolve(outputRaw);
 
-  // 配置
-  const token = process.env.GITCODE_TOKEN || ''; // 可选：应对匿名限流
-
   const mapping = SCRIPT_MAP[platform][scanType];
-  const neededFiles = [mapping.main, ...mapping.deps];
 
-  // 1. 每次都从线上下载最新脚本
+  // 1. 每次都从线上克隆最新脚本仓库（git clone + sparse checkout，无需 token）
   log.info(`平台: ${platform} | 扫描类型: ${scanType} | 主脚本: ${mapping.main}`);
   log.info(`库路径: ${libroot}`);
   log.info(`输出: ${output}`);
+  let scriptsDir;
   try {
-    await ensureScriptsCached(neededFiles, token);
+    scriptsDir = cloneScriptsRepo();
   } catch (e) {
-    log.err(`脚本下载失败: ${e.message}`);
-    log.warn('可尝试: 1) 稍后重试 2) 设置环境变量 GITCODE_TOKEN=<你的 gitcode token> 后重试');
+    log.err(`脚本仓库克隆失败: ${e.message}`);
+    log.warn('可尝试: 1) 稍后重试 2) 检查 git 是否能访问 gitcode.com');
     process.exit(1);
   }
 
   // 2. 定位 typescript 模块（arkts/flutter 覆盖率分析需要；缺失仅告警，交由下游脚本自行处理）
-  const tsNM = findTypeScriptNodeModules([__dirname, libroot, path.join(__dirname, '3rdLibraryLoop', 'MCP')]);
+  const tsNM = findTypeScriptNodeModules([__dirname, libroot, path.join(__dirname, '..', 'MCP'), path.join(__dirname, '3rdLibraryLoop', 'MCP')]);
   const env = { ...process.env };
   if (tsNM) {
     env.NODE_PATH = tsNM + (env.NODE_PATH ? path.delimiter + env.NODE_PATH : '');
@@ -585,7 +530,7 @@ function printHelp() {
   }
 
   // 4. 执行下游脚本
-  const scriptPath = path.join(CACHE_DIR, mapping.main);
+  const scriptPath = path.join(scriptsDir, mapping.main);
   const code = runScript(scriptPath, libroot, output, extra, env);
 
   if (code === 0) {
