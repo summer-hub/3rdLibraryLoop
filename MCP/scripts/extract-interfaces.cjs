@@ -218,20 +218,108 @@ function locateEntryFile(repoDir) {
 
 // ── 库名提取 ──────────────────────────────────────────────
 
-function extractLibraryName(repoDir) {
-  const candidates = [
-    path.join(repoDir, 'library', 'oh-package.json5'),
-    path.join(repoDir, 'oh-package.json5'),
-  ];
-  for (const p of candidates) {
-    if (fs.existsSync(p)) {
-      try {
-        const raw = fs.readFileSync(p, 'utf-8');
-        const m = raw.match(/["']?name["']?\s*:\s*["']([^"']+)["']/);
-        if (m) return m[1];
-      } catch (e) { /* continue */ }
+/**
+ * 简单正则转义
+ */
+function escapeRegexStr(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * 从 oh-package.json5 文件提取顶层 name 字段
+ * 注意：只匹配顶层 name（缩进 ≤2 空格），避免误匹配嵌套对象的 name 字段
+ *      （如 author.name / contributor.name）
+ * @param {string} pkgPath
+ * @returns {string|null}
+ */
+function readPkgName(pkgPath) {
+  if (!fs.existsSync(pkgPath)) return null;
+  try {
+    const raw = fs.readFileSync(pkgPath, 'utf-8');
+    const m = raw.match(/^\s{0,2}["']?name["']?\s*:\s*["']([^"']+)["']/m);
+    return m ? m[1] : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * 从 entry/oh-package.json5 的 dependencies 反查指向 libDirName 的依赖名
+ * 当库自身 oh-package.json5 缺 name 字段时，消费方 dependencies 的 key
+ * 才是用户 import 时用的真实包名（如 @ohos/mqtt）
+ * @param {string} repoDir
+ * @param {string} libDirName  库模块目录名（如 ohos_Mqtt）
+ * @returns {string|null}
+ */
+function findDepNameFromEntry(repoDir, libDirName) {
+  const entryPkgPath = path.join(repoDir, 'entry', 'oh-package.json5');
+  if (!fs.existsSync(entryPkgPath)) return null;
+  try {
+    const raw = fs.readFileSync(entryPkgPath, 'utf-8');
+    // 匹配 "依赖名": "file:../libDirName" 或 "file:../libDirName/..."
+    const depRegex = new RegExp(
+      `["']([^"']+)["']\\s*:\\s*["']file:\\.\\./${escapeRegexStr(libDirName)}(?:/[^"']*)?["']`
+    );
+    const m = raw.match(depRegex);
+    return m ? m[1] : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * 提取库的真实包名（用户 import 时用的名字）
+ *
+ * 查找优先级:
+ *   1. 库模块目录（entryFile 所在的最近含 oh-package.json5 的父目录）的 name 字段
+ *   2. {repoDir}/library/oh-package.json5 的 name 字段（标准结构向后兼容）
+ *   3. entry/oh-package.json5 的 dependencies 中指向库目录的依赖名
+ *      （库自身缺 name 时，消费方声明的依赖名才是真实包名，如 @ohos/mqtt）
+ *   4. {repoDir}/oh-package.json5 的 name 字段（工程名兜底）
+ *   5. path.basename(repoDir)
+ *
+ * @param {string} repoDir
+ * @param {string=} entryFile  入口文件路径（用于定位库模块目录）
+ */
+function extractLibraryName(repoDir, entryFile) {
+  const candidates = [];
+
+  // 1. entryFile 所在的最近含 oh-package.json5 的父目录
+  if (entryFile) {
+    let dir = path.dirname(entryFile);
+    for (let i = 0; i < 6 && dir && dir.startsWith(repoDir); i++) {
+      const pkgPath = path.join(dir, 'oh-package.json5');
+      if (fs.existsSync(pkgPath)) {
+        candidates.push(pkgPath);
+        break;
+      }
+      const parent = path.dirname(dir);
+      if (parent === dir) break;
+      dir = parent;
     }
   }
+
+  // 2. 标准结构
+  candidates.push(path.join(repoDir, 'library', 'oh-package.json5'));
+
+  // 先从库自身 oh-package.json5 取 name
+  for (const p of candidates) {
+    const name = readPkgName(p);
+    if (name) return name;
+  }
+
+  // 3. entry dependencies 反查（库自身缺 name 时的关键回退）
+  if (entryFile) {
+    const libDirName = path.basename(path.dirname(entryFile));
+    const depName = findDepNameFromEntry(repoDir, libDirName);
+    if (depName) return depName;
+  }
+
+  // 4. 根 oh-package.json5（工程名兜底）
+  const rootName = readPkgName(path.join(repoDir, 'oh-package.json5'));
+  if (rootName) return rootName;
+
+  // 5. basename 兜底
   return path.basename(repoDir);
 }
 
@@ -921,7 +1009,7 @@ function detectNativeSo(repoDir, entryFile) {
  * 核心解析函数 — 将 .ets 文件映射为虚拟 .ts 路径，
  * 因为 TS 编译器会忽略不在其支持扩展名列表中的 .ets 文件。
  */
-function parseLibraryWithTS(repoDir, entryFile, nativeSoInfo) {
+function parseLibraryWithTS(repoDir, entryFile, nativeSoInfo, libraryName) {
   const libRoot = repoDir;
   const sourceFiles = collectSourceFiles(repoDir, entryFile);
 
@@ -943,7 +1031,7 @@ function parseLibraryWithTS(repoDir, entryFile, nativeSoInfo) {
     process.exit(1);
   }
 
-  const libraryName = extractLibraryName(repoDir);
+  if (!libraryName) libraryName = extractLibraryName(repoDir, entryFile);
 
   // 将 .ets 文件映射为虚拟 .ts 路径，.d.ts 保持原样
   const virtualPaths = new Map(); // virtualPath -> realPath
@@ -1293,7 +1381,8 @@ function generateSpec(repoDir) {
     throw new Error(`无法定位入口文件 Index.ets: ${repoDir}`);
   }
   const nativeSoInfo = detectNativeSo(repoDir, entryFile);
-  return parseLibraryWithTS(repoDir, entryFile, nativeSoInfo);
+  const libraryName = extractLibraryName(repoDir, entryFile);
+  return parseLibraryWithTS(repoDir, entryFile, nativeSoInfo, libraryName);
 }
 
 module.exports = { generateSpec, parseLibraryWithTS, locateEntryFile, detectNativeSo };
