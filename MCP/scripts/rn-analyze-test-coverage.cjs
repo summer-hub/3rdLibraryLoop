@@ -270,6 +270,8 @@ function collectCoverageAST(sourceFile, checker, interfaces, importedSymbols, va
 
 function matchCoverageAST(interfaces, testFiles, libName, fullLibName, libRoot) {
   if (!ts) { warn('TypeScript 模块不可用，降级到正则模式'); return null; }
+  // Windows 兼容：TS 编译器内部使用正斜杠 / 作为路径分隔符
+  const toPosix = (p) => p.replace(/\\/g, '/');
   const libSourceFiles = [];
   function collectLibFiles(dir) {
     if (!fs.existsSync(dir)) return;
@@ -283,40 +285,43 @@ function matchCoverageAST(interfaces, testFiles, libName, fullLibName, libRoot) 
   collectLibFiles(libRoot);
   const allSourceFiles = [...libSourceFiles, ...testFiles];
   const fileContents = {};
-  for (const rp of allSourceFiles) { try { fileContents[rp] = fs.readFileSync(rp, 'utf-8'); } catch {} }
+  for (const rp of allSourceFiles) { try { fileContents[toPosix(rp)] = fs.readFileSync(rp, 'utf-8'); } catch {} }
+  const posixLibSourceFiles = libSourceFiles.map(toPosix);
+  const posixRootNames = allSourceFiles.map(toPosix);
   const compilerOptions = { target: ts.ScriptTarget.ES2021, module: ts.ModuleKind.ESNext, strict: false, skipLibCheck: true, noEmit: true, allowJs: true, allowSyntheticDefaultImports: true, esModuleInterop: true, jsx: ts.JsxEmit.React };
   const host = {
     getSourceFile(fileName, lv) {
-      if (fileContents[fileName]) { const kind = fileName.endsWith('.tsx') ? ts.ScriptKind.TSX : fileName.endsWith('.jsx') ? ts.ScriptKind.JSX : fileName.endsWith('.js') ? ts.ScriptKind.JS : ts.ScriptKind.TS; return ts.createSourceFile(fileName, fileContents[fileName], lv, true, kind); }
+      const content = fileContents[fileName] || fileContents[toPosix(fileName)];
+      if (content) { const kind = fileName.endsWith('.tsx') ? ts.ScriptKind.TSX : fileName.endsWith('.jsx') ? ts.ScriptKind.JSX : fileName.endsWith('.js') ? ts.ScriptKind.JS : ts.ScriptKind.TS; return ts.createSourceFile(fileName, content, lv, true, kind); }
       try { const c = ts.sys.readFile(fileName); if (c !== undefined) return ts.createSourceFile(fileName, c, lv, true); } catch {}
       return undefined;
     },
     getDefaultLibFileName() { return ts.getDefaultLibFilePath(compilerOptions); },
     writeFile() {}, getCurrentDirectory() { return process.cwd(); },
     getCanonicalFileName(fn) { return fn; }, useCaseSensitiveFileNames() { return true; }, getNewLine() { return '\n'; },
-    fileExists(fn) { return !!fileContents[fn] || ts.sys.fileExists(fn); },
-    readFile(fn) { return fileContents[fn] || ts.sys.readFile(fn); },
+    fileExists(fn) { return !!fileContents[fn] || !!fileContents[toPosix(fn)] || ts.sys.fileExists(fn); },
+    readFile(fn) { return fileContents[fn] || fileContents[toPosix(fn)] || ts.sys.readFile(fn); },
     resolveModuleNames(moduleNames, containingFile) {
       const resolved = [];
       for (const moduleName of moduleNames) {
         let rp = null;
         const baseDir = path.dirname(containingFile);
         if (moduleName.startsWith('.')) {
-          for (const ext of ['.ts', '.tsx', '.js', '.jsx', '.d.ts']) { const p = path.resolve(baseDir, moduleName + ext); if (fileContents[p] || ts.sys.fileExists(p)) { rp = p; break; } }
-          if (!rp) for (const ext of ['.ts', '.tsx', '.js', '.jsx']) { const p = path.resolve(baseDir, moduleName, 'index' + ext); if (fileContents[p] || ts.sys.fileExists(p)) { rp = p; break; } }
+          for (const ext of ['.ts', '.tsx', '.js', '.jsx', '.d.ts']) { const p = toPosix(path.resolve(baseDir, moduleName + ext)); if (fileContents[p] || ts.sys.fileExists(p)) { rp = p; break; } }
+          if (!rp) for (const ext of ['.ts', '.tsx', '.js', '.jsx']) { const p = toPosix(path.resolve(baseDir, moduleName, 'index' + ext)); if (fileContents[p] || ts.sys.fileExists(p)) { rp = p; break; } }
         }
-        if ((moduleName === libName || moduleName === fullLibName) && !rp) for (const sf of libSourceFiles) if (sf.endsWith('index.ts') || sf.endsWith('index.js') || sf.endsWith('index.tsx')) { rp = sf; break; }
+        if ((moduleName === libName || moduleName === fullLibName) && !rp) for (const sf of posixLibSourceFiles) if (sf.endsWith('index.ts') || sf.endsWith('index.js') || sf.endsWith('index.tsx')) { rp = sf; break; }
         resolved.push(rp ? { resolvedFileName: rp, extension: '.ts' } : undefined);
       }
       return resolved;
     },
   };
-  const program = ts.createProgram(allSourceFiles, compilerOptions, host);
+  const program = ts.createProgram(posixRootNames, compilerOptions, host);
   const checker = program.getTypeChecker();
   const hasSideEffectInterfaces = interfaces.some(i => i.type === 'side-effect');
   const fileCoverageMap = {};
   for (const testFile of testFiles) {
-    const sourceFile = program.getSourceFile(testFile);
+    const sourceFile = program.getSourceFile(toPosix(testFile));
     if (!sourceFile) continue;
     const fileName = path.basename(testFile);
     const importedSymbols = extractImportedSymbolsAST(sourceFile, libName, fullLibName);
