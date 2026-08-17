@@ -515,7 +515,8 @@ function printHelp() {
   const env = { ...process.env };
   if (tsNM) {
     env.NODE_PATH = tsNM + (env.NODE_PATH ? path.delimiter + env.NODE_PATH : '');
-    log.ok(`TypeScript 模块: ${path.join(tsNM, 'typescript')}`);
+    env.TYPESCRIPT_PATH = path.join(tsNM, 'typescript');
+    log.ok(`TypeScript 模块: ${env.TYPESCRIPT_PATH}`);
   } else {
     // 仅 arkts 真正强依赖 TS；flutter/rn 可能不需要
     if (platform === 'arkts') {

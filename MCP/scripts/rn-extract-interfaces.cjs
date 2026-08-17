@@ -465,6 +465,10 @@ function parseArgs(argv) {
 }
 
 function loadTypeScript() {
+  // 最优先：libraryTestScan.js 通过环境变量注入的精确路径
+  if (process.env.TYPESCRIPT_PATH) {
+    try { const ts = require(process.env.TYPESCRIPT_PATH); if (ts && typeof ts.createProgram === 'function') return ts; } catch {}
+  }
   for (const p of [path.join(__dirname, '..', 'node_modules', 'typescript'), path.join(__dirname, 'node_modules', 'typescript')]) {
     try { const ts = require(p); if (ts && typeof ts.createProgram === 'function') return ts; } catch {}
   }
