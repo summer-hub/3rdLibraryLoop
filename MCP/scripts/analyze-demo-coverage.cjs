@@ -594,14 +594,36 @@ function matchCoverageAST(interfaces, testFiles, libName, libRoot) {
     return null;
   }
 
+  // Windows 兼容：TS 编译器内部使用正斜杠 / 作为路径分隔符
+  const toPosix = (p) => p.replace(/\\/g, '/');
+
+  // 定位库模块根目录（兼容非标准结构，如 ohos_mqtt 用 ohos_Mqtt/ 而非 library/）
+  // 复用 extract-interfaces.cjs 的 locateEntryFile 找入口，再向上找含 oh-package.json5 的目录
+  const { locateEntryFile } = require('./extract-interfaces.cjs');
+  const entryFile = locateEntryFile(libRoot);
+  let libraryDir = path.join(libRoot, 'library');
+  if (!fs.existsSync(libraryDir) && entryFile) {
+    let dir = path.dirname(entryFile);
+    for (let i = 0; i < 6 && dir && dir.startsWith(libRoot); i++) {
+      if (fs.existsSync(path.join(dir, 'oh-package.json5')) ||
+          fs.existsSync(path.join(dir, 'oh-package.json'))) {
+        libraryDir = dir;
+        break;
+      }
+      const parent = path.dirname(dir);
+      if (parent === dir) break;
+      dir = parent;
+    }
+    if (!fs.existsSync(libraryDir) && entryFile) libraryDir = path.dirname(entryFile);
+  }
+
   const libSourceFiles = [];
-  const libraryDir = path.join(libRoot, 'library');
   function collectLibFiles(dir) {
     if (!fs.existsSync(dir)) return;
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const fullPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        if (entry.name === 'node_modules' || entry.name === 'oh_modules') continue;
+        if (entry.name === 'node_modules' || entry.name === 'oh_modules' || entry.name === 'build') continue;
         collectLibFiles(fullPath);
       } else if (entry.name.endsWith('.d.ts') || entry.name.endsWith('.ets') || entry.name.endsWith('.ts')) {
         libSourceFiles.push(fullPath);
@@ -614,6 +636,7 @@ function matchCoverageAST(interfaces, testFiles, libName, libRoot) {
   const allSourceFiles = [...libSourceFiles, ...testFiles];
   for (const realPath of allSourceFiles) {
     let virtualPath = realPath.endsWith('.ets') ? realPath.replace(/\.ets$/, '.ts') : realPath;
+    virtualPath = toPosix(virtualPath);
     virtualPaths.set(virtualPath, realPath);
   }
 
@@ -632,7 +655,8 @@ function matchCoverageAST(interfaces, testFiles, libName, libRoot) {
 
   const host = {
     getSourceFile: function(fileName, languageVersion) {
-      if (fileContents[fileName]) return ts.createSourceFile(fileName, fileContents[fileName], languageVersion, true, ts.ScriptKind.TS);
+      const content = fileContents[fileName] || fileContents[toPosix(fileName)];
+      if (content) return ts.createSourceFile(fileName, content, languageVersion, true, ts.ScriptKind.TS);
       if (!fileName.endsWith('.ets')) {
         try { const c = ts.sys.readFile(fileName); if (c !== undefined) return ts.createSourceFile(fileName, c, languageVersion, true); } catch (e) {}
       }
@@ -644,8 +668,8 @@ function matchCoverageAST(interfaces, testFiles, libName, libRoot) {
     getCanonicalFileName: function(fileName) { return fileName; },
     useCaseSensitiveFileNames: function() { return true; },
     getNewLine: function() { return '\n'; },
-    fileExists: function(fileName) { return !!fileContents[fileName] || ts.sys.fileExists(fileName); },
-    readFile: function(fileName) { return fileContents[fileName] || ts.sys.readFile(fileName); },
+    fileExists: function(fileName) { return !!fileContents[fileName] || !!fileContents[toPosix(fileName)] || ts.sys.fileExists(fileName); },
+    readFile: function(fileName) { return fileContents[fileName] || fileContents[toPosix(fileName)] || ts.sys.readFile(fileName); },
     resolveModuleNames: function(moduleNames, containingFile) {
       const resolved = [];
       for (const moduleName of moduleNames) {
@@ -653,18 +677,19 @@ function matchCoverageAST(interfaces, testFiles, libName, libRoot) {
         const baseDir = path.dirname(containingFile);
         if (moduleName.startsWith('.')) {
           for (const c of [path.resolve(baseDir, moduleName + '.ts'), path.resolve(baseDir, moduleName + '.d.ts'), path.resolve(baseDir, moduleName, 'Index.ts'), path.resolve(baseDir, moduleName, 'Index.d.ts')]) {
-            if (fileContents[c] || ts.sys.fileExists(c)) { resolvedPath = c; break; }
+            const pc = toPosix(c);
+            if (fileContents[pc] || ts.sys.fileExists(c)) { resolvedPath = pc; break; }
           }
         }
         if (moduleName.endsWith('.so') && !resolvedPath) {
           const soName = moduleName.replace(/\.so$/, '');
           for (const sf of libSourceFiles) {
-            if (sf.includes('types/' + soName + '/Index.d.ts')) { resolvedPath = sf; break; }
+            if (sf.includes('types/' + soName + '/Index.d.ts') || sf.includes('types/' + soName.replace(/-/g, '_') + '/Index.d.ts')) { resolvedPath = toPosix(sf); break; }
           }
         }
         if (moduleName === libName && !resolvedPath) {
-          const indexEts = path.join(libraryDir, 'Index.ets');
-          const indexVirtual = indexEts.replace(/\.ets$/, '.ts');
+          const indexEts = entryFile || path.join(libraryDir, 'Index.ets');
+          const indexVirtual = toPosix(indexEts.replace(/\.ets$/, '.ts'));
           if (fileContents[indexVirtual]) resolvedPath = indexVirtual;
         }
         resolved.push(resolvedPath ? { resolvedFileName: resolvedPath, extension: '.ts' } : undefined);
@@ -678,7 +703,7 @@ function matchCoverageAST(interfaces, testFiles, libName, libRoot) {
 
   const fileCoverageMap = {};
   for (const testFile of testFiles) {
-    const virtualTestPath = testFile.replace(/\.ets$/, '.ts');
+    const virtualTestPath = toPosix(testFile.replace(/\.ets$/, '.ts'));
     const sourceFile = program.getSourceFile(virtualTestPath);
     if (!sourceFile) continue;
     const fileName = path.basename(testFile);
