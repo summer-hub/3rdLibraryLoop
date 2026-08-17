@@ -1,0 +1,10 @@
+{
+  "name": "librarytest-scan",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "private": true,
+  "description": "三方库接口/Demo/XTS 覆盖率扫描工具",
+  "dependencies": {
+    "typescript": "^5.4.0"
+  }
+}

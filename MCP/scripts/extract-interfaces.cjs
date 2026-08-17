@@ -1040,9 +1040,14 @@ function parseLibraryWithTS(repoDir, entryFile, nativeSoInfo, libraryName) {
 
   if (!libraryName) libraryName = extractLibraryName(repoDir, entryFile);
 
+  // Windows 兼容：TS 编译器内部使用正斜杠 / 作为路径分隔符，
+  // 需将所有作为 fileContents/virtualPaths key 的路径统一为 POSIX 风格，
+  // 否则 host.getSourceFile(fileName) 的 fileName 被 TS 标准化为正斜杠后查不到。
+  const toPosix = (p) => p.replace(/\\/g, '/');
+
   // 将 .ets 文件映射为虚拟 .ts 路径，.d.ts 保持原样
-  const virtualPaths = new Map(); // virtualPath -> realPath
-  const realToVirtual = new Map(); // realPath -> virtualPath
+  const virtualPaths = new Map(); // virtualPath(POSIX) -> realPath(原始)
+  const realToVirtual = new Map(); // realPath(原始) -> virtualPath(POSIX)
 
   for (const realPath of sourceFiles) {
     let virtualPath;
@@ -1051,11 +1056,12 @@ function parseLibraryWithTS(repoDir, entryFile, nativeSoInfo, libraryName) {
     } else {
       virtualPath = realPath;
     }
+    virtualPath = toPosix(virtualPath);
     virtualPaths.set(virtualPath, realPath);
     realToVirtual.set(realPath, virtualPath);
   }
 
-  // 读取所有源文件内容（用虚拟路径作为 key）
+  // 读取所有源文件内容（用虚拟 POSIX 路径作为 key）
   // 对 .ets 文件进行预处理：将 ArkTS 特有的 `struct` 关键字替换为 `class`
   const fileContents = {};
   for (const [vPath, rPath] of virtualPaths) {
@@ -1079,15 +1085,16 @@ function parseLibraryWithTS(repoDir, entryFile, nativeSoInfo, libraryName) {
   // 构建自定义 host
   const host = {
     getSourceFile: function(fileName, languageVersion) {
-      if (fileContents[fileName]) {
-        return ts.createSourceFile(fileName, fileContents[fileName], languageVersion, true,
+      const content = fileContents[fileName] || fileContents[toPosix(fileName)];
+      if (content) {
+        return ts.createSourceFile(fileName, content, languageVersion, true,
           fileName.endsWith('.d.ts') ? ts.ScriptKind.TS : ts.ScriptKind.TS);
       }
       if (!fileName.endsWith('.ets')) {
         try {
-          const content = ts.sys.readFile(fileName);
-          if (content !== undefined) {
-            return ts.createSourceFile(fileName, content, languageVersion, true);
+          const sysContent = ts.sys.readFile(fileName);
+          if (sysContent !== undefined) {
+            return ts.createSourceFile(fileName, sysContent, languageVersion, true);
           }
         } catch (e) { /* fall through */ }
       }
@@ -1102,10 +1109,10 @@ function parseLibraryWithTS(repoDir, entryFile, nativeSoInfo, libraryName) {
     useCaseSensitiveFileNames: function() { return true; },
     getNewLine: function() { return '\n'; },
     fileExists: function(fileName) {
-      return !!fileContents[fileName] || ts.sys.fileExists(fileName);
+      return !!fileContents[fileName] || !!fileContents[toPosix(fileName)] || ts.sys.fileExists(fileName);
     },
     readFile: function(fileName) {
-      return fileContents[fileName] || ts.sys.readFile(fileName);
+      return fileContents[fileName] || fileContents[toPosix(fileName)] || ts.sys.readFile(fileName);
     },
     resolveModuleNames: function(moduleNames, containingFile) {
       const resolved = [];
@@ -1121,8 +1128,9 @@ function parseLibraryWithTS(repoDir, entryFile, nativeSoInfo, libraryName) {
             path.resolve(baseDir, moduleName, 'Index.d.ts'),
           ];
           for (const c of candidates) {
-            if (fileContents[c] || ts.sys.fileExists(c)) {
-              resolvedPath = c;
+            const posixC = toPosix(c);
+            if (fileContents[posixC] || ts.sys.fileExists(c)) {
+              resolvedPath = posixC;
               break;
             }
           }

@@ -178,32 +178,44 @@ function cloneScriptsRepo() {
 // ── TypeScript 模块定位（arkts 脚本依赖 typescript）──────────
 
 /**
- * 从若干种子目录向上查找 node_modules/typescript，返回 node_modules 目录
- * 找不到返回 null（flutter/rn 不依赖 TS 时可忽略）
- * @param {string[]} seeds
- * @returns {string|null}
+ * 定位 typescript 模块路径
+ *
+ * 查找优先级:
+ *   1. 本目录（Tools/）的 node_modules/typescript — 用户 `npm install` 后的标准位置
+ *   2. 向上逐级查找（兼容旧布局：MCP/node_modules、工程根 node_modules）
+ *   3. require.resolve 兜底（全局安装或 NODE_PATH 可见时）
+ *
+ * @returns {string|null} typescript 模块绝对路径（指向 typescript 目录本身）
  */
-function findTypeScriptNodeModules(seeds) {
-  // 先尝试 require.resolve（若全局或当前路径可见）
-  try {
-    const resolved = require.resolve('typescript');
-    // resolved 形如 .../node_modules/typescript/lib/typescript.js
-    const nm = path.join(path.dirname(resolved), '..', '..');
-    if (fs.existsSync(path.join(nm, 'typescript', 'package.json'))) return nm;
-  } catch (_) { /* fallthrough */ }
+function findTypeScriptModule() {
+  // 1. 本目录 node_modules（package.json 声明依赖的标准位置）
+  const localTs = path.join(__dirname, 'node_modules', 'typescript', 'package.json');
+  if (fs.existsSync(localTs)) {
+    return path.join(__dirname, 'node_modules', 'typescript');
+  }
 
-  for (const seed of seeds) {
+  // 2. 向上查找（兼容 MCP/node_modules、工程根 node_modules 等旧布局）
+  for (const seed of [__dirname, path.join(__dirname, '..', 'MCP')]) {
     let dir = seed;
     for (let i = 0; i < 12 && dir; i++) {
       const tsPkg = path.join(dir, 'node_modules', 'typescript', 'package.json');
       if (fs.existsSync(tsPkg)) {
-        return path.join(dir, 'node_modules');
+        return path.join(dir, 'node_modules', 'typescript');
       }
       const parent = path.dirname(dir);
       if (parent === dir) break;
       dir = parent;
     }
   }
+
+  // 3. require.resolve 兜底（全局安装或 NODE_PATH 可见时）
+  try {
+    const resolved = require.resolve('typescript');
+    // resolved 形如 .../node_modules/typescript/lib/typescript.js
+    const tsDir = path.join(path.dirname(resolved), '..');
+    if (fs.existsSync(path.join(tsDir, 'package.json'))) return tsDir;
+  } catch (_) { /* fallthrough */ }
+
   return null;
 }
 
@@ -511,16 +523,16 @@ function printHelp() {
   }
 
   // 2. 定位 typescript 模块（arkts/flutter 覆盖率分析需要；缺失仅告警，交由下游脚本自行处理）
-  const tsNM = findTypeScriptNodeModules([__dirname, libroot, path.join(__dirname, '..', 'MCP'), path.join(__dirname, '3rdLibraryLoop', 'MCP')]);
+  const tsPath = findTypeScriptModule();
   const env = { ...process.env };
-  if (tsNM) {
-    env.NODE_PATH = tsNM + (env.NODE_PATH ? path.delimiter + env.NODE_PATH : '');
-    env.TYPESCRIPT_PATH = path.join(tsNM, 'typescript');
-    log.ok(`TypeScript 模块: ${env.TYPESCRIPT_PATH}`);
+  if (tsPath) {
+    // 通过环境变量注入精确路径，下游脚本 loadTypeScript() 最优先读取
+    env.TYPESCRIPT_PATH = tsPath;
+    log.ok(`TypeScript 模块: ${tsPath}`);
   } else {
     // 仅 arkts 真正强依赖 TS；flutter/rn 可能不需要
     if (platform === 'arkts') {
-      log.warn('未找到 typescript 模块，arkts 分析可能失败。请安装 typescript（npm i -D typescript）或将含 typescript 的 node_modules 置于本脚本上级目录。');
+      log.warn('未找到 typescript 模块。请在 Tools/ 目录执行: npm install');
     }
   }
 
