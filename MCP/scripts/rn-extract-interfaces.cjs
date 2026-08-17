@@ -430,12 +430,6 @@ function defsToInterfaces(defs, repoDir, sourceFile, typeLabel, layerLabel) {
         });
       }
     }
-    interfaces.push({
-      className: def.name, memberName: def.name, fullName: def.name, kind: 'type',
-      isStatic: false, isReadonly: false, isOptional: false, isEvent: false,
-      type, layer, signature: `${def.typeKind} ${def.name}`, params: [], returnType: def.name,
-      description: '-', source: sourceRel, startLine: 0,
-    });
   }
   return interfaces;
 }
@@ -667,16 +661,6 @@ function extractFabricComponentSpecs(repoDir) {
           params: [], returnType: fieldType, description: '-', source: sourceRel, startLine: 0,
         });
       }
-      // Add type declaration if not already present
-      const existing = interfaces.find(i => i.fullName === typeName && i.kind === 'type');
-      if (!existing) {
-        interfaces.push({
-          className: typeName, memberName: typeName, fullName: typeName, kind: 'type',
-          isStatic: false, isReadonly: false, isOptional: false, isEvent: false,
-          type: 'fabric-spec', layer: 'fabric', signature: `type ${typeName}`,
-          params: [], returnType: typeName, description: '-', source: sourceRel, startLine: 0,
-        });
-      }
     }
   }
 
@@ -758,12 +742,6 @@ function extractESModuleExports(content, repoDir, entryFile) {
           source: rel(entryFile, repoDir), startLine: 0,
         });
       }
-      interfaces.push({
-        className: name, memberName: name, fullName: name, kind: 'type',
-        isStatic: false, isReadonly: false, isOptional: false, isEvent: false,
-        type: 'es-export', layer: 'js', signature: `class ${name}`,
-        params: [], returnType: name, description: '-', source: rel(entryFile, repoDir), startLine: 0,
-      });
       continue;
     }
     const constMatch = cleaned.match(new RegExp(`export\\s+(?:const|let|var)\\s+${name}\\s*=\\s*([^;\\n]+)`));
@@ -788,12 +766,6 @@ function extractESModuleExports(content, repoDir, entryFile) {
         source: rel(entryFile, repoDir), startLine: 0,
       });
     }
-    interfaces.push({
-      className: name, memberName: name, fullName: name, kind: 'type',
-      isStatic: false, isReadonly: false, isOptional: false, isEvent: false,
-      type: 'type-decl', layer: 'js', signature: `type ${name}`,
-      params: [], returnType: name, description: '-', source: rel(entryFile, repoDir), startLine: 0,
-    });
   }
 
   // ── re-export 链追踪 ──────────────────────────────────
