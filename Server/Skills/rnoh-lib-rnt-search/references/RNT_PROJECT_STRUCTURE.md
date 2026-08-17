@@ -30,13 +30,15 @@ rnt 是 RN 鸿蒙化团队的 demo 集合工程，**根目录下并列多个子�
 **关键约定**：
 - demo 目录**总在** `{rnt-root}/*/rn-tester/examples/{库候选名}/` 路径下
 - 不同子工程的 `examples/` 可能收录不同库的 demo
-- 同一库的 demo **通常只在一个子工程下**，但**也可能存在多个**（需用户选择）
+- 同一库的 demo **通常只在一个子工程下**，但**也可能存在多个**（版本一致时自动选择第一个）
 
 ---
 
 ## 2. demo 目录典型结构
 
-每个 demo 目录是一个独立的 mini RN 工程，典型布局：
+rnt demo 的目录结构有多种变体，`analyze-demo-deps.cjs` 会自动检测入口文件位置。以下是三种常见结构：
+
+### 2.1 结构 A：根级入口（经典结构）
 
 ```
 {library-demo}/
@@ -44,47 +46,50 @@ rnt 是 RN 鸿蒙化团队的 demo 集合工程，**根目录下并列多个子�
 ├── index.tsx              # 导出 demo，供 testerino 注册
 ├── tests/
 │   └── index.tsx          # testerino 测试用例注册表
-├── camera/                # demo 功能子目录（按库功能命名）
+├── camera/                # demo 功能子目录
 │   ├── CameraDemo.tsx
 │   └── CameraControls.tsx
-├── scanCode/              # 另一功能子目录
-│   └── ScanCodeDemo.tsx
 ├── components/            # demo 复用组件
-│   ├── Navigation.tsx     # 通用导航（迁移时通常保留）
+│   ├── Navigation.tsx     # 通用导航（迁移时保留）
 │   └── Button.tsx
-└── assets/                # 静态资源（图片、JSON）
-    └── ...
+└── assets/                # 静态资源
 ```
 
-### 2.1 App.tsx
+### 2.2 结构 B：testCase 嵌套结构（常见于较新 demo）
 
-```tsx
-import React from 'react';
-import { Camera } from 'react-native-camera-kit';
-
-const App = () => { /* ... */ };
-App.displayName = 'CameraKitDemo';   // ← 迁移后用于 testerino 注册
-export default App;
+```
+{library-demo}/
+├── testCase/
+│   ├── App.tsx            # testerino 入口，导出 displayName / title / examples
+│   ├── Navigation.tsx     # 通用导航（含硬编码标题，需修正）
+│   ├── Palette.tsx        # 颜色常量
+│   └── Test/
+│       ├── index.tsx      # testerino 测试用例注册表
+│       ├── PdfApitest.tsx
+│       └── ...
+├── demo/
+│   └── PdfExample.tsx     # 独立 demo 示例
+└── assets/                # 静态资源
 ```
 
-### 2.2 index.tsx
+> 结构 B 的入口在 `testCase/App.tsx`，不是根级 `App.tsx`。`index.tsx`（根级）可能是独立的简单示例，需要接入到 `testCase/App.tsx`（Phase 6.4）。
 
-```tsx
-import App from './App';
-export { App };
-```
+### 2.3 结构 C：混合结构
 
-### 2.3 tests/index.tsx
+部分 demo 同时包含根级 `App.tsx` 和 `tests/` 目录，也可能有 `demo/` 子目录存放额外示例。
 
-testerino 测试用例注册表，**迁移后路径需修正**：
+### 2.4 入口检测规则
 
-```tsx
-// ❌ 迁移前可能写法（rnt 工程内相对路径）
-import { CameraDemo } from './camera/CameraDemo';
+`analyze-demo-deps.cjs` 按以下规则自动检测入口：
 
-// ✅ 迁移后正确写法（tests/ 在 example/src/tests/ 下）
-import { CameraDemo } from '../camera/CameraDemo';
-```
+| 检测项 | 规则 |
+|--------|------|
+| App 入口 | 递归扫描，取第一个 basename 为 `App.tsx`/`App.ts`/`App.jsx`/`App.js` 的文件 |
+| index 入口 | 递归扫描，取第一个 basename 为 `index.tsx`/`index.ts` 的文件 |
+| displayName | 匹配 `displayName = 'xxx'` 或 `export const displayName = 'xxx'` |
+| title | 匹配 `title = 'xxx'` 或 `title: 'xxx'` 或 `export const title = 'xxx'` |
+| Navigation.tsx | 递归扫描，列出所有 basename 为 `Navigation.tsx` 的文件 |
+| 硬编码标题 | 匹配 `RN <Xxx> (Capi )?Tester` 模式的文本 |
 
 ---
 
@@ -121,7 +126,7 @@ import { CameraDemo } from '../camera/CameraDemo';
 5. 退出码：
    - 0: 唯一命中
    - 1: 未命中
-   - 2: 多个命中（需用户选择）
+   - 2: 多个命中（自动选择第一个，用户可通过 --demo-path 指定其他）
 ```
 
 ### 4.1 多命中的典型情况
@@ -130,7 +135,7 @@ import { CameraDemo } from '../camera/CameraDemo';
 - 候选名匹配到多个不同库（如 `react-native-svg` 匹配到 `react-native-svg-uri`）
 - 大小写兜底匹配到名称相近的目录
 
-> 多命中时 **禁止** Agent 自动选择，必须列出所有路径请用户决策。
+> 多命中时自动选择第一个，在报告中标注全部命中路径。用户可通过 `--demo-path` 参数指定其他。
 
 ### 4.2 未命中的排查
 

@@ -13,15 +13,16 @@
 | # | 检查项 | 命令 | 通过标准 |
 |---|--------|------|---------|
 | 1.1.1 | demo 文件全部迁移 | `diff <(cd <demoPath> && find . -type f -not -path './node_modules/*' -not -path './build/*' | sort) <(cd <targetExampleSrc> && find . -type f -not -path './node_modules/*' -not -path './build/*' | sort)` | 无差异（排除项除外） |
-| 1.1.2 | 入口文件存在 | `test -f <targetExampleSrc>/App.tsx && test -f <targetExampleSrc>/index.tsx` | 退出码 0 |
-| 1.1.3 | testerino 注册存在 | `test -f <targetExampleSrc>/tests/index.tsx` | 退出码 0（若 demo 有 tests/） |
+| 1.1.2 | 入口文件存在 | `find <targetExampleSrc> -name "App.tsx" -o -name "index.tsx"` | 两个文件都存在（可在嵌套子目录中） |
+| 1.1.3 | testerino 注册存在 | `find <targetExampleSrc> -path "*/Test/index.tsx" -o -path "*/tests/index.tsx"` | 退出码 0（路径可为嵌套） |
 | 1.1.4 | 无排除项残留 | `ls <targetExampleSrc>/node_modules 2>/dev/null` | 无输出（应被排除） |
+| 1.1.5 | index.tsx 引用 demo 入口 | `grep -r "testCase/App\|demo/App\|./App" <targetExampleSrc>/index.tsx` | index.tsx 已接入 demo 入口 |
 
 ### 1.2 路径正确性
 
 | # | 检查项 | 命令 | 通过标准 |
 |---|--------|------|---------|
-| 1.2.1 | tests/ 下无错误相对路径 | `grep -rn "from '\./" <targetExampleSrc>/tests/` | 无 `./camera`、`./components` 等同级引用（应为 `../`） |
+| 1.2.1 | 子目录下无错误相对路径 | `grep -rn "from '\./" <targetExampleSrc>/testCase/Test/ <targetExampleSrc>/tests/` | 无同级引用应为 `../` 的情况 |
 | 1.2.2 | 所有 import 路径可解析 | 静态分析（Agent 读取每个 .tsx 文件） | 无 `Cannot find module` 风险 |
 
 ### 1.3 引用一致性
@@ -29,7 +30,8 @@
 | # | 检查项 | 命令 | 通过标准 |
 |---|--------|------|---------|
 | 1.3.1 | 目标库引用方式一致 | `grep -rn "import.*from.*'<alias>\|<packageName>'" <targetExampleSrc>/` | 引用方式统一（全部用 alias 或全部用 packageName） |
-| 1.3.2 | displayName 唯一 | `grep -rn "displayName" <targetExampleSrc>/App.tsx` | 仅一处，且与 demo 名称一致 |
+| 1.3.2 | displayName 存在 | `grep -rn "displayName" <targetExampleSrc>/` | 存在且与 demo 名称一致 |
+| 1.3.3 | 无硬编码其他库标题 | `grep -rn "RN.*Tester" <targetExampleSrc>/` | 无遗留的其他库名称（Phase 6.5 已修正） |
 
 ### 1.4 依赖完整性
 
@@ -37,6 +39,13 @@
 |---|--------|------|---------|
 | 1.4.1 | 所有外部依赖已列出 | 对比 `analyze-demo-deps.cjs` 输出与报告「依赖增量」章节 | 全部列出 |
 | 1.4.2 | 无未识别的 require | `grep -rn "require(" <targetExampleSrc>/` | 所有 require 参数是字符串字面量且已分类 |
+
+### 1.5 版本一致性
+
+| # | 检查项 | 方法 | 通过标准 |
+|---|--------|------|---------|
+| 1.5.1 | 库与 rnt 版本一致 | `detect-rnoh-version.cjs` 输出对比 | 版本号相同 |
+| 1.5.2 | example/package.json 版本匹配 | 检查 react-native / react-native-harmony 版本 | 与目标 RNOH 版本一致 |
 
 ---
 
@@ -67,10 +76,7 @@
 **场景**：迁移时发现 `targetExampleSrc` 已有同名文件。
 
 **处理**：
-- **默认（无 --clean）**：列出冲突文件清单，询问用户：
-  - 覆盖（用 demo 文件替换）
-  - 保留（跳过 demo 文件）
-  - 取消迁移
+- **默认（无 --clean）**：列出冲突文件清单，rsync 覆盖（demo 文件优先），在报告中标注冲突项
 - **--clean 启用**：直接清空目标，但**必须**用户明确同意
 
 **通用组件保留**：
@@ -111,8 +117,8 @@
 **处理**：
 1. `find-rnt-demo.sh` 退出码 2（多个命中）
 2. 列出所有命中路径与对应的库候选名
-3. **禁止** Agent 自动选择，必须由用户决策
-4. 用户选择后记录 `demoPath`，继续后续步骤
+3. 自动选择第一个命中项，在报告中标注全部命中路径
+4. 用户可通过 `--demo-path` 参数指定其他 demo
 
 ### 2.8 demo 入口文件缺失
 

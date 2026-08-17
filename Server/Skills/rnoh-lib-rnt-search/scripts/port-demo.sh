@@ -79,9 +79,9 @@ EXCLUDE_ARGS=(
   --exclude 'oh-package-lock.json5'
 )
 
-# Unless --clean-all, preserve components/Navigation.tsx (common reusable component)
+# Unless --clean-all, protect Navigation.tsx at any depth (shared component)
 if [[ "$CLEAN_ALL" != "true" ]]; then
-  EXCLUDE_ARGS+=(--filter 'protect components/Navigation.tsx')
+  EXCLUDE_ARGS+=(--filter 'protect Navigation.tsx')
 fi
 
 # Append user-provided excludes
@@ -123,17 +123,21 @@ if [[ "$CLEAN" == "true" ]]; then
   if [[ "$CLEAN_ALL" == "true" ]]; then
     find "$TARGET" -mindepth 1 -delete 2>/dev/null || true
   else
-    # Preserve components/Navigation.tsx if it exists
+    # Preserve Navigation.tsx at any depth if it exists
     NAV_TMP=""
-    if [[ -f "$TARGET/components/Navigation.tsx" ]]; then
+    NAV_FILES=$(find "$TARGET" -name "Navigation.tsx" -type f 2>/dev/null)
+    if [[ -n "$NAV_FILES" ]]; then
       NAV_TMP="$(mktemp -d)"
-      cp "$TARGET/components/Navigation.tsx" "$NAV_TMP/Navigation.tsx"
-      log "Preserved components/Navigation.tsx"
+      while IFS= read -r nav_file; do
+        rel_nav="${nav_file#$TARGET/}"
+        mkdir -p "$NAV_TMP/$(dirname "$rel_nav")"
+        cp "$nav_file" "$NAV_TMP/$rel_nav"
+        log "Preserved $rel_nav"
+      done <<< "$NAV_FILES"
     fi
     find "$TARGET" -mindepth 1 -delete 2>/dev/null || true
     if [[ -n "$NAV_TMP" ]]; then
-      mkdir -p "$TARGET/components"
-      cp "$NAV_TMP/Navigation.tsx" "$TARGET/components/Navigation.tsx"
+      cd "$NAV_TMP" && find . -type f -exec sh -c 'mkdir -p "$TARGET/$(dirname "{}")" && cp "$NAV_TMP/{}" "$TARGET/{}"' _ {} \;
       rm -rf "$NAV_TMP"
     fi
   fi

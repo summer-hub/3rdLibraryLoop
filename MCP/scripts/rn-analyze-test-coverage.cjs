@@ -381,7 +381,11 @@ function aggregateResults(interfaces, fileCoverageMap, libName, sourceFileCount)
 // ════════════════════════════════════════════════════════════
 
 function renderHeader(result, title) {
-  return `# ${title || result.libraryName + ' 覆盖率分析报告'}\n\n> 本报告自动生成。\n\n## 基本信息\n\n| 属性 | 值 |\n|------|----|\n| 库名 | \`${result.libraryName}\` |\n| 源文件数 | ${result.sourceFileCount || '-'} |\n| 生成时间 | ${new Date(Date.now() + 8 * 3600 * 1000).toISOString().replace('T', ' ').replace('Z', '+08:00')} |\n`;
+  let lines = `# ${title || result.libraryName + ' 覆盖率分析报告'}\n\n> 本报告自动生成。\n\n## 基本信息\n\n| 属性 | 值 |\n|------|----|\n| 库名 | \`${result.libraryName}\` |\n| 源文件数 | ${result.sourceFileCount || '-'} |\n| 生成时间 | ${new Date(Date.now() + 8 * 3600 * 1000).toISOString().replace('T', ' ').replace('Z', '+08:00')} |\n`;
+  if ((result.filteredTypeDeclCount || 0) > 0 || (result.filteredInternalCmdCount || 0) > 0) {
+    lines += `| 过滤类型声明 | ${result.filteredTypeDeclCount || 0} |\n| 过滤内部 Fabric 命令 | ${result.filteredInternalCmdCount || 0} |\n| 实际统计接口 | ${result.totalInterfacesMethodLevel} |\n`;
+  }
+  return lines;
 }
 function renderOverview(result) {
   const rate = parseFloat(result.coverageRateMethodLevel) || 0;
@@ -471,7 +475,26 @@ const srcDir = args.src || detectTestDir(libRoot);
 const mode = args.mode || 'auto';
 const libName = spec.libraryAlias || spec.libraryName || '';
 const fullLibName = spec.libraryName || '';
-const interfaces = spec.interfaces || [];
+const allInterfaces = spec.interfaces || [];
+const jsMethodNames = new Set(
+  allInterfaces.filter(i => i.layer === 'js' && i.kind === 'method').map(i => i.memberName)
+);
+const camelSplit = s => s.replace(/([a-z])([A-Z])/g, '$1 $2').split(/\s+/).filter(Boolean).map(t => t.toLowerCase());
+const jsMethodTokens = [...jsMethodNames].map(camelSplit);
+let filteredTypeDeclCount = 0, filteredInternalCmdCount = 0;
+const interfaces = allInterfaces.filter(i => {
+  if (i.kind === 'type' && i.memberName === i.className) { filteredTypeDeclCount++; return false; }
+  if (i.type === 'fabric-spec' && i.kind === 'method') {
+    const fabTokens = camelSplit(i.memberName);
+    for (const jsTokens of jsMethodTokens) {
+      if (jsTokens.length >= 2 && jsTokens.every(t => fabTokens.includes(t))) { filteredInternalCmdCount++; return false; }
+    }
+  }
+  return true;
+});
+if (filteredTypeDeclCount > 0 || filteredInternalCmdCount > 0) {
+  info(`过滤: ${filteredTypeDeclCount} 个类型声明, ${filteredInternalCmdCount} 个内部 Fabric 命令 (有 JS 层等价方法)`);
+}
 
 info('[Test 覆盖率分析]');
 info(`库名: ${libName} (完整: ${fullLibName})`);
@@ -498,6 +521,8 @@ if (!fs.existsSync(srcDir)) {
   }
 }
 result.specSummary = spec.summary;
+result.filteredTypeDeclCount = filteredTypeDeclCount;
+result.filteredInternalCmdCount = filteredInternalCmdCount;
 result.noTestFiles = !fs.existsSync(srcDir) || (result.sourceFileCount === 0);
 ok(`匹配完成: ${result.coveredMethodCount}/${result.totalInterfacesMethodLevel} (${result.coverageRateMethodLevel}%)`);
 

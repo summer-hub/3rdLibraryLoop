@@ -20,7 +20,11 @@
 | 目标库根目录 | {{libPath}} |
 | 目标 example/src | {{targetExampleSrc}} |
 | rnt 工程根 | {{rntPath}} |
-| RNOH 版本（若提供） | {{rnohVersion}} |
+| 库分支 | {{libBranch}} |
+| rnt 分支 | {{rntBranch}} |
+| RNOH 版本 | {{rnohVersion}} |
+| example/package.json RN 版本 | {{exampleRnVersion}} |
+| 版本一致性 | ✅ 一致 / ❌ 不一致 |
 
 ## 2. demo 来源
 
@@ -30,7 +34,7 @@
 | demo 目录路径 | {{demoPath}} |
 | 命中候选名 | {{matchedSearchName}} |
 | 扫描方式 | 自动扫描 / 用户指定 |
-| 用户确认 | ✅ 已确认 / ⚠️ 待确认 |
+| demo 结构 | 根级入口 / testCase 嵌套 / 混合 |
 
 ## 3. 库元数据（read-lib-meta.cjs 摘要）
 
@@ -99,20 +103,20 @@
 
 ## 6. 路径修正记录
 
-| # | 文件 | 修正前 | 修正后 | 原因 |
-|---|------|--------|--------|------|
-| 1 | tests/index.tsx | `from './camera/CameraDemo'` | `from '../camera/CameraDemo'` | tests/ 下引用上级目录 |
-| 2 | tests/index.tsx | `from './components/Navigation'` | `from '../components/Navigation'` | 同上 |
-| ... | ... | ... | ... | ... |
+| # | 文件 | 修正类型 | 修正前 | 修正后 | 原因 |
+|---|------|---------|--------|--------|------|
+| 1 | index.tsx | 入口接入 | 独立内容 | re-export testCase/App | demo 入口未接入 |
+| 2 | testCase/Navigation.tsx | 硬编码标题 | "RN Svg Capi Tester" | "RN Pdf Tester" | 遗留其他库标题 |
+| ... | ... | ... | ... | ... | ... |
 
 ## 7. 入口文件信息
 
 | 文件 | 字段 | 值 |
 |------|------|-----|
-| App.tsx | displayName | {{displayName}} |
-| App.tsx | title | {{title}} |
-| index.tsx | export | {{exportContent}} |
-| tests/index.tsx | 注册组件名 | {{registeredNames}} |
+| {{appPath}} | displayName | {{displayName}} |
+| {{appPath}} | title | {{title}} |
+| index.tsx | 接入方式 | re-export {{appPath}} / 独立入口 |
+| {{testIndexPath}} | 注册组件名 | {{registeredNames}} |
 
 ## 8. 目标库引用方式
 
@@ -129,12 +133,16 @@
 | 1.1.2 | 入口文件存在 | ✅ / ❌ | {{备注}} |
 | 1.1.3 | testerino 注册存在 | ✅ / ❌ | {{备注}} |
 | 1.1.4 | 无排除项残留 | ✅ / ❌ | {{备注}} |
-| 1.2.1 | tests/ 下无错误相对路径 | ✅ / ❌ | {{备注}} |
+| 1.1.5 | index.tsx 引用 demo 入口 | ✅ / ❌ | {{备注}} |
+| 1.2.1 | 子目录下无错误相对路径 | ✅ / ❌ | {{备注}} |
 | 1.2.2 | import 路径可解析 | ✅ / ❌ | {{备注}} |
 | 1.3.1 | 目标库引用方式一致 | ✅ / ❌ | {{备注}} |
-| 1.3.2 | displayName 唯一 | ✅ / ❌ | {{备注}} |
+| 1.3.2 | displayName 存在 | ✅ / ❌ | {{备注}} |
+| 1.3.3 | 无硬编码其他库标题 | ✅ / ❌ | {{备注}} |
 | 1.4.1 | 外部依赖已列出 | ✅ / ❌ | {{备注}} |
 | 1.4.2 | 无未识别 require | ✅ / ❌ | {{备注}} |
+| 1.5.1 | 库与 rnt 版本一致 | ✅ / ❌ | {{备注}} |
+| 1.5.2 | example/package.json 版本匹配 | ✅ / ❌ | {{备注}} |
 
 ## 10. 待人工确认项
 

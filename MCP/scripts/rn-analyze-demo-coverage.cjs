@@ -135,6 +135,14 @@ function matchCoverageRegex(interfaces, files, libName, fullLibName) {
         else if ((iface.kind === 'property' || iface.kind === 'field') && new RegExp(`\\.${mem}\\b`, 'g').test(content)) fileCovered.push(iface.fullName);
       }
     }
+    if (defaultAlias && hasImport) {
+      for (const iface of interfaces) {
+        if (fileCovered.includes(iface.fullName)) continue;
+        if (iface.className && (iface.kind === 'property' || iface.kind === 'field' || iface.kind === 'method') && iface.memberName && iface.memberName.length >= 2) {
+          if (new RegExp(`\\b${escapeRegex(iface.memberName)}\\s*=\\s*[{"'` + '`' + `]`, 'g').test(content)) fileCovered.push(iface.fullName);
+        }
+      }
+    }
     for (const fullName of fileCovered) {
       if (!fileCoverageMap[fileName]) fileCoverageMap[fileName] = { count: 0, interfaces: [] };
       fileCoverageMap[fileName].count++;
@@ -216,6 +224,25 @@ function collectCoverageAST(sourceFile, checker, interfaces, importedSymbols, va
   for (const [, alias] of importedSymbols) if (alias !== 'default' && alias !== '__sideEffect__') importedClassNames.add(alias);
   const defaultAlias = importedSymbols.get('default');
 
+  const refVarNames = new Set();
+  if (defaultAlias || importedClassNames.size > 0) {
+    function scanRefs(node) {
+      if (ts.isJsxAttribute(node) && node.name && node.name.text === 'ref' && node.initializer) {
+        let refExpr = ts.isJsxExpression(node.initializer) ? node.initializer.expression : node.initializer;
+        if (refExpr && ts.isIdentifier(refExpr)) {
+          const ja = node.parent;
+          const oe = ja && ja.parent;
+          if (oe && (ts.isJsxOpeningElement(oe) || ts.isJsxSelfClosingElement(oe)) && ts.isIdentifier(oe.tagName)) {
+            const tn = oe.tagName.text;
+            if ((defaultAlias && tn === defaultAlias) || importedClassNames.has(tn)) refVarNames.add(refExpr.text);
+          }
+        }
+      }
+      ts.forEachChild(node, scanRefs);
+    }
+    scanRefs(sourceFile);
+  }
+
   function visit(node) {
     if (ts.isPropertyAccessExpression(node)) {
       const propName = node.name.text;
@@ -235,6 +262,17 @@ function collectCoverageAST(sourceFile, checker, interfaces, importedSymbols, va
         const rt = checker.typeToString(checker.getTypeAtLocation(expr));
         if (rt) for (const [cn, alias] of importedSymbols) { if (cn === 'default' || cn === '__sideEffect__') continue; if (rt === alias || rt === cn) { const fn = `${alias}.${propName}`; if (ifaceByFullName.has(fn)) covered.add(fn); } }
       } catch {}
+      if (refVarNames.size > 0) {
+        let refExpr = node.expression;
+        while (refExpr && (ts.isNonNullExpression(refExpr) || ts.isAsExpression(refExpr) || ts.isParenthesizedExpression(refExpr))) refExpr = refExpr.expression;
+        if (refExpr && ts.isPropertyAccessExpression(refExpr) && refExpr.name.text === 'current') {
+          const rootExpr = refExpr.expression;
+          if (rootExpr && ts.isIdentifier(rootExpr) && refVarNames.has(rootExpr.text)) {
+            const cands = ifaceByMemberName.get(propName);
+            if (cands) for (const c of cands) { if (c.kind === 'method' || c.kind === 'function') covered.add(c.fullName); }
+          }
+        }
+      }
     }
     if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
       const cands = ifaceByMemberName.get(node.expression.text);
@@ -261,6 +299,18 @@ function collectCoverageAST(sourceFile, checker, interfaces, importedSymbols, va
     if (defaultAlias && ts.isPropertyAccessExpression(node) && ts.isPropertyAccessExpression(node.expression) && ts.isIdentifier(node.expression.expression) && node.expression.expression.text === defaultAlias) {
       const fn = `${node.expression.name.text}.${node.name.text}`;
       if (ifaceByFullName.has(fn)) covered.add(fn);
+    }
+    if (ts.isJsxAttribute(node) && node.name) {
+      const attrName = node.name.text;
+      const ja = node.parent;
+      const oe = ja && ja.parent;
+      if (oe && (ts.isJsxOpeningElement(oe) || ts.isJsxSelfClosingElement(oe)) && ts.isIdentifier(oe.tagName)) {
+        const tn = oe.tagName.text;
+        if ((defaultAlias && tn === defaultAlias) || importedClassNames.has(tn)) {
+          const cands = ifaceByMemberName.get(attrName);
+          if (cands) for (const c of cands) { if (c.kind === 'property' || c.kind === 'field' || c.kind === 'method') covered.add(c.fullName); }
+        }
+      }
     }
     ts.forEachChild(node, visit);
   }
@@ -381,7 +431,11 @@ function aggregateResults(interfaces, fileCoverageMap, libName, sourceFileCount)
 // ════════════════════════════════════════════════════════════
 
 function renderHeader(result, title) {
-  return `# ${title || result.libraryName + ' 覆盖率分析报告'}\n\n> 本报告自动生成。\n\n## 基本信息\n\n| 属性 | 值 |\n|------|----|\n| 库名 | \`${result.libraryName}\` |\n| 源文件数 | ${result.sourceFileCount || '-'} |\n| 生成时间 | ${new Date(Date.now() + 8 * 3600 * 1000).toISOString().replace('T', ' ').replace('Z', '+08:00')} |\n`;
+  let lines = `# ${title || result.libraryName + ' 覆盖率分析报告'}\n\n> 本报告自动生成。\n\n## 基本信息\n\n| 属性 | 值 |\n|------|----|\n| 库名 | \`${result.libraryName}\` |\n| 源文件数 | ${result.sourceFileCount || '-'} |\n| 生成时间 | ${new Date(Date.now() + 8 * 3600 * 1000).toISOString().replace('T', ' ').replace('Z', '+08:00')} |\n`;
+  if ((result.filteredTypeDeclCount || 0) > 0 || (result.filteredInternalCmdCount || 0) > 0) {
+    lines += `| 过滤类型声明 | ${result.filteredTypeDeclCount || 0} |\n| 过滤内部 Fabric 命令 | ${result.filteredInternalCmdCount || 0} |\n| 实际统计接口 | ${result.totalInterfacesMethodLevel} |\n`;
+  }
+  return lines;
 }
 function renderOverview(result) {
   const rate = parseFloat(result.coverageRateMethodLevel) || 0;
@@ -463,7 +517,26 @@ const srcDir = args.src || detectDemoDir(libRoot);
 const mode = args.mode || 'auto';
 const libName = spec.libraryAlias || spec.libraryName || '';
 const fullLibName = spec.libraryName || '';
-const interfaces = spec.interfaces || [];
+const allInterfaces = spec.interfaces || [];
+const jsMethodNames = new Set(
+  allInterfaces.filter(i => i.layer === 'js' && i.kind === 'method').map(i => i.memberName)
+);
+const camelSplit = s => s.replace(/([a-z])([A-Z])/g, '$1 $2').split(/\s+/).filter(Boolean).map(t => t.toLowerCase());
+const jsMethodTokens = [...jsMethodNames].map(camelSplit);
+let filteredTypeDeclCount = 0, filteredInternalCmdCount = 0;
+const interfaces = allInterfaces.filter(i => {
+  if (i.kind === 'type' && i.memberName === i.className) { filteredTypeDeclCount++; return false; }
+  if (i.type === 'fabric-spec' && i.kind === 'method') {
+    const fabTokens = camelSplit(i.memberName);
+    for (const jsTokens of jsMethodTokens) {
+      if (jsTokens.length >= 2 && jsTokens.every(t => fabTokens.includes(t))) { filteredInternalCmdCount++; return false; }
+    }
+  }
+  return true;
+});
+if (filteredTypeDeclCount > 0 || filteredInternalCmdCount > 0) {
+  info(`过滤: ${filteredTypeDeclCount} 个类型声明, ${filteredInternalCmdCount} 个内部 Fabric 命令 (有 JS 层等价方法)`);
+}
 
 info('[Demo 覆盖率分析]');
 info(`库名: ${libName} (完整: ${fullLibName})`);
@@ -482,14 +555,17 @@ if (!fs.existsSync(srcDir)) {
       info('使用 AST 模式匹配...');
       try { result = matchCoverageAST(interfaces, testFiles, libName, fullLibName, libRoot); } catch (e) { warn(`AST 模式出错: ${e.message}`); result = null; }
       if (!result && mode === 'auto') warn('AST 模式失败，降级到正则模式...');
+      else if (result && result.coveredMethodCount === 0 && mode === 'auto') { warn('AST 模式未匹配到任何接口，降级到正则模式...'); result = null; }
     }
-    if (!result) { info('使用正则模式匹配...'); result = matchCoverageRegex(interfaces, testFiles, libName, fullLibName); }
+    if (!result && mode !== 'ast') { info('使用正则模式匹配...'); result = matchCoverageRegex(interfaces, testFiles, libName, fullLibName); }
   } else {
     warn('未找到 Demo 源文件');
     result = aggregateResults(interfaces, {}, libName, 0);
   }
 }
 result.specSummary = spec.summary;
+result.filteredTypeDeclCount = filteredTypeDeclCount;
+result.filteredInternalCmdCount = filteredInternalCmdCount;
 result.noDemoFiles = !fs.existsSync(srcDir) || (result.sourceFileCount === 0);
 ok(`匹配完成: ${result.coveredMethodCount}/${result.totalInterfacesMethodLevel} (${result.coverageRateMethodLevel}%)`);
 

@@ -82,10 +82,10 @@
 
 | 检查项 | 通过条件 | 失败处理 |
 |--------|---------|---------|
-| `demoPath` 存在 | 目录可访问 | 询问用户重新提供 |
+| `demoPath` 存在 | 目录可访问 | 报错终止，提示用户重新提供 |
 | `targetExampleSrc` 存在 | 目录可访问 | 引导用户先执行 `rn-lib-add-example` 创建模板 |
 | `targetExampleSrc` 可写 | 有写权限 | 报错并终止 |
-| 目标已有同名文件 | 列出冲突文件 | 询问用户：覆盖 / 保留 / 跳过 |
+| 目标已有同名文件 | 列出冲突文件 | rsync 覆盖（demo 优先），报告中标注 |
 
 ### 3.2 --clean 选项
 
@@ -158,15 +158,53 @@ import { CameraDemo } from '../camera/CameraDemo';
 import { Navigation } from '../components/Navigation';
 ```
 
-### 4.2 入口文件对齐
+### 4.2 入口文件对齐与接入
 
 | 文件 | 检查内容 |
 |------|---------|
-| `App.tsx` | `displayName` / `title` 与 demo 名称一致 |
-| `index.tsx` | `export` 路径与实际文件结构一致 |
-| `tests/index.tsx` | testerino 注册的组件名与 `App.displayName` 一致 |
+| `App.tsx`（可在嵌套子目录如 `testCase/App.tsx`） | `displayName` / `title` 与 demo 名称一致 |
+| `index.tsx`（根级） | 是否已引用 demo 入口；若未引用，re-export demo 入口 |
+| `Test/index.tsx` 或 `tests/index.tsx` | testerino 注册的组件名与 `App.displayName` 一致 |
 
-### 4.3 目标库引用对齐
+**入口接入检查**：
+
+```bash
+# 确认 index.tsx 是否引用了 demo 入口（testCase/App, demo/App, ./App 等）
+grep -l "testCase/App\|demo/App\|./App" example/src/index.tsx
+```
+
+若未引用，更新 `index.tsx` 为 re-export：
+
+```tsx
+export {
+  default,
+  displayName,
+  framework,
+  category,
+  title,
+  documentationURL,
+  description,
+  examples,
+} from './testCase/App';
+```
+
+### 4.3 Navigation.tsx 硬编码标题修正
+
+`Navigation.tsx`（或类似共享组件）从 rnt 复制后可能包含**其他库的硬编码标题**。
+
+**检测**：`analyze-demo-deps.cjs` 的 `hardcodedTitles` 字段列出所有匹配 `RN <Xxx> (Capi )?Tester` 的文本。
+
+**修正**：
+
+```tsx
+// ❌ 迁移前（遗留的 Svg 库标题）
+<Text>RN Svg Capi Tester</Text>
+
+// ✅ 迁移后（替换为目标库 alias，如 react-native-pdf → Pdf）
+<Text>RN Pdf Tester</Text>
+```
+
+### 4.4 目标库引用对齐
 
 确认 demo 中目标库的引用方式与 example 配置一致：
 
@@ -187,9 +225,11 @@ import { Navigation } from '../components/Navigation';
 | 检查项 | 方法 | 通过标准 |
 |--------|------|---------|
 | 文件完整性 | 对比 `demoPath` 与 `targetExampleSrc` 文件清单 | 排除项外文件全部迁移 |
-| 入口文件存在 | `ls example/src/App.tsx example/src/index.tsx` | 两个文件都存在 |
-| 相对路径有效 | grep `from '\./` 在 `tests/` 下 | 无 `./camera` 等错误路径 |
+| 入口文件存在 | `find example/src -name "App.tsx" -o -name "index.tsx"` | 两个文件都存在（可嵌套） |
+| index.tsx 接入 | `grep "testCase/App\|demo/App\|./App" example/src/index.tsx` | index.tsx 引用 demo 入口 |
+| 相对路径有效 | grep `from '\./` 在子目录下 | 无错误的同级引用 |
 | 目标库引用一致 | grep `import.*from.*'<alias>\|<packageName>'` | 引用方式与 example 配置一致 |
+| 无硬编码标题 | grep `RN.*Tester` 在 Navigation.tsx 等 | 无其他库的遗留标题 |
 | 无残留排除项 | `ls example/src/node_modules` 等 | 不存在（应被排除） |
 
 > 自检脚本由 Agent 串联执行，结果写入迁移报告。
@@ -204,7 +244,8 @@ import { Navigation } from '../components/Navigation';
 |----------|---------|
 | 依赖增量清单 | 写入 `example/package.json` 的 `dependencies` |
 | 目标库引用方式 | 配置 `metro.config.js` 的 `extraNodeModules` |
-| 入口文件 displayName | 配置 `App.tsx` 与 `tests/index.tsx` 注册 |
+| 入口文件 displayName | 配置 `App.tsx` 与 `Test/index.tsx` 注册 |
+| 版本一致性检测结果 | 决定是否需要更新 example/package.json 的 react-native / react-native-harmony 版本 |
 | 待人工确认项 | 由用户或 Agent 在壳层适配阶段决策 |
 | 原生代码标注 | 决定是否需要 CMake / RNPackagesFactory 适配 |
 

@@ -23,7 +23,7 @@ Output: one demo path per line (absolute).
 Exit codes:
   0 = exactly one match found
   1 = no match found
-  2 = multiple matches found (user must choose)
+  2 = multiple matches found (auto-select first; user can override via --demo-path)
 EOF
 }
 
@@ -107,5 +107,5 @@ fi
 
 # Multiple matches: print all and exit 2
 printf '%s\n' "$deduped"
-log "Multiple demo directories found; ask the user to choose one."
+log "Multiple demo directories found; auto-selected first match."
 exit 2

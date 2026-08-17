@@ -11,6 +11,7 @@
  *   - libReferences: how demo imports the target library
  *   - entryFiles: App.tsx / index.tsx paths + displayName
  *   - nativeFiles: .ets/.cpp/.h files (not migrated, flagged for shell adaptation)
+ *   - hardcodedTitles: hardcoded library-specific titles found in shared components (e.g., Navigation.tsx)
  *
  * Exit codes: 0 = success, 1 = error
  */
@@ -194,6 +195,11 @@ walk(demoPath, files, nativeFiles);
 const externalDeps = new Set();
 const libReferences = [];
 const entryFiles = { app: null, index: null, displayName: null, title: null };
+const hardcodedTitles = [];
+const navigationFiles = [];
+
+// Match hardcoded tester titles like "RN Svg Capi Tester", "RN Camera Tester"
+const TITLE_REGEX = /RN\s+\w+(?:\s+\w+)*\s+(?:Capi\s+)?Tester/i;
 
 for (const rel of files) {
   const full = path.join(demoPath, rel);
@@ -225,14 +231,23 @@ for (const rel of files) {
   const baseName = path.basename(rel);
   if (baseName === 'App.tsx' || baseName === 'App.ts' || baseName === 'App.jsx' || baseName === 'App.js') {
     if (!entryFiles.app) entryFiles.app = rel;
-    // Extract displayName
-    const dnMatch = source.match(/\.displayName\s*=\s*['"]([^'"]+)['"]/);
+    // Extract displayName: matches both App.displayName = 'xxx' and export const displayName = 'xxx'
+    const dnMatch = source.match(/\bdisplayName\s*=\s*['"]([^'"]+)['"]/);
     if (dnMatch) entryFiles.displayName = dnMatch[1];
-    const titleMatch = source.match(/title\s*[:=]\s*['"]([^'"]+)['"]/);
+    const titleMatch = source.match(/\btitle\s*[:=]\s*['"]([^'"]+)['"]/);
     if (titleMatch && !entryFiles.title) entryFiles.title = titleMatch[1];
   }
   if ((baseName === 'index.tsx' || baseName === 'index.ts' || baseName === 'index.jsx' || baseName === 'index.js') && !entryFiles.index) {
     entryFiles.index = rel;
+  }
+
+  // Detect Navigation files and hardcoded tester titles
+  if (baseName === 'Navigation.tsx' || baseName === 'Navigation.ts') {
+    navigationFiles.push(rel);
+  }
+  const titleMatch = source.match(TITLE_REGEX);
+  if (titleMatch) {
+    hardcodedTitles.push({ file: rel, text: titleMatch[0], line: source.substring(0, titleMatch.index).split('\n').length });
   }
 }
 
@@ -245,6 +260,8 @@ const result = {
   externalDeps: [...externalDeps].sort(),
   libReferences,
   entryFiles,
+  navigationFiles,
+  hardcodedTitles,
 };
 
 console.log(JSON.stringify(result, null, 2));
