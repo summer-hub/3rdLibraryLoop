@@ -401,7 +401,7 @@ function extractClassAndInterfaceDefs(content) {
   return defs;
 }
 
-function defsToInterfaces(defs, repoDir, sourceFile, typeLabel, layerLabel) {
+function defsToInterfaces(defs, repoDir, sourceFile, typeLabel, layerLabel, content) {
   const type = typeLabel || 'type-decl';
   const layer = layerLabel || 'js';
   const interfaces = [];
@@ -409,6 +409,7 @@ function defsToInterfaces(defs, repoDir, sourceFile, typeLabel, layerLabel) {
   for (const def of defs) {
     for (const member of def.members) {
       const isField = member.signature.includes(':') && !member.signature.includes('(') && !member.signature.includes('=>');
+      const isDeprecated = content ? isDeprecatedMember(content, member.name) : false;
       if (isField) {
         const typeMatch = member.signature.match(/^\w+\??\s*:\s*(.+)$/);
         const fieldType = typeMatch ? typeMatch[1].trim() : '-';
@@ -416,7 +417,7 @@ function defsToInterfaces(defs, repoDir, sourceFile, typeLabel, layerLabel) {
           className: def.name, memberName: member.name, fullName: `${def.name}.${member.name}`,
           kind: 'field', isStatic: false, isReadonly: /\breadonly\b/.test(member.signature),
           isOptional: member.signature.includes('?'), isEvent: /(?:onAnimation|onLayout)/.test(member.name),
-          type, layer, signature: member.signature, params: [], returnType: fieldType,
+          isDeprecated, type, layer, signature: member.signature, params: [], returnType: fieldType,
           description: '-', source: sourceRel, startLine: 0,
         });
       } else {
@@ -425,7 +426,7 @@ function defsToInterfaces(defs, repoDir, sourceFile, typeLabel, layerLabel) {
           className: def.name, memberName: member.name, fullName: `${def.name}.${member.name}`,
           kind: 'method', isStatic: /\bstatic\b/.test(member.signature), isReadonly: false,
           isOptional: false, isEvent: /(?:onAnimation|onLayout|Listener)/.test(member.name),
-          type, layer, signature: member.signature, params: parsed.params, returnType: parsed.returnType,
+          isDeprecated, type, layer, signature: member.signature, params: parsed.params, returnType: parsed.returnType,
           description: '-', source: sourceRel, startLine: 0,
         });
       }
@@ -592,6 +593,30 @@ function extractMethodJSDoc(content, methodName) {
   return '-';
 }
 
+function isDeprecatedMember(content, memberName) {
+  const lines = content.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].includes('@deprecated')) {
+      for (let j = i - 1; j >= 0; j--) {
+        if (lines[j].includes('/**')) {
+          let endJ = i;
+          while (endJ < lines.length && !lines[endJ].includes('*/')) endJ++;
+          for (let k = endJ + 1; k < Math.min(endJ + 4, lines.length); k++) {
+            const line = lines[k].trim();
+            if (!line || line.startsWith('*') || line.startsWith('//')) continue;
+            const declPattern = new RegExp(`(?:export\\s+)?(?:async\\s+)?(?:function|const|let|var|class|interface|type|readonly|static|get|set)\\s+${memberName}\\b`);
+            const fieldPattern = new RegExp(`^${memberName}\\s*\\??\\s*:`);
+            if (declPattern.test(line) || fieldPattern.test(line)) return true;
+            break;
+          }
+          break;
+        }
+      }
+    }
+  }
+  return false;
+}
+
 function findMethodLineNumber(content, methodName) {
   const lines = content.split('\n');
   for (let i = 0; i < lines.length; i++) {
@@ -632,34 +657,22 @@ function extractFabricComponentSpecs(repoDir) {
     const cleaned = stripComments(content);
     const sourceRel = rel(specFile, repoDir);
 
-    // Check if this is a Fabric Component spec (not a TurboModule)
     const isFabric = /codegenNativeComponent/.test(cleaned) || /codegenNativeCommands/.test(cleaned);
     const isTurboModule = /interface\s+Spec\s+extends\s+TurboModule/.test(cleaned);
     if (!isFabric && !isTurboModule) continue;
 
     files.push(sourceRel);
 
-    // Extract interfaces and type aliases via extractClassAndInterfaceDefs
     const defs = extractClassAndInterfaceDefs(content);
-    interfaces.push(...defsToInterfaces(defs, repoDir, specFile, 'fabric-spec', 'fabric'));
+    const allFabricInterfaces = defsToInterfaces(defs, repoDir, specFile, 'fabric-spec', 'fabric', content);
 
-    // Extract Readonly<{...}> type aliases (event types)
-    const readonlyTypeRegex = /(?:export\s+)?type\s+(\w+)\s*=\s*Readonly\s*<\s*\{/g;
-    let m;
-    while ((m = readonlyTypeRegex.exec(cleaned)) !== null) {
-      const typeName = m[1];
-      const body = extractBalancedBraces(cleaned, m.index + m[0].length);
-      if (!body) continue;
-      const members = extractMethodsFromInterfaceBody(body);
-      for (const member of members) {
-        const typeMatch = member.signature.match(/^\w+\??\s*:\s*(.+)$/);
-        const fieldType = typeMatch ? typeMatch[1].trim() : '-';
-        interfaces.push({
-          className: typeName, memberName: member.name, fullName: `${typeName}.${member.name}`,
-          kind: 'field', isStatic: false, isReadonly: false, isOptional: member.signature.includes('?'),
-          isEvent: false, type: 'fabric-spec', layer: 'fabric', signature: member.signature,
-          params: [], returnType: fieldType, description: '-', source: sourceRel, startLine: 0,
-        });
+    for (const iface of allFabricInterfaces) {
+      if (isFabric && iface.className === 'NativeProps') {
+        if (iface.signature && /DirectEventHandler/.test(iface.signature)) continue;
+        if (iface.memberName === 'isFirstRefresh') continue;
+        interfaces.push(iface);
+      } else if (isTurboModule && iface.className === 'Spec') {
+        interfaces.push(iface);
       }
     }
   }
@@ -709,23 +722,22 @@ function extractCommonJSExports(content, repoDir, entryFile) {
   return interfaces;
 }
 
-function extractESModuleExports(content, repoDir, entryFile) {
-  const exports = extractExports(content);
+function processNamedExportsFromContent(content, repoDir, sourceFile, namedExports) {
   const interfaces = [];
-  // default 导出本身是模块绑定，不是可调用接口，跳过
-  // 开发者实际调用的方法从 index.d.ts 的 class 声明中提取
   const cleaned = stripComments(content);
-  for (const name of exports.named) {
-    const funcMatch = cleaned.match(new RegExp(`export\\s+(?:async\\s+)?function\\s+${name}\\s*\\(([^)]*)\\)\\s*(?::\\s*([^{{]+?))?\\s*[{=]`));
+  const sourceRel = rel(sourceFile, repoDir);
+  for (const name of namedExports) {
+    const isDeprecated = isDeprecatedMember(content, name);
+    const funcMatch = cleaned.match(new RegExp(`export\\s+(?:async\\s+)?function\\s+${name}\\s*(?:<[^>]*>)?\\s*\\(([\\s\\S]*?)\\)\\s*(?::\\s*([^{{]+?))?\\s*[{=]`));
     if (funcMatch) {
-      const paramStr = funcMatch[1] || '';
+      const paramStr = (funcMatch[1] || '').replace(/\n/g, ' ').trim();
       const retType = funcMatch[2] ? funcMatch[2].trim() : '-';
       interfaces.push({
         className: null, memberName: name, fullName: name, kind: 'function',
-        isStatic: false, isReadonly: false, isOptional: false, isEvent: false,
+        isStatic: false, isReadonly: false, isOptional: false, isEvent: false, isDeprecated,
         type: 'es-export', layer: 'js', signature: `${name}(${paramStr})${retType !== '-' ? ': ' + retType : ''}`,
         params: parseParamList(paramStr), returnType: retType,
-        description: extractMethodJSDoc(content, name), source: rel(entryFile, repoDir), startLine: findMethodLineNumber(content, name),
+        description: extractMethodJSDoc(content, name), source: sourceRel, startLine: findMethodLineNumber(content, name),
       });
       continue;
     }
@@ -734,26 +746,37 @@ function extractESModuleExports(content, repoDir, entryFile) {
       const classMethods = extractClassMethods(content, name);
       for (const method of classMethods) {
         const parsed = parseMethodSignature(method.signature);
+        const methodDeprecated = isDeprecatedMember(content, method.name);
         interfaces.push({
           className: name, memberName: method.name, fullName: `${name}.${method.name}`, kind: 'method',
           isStatic: /\bstatic\b/.test(method.signature), isReadonly: false, isOptional: false, isEvent: false,
-          type: 'es-export', layer: 'js', signature: method.signature,
+          isDeprecated: methodDeprecated, type: 'es-export', layer: 'js', signature: method.signature,
           params: parsed.params, returnType: parsed.returnType, description: '-',
-          source: rel(entryFile, repoDir), startLine: 0,
+          source: sourceRel, startLine: 0,
         });
       }
       continue;
     }
-    const constMatch = cleaned.match(new RegExp(`export\\s+(?:const|let|var)\\s+${name}\\s*=\\s*([^;\\n]+)`));
+    const constMatch = cleaned.match(new RegExp(`export\\s+(?:const|let|var)\\s+${name}\\s*(?::\\s*([^=]+?))?\\s*=\\s*([^;\\n]+)`));
     if (constMatch) {
+      const varType = constMatch[1] ? constMatch[1].trim() : '-';
+      const varValue = constMatch[2].trim();
       interfaces.push({
         className: null, memberName: name, fullName: name, kind: 'variable',
-        isStatic: false, isReadonly: false, isOptional: false, isEvent: false,
-        type: 'es-export', layer: 'js', signature: `${name} = ${constMatch[1].trim()}`,
-        params: [], returnType: '-', description: '-', source: rel(entryFile, repoDir), startLine: 0,
+        isStatic: false, isReadonly: false, isOptional: false, isEvent: false, isDeprecated,
+        type: 'es-export', layer: 'js', signature: `${name}${varType !== '-' ? ': ' + varType : ''} = ${varValue}`,
+        params: [], returnType: varType, description: '-', source: sourceRel, startLine: 0,
       });
     }
   }
+  return interfaces;
+}
+
+function extractESModuleExports(content, repoDir, entryFile) {
+  const exports = extractExports(content);
+  const interfaces = [];
+  const cleaned = stripComments(content);
+  interfaces.push(...processNamedExportsFromContent(content, repoDir, entryFile, exports.named));
   for (const name of exports.types) {
     const ifaceMethods = extractInterfaceMethods(content, name);
     for (const method of ifaceMethods) {
@@ -777,17 +800,20 @@ function extractESModuleExports(content, repoDir, entryFile) {
     if (!targetFile) continue;
     const targetContent = readText(targetFile);
     const defs = extractClassAndInterfaceDefs(targetContent);
-    interfaces.push(...defsToInterfaces(defs, repoDir, targetFile));
+    interfaces.push(...defsToInterfaces(defs, repoDir, targetFile, undefined, undefined, targetContent));
+    const targetExports = extractExports(targetContent);
+    interfaces.push(...processNamedExportsFromContent(targetContent, repoDir, targetFile, targetExports.named));
 
     // Recursively process re-exports in the target file
-    const targetExports = extractExports(targetContent);
     for (const subReExport of targetExports.reExports) {
       if (!subReExport.isWildcard) continue;
       const subTarget = resolveRelativePath(targetFile, subReExport.from);
       if (!subTarget) continue;
       const subContent = readText(subTarget);
       const subDefs = extractClassAndInterfaceDefs(subContent);
-      interfaces.push(...defsToInterfaces(subDefs, repoDir, subTarget));
+      interfaces.push(...defsToInterfaces(subDefs, repoDir, subTarget, undefined, undefined, subContent));
+      const subExports = extractExports(subContent);
+      interfaces.push(...processNamedExportsFromContent(subContent, repoDir, subTarget, subExports.named));
     }
   }
 
@@ -799,7 +825,10 @@ function extractESModuleExports(content, repoDir, entryFile) {
     const targetContent = readText(targetFile);
     const defs = extractClassAndInterfaceDefs(targetContent);
     const filteredDefs = defs.filter(d => d.name === reExport.original || d.name === reExport.name);
-    interfaces.push(...defsToInterfaces(filteredDefs, repoDir, targetFile));
+    interfaces.push(...defsToInterfaces(filteredDefs, repoDir, targetFile, undefined, undefined, targetContent));
+    if (!reExport.isType) {
+      interfaces.push(...processNamedExportsFromContent(targetContent, repoDir, targetFile, [reExport.original, reExport.name]));
+    }
   }
 
   // 3. Default export import tracking (import { LottieView } from './LottieView'; export default LottieView)
@@ -812,7 +841,7 @@ function extractESModuleExports(content, repoDir, entryFile) {
         const targetContent = readText(targetFile);
         const defs = extractClassAndInterfaceDefs(targetContent);
         const filteredDefs = defs.filter(d => d.name === exports.defaultExport);
-        interfaces.push(...defsToInterfaces(filteredDefs, repoDir, targetFile));
+        interfaces.push(...defsToInterfaces(filteredDefs, repoDir, targetFile, undefined, undefined, targetContent));
       }
     }
   }
@@ -875,7 +904,7 @@ function extractTypeDefinitions(repoDir) {
 
     const content = readText(filePath);
     const defs = extractClassAndInterfaceDefs(content);
-    interfaces.push(...defsToInterfaces(defs, repoDir, filePath));
+    interfaces.push(...defsToInterfaces(defs, repoDir, filePath, undefined, undefined, content));
 
     // Track re-exports
     const exports = extractExports(content);
@@ -993,6 +1022,7 @@ function generateRNSpec(repoDir, opts = {}) {
 
   const seen = new Set();
   const deduped = interfaces.filter(i => { if (seen.has(i.fullName)) return false; seen.add(i.fullName); return true; });
+
   const methods = deduped.filter(i => i.kind === 'method' || i.kind === 'function');
   const fields = deduped.filter(i => i.kind === 'field');
   const classSet = new Set(deduped.filter(i => i.className).map(i => i.className));

@@ -39,8 +39,25 @@
 |---|--------|------|---------|
 | 1.4.1 | 所有外部依赖已列出 | 对比 `analyze-demo-deps.cjs` 输出与报告「依赖增量」章节 | 全部列出 |
 | 1.4.2 | 无未识别的 require | `grep -rn "require(" <targetExampleSrc>/` | 所有 require 参数是字符串字面量且已分类 |
+| 1.4.3 | **外部依赖已在 example/package.json 声明** | 对比 `externalDeps` 与 `example/package.json` 的 dependencies/devDependencies | 所有外部依赖已声明；未声明的在报告中标注为高优先级缺失项（Phase 4.1） |
 
-### 1.5 版本一致性
+### 1.5 Demo 可访问性
+
+| # | 检查项 | 方法 | 通过标准 |
+|---|--------|------|---------|
+| 1.5.1 | **无孤立文件** | 对比迁移文件列表与 `index.tsx` 的 `demos` 数组 | 所有有 `export` 的 `.tsx`/`.ts` 文件都被入口直接/间接引用（Phase 6.6） |
+| 1.5.2 | **菜单可滚动** | 检查 `demos` 条目数与菜单容器类型 | 条目 > 5 时菜单容器为 `<ScrollView>`（Phase 6.7） |
+| 1.5.3 | **原有 App.tsx 可访问** | 检查 `index.tsx` 是否包含原有 `App.tsx` 的菜单项 | 原有 demo 入口未丢失（Phase 6.8） |
+| 1.5.4 | **入口链路完整** | 追踪 `index.js` → `src/index.tsx` → `demos` → 各组件 → `./demo/` | 全链路可导入，无断裂（Phase 6.9） |
+
+### 1.6 构建前置
+
+| # | 检查项 | 方法 | 通过标准 |
+|---|--------|------|---------|
+| 1.6.1 | **build-profile 无越界路径** | 检查 `modules[].srcPath` 是否以 `../` 开头 | 所有路径在 `example/harmony/` 工程内（Phase 5.1） |
+| 1.6.2 | **.har 文件路径有效** | 逐一 `ls -la` 验证 `oh-package.json5` 中的 `file:` 引用 | 所有 `.har` 文件存在于指定路径（Phase 5.2） |
+
+### 1.7 版本一致性
 
 | # | 检查项 | 方法 | 通过标准 |
 |---|--------|------|---------|
@@ -152,6 +169,71 @@
 2. 正常执行（`rsync` 通常足够快，秒级完成）
 3. 若超过 30 秒，检查是否有意外的大文件或排除项失效
 
+### 2.11 demo 引用 rnt 特有外部依赖（如 @rnoh/testerino）
+
+**场景**：demo 引用了 `@rnoh/testerino` 等 rnt 工程特有的包，但 `example/package.json` 未声明。
+
+**影响**：所有使用该依赖的组件（如 `Tester`、`TestCase`、`TestSuite`）运行时崩溃，白屏。
+
+**处理**：
+1. Phase 4.1 检测到缺失依赖后，从 rnt 工程的 `package.json` 中提取版本与引用方式
+2. 将 rnt 工程中的 tgz 文件复制到 example 目录
+3. 在报告依赖增量清单中给出建议写入值（如 `"@rnoh/testerino": "file:./rnoh-testerino-0.0.12.tgz"`）
+4. 由 `rn-lib-add-example` 或 Agent 写入 `example/package.json`
+
+### 2.12 build-profile.json5 模块路径越界
+
+**场景**：`build-profile.json5` 中 `modules[].srcPath` 为 `../../harmony/safe_area` 等越界路径。
+
+**影响**：hvigor 报错 `Path escapes project root`，编译失败。
+
+**处理**：
+1. Phase 5.1 检测到越界路径
+2. 物理复制模块目录到 `example/harmony/` 下
+3. 修改 `srcPath` 为工程内路径（如 `./safe_area`）
+4. 同步修正被复制模块的 `oh-package.json5` 中的 `.har` 路径
+5. ⚠️ 符号链接不可行（hvigor 不跟随 symlink）
+
+### 2.13 oh-package.json5 中 .har 路径错误
+
+**场景**：模块的 `oh-package.json5` 中 `file:` 引用的 `.har` 路径多/少一层子目录。
+
+**影响**：`ohpm install` 静默跳过该依赖，编译时报 `Cannot find module`。
+
+**处理**：
+1. Phase 5.2 逐一验证 `.har` 文件存在性
+2. 修正 `oh-package.json5` 中的路径，使其指向实际 `.har` 文件位置
+
+### 2.14 迁移的独立 demo 文件未被入口引用
+
+**场景**：`demo03.tsx`、`demo05.tsx` 等文件已迁移到 `example/src/`，但未被 `index.tsx` 的 `demos` 数组引用。
+
+**影响**：用户无法通过菜单导航访问这些 demo，文件虽存在但运行时不加载。
+
+**处理**：
+1. Phase 6.6 检测孤立文件
+2. 将组件加入 `demos` 数组，确保用户可导航到
+
+### 2.15 菜单条目过多无法滚动
+
+**场景**：`demos` 数组条目 > 5，菜单容器为 `<View>`（不支持滚动）。
+
+**影响**：底部 demo 条目不可见、不可点击，用户无法访问。
+
+**处理**：
+1. Phase 6.7 检测条目数与容器类型
+2. 将 `<View>` 改为 `<ScrollView>`
+
+### 2.16 替换入口丢失原有 App.tsx demo
+
+**场景**：`index.js` 从 `./src/App` 改为 `./src/index` 后，原有 `App.tsx` 的 demo 不可访问。
+
+**影响**：原有 demo（如 SafeAreaView、Hooks、Listener 等）完全丢失。
+
+**处理**：
+1. Phase 6.8 检查原有 `App.tsx` 是否仍可访问
+2. 将原有 `App.tsx` 作为菜单项接入 `index.tsx` 的 `demos` 数组
+
 ---
 
 ## 3. 验证失败处理
@@ -177,9 +259,11 @@
 | 命中候选名 | `searchNames` 中实际匹配到的名称 |
 | 迁移文件清单 | 相对路径列表 + 文件总数（区分「本次新增」与「冲突保留」） |
 | 冲突文件清单 | demo 与目标同名文件列表，标注「目标版本已保留，demo 版本未写入」 |
-| 依赖增量清单 | 分类列表（目标库 / RNOH / RN 通用 / 待确认） |
+| 依赖增量清单 | 分类列表（目标库 / RNOH / RN 通用 / 待确认）；**标注 example/package.json 中缺失的依赖及建议写入值** |
 | 路径修正记录 | 修正的文件 + 改动内容（仅本次新增文件） |
 | 入口文件信息 | App.tsx / index.tsx 路径 + displayName |
+| **构建前置检查结果** | build-profile 路径越界检查、.har 路径验证、外部依赖缺失清单、入口链路验证结果 |
+| **Demo 可访问性验证** | 孤立文件检测、菜单 ScrollView 适配、原有 App.tsx 保留、入口链路端到端验证 |
 | 待人工确认项 | 业务无关依赖、冲突文件合并、入口文件接入、原生代码、特殊引用 |
-| 验证检查结果 | 1.1-1.4 各项通过/失败状态 |
-| 后续步骤建议 | 引导执行 `rn-lib-add-example` 完成壳层适配 |
+| 验证检查结果 | 1.1-1.6 各项通过/失败状态 |
+| 后续步骤建议 | 引导执行 `rn-lib-add-example` 完成壳层适配；执行 `npm i` → `ohpm install` → `npm run dev` → `devecocli build` 编译验证 |

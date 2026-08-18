@@ -156,10 +156,26 @@
 | 1.3.3 | 无硬编码其他库标题 | ✅ / ❌ | {{备注}} |
 | 1.4.1 | 外部依赖已列出 | ✅ / ❌ | {{备注}} |
 | 1.4.2 | 无未识别 require | ✅ / ❌ | {{备注}} |
-| 1.5.1 | 库与 rnt 版本一致 | ✅ / ❌ | {{备注}} |
-| 1.5.2 | example/package.json 版本匹配 | ✅ / ❌ | {{备注}} |
+| 1.4.3 | **外部依赖已在 example/package.json 声明** | ✅ / ❌ | {{缺失依赖列表}} |
+| 1.5.1 | **无孤立文件（所有 demo 可导航）** | ✅ / ❌ | {{孤立文件列表}} |
+| 1.5.2 | **菜单可滚动（条目 > 5 时为 ScrollView）** | ✅ / ❌ | {{条目数}} |
+| 1.5.3 | **原有 App.tsx 可访问** | ✅ / ❌ | {{备注}} |
+| 1.5.4 | **入口链路端到端完整** | ✅ / ❌ | {{备注}} |
+| 1.6.1 | **build-profile 无越界路径** | ✅ / ❌ | {{备注}} |
+| 1.6.2 | **.har 文件路径有效** | ✅ / ❌ | {{备注}} |
+| 1.7.1 | 库与 rnt 版本一致 | ✅ / ❌ | {{备注}} |
+| 1.7.2 | example/package.json 版本匹配 | ✅ / ❌ | {{备注}} |
 
-## 10. 待人工确认项
+## 10. 构建前置检查结果
+
+| # | 检查项 | 结果 | 备注 / 修正内容 |
+|---|--------|------|----------------|
+| 1 | **外部依赖缺失清单** | ✅ 无缺失 / ❌ 缺失 | {{缺失依赖列表 + 建议写入值}} |
+| 2 | **build-profile.json5 路径越界** | ✅ 无越界 / ❌ 已修正 | {{修正详情：复制了哪些模块、修改了哪些 srcPath}} |
+| 3 | **.har 文件路径验证** | ✅ 全部有效 / ❌ 已修正 | {{修正详情：哪些 oh-package.json5 的 file: 路径被修改}} |
+| 4 | **入口链路验证** | ✅ 完整 / ❌ 有断裂 | {{断裂点}} |
+
+## 11. 待人工确认项
 
 | # | 项 | 说明 | 建议 |
 |---|----|------|------|
@@ -170,21 +186,30 @@
 | 5 | 版本不一致 | example/package.json RN 版本与目标 RNOH 版本不一致 | 由 rn-lib-add-example 更新 |
 | ... | ... | ... | ... |
 
-## 11. 后续步骤建议
+## 12. 后续步骤建议
 
 本 SKILL 已完成 demo 文件**增量迁移**（不覆盖已有文件）与新增文件路径修正。建议执行以下后续步骤：
 
 1. **执行 `rn-lib-add-example`** 完成：
    - example 模板创建（若缺失）
-   - `example/package.json` 依赖写入（消费本报告第 5 章）
+   - `example/package.json` 依赖写入（消费本报告第 5 章，**特别是缺失依赖**）
    - `metro.config.js` / `tsconfig.json` 别名配置（消费本报告第 8 章）
    - Harmony 壳层适配（RNPackagesFactory.ets / CMakeLists.txt / build-profile.template.json5 等）
    - License 头补全 / OAT.xml 过滤项
-   - `npm install --legacy-peer-deps && npm run dev` 验证
 
-2. **（可选）执行 `rnoh-lib-demo-coverage`** 评估 demo 对库 API 的覆盖程度。
+2. **编译验证**（确认构建前置检查全部通过后）：
+   ```bash
+   cd example && npm i --legacy-peer-deps    # 安装 JS 依赖
+   cd harmony && ohpm install                 # 安装鸿蒙原生依赖
+   cd .. && npm run dev                       # 生成 JS bundle
+   cd harmony && devecocli build              # 编译鸿蒙工程
+   ```
+   > `npm i` 只装 JS 依赖，`ohpm install` 才装 .har 依赖，两者都不可省略。
 
-3. **人工确认**本报告第 10 章的待确认项，特别是：
+3. **（可选）执行 `rnoh-lib-demo-coverage`** 评估 demo 对库 API 的覆盖程度。
+
+4. **人工确认**本报告第 11 章的待确认项，特别是：
+   - 缺失依赖是否已写入 example/package.json
    - 冲突文件是否需要手动合并（第 4.0 章）
    - 已有 index.tsx 是否需要手动接入 demo 入口
    - 已有文件中的硬编码标题是否需要修正

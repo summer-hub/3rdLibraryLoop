@@ -7,7 +7,7 @@ compatibility: 需要 bash、node、npm；目标 RN 工程需已有 example/ 目
 allowed-tools: Bash Read Grep Glob Edit Write
 metadata:
   author: rnoh-team
-  version: "1.0.0"
+  version: "1.1.0"
   category: rn-demo-porting
   language: JavaScript/TypeScript
   consumed-by: rnohLibAddExampleSkill
@@ -76,10 +76,23 @@ Phase 2: 版本检测与对齐（detect-rnoh-version.cjs，自动切换分支）
 Phase 3: 扫描 rnt 工程定位 demo（find-rnt-demo.sh，版本一致时自动选择）
     ↓
 Phase 4: 分析 demo 结构与外部依赖（analyze-demo-deps.cjs）
+  4.1 外部依赖存在性检查（example/package.json 是否已声明）
+  4.2 从 rnt 工程提取缺失依赖的版本信息
     ↓
 Phase 5: 迁移 demo 到目标 example/src（port-demo.sh）
+  5.1 build-profile.json5 模块路径越界检查
+  5.2 .har 文件路径验证
     ↓
 Phase 6: 修正 import 路径与 displayName + 入口接入
+  6.1 相对路径修正
+  6.2 入口文件对齐
+  6.3 目标库引用对齐
+  6.4 入口文件接入
+  6.5 Navigation.tsx 硬编码标题修正
+  6.6 孤立文件检测与接入
+  6.7 菜单容器 ScrollView 适配
+  6.8 保留原有 App.tsx 入口
+  6.9 入口链路端到端验证
     ↓
 Phase 7: 生成迁移报告并交付
 ```
@@ -255,6 +268,36 @@ node scripts/analyze-demo-deps.cjs <demoPath> [--lib-name <packageName>] [--alia
 | 通用 RN 依赖 | `react-native-*` / `@react-native-*` | 写入 example `dependencies`，版本与 example 模板对齐 |
 | 业务无关依赖 | 与目标库 demo 无关 | 列入「待人工确认」清单，不自动写入 |
 
+### 4.1 外部依赖存在性检查（必须执行）
+
+`analyze-demo-deps.cjs` 输出的 `externalDeps` 中每个包，**必须逐一检查**是否已在 `example/package.json` 的 `dependencies` 或 `devDependencies` 中声明：
+
+```bash
+# 读取 example/package.json 已声明的依赖
+node -e "const p=require('<libPath>/example/package.json'); const all={...p.dependencies,...p.devDependencies}; console.log(JSON.stringify(Object.keys(all)))"
+```
+
+| 检查结果 | 处理 |
+|---------|------|
+| 依赖已在 example/package.json 中声明 | ✅ 无需处理 |
+| 依赖未声明，属于 RNOH/RN 通用包 | ⚠️ **高优先级**：在报告中标注「缺少依赖」，并从 rnt 工程的 `package.json` 中查找该包的版本与引用方式（如 `file:./rnoh_package/xxx.tgz`），在报告依赖增量清单中给出建议的写入值 |
+| 依赖未声明，属于业务无关包 | 列入「待人工确认」清单 |
+
+> ⚠️ **缺失依赖会导致运行时崩溃**。例如 demo 引用 `@rnoh/testerino` 但 example/package.json 未声明，所有使用 `Tester`/`TestCase`/`TestSuite` 的组件均无法渲染。此检查是**必执行项**，不可跳过。
+
+### 4.2 从 rnt 工程提取缺失依赖的版本信息
+
+当发现 example 缺少的依赖时，从 rnt 工程的 `package.json` 中提取该包的版本与引用方式：
+
+```bash
+# 在 rnt 子工程的 package.json 中搜索缺失依赖
+grep -r "<missingDep>" <rntPath>/*/package.json
+```
+
+常见情况：
+- `@rnoh/testerino` → rnt 工程中以 `file:./rnoh_package/testerino/rnoh-testerino-<version>.tgz` 形式引用，需将 tgz 复制到 example 目录并同样以 `file:` 方式引用
+- 其他 `@rnoh/*` 或 `@react-native-ohos/*` 包 → 从 rnt 工程或 npm registry 获取版本
+
 > 详细依赖处理规则参见 [references/DEMO_PORTING_GUIDE.md](references/DEMO_PORTING_GUIDE.md) 的「依赖分析与写入」章节。
 
 ---
@@ -292,6 +335,48 @@ example/src/
 ```
 
 > 迁移细节与边界情况（已有文件冲突处理、保留通用组件 `Navigation.tsx` 等）参见 [references/DEMO_PORTING_GUIDE.md](references/DEMO_PORTING_GUIDE.md)。**默认增量添加，冲突文件保留目标版本。**
+
+### 5.1 build-profile.json5 模块路径越界检查（必须执行）
+
+迁移后检查 `example/harmony/build-profile.json5` 与 `example/harmony/build-profile.template.json5` 中的 `modules[].srcPath`，确保所有模块路径**不越出** `example/harmony/` 工程根目录：
+
+```bash
+# 读取 build-profile.json5 中的模块路径
+node -e "const fs=require('fs'); const c=fs.readFileSync('example/harmony/build-profile.json5','utf8'); const m=c.match(/srcPath:\s*'([^']+)'/g); console.log(m)"
+```
+
+| 路径形式 | 判定 | 处理 |
+|---------|------|------|
+| `./entry`、`./safe_area` 等 `./` 开头 | ✅ 工程内路径 | 无需处理 |
+| `../../harmony/xxx` 等 `../` 开头 | ❌ **越界**，hvigor 报错 `Path escapes project root` | 见下方修正 |
+
+**越界路径修正步骤**：
+
+1. 将越界引用的模块目录**物理复制**到 `example/harmony/` 下（如 `cp -R ../../harmony/safe_area ./safe_area`）
+2. 修改 `build-profile.json5` 与 `build-profile.template.json5` 中的 `srcPath` 为工程内相对路径（如 `'../../harmony/safe_area'` → `'./safe_area'`）
+3. 同步修正被复制模块自身的 `oh-package.json5` 中 `file:` 引用路径（见 5.2）
+
+> ⚠️ **符号链接不可行**：hvigor 不跟随 symlink，必须物理复制目录。
+
+### 5.2 .har 文件路径验证（必须执行）
+
+被复制的模块（或原有模块）的 `oh-package.json5` 中 `file:` 引用的 `.har` 文件，**必须逐一验证存在性**：
+
+```bash
+# 读取模块 oh-package.json5 中的 file: 引用
+grep -o "file:[^,\"]*" example/harmony/<module>/oh-package.json5
+
+# 逐一验证文件存在
+ls -la example/harmony/<module>/../../node_modules/@react-native-oh/<pkg>/<xxx>.har
+```
+
+| 检查结果 | 处理 |
+|---------|------|
+| `.har` 文件存在于 `file:` 指定路径 | ✅ 无需处理 |
+| 路径多/少一层子目录（如 `harmony/react_native_openharmony.har` vs `react_native_openharmony.har`） | ❌ 修正 `oh-package.json5` 中的路径，使其指向实际 `.har` 文件位置 |
+| `.har` 文件不存在 | ❌ 报告标注，由 `rn-lib-add-example` 处理 |
+
+> ⚠️ `.har` 路径错误会导致 `ohpm install` 静默跳过该依赖，编译时报 `Cannot find module`。
 
 ---
 
@@ -388,6 +473,127 @@ rnt demo 中的 `Navigation.tsx`（或类似共享组件）常包含**其他库�
 
 > 未修正的硬编码标题会导致 demo 界面显示错误的库名，属于必修正项。
 
+### 6.6 孤立文件检测与接入（必须执行）
+
+迁移后**必须**检查每个迁移的 `.tsx`/`.ts` 文件是否被入口文件（`index.tsx` 或 `App.tsx`）直接或间接引用。未被引用的文件为「孤立文件」，用户无法通过导航访问到这些 demo。
+
+**检测方法**：
+
+```bash
+# 列出迁移的所有 .tsx/.ts 文件
+find example/src -name "*.tsx" -o -name "*.ts" | grep -v node_modules | sort
+
+# 从入口文件开始，检查 import 链是否覆盖所有文件
+grep -rn "from '\./" example/src/index.tsx example/src/App.tsx
+```
+
+| 文件状态 | 处理 |
+|---------|------|
+| 文件被入口直接/间接引用 | ✅ 无需处理 |
+| 文件有 `export` 但未被入口引用（如 `demo03.tsx`、`demo05.tsx`） | ⚠️ **必须接入**：将组件加入 `index.tsx` 的 `demos` 数组（或 `App.tsx` 的菜单），确保用户可导航到 |
+| 文件无 `export`（纯内部模块） | 检查是否被其他文件引用；若确实无用，在报告中标注 |
+
+**接入示例**（孤立文件 `demo03.tsx` 导出 `SafeAreaProviderProp`）：
+
+```tsx
+// index.tsx — 将孤立文件组件加入 demos 数组
+import { SafeAreaProviderProp } from './demo03';
+
+const demos: IDemoItem[] = [
+  // ... 已有 demo ...
+  { Component: SafeAreaProviderProp, name: 'SafeAreaProviderProp (demo03)', key: 'SafeAreaProviderPropDemo03' },
+];
+```
+
+> ⚠️ 孤立文件不会在运行时被加载，用户无法访问其中的 demo。此检查是**必执行项**，不可跳过。
+
+### 6.7 菜单容器 ScrollView 适配（必须执行）
+
+当 `demos` 数组条目数 > 5 时，菜单内容可能超出屏幕高度。此时**必须**将菜单容器从 `<View>` 改为 `<ScrollView>`，否则底部的 demo 条目不可见、不可点击。
+
+**检测方法**：
+
+```bash
+# 统计 demos 数组条目数
+grep -c "Component:" example/src/index.tsx
+```
+
+| 条目数 | 处理 |
+|--------|------|
+| ≤ 5 | ✅ `<View>` 即可 |
+| > 5 | ⚠️ **必须**将菜单容器改为 `<ScrollView>` |
+
+**修正示例**：
+
+```tsx
+// ❌ 迁移前（View 不支持滚动，底部 demo 不可见）
+<View style={styles.demoNav}>{demoMenu}</View>
+
+// ✅ 迁移后（ScrollView 支持滚动）
+<ScrollView style={styles.demoNav}>{demoMenu}</ScrollView>
+```
+
+> 确保 `ScrollView` 已从 `react-native` 导入。仅修改本次新增的 `index.tsx`；若 `index.tsx` 是目标已有文件，在报告中标注需人工修改。
+
+### 6.8 保留原有 App.tsx 入口（必须执行）
+
+迁移 rnt demo 的 `index.tsx` 后，**必须**检查目标工程原有的 `App.tsx` 是否仍可访问。直接替换 `index.js` 的入口注册会丢失原有 demo。
+
+**检查方法**：
+
+```bash
+# 查看 index.js 注册的入口
+grep "registerComponent" example/index.js
+```
+
+| 场景 | 处理 |
+|------|------|
+| `index.js` 注册的是 `./src/App`（原有入口） | ⚠️ 若要使用 rnt 的 `index.tsx` 作为新入口，**必须**将原有 `App.tsx` 作为一个菜单项接入 `index.tsx` 的 `demos` 数组，确保用户可跳转到原有 demo |
+| `index.js` 注册的是 `./src/index`（rnt 入口） | 检查 `index.tsx` 是否已包含原有 `App.tsx` 的入口；若未包含，按下方示例接入 |
+| 无原有 `App.tsx` | ✅ 无需处理 |
+
+**接入示例**（将原有 App.tsx 作为菜单项）：
+
+```tsx
+// index.tsx — 保留原有 App.tsx 入口
+import OriginalApp from './App';
+
+const demos: IDemoItem[] = [
+  { Component: OriginalApp, name: 'Original Demo (App.tsx)', key: 'OriginalApp' },
+  // ... rnt 迁移的 demo ...
+];
+```
+
+同时更新 `index.js`：
+
+```js
+// index.js — 指向 rnt 迁移的 index.tsx
+import Demo from './src/index';
+AppRegistry.registerComponent(appName, () => Demo);
+```
+
+> ⚠️ 丢失原有 App.tsx 入口会导致已有 demo 不可访问。此检查是**必执行项**。
+
+### 6.9 入口链路端到端验证（必须执行）
+
+迁移完成后，**必须**验证从 `index.js` 到每个 demo 组件的完整引用链路畅通：
+
+```
+index.js → src/index.tsx → Demo 组件 → demos 数组 → 各 Test 组件 → ./demo/ 子组件
+```
+
+**验证清单**：
+
+| # | 检查项 | 验证方法 | 通过标准 |
+|---|--------|---------|---------|
+| 1 | `index.js` 注册的入口存在 | `grep "registerComponent" example/index.js` 然后检查指向的文件存在 | 文件存在且可导入 |
+| 2 | `index.tsx` 的 `demos` 数组覆盖所有迁移组件 | 对比 `demos` 数组与迁移文件列表 | 所有有 `export` 的组件都在 `demos` 中 |
+| 3 | 每个 Test 组件引用的 `./demo/XxxExample` 路径存在 | 逐一 `ls` 验证 | 文件存在 |
+| 4 | 菜单容器支持滚动（当条目 > 5） | 检查 `index.tsx` 中菜单容器是 `ScrollView` | ✅ |
+| 5 | Back 按钮可返回菜单 | 检查 `backClickHandle` 重置 `currentDemoKey` | ✅ |
+
+> 入口链路断裂会导致白屏或部分 demo 不可访问。此验证是**必执行项**。
+
 ---
 
 ## Phase 7：生成迁移报告
@@ -407,10 +613,15 @@ rnt demo 中的 `Navigation.tsx`（或类似共享组件）常包含**其他库�
 2. **demo 来源**：rnt 工程路径、demo 子目录、命中候选名
 3. **迁移文件清单**：相对路径列表 + 文件数（区分「本次新增」与「冲突保留目标版本」）
 4. **冲突文件清单**：demo 与目标同名的文件列表，标注「目标版本已保留，demo 版本未写入」
-5. **依赖增量**：新增依赖、版本、来源（demo import 分析）
-6. **路径修正记录**：每个修正的文件与改动（仅本次新增文件；含入口接入、Navigation.tsx 标题修正）
-7. **待人工确认项**：业务无关依赖、版本不一致、冲突文件需人工合并、入口文件需人工接入等
-8. **后续步骤**：建议执行 `rn-lib-add-example` 完成 Harmony 壳层适配与依赖写入
+5. **依赖增量**：新增依赖、版本、来源（demo import 分析）；**标注 example/package.json 中缺失的依赖**（Phase 4.1 检查结果）
+6. **路径修正记录**：每个修正的文件与改动（仅本次新增文件；含入口接入、Navigation.tsx 标题修正、孤立文件接入、ScrollView 适配、原有 App.tsx 保留）
+7. **构建前置检查结果**：
+   - build-profile.json5 模块路径越界检查（Phase 5.1）
+   - .har 文件路径验证（Phase 5.2）
+   - 外部依赖缺失清单（Phase 4.1）
+   - 入口链路验证结果（Phase 6.9）
+8. **待人工确认项**：业务无关依赖、版本不一致、冲突文件需人工合并、入口文件需人工接入等
+9. **后续步骤**：建议执行 `rn-lib-add-example` 完成 Harmony 壳层适配与依赖写入；执行 `npm i` → `ohpm install` → `npm run dev` → `devecocli build` 编译验证
 
 > 报告模板参见 [assets/PORT_REPORT_TEMPLATE.md](assets/PORT_REPORT_TEMPLATE.md)。
 
@@ -453,6 +664,12 @@ rnt demo 中的 `Navigation.tsx`（或类似共享组件）常包含**其他库�
 - **demo 引用了目标库的内部路径**（如 `react-native-camera-kit/src/internal`）：列入「待人工确认」，不自动改写。
 - **demo 含原生代码**（`.ets`/`.cpp`）：本 SKILL 仅迁移 JS/TS 层；原生代码由 `rn-lib-add-example` 壳层适配处理，报告标注。
 - **rnt 工程路径跨盘/网络挂载**：`rsync` 可能较慢，建议本地拷贝 rnt 工程后执行。
+- **demo 引用 rnt 特有外部依赖（如 @rnoh/testerino）**：example/package.json 未声明该依赖时，所有使用该依赖的组件运行时崩溃。Phase 4.1 检查并从 rnt 工程提取版本信息，在报告中标注为高优先级缺失项。
+- **build-profile.json5 模块路径越界**：`modules[].srcPath` 以 `../` 开头时 hvigor 报错 `Path escapes project root`。Phase 5.1 检测并物理复制模块到工程内，修正路径。符号链接不可行（hvigor 不跟随 symlink）。
+- **oh-package.json5 中 .har 路径错误**：`file:` 引用的 `.har` 路径多/少一层子目录时，`ohpm install` 静默跳过该依赖。Phase 5.2 逐一验证 .har 文件存在性。
+- **迁移的独立 demo 文件未被入口引用**：如 `demo03.tsx`、`demo05.tsx` 已迁移但未被 `index.tsx` 的 `demos` 数组引用，用户无法访问。Phase 6.6 检测并接入。
+- **菜单条目过多无法滚动**：demo 条目 > 5 且菜单容器为 `<View>` 时，底部条目不可见。Phase 6.7 检测并改为 `<ScrollView>`。
+- **替换入口丢失原有 App.tsx demo**：`index.js` 改为注册 `./src/index` 后，原有 `App.tsx` 的 demo 不可访问。Phase 6.8 将原有 App.tsx 作为菜单项接入。
 
 > 完整边界情况与处理策略参见 [references/PORT_VERIFICATION.md](references/PORT_VERIFICATION.md)。
 
@@ -483,6 +700,14 @@ rnt demo 中的 `Navigation.tsx`（或类似共享组件）常包含**其他库�
 - **禁止**跳过迁移报告生成。
 - **禁止**跳过入口文件接入检查（Phase 6.4 必须执行）。
 - **禁止**跳过 Navigation.tsx 硬编码标题修正（Phase 6.5 必须执行，仅针对本次新增文件）。
+- **禁止**跳过外部依赖存在性检查（Phase 4.1 必须执行，缺失依赖会导致运行时崩溃）。
+- **禁止**跳过 build-profile.json5 路径越界检查（Phase 5.1 必须执行，越界路径导致编译失败）。
+- **禁止**跳过 .har 文件路径验证（Phase 5.2 必须执行，路径错误导致 ohpm 静默跳过依赖）。
+- **禁止**跳过孤立文件检测（Phase 6.6 必须执行，孤立文件用户无法访问）。
+- **禁止**跳过菜单 ScrollView 适配（Phase 6.7 必须执行，条目 > 5 时不滚动导致底部不可见）。
+- **禁止**替换入口时丢失原有 App.tsx demo（Phase 6.8 必须执行，原有入口必须作为菜单项保留）。
+- **禁止**跳过入口链路端到端验证（Phase 6.9 必须执行）。
+- **禁止**使用符号链接解决 build-profile 路径越界（hvigor 不跟随 symlink，必须物理复制）。
 - **禁止**自动执行 `npm install` 或 `npm run dev`（验证由下游 SKILL 完成）。
 - **禁止**迁移 demo 中的 `node_modules/`、`build/`、`__tests__/`（脚本默认排除，Agent 不得绕过）。
 
@@ -490,8 +715,9 @@ rnt demo 中的 `Navigation.tsx`（或类似共享组件）常包含**其他库�
 
 ## 输出物清单
 
-1. **迁移后的 `example/src/` 文件** — demo 源码已增量添加（不覆盖已有文件），新增文件路径已修正
-2. **迁移报告 Markdown**（`rnt-demo-port-report.md`） — 含来源、文件清单、冲突文件清单、依赖增量、待办项
-3. **依赖增量清单**（报告内章节） — 供 `rn-lib-add-example` 写入 `example/package.json` 使用
+1. **迁移后的 `example/src/` 文件** — demo 源码已增量添加（不覆盖已有文件），新增文件路径已修正，所有 demo 可通过菜单导航访问
+2. **迁移报告 Markdown**（`rnt-demo-port-report.md`） — 含来源、文件清单、冲突文件清单、依赖增量（含缺失依赖标注）、构建前置检查结果、待办项
+3. **依赖增量清单**（报告内章节） — 供 `rn-lib-add-example` 写入 `example/package.json` 使用；标注 example/package.json 中缺失的依赖及建议写入值
 4. **冲突文件清单**（报告内章节） — demo 与目标同名文件列表，标注目标版本已保留，供人工确认是否合并
 5. **待人工确认项清单**（报告内章节） — 业务无关依赖、冲突文件合并、入口文件接入、原生代码标注
+6. **构建前置检查结果**（报告内章节） — build-profile 路径越界、.har 路径验证、入口链路验证结果

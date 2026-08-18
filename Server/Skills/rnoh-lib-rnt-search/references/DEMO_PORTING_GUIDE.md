@@ -74,6 +74,40 @@
 2. 避免多次写入冲突（`rn-lib-add-example` 也会写依赖）
 3. 保持职责单一：本 SKILL 只做「分析」，不做「写入」
 
+### 2.4 外部依赖存在性检查（必执行）
+
+`analyze-demo-deps.cjs` 输出的 `externalDeps` 中每个包，**必须逐一检查**是否已在 `example/package.json` 中声明。缺失依赖会导致运行时崩溃。
+
+**典型缺失场景**：
+
+| 缺失依赖 | 原因 | 影响 | 补齐方式 |
+|---------|------|------|---------|
+| `@rnoh/testerino` | rnt demo 使用 testerino 测试框架，example 未声明 | 所有 `Tester`/`TestCase`/`TestSuite` 组件无法渲染 | 从 rnt 工程复制 `rnoh-testerino-<version>.tgz` 到 example 目录，以 `file:` 方式写入 dependencies |
+| `@react-native-ohos/<pkg>` | demo 引用了其他鸿蒙化库但 example 未安装 | 引用该库的组件崩溃 | 从 rnt 工程或 npm registry 获取版本，写入 dependencies |
+| 其他第三方包 | demo 引用了 example 未安装的包 | 引用该包的组件崩溃 | 询问用户或从 rnt 工程获取版本 |
+
+**检查方法**：
+
+```bash
+# 读取 example/package.json 已声明的依赖
+node -e "const p=require('<libPath>/example/package.json'); const all={...p.dependencies,...p.devDependencies}; console.log(JSON.stringify(Object.keys(all)))"
+
+# 对比 analyze-demo-deps.cjs 的 externalDeps 输出，找出未声明的包
+```
+
+### 2.5 从 rnt 工程提取缺失依赖版本
+
+当发现缺失依赖时，从 rnt 工程的 `package.json` 中提取版本与引用方式：
+
+```bash
+# 在 rnt 子工程的 package.json 中搜索缺失依赖
+grep -r "<missingDep>" <rntPath>/*/package.json
+```
+
+常见模式：
+- `@rnoh/testerino` → `"file:./rnoh_package/testerino/rnoh-testerino-0.0.12.tgz"` → 复制 tgz 到 example，以 `file:./rnoh-testerino-0.0.12.tgz` 引用
+- `@react-native-ohos/*` → `"http://<registry>/<pkg>/-/<pkg>-<version>.tgz"` 或 `"file:../<xxx>.har"` → 按相同方式写入
+
 ---
 
 ## 3. 迁移流程细节
@@ -236,12 +270,66 @@ export {
 | 目标库引用一致 | grep `import.*from.*'<alias>\|<packageName>'` | 引用方式与 example 配置一致（仅检查本次新增文件） |
 | 无硬编码标题 | grep `RN.*Tester` 在 Navigation.tsx 等 | 无其他库的遗留标题（仅本次新增文件已修正；已有文件标注待人工处理） |
 | 无残留排除项 | `ls example/src/node_modules` 等 | 不存在（应被排除） |
+| **外部依赖已声明** | 对比 `externalDeps` 与 `example/package.json` | 所有外部依赖已在 dependencies/devDependencies 中声明（Phase 4.1） |
+| **无孤立文件** | 对比迁移文件列表与 index.tsx demos 数组 | 所有有 export 的组件都被入口直接/间接引用（Phase 6.6） |
+| **菜单可滚动** | 检查 demos 条目数与菜单容器类型 | 条目 > 5 时菜单容器为 ScrollView（Phase 6.7） |
+| **原有 App.tsx 可访问** | 检查 index.tsx 是否包含 OriginalApp 菜单项 | 原有 demo 入口未丢失（Phase 6.8） |
+| **入口链路完整** | index.js → src/index.tsx → demos → 各组件 → ./demo/ | 全链路可导入（Phase 6.9） |
+| **build-profile 无越界** | 检查 modules[].srcPath 是否以 ../ 开头 | 所有路径在工程内（Phase 5.1） |
+| **.har 路径有效** | 逐一 ls 验证 oh-package.json5 中的 file: 引用 | 所有 .har 文件存在（Phase 5.2） |
 
 > 自检脚本由 Agent 串联执行，结果写入迁移报告。
 
 ---
 
-## 6. 与 rn-lib-add-example 的衔接
+## 6. 构建前置检查
+
+迁移完成后、执行编译前，必须确认以下构建前置条件已满足：
+
+### 6.1 build-profile.json5 模块路径越界
+
+`example/harmony/build-profile.json5` 与 `build-profile.template.json5` 中的 `modules[].srcPath` **不可**以 `../` 开头（越出工程根目录）。
+
+**典型问题**：库的源码模块在 `libPath/harmony/safe_area/`，build-profile 引用为 `../../harmony/safe_area` → hvigor 报错。
+
+**修正**：
+1. `cp -R <libPath>/harmony/<module> example/harmony/<module>`
+2. 修改 `srcPath` 为 `./<module>`
+3. 修正被复制模块的 `oh-package.json5` 中 `.har` 路径
+
+> 符号链接不可行：hvigor 不跟随 symlink。
+
+### 6.2 .har 文件路径验证
+
+被复制模块的 `oh-package.json5` 中 `file:` 引用的 `.har` 文件路径可能因目录层级变化而失效。
+
+**典型问题**：原始路径 `file:../../node_modules/@react-native-oh/react-native-harmony/harmony/react_native_openharmony.har`（多一层 `harmony/`），复制后应为 `file:../../node_modules/@react-native-oh/react-native-harmony/react_native_openharmony.har`。
+
+**验证方法**：逐一 `ls -la` 检查每个 `file:` 引用的文件是否存在。
+
+### 6.3 编译验证步骤
+
+确认前置检查通过后，按以下顺序执行编译：
+
+```bash
+# 1. 安装 JS 依赖
+cd example && npm i --legacy-peer-deps
+
+# 2. 安装鸿蒙原生依赖
+cd harmony && ohpm install
+
+# 3. 生成 JS bundle
+cd .. && npm run dev
+
+# 4. 编译鸿蒙工程
+cd harmony && devecocli build
+```
+
+> `npm i` 只装 JS 依赖，`ohpm install` 才装原生 .har 依赖，两者都不可省略。
+
+---
+
+## 7. 与 rn-lib-add-example 的衔接
 
 本 SKILL 完成后，迁移报告中的以下内容会被 `rn-lib-add-example` 消费：
 

@@ -182,7 +182,34 @@ function extractImportedSymbolsAST(sourceFile, libName, fullLibName) {
 function trackInstanceVariablesAST(sourceFile, checker, importedSymbols) {
   const varMap = {};
   function visit(node) {
-    if (ts.isVariableDeclaration(node) && node.name && ts.isIdentifier(node.name)) trackVar(node.name.text, node);
+    if (ts.isVariableDeclaration(node) && node.name) {
+      if (ts.isIdentifier(node.name)) {
+        trackVar(node.name.text, node);
+      } else if (ts.isArrayBindingPattern(node.name)) {
+        let inferredType = null;
+        if (node.initializer && ts.isCallExpression(node.initializer) && node.initializer.typeArguments && node.initializer.typeArguments.length > 0) {
+          const ta = node.initializer.typeArguments[0];
+          if (ta && ts.isTypeReferenceNode(ta) && ts.isIdentifier(ta.typeName)) {
+            inferredType = ta.typeName.text;
+          }
+        }
+        for (let i = 0; i < node.name.elements.length; i++) {
+          const el = node.name.elements[i];
+          if (ts.isBindingElement(el) && ts.isIdentifier(el.name)) {
+            trackVar(el.name.text, el);
+            if (i === 0 && inferredType) {
+              for (const [cn, alias] of importedSymbols) {
+                if (cn === inferredType || alias === inferredType) {
+                  if (!varMap[el.name.text]) varMap[el.name.text] = [];
+                  const dn = importedSymbols.get(cn) || cn;
+                  if (!varMap[el.name.text].includes(dn)) varMap[el.name.text].push(dn);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
     if (ts.isParameter(node) && node.name && ts.isIdentifier(node.name)) trackVar(node.name.text, node);
     ts.forEachChild(node, visit);
   }
@@ -233,7 +260,11 @@ function collectCoverageAST(sourceFile, checker, interfaces, importedSymbols, va
       }
       try {
         const rt = checker.typeToString(checker.getTypeAtLocation(expr));
-        if (rt) for (const [cn, alias] of importedSymbols) { if (cn === 'default' || cn === '__sideEffect__') continue; if (rt === alias || rt === cn) { const fn = `${alias}.${propName}`; if (ifaceByFullName.has(fn)) covered.add(fn); } }
+        if (rt) {
+          const rtParts = rt.split('|').map(s => s.trim());
+          for (const [cn, alias] of importedSymbols) { if (cn === 'default' || cn === '__sideEffect__') continue; if (rtParts.includes(cn) || rtParts.includes(alias) || rt === cn || rt === alias) { const fn = `${alias}.${propName}`; if (ifaceByFullName.has(fn)) covered.add(fn); } }
+          for (const typeName of rtParts) { const fn = `${typeName}.${propName}`; if (ifaceByFullName.has(fn)) covered.add(fn); }
+        }
       } catch {}
     }
     if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
@@ -242,7 +273,7 @@ function collectCoverageAST(sourceFile, checker, interfaces, importedSymbols, va
     }
     if (ts.isIdentifier(node)) {
       const cands = ifaceByMemberName.get(node.text);
-      if (cands) for (const c of cands) if (c.className === null && c.kind === 'variable') covered.add(c.fullName);
+      if (cands) for (const c of cands) if (c.className === null && (c.kind === 'variable' || c.kind === 'function')) covered.add(c.fullName);
     }
     if (ts.isObjectLiteralExpression(node)) {
       let ctxType = null;
@@ -254,13 +285,42 @@ function collectCoverageAST(sourceFile, checker, interfaces, importedSymbols, va
         else if (ts.isStringLiteral(prop.name)) pn = prop.name.text;
         if (!pn) continue;
         if (ctxType) for (const [cn, alias] of importedSymbols) { if (cn === 'default' || cn === '__sideEffect__') continue; if (ctxType === cn || ctxType === alias || ctxType.startsWith(cn) || ctxType.startsWith(alias)) { const fn = `${alias}.${pn}`; if (ifaceByFullName.has(fn)) covered.add(fn); } }
-        const cands = ifaceByMemberName.get(pn);
-        if (cands) for (const c of cands) if (c.kind === 'property' || c.kind === 'field') covered.add(c.fullName);
+        if (!ctxType) {
+          const cands = ifaceByMemberName.get(pn);
+          if (cands) for (const c of cands) if (c.kind === 'property' || c.kind === 'field') covered.add(c.fullName);
+        }
       }
     }
     if (defaultAlias && ts.isPropertyAccessExpression(node) && ts.isPropertyAccessExpression(node.expression) && ts.isIdentifier(node.expression.expression) && node.expression.expression.text === defaultAlias) {
       const fn = `${node.expression.name.text}.${node.name.text}`;
       if (ifaceByFullName.has(fn)) covered.add(fn);
+    }
+    if (ts.isJsxAttribute(node) && node.name) {
+      const attrName = node.name.text;
+      const ja = node.parent;
+      const oe = ja && ja.parent;
+      if (oe && (ts.isJsxOpeningElement(oe) || ts.isJsxSelfClosingElement(oe)) && ts.isIdentifier(oe.tagName)) {
+        const tn = oe.tagName.text;
+        if ((defaultAlias && tn === defaultAlias) || importedClassNames.has(tn)) {
+          const cands = ifaceByMemberName.get(attrName);
+          if (cands) for (const c of cands) { if (c.kind === 'property' || c.kind === 'field' || c.kind === 'method') covered.add(c.fullName); }
+        }
+      }
+    }
+    if (ts.isJsxElement(node) && node.children.length > 0 && node.openingElement) {
+      const tagName = ts.isIdentifier(node.openingElement.tagName) ? node.openingElement.tagName.text : null;
+      if (tagName && ((defaultAlias && tagName === defaultAlias) || importedClassNames.has(tagName))) {
+        const hasRealChildren = node.children.some(child => {
+          if (ts.isJsxText(child)) return child.text.trim().length > 0;
+          return true;
+        });
+        if (hasRealChildren) {
+          for (const cn of [tagName + 'Props', 'Native' + tagName + 'Props']) {
+            const fn = `${cn}.children`;
+            if (ifaceByFullName.has(fn)) covered.add(fn);
+          }
+        }
+      }
     }
     ts.forEachChild(node, visit);
   }
@@ -327,6 +387,17 @@ function matchCoverageAST(interfaces, testFiles, libName, fullLibName, libRoot) 
     const importedSymbols = extractImportedSymbolsAST(sourceFile, libName, fullLibName);
     if (importedSymbols.size === 0 && !hasSideEffectInterfaces) continue;
     const varMap = trackInstanceVariablesAST(sourceFile, checker, importedSymbols);
+    for (const [cn, alias] of importedSymbols) {
+      if (cn === 'default' || cn === '__sideEffect__') continue;
+      const varIface = interfaces.find(i => i.memberName === cn && i.className === null && i.kind === 'variable');
+      if (varIface && varIface.returnType && varIface.returnType !== '-') {
+        const typeParts = varIface.returnType.split('|').map(s => s.trim());
+        for (const typeName of typeParts) {
+          if (!varMap[alias]) varMap[alias] = [];
+          if (!varMap[alias].includes(typeName)) varMap[alias].push(typeName);
+        }
+      }
+    }
     const fileCovered = collectCoverageAST(sourceFile, checker, interfaces, importedSymbols, varMap);
     if (hasSideEffectInterfaces) {
       const content = fs.readFileSync(testFile, 'utf-8');
@@ -493,7 +564,7 @@ const interfaces = allInterfaces.filter(i => {
   return true;
 });
 if (filteredTypeDeclCount > 0 || filteredInternalCmdCount > 0) {
-  info(`过滤: ${filteredTypeDeclCount} 个类型声明, ${filteredInternalCmdCount} 个内部 Fabric 命令 (有 JS 层等价方法)`);
+  info(`过滤: ${filteredTypeDeclCount} 个类型声明, ${filteredInternalCmdCount} 个内部 Fabric 命令`);
 }
 
 info('[Test 覆盖率分析]');
