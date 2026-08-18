@@ -671,8 +671,6 @@ function extractFabricComponentSpecs(repoDir) {
         if (iface.signature && /DirectEventHandler/.test(iface.signature)) continue;
         if (iface.memberName === 'isFirstRefresh') continue;
         interfaces.push(iface);
-      } else if (isTurboModule && iface.className === 'Spec') {
-        interfaces.push(iface);
       }
     }
   }
@@ -1021,7 +1019,12 @@ function generateRNSpec(repoDir, opts = {}) {
   } else { info('未找到 Fabric/TurboModule Spec 文件'); }
 
   const seen = new Set();
-  const deduped = interfaces.filter(i => { if (seen.has(i.fullName)) return false; seen.add(i.fullName); return true; });
+  const deduped = interfaces.filter(i => {
+    if (i.className === 'NativeSafeAreaProviderProps') return false;
+    if (seen.has(i.fullName)) return false;
+    seen.add(i.fullName);
+    return true;
+  });
 
   const methods = deduped.filter(i => i.kind === 'method' || i.kind === 'function');
   const fields = deduped.filter(i => i.kind === 'field');
