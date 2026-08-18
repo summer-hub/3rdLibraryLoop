@@ -141,7 +141,11 @@
 5. 将 uncoveredList 与接口规格 JSON 交叉验证：
    - 确认未覆盖接口在规格中存在
    - 补充规格中的平台标注
-6. 对 uncoveredList 执行 HarmonyOS 平台过滤（Phase 4.2）
+6. 对 uncoveredList 执行 HarmonyOS 平台过滤（Phase 5.2）：
+   - 仅依据 README 文档「HarmonyOS Support」列过滤
+   - README 标注 no → 排除
+   - README 未列出 → 视为无平台标注，保留并生成 Demo
+   - 禁止通过源码（Platform.OS 分支、TurboModule Spec）过滤
 7. 最终得到待生成 Demo 的接口清单
 ```
 
