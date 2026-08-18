@@ -190,7 +190,7 @@ function resolveRelativePathDts(fromFile, relativePath) {
   return resolveRelativePath(fromFile, relativePath);
 }
 
-function stripComments(content) { return content.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, ''); }
+function stripComments(content) { return content.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, ''); }
 
 function extractBalancedBraces(text, startIdx) {
   let depth = 1, i = startIdx;
