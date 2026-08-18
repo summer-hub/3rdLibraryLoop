@@ -9,10 +9,12 @@
 | # | 检查项 | 类型 | 通过标准 |
 |---|--------|------|----------|
 | 1.1 | JS 层导出接口已探查 | ✅ 必须 | 函数/类/组件/Hooks/常量已列出 |
-| 1.2 | 平台兼容性 API 已探查 | ✅ 必须 | harmony 分支可用/不可用属性已列出 |
+| 1.2 | 平台兼容性 API 已探查 | ✅ 必须 | harmony 分支可用/不可用属性已列出；无平台分支库标记为全部可用 |
 | 1.3 | TurboModule Spec 已探查 | ✅ 必须 | 方法签名、Promise/同步、事件名已确认 |
 | 1.4 | 类型定义已探查 | ⚠️ 推荐 | 参数类型、Props 接口已确认 |
 | 1.5 | 事件名称已确认 | ✅ 必须 | DeviceEventEmitter 事件名来自源码，非猜测 |
+| 1.6 | 废弃接口已探查 | ✅ 必须 | 废弃接口名、别名关系、替代接口已记录（如涉及） |
+| 1.7 | upstream-cache 源码已追溯 | ⚠️ 推荐 | 鸿蒙化库 re-export 上游源码时已追溯实际实现 |
 
 ---
 
@@ -29,6 +31,9 @@
 | 2.7 | 使用 async/await + try/catch | ✅ 必须 | 无 .then()/.catch() 链 |
 | 2.8 | 样式用 StyleSheet.create | ✅ 必须 | 完整 UI 元素样式 |
 | 2.9 | TAG 常量命名规范 | ⚠️ 推荐 | `库名_页面名` 格式 |
+| 2.10 | Hook 在组件顶层调用 | ✅ 必须 | 不在事件回调/条件分支/循环中调用 Hook |
+| 2.11 | 依赖 Context 的 Hook 在 Provider 子组件中 | ✅ 必须 | 拆分 InnerComponent，Hook 在 Provider 内部调用 |
+| 2.12 | type 导入使用 inline 语法 | ⚠️ 推荐 | `import { type EdgeInsets }` 而非 `import type { EdgeInsets }` |
 
 ---
 
@@ -36,10 +41,11 @@
 
 | # | 检查项 | 类型 | 通过标准 |
 |---|--------|------|----------|
-| 3.1 | 未使用 iOS/Android 专属属性 | ✅ 必须 | 基于 harmony 分支探查结果 |
+| 3.1 | 未使用 iOS/Android 专属属性 | ✅ 必须 | 基于 harmony 分支探查结果；无平台分支库全部可用 |
 | 3.2 | 路径常量使用 HarmonyOS 版本 | ✅ 必须 | FilesDirectoryPath 而非 DocumentDirectoryPath |
 | 3.3 | 事件名称与源码一致 | ✅ 必须 | 来自探查结果，非猜测 |
 | 3.4 | 方法调用方式正确 | ✅ 必须 | Promise 方法用 await，同步方法直接调用 |
+| 3.5 | 废弃接口验证使用引用比较 | ⚠️ 推荐 | 使用 `===` 验证别名关系（如涉及废弃接口） |
 
 ---
 
@@ -63,6 +69,8 @@
 | 5.3 | 注册入口已更新 | ✅ 必须 | registerFile 已追加新 Demo 注册，路径正确 |
 | 5.4 | 注册路径为相对路径 | ✅ 必须 | 从 registerFile 到 indexFile 的相对路径，不硬编码 |
 | 5.5 | 文件命名规范 | ⚠️ 推荐 | 00X_kebab-case描述Page.tsx |
+| 5.6 | 注册模式与现有模式一致 | ✅ 必须 | 模式 A/B/C 与 registerFile 现有注册模式匹配，未破坏已有结构 |
+| 5.7 | 注册模式已识别记录 | ✅ 必须 | 已读取 registerFile 内容，识别并记录注册模式（A/B/C） |
 
 ---
 

@@ -195,7 +195,162 @@ setCheckCount(c => c + 1);  // ✅ 通过 setter 更新
 
 ## 6. RN 常用接口调用模式速查
 
-### NativeModules 调用模式
+### 6.1 接口模式分类总表
+
+RN 三方库的导出接口并非都是"按钮触发 → 函数调用 → 结果展示"模式。不同接口模式需要不同的 Demo 设计策略：
+
+| 模式 | 特征 | 调用时机 | 计数器需求 | Demo 步骤要点 |
+|------|------|----------|-----------|--------------|
+| **NativeModules 方法** | `NativeModules.Xxx.doXxx()` | 用户交互触发 | 双计数器（call + callback） | 按钮触发 → await → 展示结果 |
+| **Promise 异步** | `await func()` 返回 Promise | 用户交互触发 | 双计数器（call + callback） | 按钮触发 → await → catch 错误 → 展示 |
+| **NativeEventEmitter 事件** | `addListener('event', cb)` | useEffect 注册 | 双计数器（注册 + 回调触发） | useEffect 注册 → 触发事件 → 回调更新 |
+| **React 组件事件回调** | `<Comp onEvent={} />` | 渲染时绑定 | 双计数器（渲染 + 回调触发） | 渲染组件 → 触发事件 → 回调更新 |
+| **Hook** | `const x = useXxx()` | 组件顶层调用 | **无需双计数器**（同步返回，非异步链路） | 顶层调用 → 渲染时直接展示返回值 |
+| **Context Consumer** | `<Context.Consumer>{(val) => ...}</Context.Consumer>` | 渲染时自动消费 | **无需双计数器**（Context 传递，非异步链路） | Provider 包裹 → Consumer 子渲染函数接收值 → 展示 |
+| **HOC（高阶组件）** | `withXxx(WrappedComp)` | 模块顶层定义 | 单计数器（验证渲染次数即可） | 定义 HOC → 渲染被包装组件 → 验证注入的 props |
+| **常量/变量导出** | `export const X = ...` | 模块加载时求值 | **无需计数器**（静态值，非调用） | 直接读取 → useEffect 中展示 → 对比预期 |
+| **Context 对象引用** | `export const Ctx = createContext(...)` | 模块加载时创建 | **无需计数器**（引用比较） | `===` 引用比较 → 展示布尔结果 |
+| **废弃别名** | `export const alias = original` | 同底层接口 | 同底层接口模式 | 验证别名与原始接口行为一致 + `@deprecated` 标注 |
+
+### 6.2 Hook 模式
+
+Hook 在组件顶层调用，返回值在渲染阶段即可获取，**不是异步链路**，无需双计数器。
+
+**步骤范式**：
+```
+1. 在组件顶层调用 Hook：const value = useXxx()
+2. 将返回值直接渲染：<Text>{JSON.stringify(value)}</Text>
+3. [可选] 按钮触发状态变化验证 Hook 响应：setRefreshCount(c => c + 1)
+```
+
+**示例**：
+```typescript
+// Hook 必须在组件顶层调用，不可在事件回调中调用
+const insets = useSafeAreaInsets();
+
+return (
+  <View>
+    <Text>insets: {JSON.stringify(insets)}</Text>
+  </View>
+);
+```
+
+> ⚠️ Hook 不能放在按钮 onPress 回调中，必须在组件函数体顶层调用。
+
+### 6.3 Context Consumer 模式
+
+使用 React Context 的 Consumer 组件，通过 render props 子渲染函数接收 Context 值。**非异步链路**，无需双计数器。
+
+**步骤范式**：
+```
+1. 外层用 <Provider> 包裹确保 Context 有值
+2. 使用 <XxxConsumer>{(value) => <Text>{JSON.stringify(value)}</Text>}</XxxConsumer>
+3. 验证 Consumer 子渲染函数接收到的 value 非空
+```
+
+**示例**：
+```typescript
+<SafeAreaProvider>
+  <SafeAreaConsumer>
+    {(insets) => <Text>Consumer value: {JSON.stringify(insets)}</Text>}
+  </SafeAreaConsumer>
+</SafeAreaProvider>
+```
+
+### 6.4 HOC（高阶组件）模式
+
+高阶组件在模块顶层定义，将被包装组件包装后渲染。验证 HOC 注入的 props 是否正确传递。
+
+**步骤范式**：
+```
+1. 定义被包装组件：function InnerComp(props) { return <Text>{JSON.stringify(props.injected)}</Text> }
+2. 用 HOC 包装：const Wrapped = withXxx(InnerComp)
+3. 在 Provider 内渲染 <Wrapped />
+4. 验证 InnerComp 接收到 HOC 注入的 props
+```
+
+**示例**：
+```typescript
+function InnerComponent({ insets }: { insets: EdgeInsets }) {
+  return <Text>HOC injected insets: {JSON.stringify(insets)}</Text>;
+}
+const WrappedComponent = withSafeAreaInsets(InnerComponent);
+
+// 渲染
+<SafeAreaProvider>
+  <WrappedComponent />
+</SafeAreaProvider>
+```
+
+### 6.5 常量/变量导出模式
+
+模块加载时求值的静态导出值，直接读取即可。**非异步链路，非交互触发**，无需计数器。
+
+**步骤范式**：
+```
+1. 在 useEffect 中读取常量值（避免渲染期间副作用）
+2. 通过 setXxx() 更新状态展示
+3. 验证返回值符合预期类型和内容
+```
+
+**示例**：
+```typescript
+const [metricsText, setMetricsText] = useState('未获取');
+
+useEffect(() => {
+  setMetricsText(initialWindowMetrics ? JSON.stringify(initialWindowMetrics) : 'null');
+}, []);
+
+return <Text>initialWindowMetrics: {metricsText}</Text>;
+```
+
+### 6.6 Context 对象引用模式
+
+验证两个 Context 对象是否指向同一引用（废弃别名常见场景）。使用 `===` 严格比较。
+
+**步骤范式**：
+```
+1. 声明状态：const [isSame, setIsSame] = useState(false)
+2. 按钮触发比较：setIsSame(ContextA === ContextB)
+3. 展示布尔结果：<Text>相同引用: {isSame.toString()}</Text>
+```
+
+**示例**：
+```typescript
+const [isSameContext, setIsSameContext] = useState(false);
+
+const handleVerify = () => {
+  setIsSameContext(SafeAreaContext === SafeAreaInsetsContext);
+};
+
+return <Text>Context 相同: {isSameContext.toString()}</Text>;
+```
+
+### 6.7 废弃别名模式
+
+`@deprecated` 废弃别名接口的 Demo 设计，核心是验证别名与底层接口行为一致。
+
+**步骤范式**：
+```
+1. 同时引入废弃别名和非废弃原始接口
+2. 分别调用/使用两者
+3. 对比返回值或行为是否一致
+4. 若为对象引用（Context/变量），用 === 验证同一性
+5. 在 Demo 描述中标注"废弃接口兼容性验证"
+```
+
+**示例**：
+```typescript
+// useSafeArea 是 useSafeAreaInsets 的废弃别名
+const insetsFromAlias = useSafeArea();
+const insetsFromOriginal = useSafeAreaInsets();
+
+// 验证返回值一致
+<Text>别名返回: {JSON.stringify(insetsFromAlias)}</Text>
+<Text>原始返回: {JSON.stringify(insetsFromOriginal)}</Text>
+```
+
+### 6.8 NativeModules 调用模式
 
 ```typescript
 import { NativeModules } from 'react-native';
@@ -208,7 +363,7 @@ const result = await XxxModule.someMethod(param);
 XxxModule.someMethod(param, (error, result) => { ... });
 ```
 
-### NativeEventEmitter 事件监听模式
+### 6.9 NativeEventEmitter 事件监听模式
 
 ```typescript
 import { NativeModules, NativeEventEmitter } from 'react-native';
@@ -224,7 +379,7 @@ const subscription = eventEmitter.addListener('eventName', (data) => {
 return () => subscription.remove();
 ```
 
-### async/await Promise 调用模式
+### 6.10 async/await Promise 调用模式
 
 ```typescript
 const handlePress = async () => {
@@ -239,7 +394,7 @@ const handlePress = async () => {
 };
 ```
 
-### React 组件事件回调模式
+### 6.11 React 组件事件回调模式
 
 ```typescript
 <SomeNativeComponent

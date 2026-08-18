@@ -11,7 +11,7 @@ license: Apache-2.0
 compatibility: 需要 MCP Gateway 运行中（script_rn_extract_interfaces、kb_search），需要文件读取与写入权限，需要 RN 工程（含 example/demo 目录和 Tester 框架）
 metadata:
   author: rnoh-team
-  version: "2.1.0"
+  version: "2.2.0"
   category: rn-testing
   language: JavaScript/TypeScript/React Native
   useWhen: 基于 Demo 描述文档生成 RN Tester 框架 Demo 代码
@@ -24,6 +24,10 @@ metadata:
 本技能根据 **Demo 描述文档**（由 `rnoh-lib-demo-doc` 生成的 `{库名}RN测试demo描述.md`），探查三方库 JS 层导出接口与平台兼容性后，自动探查当前工程的 example/demo 目录结构和 Demo 注册入口，生成 Tester 框架的 Demo 页面代码、主入口文件并注册到工程中。
 
 > ⚠️ **核心约束**：本技能仅关注 RN 工程的 Demo 代码生成，不涉及鸿蒙原生侧配置（oh-package.json5、CMakeLists.txt、PackageProvider.cpp、RNPackagesFactory.ets、buildCustomRNComponent 等由工程集成流程处理）。Demo 代码只使用 `Platform.OS === 'harmony'` 分支中定义的 API，禁止照搬 iOS/Android 示例。不硬编码工程路径，所有目录和注册入口通过探查确定。
+
+> ⚠️ **无平台分支库**：部分库（如 `react-native-safe-area-context`）没有 `Platform.OS === 'harmony'` 分支，而是通过 TurboModule 原生适配，JS 层所有导出在 HarmonyOS 上全部可用。探查时需区分此类库，无需过滤 iOS/Android 专属属性。
+
+> ⚠️ **废弃接口**：部分库包含 `@deprecated` 废弃别名接口（如 `useSafeArea` → `useSafeAreaInsets`、`SafeAreaContext` → `SafeAreaInsetsContext`）。废弃接口在 HarmonyOS 平台仍正常可用，需生成 Demo 验证其兼容性，并使用引用相等性比较（`===`）验证别名关系。
 
 ---
 
@@ -115,6 +119,8 @@ Phase 4: 质量校验与输出报告
 
 探查到的文件赋值给 `registerFile`。读取其内容，分析现有 Demo 的注册模式（require/import 方式、数组结构），后续按相同模式注册新 Demo。
 
+> ⚠️ **注册模式识别**：不同工程使用不同的注册模式，必须读取 `registerFile` 内容后分析其数组结构、import 方式和对象字段，按相同模式追加。常见模式见 Phase 3.4。
+
 #### 1.2.3 缺失处理
 
 | 探查项 | 缺失处理 |
@@ -190,11 +196,15 @@ Phase 4: 质量校验与输出报告
 | 不用 `SafeAreaView`/`StatusBar` | Tester 框架不需要 |
 | 不用 `Slider` | HarmonyOS 不支持，用按钮组替代 |
 | 不用 `console.error()` | 会触发系统弹窗，用 `console.warn()` 替代 |
-| 平台兼容性 | 只用 `Platform.OS === 'harmony'` 分支的属性（基于 Phase 2.2） |
+| 平台兼容性 | 只用 `Platform.OS === 'harmony'` 分支的属性（基于 Phase 2.2）；无平台分支的库全部可用 |
 | 权限请求 | 涉及麦克风/相机/定位等操作前必须请求权限 |
 | 计时器兜底 | 原生事件不可靠时用 JS `setInterval` 兜底，停止时只清计时器不重置值 |
 | 异步处理 | 用 `async/await` + `try/catch`，不用 `.then()/.catch()` 链 |
 | 无注释 | 代码中不使用 `//` 或 `/* */` |
+| Hook 调用位置 | Hook 必须在组件顶层调用，不可在事件回调中调用；依赖 Context 的 Hook 须放在 Provider 子组件中 |
+| 废弃接口验证 | 使用引用相等性比较（`===`）验证别名关系，比功能对比更可靠 |
+| type 导入 | 使用 `import { type EdgeInsets }` inline type 语法，与运行时导出混写，避免类型进入打包 |
+| Provider 子组件拆分 | 依赖 Context 值的 Hook/组件须拆分到 Provider 子组件中，确保 Context 有值 |
 
 ### 3.3 生成主入口文件
 
@@ -206,7 +216,7 @@ Phase 4: 质量校验与输出报告
 
 ### 3.4 更新 Demo 注册入口
 
-在 Phase 1.2 探查到的 `registerFile` 中注册新模块。**按该文件现有的注册模式追加**，不破坏已有结构。
+在 Phase 1.2 探查到的 `registerFile` 中注册新模块。**按该文件现有的注册模式追加**，不破坏已有结构。必须先读取 `registerFile` 内容分析其注册模式，按相同模式追加。
 
 **模式 A：RNTesterList.ts 数组注册**（常见于 RNTester 框架）：
 ```typescript
@@ -223,7 +233,23 @@ import {libNamePascalCase}Tester from './{相对于App.tsx的路径到index}';
 // 在导航/路由配置中添加该 Demo 页面
 ```
 
+**模式 C：自定义 demos 数组注册**（常见于工程自带的自定义 Tester 入口，如 `example/src/index.tsx`）：
+```typescript
+import {libNamePascalCase}Tester from './{相对于registerFile的路径到index}';
+// 追加到 demos 数组
+const demos: IDemoItem[] = [
+  // ...已有条目
+  { Component: {libNamePascalCase}Tester, name: '{Demo显示名}', key: '{libNamePascalCase}' }
+];
+```
+
 > ⚠️ `require`/`import` 的路径必须是从 `registerFile` 到 `indexFile` 的**相对路径**，根据实际目录层级计算，不硬编码固定路径。
+
+> ⚠️ **模式选择策略**：读取 `registerFile` 后，按以下优先级匹配注册模式：
+> 1. 文件含 `require(...)` + 数组对象含 `module` 字段 → 模式 A
+> 2. 文件含 `import ... from ...` + 导航/路由配置 → 模式 B
+> 3. 文件含 `demos`/`items` 数组 + `Component` 字段 → 模式 C
+> 4. 以上均不匹配 → 停止，提示用户指定注册方式
 
 > 注册模式与路径计算的详细说明参见 [入口模板](assets/INDEX_TEMPLATE.md)
 
@@ -242,9 +268,12 @@ import {libNamePascalCase}Tester from './{相对于App.tsx的路径到index}';
 | 接口探查完整性 | JS 导出接口、平台兼容性 API、TurboModule Spec、类型定义 全部探查 |
 | 工程结构探查 | example/demo 目录已探查、注册入口文件已探查 |
 | 代码规范 | 无 ScrollView 根组件、无 Slider、无 console.error、无注释 |
-| 平台兼容性 | 未使用 iOS/Android 专属属性（基于 Phase 2.2） |
+| 平台兼容性 | 未使用 iOS/Android 专属属性（基于 Phase 2.2）；无平台分支库全部可用 |
 | 权限处理 | 敏感权限操作前有权限请求 |
 | Tester 集成 | 注册入口已更新、index.tsx 含元数据导出 |
+| 注册模式适配 | 注册模式（A/B/C）与 registerFile 现有模式一致，未破坏已有结构 |
+| Hook 约束 | Hook 在组件顶层调用，依赖 Context 的 Hook 在 Provider 子组件中 |
+| 废弃接口验证 | 使用引用相等性比较（`===`）验证别名关系 |
 
 ### 4.2 输出产物
 
@@ -261,7 +290,8 @@ import {libNamePascalCase}Tester from './{相对于App.tsx的路径到index}';
 - 探查到的工程结构（exampleDir、registerFile）
 - 接口探查结果汇总（JS 导出接口、harmony 可用/不可用 API）
 - Demo 数量与覆盖接口数
-- 注册模式（模式 A/B）及注册路径
+- 注册模式（模式 A/B/C）及注册路径
+- 废弃接口验证结果（如涉及）
 - 需用户后续确认的事项（如需手动验证的项）
 
 ---

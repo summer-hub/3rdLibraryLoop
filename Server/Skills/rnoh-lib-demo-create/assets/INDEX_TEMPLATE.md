@@ -99,6 +99,41 @@ import {LibNamePascalCase}Tester from '{相对路径}';
 // 在导航/路由配置中注册该 Demo 页面
 ```
 
+### 模式 C：自定义 demos 数组注册
+
+适用于工程自带的自定义 Tester 入口（`registerFile` 为 `example/src/index.tsx` 或类似文件，含 `demos`/`items` 数组）：
+
+**步骤 1：在文件顶部添加 import**
+
+```typescript
+import {LibNamePascalCase}Tester from './{相对于registerFile的路径到index}';
+```
+
+**步骤 2：在 demos 数组末尾追加条目**
+
+```typescript
+const demos: IDemoItem[] = [
+  // ...已有条目
+  { Component: {LibNamePascalCase}Tester, name: '{Demo显示名}', key: '{LibNamePascalCase}' }
+];
+```
+
+**模式识别方法**：
+
+读取 `registerFile` 内容后，按以下特征判断是否为模式 C：
+
+| 特征 | 判定 |
+|------|------|
+| 文件含 `demos` 或 `items` 数组 | 模式 C 候选 |
+| 数组元素含 `Component` 字段 | 确认模式 C |
+| 数组元素含 `module` 字段 + `require()` | 模式 A |
+| 文件含导航/路由配置 + `import` | 模式 B |
+
+**注意事项**：
+- 追加条目时保持与已有条目相同的字段结构（`Component`、`name`、`key`）
+- `key` 值需唯一，不与已有条目冲突
+- import 路径为从 `registerFile` 所在目录到 `indexFile` 的相对路径
+
 ---
 
 ## 完整文件结构
