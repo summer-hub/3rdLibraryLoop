@@ -130,7 +130,7 @@ cat {projectRoot}/harmony/entry/src/main/module.json5 | grep -A5 "requestPermiss
 ### 3.1 目录结构
 
 ```
-{exampleDir}/{libName}/
+{exampleDir}/cptf/
 ├── index.tsx                  # 主入口
 └── demo/
     ├── 001_{apiCategory1}Page.tsx   # 按 API 分类拆分页面
@@ -296,23 +296,28 @@ export const examples = [
 ];
 ```
 
-### 4.2 注册模式
+### 4.2 Demo 入口切换
 
-在 `registerFile` 中注册新模块，按该文件现有模式追加。
+> 本技能不修改现有 `registerFile`（如 `RNTesterList.ts`），而是直接修改 `{exampleDir}/index.js`，将 App 入口指向 CPTF Demo：
 
-> 注册模式（A/B/C）的详细说明同 `rnoh-lib-demo-create` 技能，此处不重复。
-> `require`/`import` 路径必须是从 `registerFile` 到 `indexFile` 的相对路径，根据实际目录层级计算。
+```js
+// {exampleDir}/index.js — 修改前
+import App from './src/index';
+// 修改后
+import App from './cptf/index';
+```
 
-### 4.3 模式识别策略
+这样 CPTF 测试运行时 App 直接加载 CPTF Demo 页面，无需在现有 Demo 注册体系中追加。
 
-读取 `registerFile` 后，按以下优先级匹配：
+### 4.3 入口切换说明
 
-| 优先级 | 识别特征 | 模式 |
-|--------|----------|------|
-| 1 | `require(...)` + 数组对象含 `module` 字段 | A |
-| 2 | `import ... from ...` + 导航/路由配置 | B |
-| 3 | `demos`/`items` 数组 + `Component` 字段 | C |
-| 4 | 以上均不匹配 | 停止，提示用户指定注册方式 |
+本技能采用**直接修改 `index.js`** 的方式切换 Demo 入口，而非在现有 `registerFile`（如 `RNTesterList.ts`）中追加注册。原因：
+
+1. CPTF 测试需要 App 启动即加载 CPTF Demo 页面（含 testerino Tester 框架），不经过现有 Demo 选择器
+2. 不污染现有 Demo 注册体系，交付后可轻松恢复（将 `index.js` 改回 `./src/index`）
+3. 无需识别 registerFile 的注册模式（A/B/C）
+
+> ⚠️ 修改 `index.js` 后必须重新构建 HAP（`npm run dev` + `devecocli build`），否则设备上的 `bundle.harmony.js` 不含新入口。
 
 ---
 

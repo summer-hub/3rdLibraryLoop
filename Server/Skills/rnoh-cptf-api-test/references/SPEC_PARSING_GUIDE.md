@@ -171,7 +171,7 @@ for dir in \
 done
 ```
 
-探查到的目录赋值给 `exampleDir`。Demo 页面文件将生成在 `{exampleDir}/{libName}/demo/` 下。
+探查到的目录赋值给 `exampleDir`。Demo 页面文件和 CPTF 测试工程统一生成在 `{exampleDir}/cptf/` 下。
 
 ### 3.2 探查 Demo 注册入口
 
@@ -194,13 +194,13 @@ find {projectRoot} -name "App.tsx" -path "*/example/*" | head -5
 
 ```bash
 # bundleId
-cat {projectRoot}/AppScope/app.json5 | grep bundleName
+cat {exampleDir}/harmony/AppScope/app.json5 | grep bundleName
 
 # hap 路径
-ls {projectRoot}/harmony/entry/build/default/outputs/default/entry-default-signed.hap
+ls {exampleDir}/harmony/entry/build/default/outputs/default/entry-default-signed.hap
 
 # 依赖检查
-cat {projectRoot}/package.json | grep "{harmonyPkgName}"
+cat {exampleDir}/package.json | grep "{harmonyPkgName}"
 ```
 
 ### 3.4 缺失处理
@@ -246,10 +246,11 @@ Phase 1 结束时必须产出以下结构化清单（Phase 2-5 的输入）：
 
 ## 工程信息
 - exampleDir: {探查到的路径}
-- registerFile: {探查到的路径}
-- registerMode: {A/B/C}
+- workspaceDir: {exampleDir}/cptf/
+- indexFile: {exampleDir}/cptf/index.tsx
+- demoDir: {exampleDir}/cptf/demo/
 - bundleId: {从 app.json5 提取}
-- hapPath: {hap 路径}
+- hapPath: {exampleDir}/harmony/entry/build/default/outputs/default/entry-default-signed.hap
 - dependencies: {已确认依赖存在}
 ```
 

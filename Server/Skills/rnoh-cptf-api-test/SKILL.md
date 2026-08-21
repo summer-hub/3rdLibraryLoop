@@ -37,18 +37,18 @@ metadata:
 | `libName` | string | ✅ | 三方库名（如 `react-native-audio`），用于目录命名 |
 | `harmonyPkgName` | string | ✅ | 鸿蒙包名（如 `@react-native-ohos/react-native-audio`），用于 import |
 | `projectRoot` | string | ✅ | RN 工程根目录（含 example/demo 目录和 Tester 框架） |
-| `workspaceDir` | string | ✅ | CPTF 测试工程目录（含 cptf.config.json，可新建） |
 | `frameworkPath` | string | ❌ | @cptf/framework 源码路径（默认从全局 pnpm link 推导） |
 | `deviceId` | string | ❌ | 鸿蒙设备 SN（写入 cptf.config.json，默认占位待填） |
 | `category` | string | ❌ | Demo 分类，默认 `API`（可选 `UI`/`Media`/`Basic`/`Component`） |
 
 **派生变量**（Phase 1 探查后确定）：
-- `exampleDir`：探查到的 example/demo 目录绝对路径
-- `demoDir`：`{exampleDir}/{libName}/demo/`
-- `indexFile`：`{exampleDir}/{libName}/index.tsx`
+- `exampleDir`：探查到的 example 目录绝对路径（通常为 `{projectRoot}/example`）
+- `workspaceDir`：`{exampleDir}/cptf/`（CPTF 测试工程固定生成在此目录，不再作为输入参数）
+- `demoDir`：`{workspaceDir}/demo/`（Demo 页面文件目录）
+- `indexFile`：`{workspaceDir}/index.tsx`（Demo 主入口）
 - `registerFile`：探查到的 Demo 注册入口文件路径
-- `hapPath`：`{projectRoot}/harmony/entry/build/default/outputs/default/entry-default-signed.hap`
-- `bundleId`：从 `{projectRoot}/AppScope/app.json5` 提取
+- `hapPath`：`{exampleDir}/harmony/entry/build/default/outputs/default/entry-default-signed.hap`
+- `bundleId`：从 `{exampleDir}/harmony/AppScope/app.json5` 提取
 
 ---
 
@@ -203,8 +203,10 @@ Phase 6: 质量校验与交付
 
 ### 3.1 创建目录结构
 
+> Demo 和 CPTF 测试工程统一生成在 `{exampleDir}/cptf/` 目录下。
+
 ```
-{exampleDir}/{libName}/
+{exampleDir}/cptf/
 ├── index.tsx                  # 主入口（Tester 框架 + 元数据导出）
 └── demo/
     ├── 001_{apiCategory1}Page.tsx
@@ -243,6 +245,8 @@ Phase 6: 质量校验与交付
 ---
 
 ## Phase 4：CPTF 测试工程搭建
+
+> CPTF 测试工程与 Demo 同在 `{exampleDir}/cptf/` 目录下（即 `workspaceDir = {exampleDir}/cptf/`）。
 
 ### 4.1 生成 cptf.config.json
 
@@ -393,8 +397,10 @@ this.report(text.includes('{apiName}结果') || text.includes('错误信息'), `
 ### 6.1 运行校验脚本
 
 ```bash
-bash {skillDir}/scripts/validate-rnoh-cptf-api-test.sh '{"workspaceDir":"<绝对路径>","demoDir":"<绝对路径>"}'
+bash {skillDir}/scripts/validate-rnoh-cptf-api-test.sh '{"workspaceDir":"{exampleDir}/cptf","demoDir":"{exampleDir}/cptf"}'
 ```
+
+> Demo 和 CPTF 测试工程在同一目录，`workspaceDir` 和 `demoDir` 均为 `{exampleDir}/cptf`。
 
 校验项：
 
@@ -415,13 +421,11 @@ bash {skillDir}/scripts/validate-rnoh-cptf-api-test.sh '{"workspaceDir":"<绝对
 确认输出目录包含所有文件：
 
 ```
-{exampleDir}/{libName}/
+{exampleDir}/cptf/                            # Demo + CPTF 测试工程统一目录
 ├── index.tsx                              # Demo 主入口
-└── demo/
-    ├── 001_{apiCategory1}Page.tsx         # Demo 页面（含 testID）
-    └── ...
-
-{workspaceDir}/
+├── demo/
+│   ├── 001_{apiCategory1}Page.tsx         # Demo 页面（含 testID）
+│   └── ...
 ├── cptf.config.json                       # CPTF 设备/应用配置
 ├── tsconfig.json                          # TS 编译配置（禁止 experimentalDecorators）
 ├── package.json                           # link 依赖
@@ -431,7 +435,7 @@ bash {skillDir}/scripts/validate-rnoh-cptf-api-test.sh '{"workspaceDir":"<绝对
     ├── 002_{apiCategory2}.test.ts
     └── ...                                # 每个文件一个 @Test = 报告一个用例
 
-{registerFile}                             # 已追加 Demo 注册
+{exampleDir}/index.js                        # 已修改指向 ./cptf/index（Demo 入口切换）
 ```
 
 ### 6.3 交付报告
@@ -447,7 +451,7 @@ bash {skillDir}/scripts/validate-rnoh-cptf-api-test.sh '{"workspaceDir":"<绝对
 
 校验脚本全部 PASS 后，交付完成。后续实机运行调试使用 `rnoh-cptf-test-run` SKILL。
 
-> ⚠️ **交付后必须重新构建 HAP**。本技能修改了 Demo 入口（`index.js` 指向新 Demo）和新增了 Demo 页面文件，旧 HAP 中的 `bundle.harmony.js` 不含新代码。在运行 CPTF 测试前，需执行：
+> ⚠️ **交付后必须重新构建 HAP**。本技能修改了 Demo 入口（`{exampleDir}/index.js` 指向 `./cptf/index`）和新增了 Demo 页面文件，旧 HAP 中的 `bundle.harmony.js` 不含新代码。在运行 CPTF 测试前，需执行：
 > 1. `cd {exampleDir} && npm run dev` — 编译 RN Bundle（codegen + bundle-harmony）
 > 2. `devecocli build`（在 `{exampleDir}/harmony` 下）— 打包鸿蒙 HAP
 > 3. `hdc install "{hapPath}"` — 安装到设备

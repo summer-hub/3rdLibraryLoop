@@ -34,7 +34,7 @@
 
 | # | 检查项 | 规则 | 通过条件 |
 |---|--------|------|----------|
-| 3.1 | 目录结构 | `{exampleDir}/{libName}/demo/00X_*.tsx` | ✅ |
+| 3.1 | 目录结构 | `{exampleDir}/cptf/demo/00X_*.tsx` | ✅ |
 | 3.2 | 根组件 | 用 `View`，非 `ScrollView` | ✅ |
 | 3.3 | testID 设置 | 每个可交互按钮设 `testID="{apiName}-btn"` | ✅ |
 | 3.4 | 固定文本前缀 | 结果 Text 用 `{API名}结果：{值}` 格式 | ✅ |
@@ -48,9 +48,8 @@
 | 3.12 | 权限请求 | 敏感操作前有权限请求 | ✅ 或标注不适用 |
 | 3.13 | 平台兼容性 | 未使用 iOS/Android 专属属性 | ✅ |
 | 3.14 | Hook 顶层调用 | Hook 不在事件回调中调用 | ✅ 或标注不适用 |
-| 3.15 | 入口文件 | index.tsx 含 Tester 集成 + 元数据导出 | ✅ |
-| 3.16 | 注册入口 | registerFile 已追加新 Demo 注册 | ✅ |
-| 3.17 | 注册模式 | 追加模式与 registerFile 现有模式一致 | ✅ |
+| 3.15 | 入口文件 | `{exampleDir}/cptf/index.tsx` 含 Tester 集成 + 元数据导出 | ✅ |
+| 3.16 | Demo 入口切换 | `{exampleDir}/index.js` 已修改指向 `./cptf/index` | ✅ |
 
 ---
 
