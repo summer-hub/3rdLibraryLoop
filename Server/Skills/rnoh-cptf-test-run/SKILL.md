@@ -199,6 +199,7 @@ CPTF 框架的 `FunctionalTest.execute()` 在步骤超时时设置 `_cancelled =
 | 步骤超时后批量"用例已取消" | 级联取消 | 修第一个超时步骤 |
 | 单步超时但按钮已点击成功 | waitForText 匹配串错误（全角冒号） | 逐字符对照源码修断言文本 |
 | 回调类 API 超时（按钮已点击结果不出现） | API 未实现，回调不触发 | 使用容错断言（等结果或错误信息） |
+| 报告时间戳差 8 小时 | cptf.config.json 未设置 `timezone` | 添加 `"timezone": "BeiJing"` |
 | 未找到按钮 | textContains 关键字不精确或未滚动到位 | 核对按钮 title，增大 maxScrolls |
 | 步骤通过但值错误 | 动态值推断错误 | 检查三元表达式空串分支 |
 

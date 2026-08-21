@@ -58,7 +58,7 @@
 
 | # | 检查项 | 规则 | 通过条件 |
 |---|--------|------|----------|
-| 4.1 | cptf.config.json | 存在且含 bundleId / casesDir / platforms.harmony.appPath / devices | ✅ |
+| 4.1 | cptf.config.json | 存在且含 bundleId / casesDir / timezone / platforms.harmony.appPath / devices | ✅ |
 | 4.2 | appPath 绝对路径 | platforms.harmony.appPath 以 `/` 开头 | ✅ |
 | 4.3 | tsconfig.json | 存在且**不含** `experimentalDecorators` / `emitDecoratorMetadata` | ✅ |
 | 4.4 | package.json link | 声明 `@cptf/framework` link + `reflect-metadata` link | ✅ |

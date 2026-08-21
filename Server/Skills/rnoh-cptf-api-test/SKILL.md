@@ -252,6 +252,7 @@ Phase 6: 质量校验与交付
   "reportDir": "test-reports",
   "reportFormat": "html",
   "casesDir": "tests/cases",
+  "timezone": "BeiJing",
   "platforms": {
     "harmony": {
       "toolPath": "hdc",

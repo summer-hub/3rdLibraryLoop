@@ -31,6 +31,7 @@ cat {projectRoot}/AppScope/app.json5 | grep bundleName
   "reportFormat": "html",
   "casesDir": "tests/cases",
   "enableAlerts": true,
+  "timezone": "BeiJing",
   "platforms": {
     "harmony": {
       "toolPath": "hdc",
@@ -50,6 +51,7 @@ cat {projectRoot}/AppScope/app.json5 | grep bundleName
 
 字段说明：
 - `appPath` 必须是**绝对路径**（signed hap）
+- `timezone` 设置报告时间戳时区，框架内置支持 `"BeiJing"`(UTC+8) / `"Asia/Shanghai"` / `"Tokyo"` / `"NewYork"` / `"London"` 等。未设置时默认 UTC，报告目录和日志时间会差 8 小时
 - `screenWidth/screenHeight` 影响滚动与坐标计算
 - `casesDir` 相对 workspace 根；测试文件放 `tests/cases/functional/` 下自动被发现
 
