@@ -14,7 +14,7 @@
 ├── assets/
 │   └── OUTPUT_TEMPLATE.md
 └── scripts/
-    └── {helper}.sh
+    └── {helper}.cjs
 ```
 
 ---
@@ -138,19 +138,31 @@ Phase 1: {阶段1} → Phase 2: {阶段2} → Phase 3: {阶段3} → Phase 4: {�
 
 ## scripts/ 脚本模板
 
-### bash 脚本
+> ⚠️ **脚本必须跨平台**（Windows/macOS/Linux 均可运行）：使用 Node.js（`.cjs`）或 Python（`.py`），**禁止 Bash（`.sh`）**。
 
-```bash
-#!/bin/bash
-# @tool {工具名}
-# @description {工具描述}
-# @param {param}: string - {参数说明}
+### Node.js 脚本（首选）
 
-ARGS_JSON="$1"
-{param}=$(python3 -c "import sys,json; print(json.loads(sys.argv[1]).get('{param}',''))" "$ARGS_JSON" 2>/dev/null || echo "")
+```javascript
+#!/usr/bin/env node
+/**
+ * @tool {工具名}
+ * @description {工具描述}
+ * @param {param}: string - {参数说明}
+ */
+'use strict';
 
-# 脚本逻辑
-echo "result"
+// 参数解析：兼容 MCP Gateway JSON 模式与 CLI 模式
+function parseArgs(argv) {
+  if (argv.length > 0 && typeof argv[0] === 'string' && argv[0].startsWith('{')) {
+    try { return JSON.parse(argv[0]); } catch (e) { return {}; }
+  }
+  return { param: argv[0] || '' };
+}
+
+const args = parseArgs(process.argv.slice(2));
+
+// 脚本逻辑
+console.log('result');
 ```
 
 ### python 脚本
@@ -163,7 +175,7 @@ echo "result"
 
 import sys, json
 
-args = json.loads(sys.argv[1]) if len(sys.argv) > 1 else {}
+args = json.loads(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].startswith('{') else {}
 param = args.get("{param}", "")
 
 # 脚本逻辑

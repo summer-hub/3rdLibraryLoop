@@ -99,7 +99,8 @@ Agent 按需加载SKILL内容，分三层：
 - 自包含或清晰声明依赖
 - 包含有用的错误信息
 - 优雅处理边界情况
-- 支持语言：Python、Bash、JavaScript
+- **必须跨平台**（Windows/macOS/Linux 均可运行）：支持 Node.js（`.cjs`/`.js`）或 Python（`.py`），**禁止 Bash（`.sh`）**
+- 脚本内路径操作使用 `path` 模块（Node.js）或 `os.path`/`pathlib`（Python），禁止硬编码 `/` 或 `\` 分隔符拼接
 
 若脚本需注册到 MCP Gateway：
 1. 添加头部注释（`@tool`、`@description`、`@param`）
@@ -112,8 +113,8 @@ Agent 按需加载SKILL内容，分三层：
 
 使用规范校验：
 ```bash
-# 项目内校验脚本
-bash scripts/validate-skill.sh /path/to/skill
+# 项目内校验脚本（跨平台，仅需 Node.js）
+node scripts/validate-skill.cjs /path/to/skill
 
 # 或使用官方工具
 npx skills-ref validate /path/to/skill

@@ -48,33 +48,37 @@ MCP Gateway 位于 `3rdLibraryLoop/MCP/`，聚合三类工具：
 
 脚本前20行必须包含 `@tool` 注释：
 
-```bash
-#!/bin/bash
-# @tool {工具名}                        # 必填，工具名（中文可用）
-# @description {描述}                    # 给AI的工具说明
-# @param {参数名}: {类型} - {说明}       # 参数定义
+```javascript
+#!/usr/bin/env node
+/**
+ * @tool {工具名}                        // 必填，工具名（中文可用）
+ * @description {描述}                    // 给AI的工具说明
+ * @param {参数名}: {类型} - {说明}       // 参数定义
+ */
 ```
+
+> ⚠️ **脚本必须跨平台**：使用 Node.js（`.cjs`）或 Python（`.py`），禁止 Bash（`.sh`），确保 Windows/macOS 均可运行。
 
 ### 3.2 参数传递方式
 
 Gateway 将参数序列化为 **JSON 字符串**，作为脚本**第一个命令行参数**传入：
 
-- bash: `$1` → `python3 -c "import json; ..."` 解析
-- python: `sys.argv[1]` → `json.loads()` 解析
 - node: `process.argv[2]` → `JSON.parse()` 解析
+- python: `sys.argv[1]` → `json.loads()` 解析
 
 ### 3.3 现有脚本工具
 
 | 工具名 | 脚本文件 | 能力 | 参数 |
 |--------|----------|------|------|
-| `script_git操作` | `git操作.sh` | git status/log/branch/diff | `action`, `repo` |
-| `script_flutter` | `flutter.py` | flutter doctor/clean/version | `action`, `target` |
+| `script_rn_scan_exports` | `rn-scan-exports.cjs` | 扫描RN三方库导出接口/TurboModule Spec | `dir`, `compare`, `dir1`, `dir2` |
+| `script_rn_extract_interfaces` | `rn-extract-interfaces.cjs` | 提取RN三方库接口信息 | `dir` |
+| `script_render_spec_doc` | `render-spec-doc.cjs` | 渲染接口规格文档 | `spec`, `output` |
 
 ### 3.4 创建新脚本
 
 若SKILL需要新的脚本能力：
 
-1. 在SKILL的 `scripts/` 目录创建脚本
+1. 在SKILL的 `scripts/` 目录创建脚本（**必须跨平台**：Node.js `.cjs` 或 Python `.py`，禁止 `.sh`）
 2. 添加 `@tool` 头部注释
 3. 若需全局复用，复制到 `MCP/scripts/` 目录
 4. Gateway 热加载会自动注册（`hotReload: true`）

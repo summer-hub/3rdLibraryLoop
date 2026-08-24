@@ -63,10 +63,20 @@
 
 ## 5. 自动化校验
 
-运行校验脚本执行上述检查：
+运行校验脚本执行上述检查（跨平台，仅需 Node.js）：
 
 ```bash
-bash {skillDir}/scripts/validate-skill.sh {skillDir}
+node {skillDir}/scripts/validate-skill.cjs {skillDir}
 ```
 
 脚本输出 `ALL CHECKS PASSED` 表示全部通过，否则列出失败项。
+
+---
+
+## 6. 脚本跨平台检查
+
+| # | 检查项 | 规则 | 通过条件 |
+|---|--------|------|----------|
+| 6.1 | 脚本语言 | 使用 Node.js（`.cjs`）或 Python（`.py`） | ✅ 无 `.sh` 脚本 |
+| 6.2 | 路径处理 | 使用 `path` 模块 / `os.path`，不硬编码分隔符 | ✅ 跨平台 |
+| 6.3 | 可执行性 | Windows/macOS/Linux 均可直接运行 | ✅ 已验证 |

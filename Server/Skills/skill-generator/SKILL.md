@@ -104,8 +104,8 @@ MCP Gateway 的 `scripts/` 目录下每个脚本都自动注册为工具（前�
 **现有脚本工具示例**：
 | 工具名 | 脚本 | 能力 |
 |--------|------|------|
-| `script_git操作` | git操作.sh | git status/log/branch/diff |
-| `script_flutter` | flutter.py | flutter doctor/clean/version |
+| `script_rn_scan_exports` | rn-scan-exports.cjs | 扫描RN三方库导出接口/TurboModule Spec |
+| `script_rn_extract_interfaces` | rn-extract-interfaces.cjs | 提取RN三方库接口信息 |
 
 ### 2.2 检索下游MCP工具
 
@@ -175,8 +175,10 @@ MCP Gateway 聚合了下游 Server（工具名前缀为 `{serverName}_`）：
 ├── assets/               # 可选：模板、资源
 │   └── {template}.md     # 输出模板
 └── scripts/              # 可选：可执行脚本
-    └── {helper}.sh       # 辅助脚本
+    └── {helper}.cjs      # 辅助脚本（Node.js，跨平台）
 ```
+
+> ⚠️ **脚本语言要求：必须使用跨平台脚本语言（Node.js `.cjs` 或 Python `.py`），禁止使用 Bash `.sh`**，确保在 Windows 和 macOS 上均可直接运行。
 
 ### 4.2 编写 frontmatter
 
@@ -277,12 +279,19 @@ Phase 1 → Phase 2 → ... → Phase N
 
 如果 Phase 2.3 识别到能力缺口，在此创建新脚本：
 
+**脚本语言必须跨平台**（Windows/macOS/Linux 均可运行）：
+- ✅ **Node.js（`.cjs`）**：首选，与项目 MCP scripts 惯例一致
+- ✅ **Python（`.py`）**：次选，需 Python 3 环境
+- ❌ **Bash（`.sh`）**：禁止，Windows 无原生支持
+
 脚本头部注释约定：
-```bash
-#!/bin/bash
-# @tool {工具名}
-# @description {描述}
-# @param {参数名}: {类型} - {说明}
+```javascript
+#!/usr/bin/env node
+/**
+ * @tool {工具名}
+ * @description {描述}
+ * @param {参数名}: {类型} - {说明}
+ */
 ```
 
 脚本放入 SKILL 的 `scripts/` 目录，并在 SKILL.md 中说明调用方式。
@@ -323,10 +332,10 @@ Phase 1 → Phase 2 → ... → Phase N
 
 > 完整检查清单参见 [合规检查清单](references/COMPLIANCE_CHECKLIST.md)
 
-可运行校验脚本进行自动化检查：
+可运行校验脚本进行自动化检查（跨平台，仅需 Node.js）：
 
 ```bash
-bash {outputDir}/scripts/validate-skill.sh {outputDir}
+node {outputDir}/scripts/validate-skill.cjs {outputDir}
 ```
 
 ---
@@ -345,8 +354,8 @@ bash {outputDir}/scripts/validate-skill.sh {outputDir}
 │   └── COMPLIANCE_CHECKLIST.md
 ├── assets/                     # ✅ 模板资源
 │   └── SKILL_TEMPLATE.md
-└── scripts/                    # ✅ 校验脚本
-    └── validate-skill.sh
+└── scripts/                    # ✅ 校验脚本（Node.js，跨平台）
+    └── validate-skill.cjs
 ```
 
 输出完成确认信息，包含：
