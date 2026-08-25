@@ -23,6 +23,7 @@ var _CC_SKILL_MAP = {
     arkts: 'arkts-code-check',
     flutter: 'flutter-code-check',
     rn: 'rn-code-check',
+    tpccplus: 'tpc-cpp-check',
 };
 
 var _CC_SKILL_INFO = {
@@ -37,6 +38,10 @@ var _CC_SKILL_INFO = {
     'rn-code-check': {
         name: 'React Native PR 代码检视',
         desc: '自动化检视 React Native 三方库 Pull Request，聚焦鸿蒙端适配代码质量',
+    },
+    'tpc-cpp-check': {
+        name: 'TPC C/C++ PR 规范性检视',
+        desc: '检视 tpc_c_cplusplus 仓库适配库 PR 的规范性，包括编译脚本(HPKBUILD)、文档格式、目录结构、SHA512SUM 等，并输出结构化检视报告。仅基于 PR 差异和 GitCode API 获取文件内容进行检视，无需克隆整个仓库',
     },
 };
 
@@ -232,6 +237,7 @@ function _renderSkillIntro() {
         arkts: { bg: 'rgba(0,113,227,0.12)', color: 'var(--blue)', border: 'rgba(0,113,227,0.3)' },
         flutter: { bg: 'rgba(59,130,246,0.12)', color: '#3b82f6', border: 'rgba(59,130,246,0.3)' },
         rn: { bg: 'rgba(97,218,251,0.12)', color: '#61dafb', border: 'rgba(97,218,251,0.3)' },
+        tpccplus: { bg: 'rgba(175,82,222,0.12)', color: 'var(--purple)', border: 'rgba(175,82,222,0.3)' },
     };
     var cc = typeColors[libType] || typeColors.arkts;
 
@@ -336,11 +342,13 @@ function _renderCCHistoryPage(tasks, isFirstPage) {
 
 /**
  * 初始化检视历史分页器。
+ * taskIdPrefix 前缀过滤：只分页查询 codecheck_ 任务（后端 SQL 过滤，
+ * 避免与 fluttercheck 等其他编排任务混页）。
  */
 function _initCCHistoryPager() {
     if (_ccPager) return _ccPager;
     _ccPager = createPagination({
-        apiPath: '/api/orchestrator/tasks',
+        apiPath: '/api/orchestrator/tasks?taskIdPrefix=codecheck_',
         listContainerId: 'cc-tasks-list',
         emptyId: 'cc-tasks-empty',
         countId: 'cc-task-count',
@@ -610,13 +618,14 @@ function _createCCCard(idx, displayLabel, prUrl, libType, createdAt, isHistory) 
     if (countEl) countEl.textContent = Object.keys(_ccTasks).length + ' 个任务';
 
     var typeLabel = {
-        arkts: 'ArkTS', flutter: 'Flutter', rn: 'React Native'
+        arkts: 'ArkTS', flutter: 'Flutter', rn: 'React Native', tpccplus: 'TPC C/C++'
     }[libType] || libType;
 
     var typeBadgeStyle = {
         arkts: 'background:rgba(0,113,227,0.12);color:var(--blue)',
         flutter: 'background:rgba(59,130,246,0.12);color:#3b82f6',
         rn: 'background:rgba(97,218,251,0.12);color:#61dafb',
+        tpccplus: 'background:rgba(175,82,222,0.12);color:var(--purple)',
     }[libType] || 'background:rgba(0,113,227,0.12);color:var(--blue)';
 
     var timeLabel = createdAt ? _ccFormatTime(createdAt) : '';

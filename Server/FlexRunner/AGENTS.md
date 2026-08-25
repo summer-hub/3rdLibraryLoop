@@ -78,7 +78,7 @@ Server/FlexRunner/
 |------|------|------|
 | `DEFAULT_MAX_RETRIES` | `3` | 默认最大重试次数 |
 | `POLL_INTERVAL_MS` | `3000` | 轮询间隔（ms） |
-| `POLL_TIMEOUT_MS` | `600000` | 单步轮询超时 10 分钟 |
+| `POLL_TIMEOUT_MS` | `5400000` | 单步轮询超时 90 分钟（仓库级检视 SKILL 单步可达 20-30 分钟） |
 
 #### 构造
 

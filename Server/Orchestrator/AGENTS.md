@@ -166,6 +166,17 @@ Server/Routes/
 - `sseHub`：可选，无则不推送 SSE 事件
 - `storage`：可选，预留持久化扩展
 - `flexRunnerFactory`：可选，测试时注入 mock FlexRunner
+- `sessionSemaphore`：可选，Session 并发信号量（默认进程级全局单例，见下）
+
+### 全局 Session 并发限制
+
+- **进程级信号量**（`Semaphore` 类，模块级单例 `globalSessionSemaphore`）：跨所有编排任务共享
+- 所有 FlexRunner `executeStart()`（即活跃 opencode Session）总数不超过上限
+- 上限通过环境变量 `MAX_CONCURRENT_SESSIONS` 配置，默认 50
+- 场景：仓库检视类任务单任务 fan-out 5 个并发步骤；多任务同时提交时统一限流排队
+- 排队策略：FIFO，槽位由 `release()` 直接转移给队首等待者（不超发）；等待超 100ms 记录 info 日志
+- 状态查询：`getSessionSemaphoreStats()`（模块导出）返回 `{ active, limit, waiting, utilization }`，
+  经 `GET /api/stats/session/concurrency` 暴露，前端顶栏「🔀 并发」pill 15s 轮询展示（≥80% 橙色、打满红色脉冲）
 
 ### 优化点
 

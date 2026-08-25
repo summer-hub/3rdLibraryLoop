@@ -68,6 +68,13 @@ Phase 5: 最终文档输出
 - **无子路径**：完整克隆 `git clone <baseUrl> <outputDir>/source`
 - **有子路径**：稀疏检出（Sparse Checkout），只下载指定文件夹
 
+> **仓库迁移探测（按序尝试，避免浪费轮次）**：Gitee `openharmony-tpc` 组织下的 Flutter 仓库已大规模迁移到 GitCode。克隆 404 时按以下顺序快速探测，**不要**盲目尝试随机组织名：
+> 1. `https://gitcode.com/CPF-Flutter/{原仓库名}`（鸿蒙化 Flutter 仓库主要迁移目的地，仓库名可能带 `fluttertpc_` 前缀）
+> 2. `https://gitcode.com/openharmony-tpc/{原仓库名}`
+> 3. GitCode 站内搜索仓库名（一次搜索定位实际组织）
+>
+> 找到迁移仓库后，在报告中标注原地址 → 实际地址的映射关系。
+
 > 详细的 URL 解析规则和克隆命令参见 [Git Clone 指南](references/GIT_CLONE_GUIDE.md)
 
 ### 1.3 确定分析路径
@@ -102,6 +109,8 @@ node scripts/flutter-extract-interfaces.cjs --repoDir <analysisRoot> --output <o
 6. 过滤私有成员（`_` 前缀）、export hide/show 过滤
 7. 提取 `///` 文档注释作为功能描述
 8. 输出结构化 JSON（`interface-spec.json`）
+
+> ⚠️ **monorepo 主包定位（重要）**：脚本对仓库根执行时，可能误把 `example` 子包（如 `packages/xxx_example`）识别为多子包一并提取，导致结果混入示例代码。**monorepo 仓库（含 `packages/` 目录）应把 `--repoDir` 指向主包目录**（如 `source/packages/flutter_blue_plus`），而不是仓库根目录。判断依据：`packages/` 下有多个子包时，选取含 `lib/<包名>.dart` 且 `pubspec.yaml` 与仓库名对应的主包。
 
 **输出 JSON 结构**：
 ```json

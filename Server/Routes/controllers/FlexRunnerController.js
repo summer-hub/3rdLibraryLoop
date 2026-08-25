@@ -1,6 +1,7 @@
 import { FlexRunner, ControlType } from '../../FlexRunner/FlexRunner.js';
 import { OrchestratorStatus } from '../../Orchestrator/Orchestrator.js';
 import { nowCST } from '../../library/cstTime.js';
+import { createZipBuffer } from '../library/zipArchive.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
@@ -698,6 +699,126 @@ class FlexRunnerController {
         } catch (err) {
             res.error(404, `文件读取失败: ${err.message}`);
         }
+    }
+
+    /**
+     * GET /api/flexrunner/archive?taskId=xxx
+     * 打包下载任务目录下的全部 .md 报告文件（ZIP）。
+     *
+     * - 扫描 taskDir 根目录（不递归，排除 source/ 克隆仓库），收集所有 .md 文件
+     * - 检视报告在前、框架产物（stepId*_result/Summary）在后，同类自然排序
+     * - ZIP 内以 {taskId}/ 目录前缀组织，便于解压归档
+     * - 任务进行中调用时打包当前已生成的文件（实时快照）
+     */
+    async archive(req, res) {
+        const { taskId } = req.query;
+        if (!taskId) {
+            return res.error(400, 'taskId 为必填项');
+        }
+
+        try {
+            // ── 1. 解析 taskDir ──
+            const taskDir = await this._resolveTaskDir(taskId);
+            if (!taskDir) {
+                return res.error(404, `未找到任务目录: taskId=${taskId}`);
+            }
+
+            // ── 2. 收集根目录 .md 文件（withFileTypes + isFile，天然排除子目录）──
+            const entries = await fs.readdir(taskDir, { withFileTypes: true });
+            const mdFiles = entries
+                .filter(e => e.isFile() && e.name.endsWith('.md'))
+                .map(e => e.name);
+
+            if (mdFiles.length === 0) {
+                return res.error(404, '暂无报告文件（任务尚未生成任何 .md 产物）');
+            }
+
+            // ── 3. 排序：检视报告在前，框架产物（stepId*）在后 ──
+            const isFrameworkFile = (n) => /^stepId/i.test(n);
+            mdFiles.sort((a, b) => {
+                const fa = isFrameworkFile(a) ? 1 : 0;
+                const fb = isFrameworkFile(b) ? 1 : 0;
+                if (fa !== fb) return fa - fb;
+                return a.localeCompare(b, 'zh-CN', { numeric: true });
+            });
+
+            // ── 4. 读取并打包（单文件读取失败跳过，不中断整体打包）──
+            const files = [];
+            for (const name of mdFiles) {
+                const fp = path.join(taskDir, name);
+                try {
+                    const [data, st] = await Promise.all([fs.readFile(fp), fs.stat(fp)]);
+                    files.push({ name: `${taskId}/${name}`, data, mtime: st.mtime });
+                } catch (err) {
+                    console.warn(`[FlexRunnerController] archive 跳过读取失败文件: ${fp}, ${err.message}`);
+                }
+            }
+            if (files.length === 0) {
+                return res.error(404, '报告文件读取失败');
+            }
+
+            const zip = createZipBuffer(files);
+
+            // ── 5. 二进制响应（Content-Disposition 双写，兼容 ASCII 回退与 UTF-8）──
+            const raw = res.raw;
+            raw.writeHead(200, {
+                'Content-Type': 'application/zip',
+                'Content-Length': zip.length,
+                'Content-Disposition': `attachment; filename="${taskId}.zip"; filename*=UTF-8''${encodeURIComponent(taskId)}.zip`
+            });
+            raw.end(zip);
+        } catch (err) {
+            if (!res.raw.headersSent) {
+                return res.error(500, `打包失败: ${err.message}`);
+            }
+        }
+    }
+
+    /**
+     * 解析任务工作目录（供 archive 打包等场景使用）。
+     *
+     * 查找顺序：
+     *   1. 内存中活跃 FlexRunner 实例的 taskDir
+     *   2. OrchestratorController 中编排步骤元信息的 taskDir（含重启后恢复的实例）
+     *   3. 磁盘兜底：{rootDir}/task/{taskId}（taskId 白名单校验 + 路径边界检查，防目录穿越）
+     *
+     * @param {string} taskId
+     * @returns {Promise<string|null>} taskDir 绝对路径；未找到返回 null
+     * @private
+     */
+    async _resolveTaskDir(taskId) {
+        // 1. 活跃 runner
+        for (const runner of this._runners.values()) {
+            if (runner.taskId === taskId && runner.taskDir) {
+                return runner.taskDir;
+            }
+        }
+
+        // 2. 编排器步骤元信息
+        if (this._orchestratorController) {
+            const steps = this._orchestratorController.getTaskSteps(taskId);
+            const withDir = steps.find(s => s && s.taskDir);
+            if (withDir) return withDir.taskDir;
+        }
+
+        // 3. 磁盘兜底（白名单 + 边界校验）
+        const rootDir = this._storage?.manager?.rootDir;
+        if (rootDir) {
+            if (!/^[A-Za-z0-9._-]+$/.test(taskId) || taskId === '.' || taskId === '..') {
+                return null;
+            }
+            const taskRoot = path.join(rootDir, 'task');
+            const resolved = path.resolve(taskRoot, taskId);
+            if (!resolved.startsWith(taskRoot + path.sep)) {
+                return null;
+            }
+            try {
+                const st = await fs.stat(resolved);
+                if (st.isDirectory()) return resolved;
+            } catch { /* 目录不存在 */ }
+        }
+
+        return null;
     }
 
     /**

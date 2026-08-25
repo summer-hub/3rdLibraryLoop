@@ -570,11 +570,18 @@ class OrchestratorController {
     /**
      * GET /api/orchestrator/tasks
      * 列出所有编排任务（合并内存实例 + 磁盘持久化记录）
+     *
+     * Query:
+     *   page          - 页码（默认 1）
+     *   pageSize      - 每页条数（默认 20，最大 100）
+     *   taskIdPrefix  - 可选，按 taskId 前缀过滤（如 'fluttercheck_' / 'codecheck_'），
+     *                   供各功能面板历史列表独立分页，避免混合任务挤占页容量
      */
     async tasks(req, res) {
         const query = req.query || {};
         const page = Math.max(1, parseInt(query.page, 10) || 1);
         const pageSize = Math.min(100, Math.max(1, parseInt(query.pageSize, 10) || 20));
+        const taskIdPrefix = query.taskIdPrefix || null;
 
         // ── 优先方案：从注册表分页查询 ──
         const registry = this._getRegistry();
@@ -583,7 +590,8 @@ class OrchestratorController {
                 const result = await registry.listPage({
                     page,
                     pageSize,
-                    taskType: 'orchestrator'
+                    taskType: 'orchestrator',
+                    taskIdPrefix
                 });
 
                 // 合并内存中活跃任务的状态
@@ -596,10 +604,11 @@ class OrchestratorController {
                     return { ...t, taskId: t.task_id };
                 });
 
-                // 第一页补充活跃但注册表未同步的任务
+                // 第一页补充活跃但注册表未同步的任务（同样遵守前缀过滤）
                 if (page === 1) {
                     const existingIds = new Set(result.tasks.map(t => t.task_id));
                     for (const [taskId, orch] of this._orchestrators) {
+                        if (taskIdPrefix && !taskId.startsWith(taskIdPrefix)) continue;
                         if (!existingIds.has(taskId)) {
                             const progress = orch.getProgress();
                             mergedTasks.unshift({

@@ -68,6 +68,79 @@ const SSE_EVENT = Object.freeze({
 /** 全局执行次数上限（防止极端循环场景） */
 const GLOBAL_EXEC_LIMIT = 200;
 
+/** 默认全局 Session 并发上限（可通过环境变量 MAX_CONCURRENT_SESSIONS 覆盖） */
+const DEFAULT_MAX_CONCURRENT_SESSIONS = 50;
+
+// ─── 全局 Session 并发信号量 ─────────────────────────────────────────────────
+
+/**
+ * Semaphore — 异步信号量（FIFO 排队）。
+ *
+ * 进程级单例（跨所有编排任务共享）：并行步骤 fan-out / 多任务同时提交时，
+ * 活跃的 opencode Session（即正在执行的 FlexRunner executeStart）总数
+ * 不超过上限，防止 AI 会话数无节制叠加（5 维并发 × N 个仓库）。
+ */
+class Semaphore {
+    /**
+     * @param {number} limit - 并发上限（≥1）
+     */
+    constructor(limit = DEFAULT_MAX_CONCURRENT_SESSIONS) {
+        this._limit = Math.max(1, Number(limit) || DEFAULT_MAX_CONCURRENT_SESSIONS);
+        this._active = 0;
+        /** @type {Array<() => void>} */
+        this._queue = [];
+    }
+
+    get limit() { return this._limit; }
+    get active() { return this._active; }
+    get waiting() { return this._queue.length; }
+
+    /**
+     * 获取一个槽位；上限已满时排队等待。
+     * @returns {Promise<void>}
+     */
+    async acquire() {
+        if (this._active < this._limit) {
+            this._active++;
+            return;
+        }
+        await new Promise(resolve => this._queue.push(resolve));
+        // 被唤醒时槽位已由 release 直接转移给本等待者，_active 不再递增
+    }
+
+    /**
+     * 释放槽位；有等待者时直接转移（保证 FIFO 且不超发）。
+     */
+    release() {
+        const next = this._queue.shift();
+        if (next) {
+            next();
+        } else {
+            this._active = Math.max(0, this._active - 1);
+        }
+    }
+}
+
+/** 进程级全局 Session 并发信号量（所有 Orchestrator 实例共享） */
+const globalSessionSemaphore = new Semaphore(
+    Number(process.env.MAX_CONCURRENT_SESSIONS) || DEFAULT_MAX_CONCURRENT_SESSIONS
+);
+
+/**
+ * 查询全局 Session 并发占用快照（供 HTTP 统计接口 / 前端顶栏展示）。
+ * @returns {{active: number, limit: number, waiting: number, utilization: number}}
+ */
+export function getSessionSemaphoreStats() {
+    return {
+        active: globalSessionSemaphore.active,
+        limit: globalSessionSemaphore.limit,
+        waiting: globalSessionSemaphore.waiting,
+        utilization: globalSessionSemaphore.limit > 0
+            ? Math.round((globalSessionSemaphore.active / globalSessionSemaphore.limit) * 100)
+            : 0
+    };
+}
+
 // ─── Orchestrator 类 ─────────────────────────────────────────────────────────
 
 class Orchestrator {
@@ -76,11 +149,14 @@ class Orchestrator {
      * @param {object} [deps.sseHub]      - SseHub 实例（可选，无则不推送）
      * @param {object} [deps.storage]     - 存储门面（可选，无则不持久化）
      * @param {function} [deps.flexRunnerFactory] - FlexRunner 工厂函数（可选，测试用）
+     * @param {object} [deps.sessionSemaphore] - Session 并发信号量（可选，默认进程级全局单例）
      */
     constructor(deps = {}) {
         this.sseHub = deps.sseHub || null;
         this.storage = deps.storage || null;
         this.flexRunnerFactory = deps.flexRunnerFactory || null;
+        // 全局 Session 并发限制（进程级共享；测试可注入自定义信号量）
+        this.sessionSemaphore = deps.sessionSemaphore || globalSessionSemaphore;
 
         // ── 任务元信息 ──
         /** @type {string} */
@@ -491,7 +567,22 @@ class Orchestrator {
 
             this._log('info', `执行步骤 ${node.stepId}（第 ${node.retryCount} 次）`);
 
-            const result = await runner.executeStart();
+            // ── 全局 Session 并发限制 ──
+            // 进程级信号量：并行 fan-out 步骤 / 多任务同时提交时，
+            // 活跃 opencode Session 总数不超过 MAX_CONCURRENT_SESSIONS（默认 5）
+            const semWaitStart = Date.now();
+            await this.sessionSemaphore.acquire();
+            const semWaited = Date.now() - semWaitStart;
+            if (semWaited > 100) {
+                this._log('info', `步骤 ${node.stepId} 等待并发槽位 ${semWaited}ms（active=${this.sessionSemaphore.active}/${this.sessionSemaphore.limit}）`);
+            }
+
+            let result;
+            try {
+                result = await runner.executeStart();
+            } finally {
+                this.sessionSemaphore.release();
+            }
             resultPath = result.resultPath;
             success = result.success;
             metrics = result.metrics || null;

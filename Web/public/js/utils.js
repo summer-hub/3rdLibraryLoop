@@ -140,7 +140,9 @@ function createPagination(opts) {
         if (pg.loading) return;
         pg.loading = true;
         try {
-            var r = await apiFetch('GET', pg.apiPath + '?page=' + page + '&pageSize=' + pg.pageSize);
+            // apiPath 可自带查询参数（如 ?taskIdPrefix=xxx_），此时用 & 拼接分页参数
+            var sep = pg.apiPath.indexOf('?') >= 0 ? '&' : '?';
+            var r = await apiFetch('GET', pg.apiPath + sep + 'page=' + page + '&pageSize=' + pg.pageSize);
             // 兼容两种响应格式：{ success: true } 或 { status: 'ok' }
             if (!r.data || (!r.data.success && r.data.status !== 'ok')) return;
             pg.currentPage = r.data.page || page;

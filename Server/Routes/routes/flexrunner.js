@@ -20,6 +20,7 @@ import FlexRunnerController from '../controllers/FlexRunnerController.js';
  *  POST   /send-and-wait     — 发送消息并同步等待 AI 回复
  *  GET    /steps             — 列出任务步骤和文件
  *  GET    /file              — 读取指定文件内容
+ *  GET    /archive           — 打包下载任务目录下全部 .md 报告（ZIP）
  *  GET    /runners           — 列出所有已注册实例
  *  DELETE /runner            — 移除一个实例
  *
@@ -49,6 +50,7 @@ export function createFlexRunnerRouter(dependencies) {
     router.get('/session',        controller.session.bind(controller));
     router.get('/steps',          controller.steps.bind(controller));
     router.get('/file',           controller.file.bind(controller));
+    router.get('/archive',        controller.archive.bind(controller));
     router.get('/runners',        controller.runners.bind(controller));
 
     // ── 控制与检查 ──

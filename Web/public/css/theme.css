@@ -220,6 +220,25 @@ header::after {
 .stats-pill > span:nth-child(2) { font-weight: 600; color: var(--text); }
 .stats-pill .sp-label { font-size: 10px; opacity: 0.6; }
 
+/* ─── Session 并发占用指示（顶栏 pill 变体）────────────────────────── */
+.stats-pill.conc-high {
+    border-color: var(--orange);
+    background: var(--orange-light);
+}
+.stats-pill.conc-high > span:nth-child(2) { color: var(--orange); }
+
+.stats-pill.conc-full {
+    border-color: var(--red);
+    background: var(--red-light);
+    animation: conc-pulse 2s ease-in-out infinite;
+}
+.stats-pill.conc-full > span:nth-child(2) { color: var(--red); }
+
+@keyframes conc-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255,59,48,0.25); }
+    50%      { box-shadow: 0 0 0 4px rgba(255,59,48,0.08); }
+}
+
 /* 主题切换按钮 */
 .theme-toggle {
     display: flex;

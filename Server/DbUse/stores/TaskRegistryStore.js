@@ -141,6 +141,7 @@ class TaskRegistryStore {
      * @param {number} [opts.pageSize=20] - 每页条数
      * @param {string} [opts.status] - 可选，按状态过滤
      * @param {string} [opts.taskType] - 可选，按任务类型过滤
+     * @param {string} [opts.taskIdPrefix] - 可选，按 taskId 前缀过滤（如 'fluttercheck_' / 'codecheck_'）
      * @returns {Promise<{ tasks: object[], total: number, page: number, pageSize: number, totalPages: number }>}
      */
     async listPage(opts = {}) {
@@ -158,6 +159,11 @@ class TaskRegistryStore {
         if (opts.taskType) {
             where.push('task_type = ?');
             params.push(opts.taskType);
+        }
+        if (opts.taskIdPrefix) {
+            where.push("task_id LIKE ? ESCAPE '\\'");
+            // LIKE 通配符转义：前缀中的 %/_ 按字面匹配
+            params.push(String(opts.taskIdPrefix).replace(/([%_\\])/g, '\\$1') + '%');
         }
         const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
