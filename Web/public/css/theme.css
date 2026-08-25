@@ -114,6 +114,14 @@ html, body {
     display: none;
 }
 
+/* 知识管理模式：隐藏 nav，main 独占全宽（知识面板内部自带 sidebar+content 布局） */
+.layout[data-view="knowledge"] {
+    grid-template-columns: 1fr;
+}
+.layout[data-view="knowledge"] > nav {
+    display: none;
+}
+
 /* ─── 视图切换器（顶栏 logo 右侧） ─────────────────────────────────── */
 .view-switcher {
     display: flex;
@@ -343,9 +351,12 @@ main {
 }
 .panel.active { display: flex; }
 
-/* 循环控制台面板：由顶栏 data-view="loop" 控制显示，不受 .active 影响 */
+/* 循环控制台 / 知识管理面板：由顶栏 data-view 控制显示，不受 .active 影响 */
 .layout[data-view="loop"] #p-loop { display: flex; }
 .layout[data-view="features"] #p-loop { display: none; }
+.layout[data-view="knowledge"] #p-knowledge { display: flex; }
+.layout[data-view="loop"] #p-knowledge { display: none; }
+.layout[data-view="features"] #p-knowledge { display: none; }
 
 /* 带内边距的面板（表单类：健康检查等） */
 .panel-pad {

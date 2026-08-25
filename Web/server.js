@@ -81,9 +81,9 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    // ─── 知识导入（已整合到循环控制台 tab，重定向到 loop 视图） ────────
+    // ─── 知识管理（独立视图，重定向到 knowledge 视图） ─────────────────
     if (pathname === '/knowledge' || pathname.startsWith('/knowledge/')) {
-        res.writeHead(302, { 'Location': '/#loop' });
+        res.writeHead(302, { 'Location': '/#knowledge' });
         res.end();
         return;
     }

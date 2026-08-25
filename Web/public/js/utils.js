@@ -141,7 +141,8 @@ function createPagination(opts) {
         pg.loading = true;
         try {
             var r = await apiFetch('GET', pg.apiPath + '?page=' + page + '&pageSize=' + pg.pageSize);
-            if (!r.data || !r.data.success) return;
+            // 兼容两种响应格式：{ success: true } 或 { status: 'ok' }
+            if (!r.data || (!r.data.success && r.data.status !== 'ok')) return;
             pg.currentPage = r.data.page || page;
             pg.total = r.data.total || 0;
             pg.totalPages = r.data.totalPages || 1;

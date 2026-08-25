@@ -19,6 +19,7 @@
         <div class="view-switcher" id="viewSwitcher">
             <button class="view-btn active" data-view="features">🛠 功能工作台</button>
             <button class="view-btn" data-view="loop">🔁 循环控制台</button>
+            <button class="view-btn" data-view="knowledge">📚 知识管理</button>
         </div>
         <div class="header-right">
             <div class="stats-pill" title="页面访问次数">
@@ -133,6 +134,7 @@
                             暂无检视任务，提交 PR 后将在此显示
                         </div>
                     </div>
+                    <div id="cc-tasks-pager"></div>
                 </div>
             </div>
         </div>
@@ -172,7 +174,6 @@
                         <div class="main-tab active" data-tab="rounds">🔄 循环轮次</div>
                         <div class="main-tab" data-tab="orchestrator">🔀 编排详情</div>
                         <div class="main-tab" data-tab="brain">🧠 Brain 拆解</div>
-                        <div class="main-tab" data-tab="knowledge">📚 知识管理</div>
                     </div>
 
                     <div class="tab-content active" id="tabRounds">
@@ -232,94 +233,95 @@
                             <div class="rounds-empty">请先选择一个大循环任务</div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
 
-                    <div class="tab-content" id="tabKnowledge">
-                        <div class="kn-body">
-                            <!-- 左侧：知识列表 -->
-                            <div class="kn-sidebar">
-                                <div class="kn-sidebar-header">
-                                    <h2>📋 知识库 <span class="count-badge" id="knCount">0</span></h2>
-                                    <input class="search-box" id="knSearch" placeholder="搜索任务描述或 ID..." />
-                                    <button class="secondary sm kn-refresh-btn" id="btnKnRefresh">🔄 刷新列表</button>
-                                </div>
-                                <div class="kn-list" id="knList">
-                                    <div class="detail-empty">加载中...</div>
-                                </div>
+        <!-- ─── 知识管理面板（由顶栏视图切换器控制，不属于功能面板 nav 系统） ── -->
+        <div class="panel knowledge-panel" id="p-knowledge">
+            <div class="kn-body">
+                <!-- 左侧：知识列表 -->
+                <div class="kn-sidebar">
+                    <div class="kn-sidebar-header">
+                        <h2>📋 知识库 <span class="count-badge" id="knCount">0</span></h2>
+                        <input class="search-box" id="knSearch" placeholder="搜索任务描述或 ID..." />
+                        <button class="secondary sm kn-refresh-btn" id="btnKnRefresh">🔄 刷新列表</button>
+                    </div>
+                    <div class="kn-list" id="knList">
+                        <div class="detail-empty">加载中...</div>
+                    </div>
+                </div>
+
+                <!-- 右侧：知识详情 + 导入操作 -->
+                <div class="kn-main">
+                    <!-- 知识详情卡 -->
+                    <div class="kn-detail-card" id="knDetailCard" style="display:none;">
+                        <div class="kn-detail-header">
+                            <div class="kn-detail-title">
+                                <h2 id="knTitle">—</h2>
+                                <span class="kn-id" id="knDetailId">—</span>
                             </div>
-
-                            <!-- 右侧：知识详情 + 导入操作 -->
-                            <div class="kn-main">
-                                <!-- 知识详情卡 -->
-                                <div class="kn-detail-card" id="knDetailCard" style="display:none;">
-                                    <div class="kn-detail-header">
-                                        <div class="kn-detail-title">
-                                            <h2 id="knTitle">—</h2>
-                                            <span class="kn-id" id="knDetailId">—</span>
-                                        </div>
-                                        <div class="kn-detail-actions">
-                                            <button class="primary sm" id="btnStartImport">📥 开始导入</button>
-                                            <button class="secondary sm" id="btnViewDoc">📄 查看原文</button>
-                                            <button class="danger sm" id="btnDeleteKn">🗑️ 删除知识</button>
-                                        </div>
-                                    </div>
-                                    <div class="kn-detail-meta" id="knDetailMeta"></div>
-                                    <div class="kn-detail-desc" id="knDetailDesc">—</div>
-                                </div>
-
-                                <!-- 导入面板 -->
-                                <div class="kn-import-panel" id="knImportPanel" style="display:none;">
-                                    <div class="kn-import-header">
-                                        <h3>📥 知识导入</h3>
-                                        <span class="muted" id="knImportTarget"></span>
-                                    </div>
-                                    <div class="kn-import-body">
-                                        <div class="form-group">
-                                            <label>导入模式</label>
-                                            <div class="kn-mode-tabs">
-                                                <div class="kn-mode-tab active" data-mode="sync">⚡ 同步导入</div>
-                                                <div class="kn-mode-tab" data-mode="async">🔄 异步导入</div>
-                                            </div>
-                                            <div class="hint" id="knModeHint">同步等待导入完成，适合较短任务</div>
-                                        </div>
-                                        <div class="form-group">
-                                            <label>自定义提示词（可选）</label>
-                                            <textarea class="large" id="knUserPrompt" placeholder="输入额外的提示文字，将追加到导入执行 prompt 中...&#10;&#10;例如：请重点关注鸿蒙端 API 适配部分，生成可复用的 SKILL 文档"></textarea>
-                                            <div class="hint">提示词会追加到知识导入的执行 prompt 末尾，用于引导 AI 更精准地处理知识</div>
-                                        </div>
-                                        <div class="advanced-toggle" id="knAdvancedToggle">高级选项</div>
-                                        <div class="advanced-section" id="knAdvancedSection">
-                                            <div class="form-group">
-                                                <label>工作目录（可选）</label>
-                                                <input id="knWorkDir" placeholder="留空则自动推导（基于来源任务 ID）">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>SKILL 目录（可选）</label>
-                                                <input id="knSkillDir" placeholder="留空则使用默认 SKILL 目录">
-                                            </div>
-                                        </div>
-                                        <div class="kn-import-actions">
-                                            <button class="secondary" id="btnImportCancel">取消</button>
-                                            <button class="primary" id="btnImportSubmit" disabled>📥 执行导入</button>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- 异步导入状态轮询 -->
-                                <div class="kn-import-status" id="knImportStatus" style="display:none;">
-                                    <div class="kn-status-header">
-                                        <h3>📊 导入进度</h3>
-                                        <button class="secondary sm" id="btnStopPoll">停止轮询</button>
-                                    </div>
-                                    <div class="kn-status-body" id="knStatusBody"></div>
-                                </div>
-
-                                <!-- 空状态 -->
-                                <div class="kn-empty" id="knEmpty">
-                                    <div class="kn-empty-icon">📚</div>
-                                    <div class="kn-empty-text">请从左侧选择一条知识，或点击「刷新列表」加载知识库</div>
-                                </div>
+                            <div class="kn-detail-actions">
+                                <button class="primary sm" id="btnStartImport">📥 开始导入</button>
+                                <button class="secondary sm" id="btnViewDoc">📄 查看原文</button>
+                                <button class="danger sm" id="btnDeleteKn">🗑️ 删除知识</button>
                             </div>
                         </div>
+                        <div class="kn-detail-meta" id="knDetailMeta"></div>
+                        <div class="kn-detail-desc" id="knDetailDesc">—</div>
+                    </div>
+
+                    <!-- 导入面板 -->
+                    <div class="kn-import-panel" id="knImportPanel" style="display:none;">
+                        <div class="kn-import-header">
+                            <h3>📥 知识导入</h3>
+                            <span class="muted" id="knImportTarget"></span>
+                        </div>
+                        <div class="kn-import-body">
+                            <div class="form-group">
+                                <label>导入模式</label>
+                                <div class="kn-mode-tabs">
+                                    <div class="kn-mode-tab active" data-mode="sync">⚡ 同步导入</div>
+                                    <div class="kn-mode-tab" data-mode="async">🔄 异步导入</div>
+                                </div>
+                                <div class="hint" id="knModeHint">同步等待导入完成，适合较短任务</div>
+                            </div>
+                            <div class="form-group">
+                                <label>自定义提示词（可选）</label>
+                                <textarea class="large" id="knUserPrompt" placeholder="输入额外的提示文字，将追加到导入执行 prompt 中...&#10;&#10;例如：请重点关注鸿蒙端 API 适配部分，生成可复用的 SKILL 文档"></textarea>
+                                <div class="hint">提示词会追加到知识导入的执行 prompt 末尾，用于引导 AI 更精准地处理知识</div>
+                            </div>
+                            <div class="advanced-toggle" id="knAdvancedToggle">高级选项</div>
+                            <div class="advanced-section" id="knAdvancedSection">
+                                <div class="form-group">
+                                    <label>工作目录（可选）</label>
+                                    <input id="knWorkDir" placeholder="留空则自动推导（基于来源任务 ID）">
+                                </div>
+                                <div class="form-group">
+                                    <label>SKILL 目录（可选）</label>
+                                    <input id="knSkillDir" placeholder="留空则使用默认 SKILL 目录">
+                                </div>
+                            </div>
+                            <div class="kn-import-actions">
+                                <button class="secondary" id="btnImportCancel">取消</button>
+                                <button class="primary" id="btnImportSubmit" disabled>📥 执行导入</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 异步导入状态轮询 -->
+                    <div class="kn-import-status" id="knImportStatus" style="display:none;">
+                        <div class="kn-status-header">
+                            <h3>📊 导入进度</h3>
+                            <button class="secondary sm" id="btnStopPoll">停止轮询</button>
+                        </div>
+                        <div class="kn-status-body" id="knStatusBody"></div>
+                    </div>
+
+                    <!-- 空状态 -->
+                    <div class="kn-empty" id="knEmpty">
+                        <div class="kn-empty-icon">📚</div>
+                        <div class="kn-empty-text">请从左侧选择一条知识，或点击「刷新列表」加载知识库</div>
                     </div>
                 </div>
             </div>

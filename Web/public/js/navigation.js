@@ -2,13 +2,15 @@
  * navigation.js — 视图模式切换 + 功能面板导航 + URL Hash 持久化
  *
  * 两层结构：
- *   1. ViewMode（顶栏切换器）：循环控制台 ↔ 功能工作台
+ *   1. ViewMode（顶栏切换器）：功能工作台 ↔ 循环控制台 ↔ 知识管理
  *      - loop 模式：隐藏左侧 nav，循环控制台独占全宽
+ *      - knowledge 模式：隐藏左侧 nav，知识管理独占全宽
  *      - features 模式：显示左侧 nav，选择功能面板操作
  *   2. Nav（左侧导航）：功能面板切换 + 懒加载初始化
  *
  * URL Hash 规则：
  *   - #loop              → 循环控制台
+ *   - #knowledge         → 知识管理
  *   - #p-codecheck       → 功能工作台 / PR 代码检视
  *   - 其他 #p-xxx        → 功能工作台 / 对应面板
  * ════════════════════════════════════════════════════════════════════ */
@@ -18,10 +20,11 @@
 var ViewMode = {
     _current: 'features',
     _loopInited: false,
+    _knowledgeInited: false,
 
     /**
      * 切换视图模式
-     * @param {string} mode - 'loop' | 'features'
+     * @param {string} mode - 'loop' | 'knowledge' | 'features'
      */
     set: function (mode) {
         this._current = mode;
@@ -33,8 +36,8 @@ var ViewMode = {
         });
 
         if (mode === 'loop') {
-            // 切回循环控制台时，隐藏所有功能面板（移除 .active），避免与 loop 面板同时可见
-            document.querySelectorAll('#main > .panel:not(#p-loop)').forEach(function (p) {
+            // 切到循环控制台时，隐藏所有功能面板（移除 .active），避免与 loop 面板同时可见
+            document.querySelectorAll('#main > .panel:not(#p-loop):not(#p-knowledge)').forEach(function (p) {
                 p.classList.remove('active');
             });
             // 懒加载初始化循环控制台
@@ -43,9 +46,20 @@ var ViewMode = {
                 initLoopPanel();
             }
             history.replaceState(null, '', '#loop');
+        } else if (mode === 'knowledge') {
+            // 切到知识管理时，隐藏所有功能面板（移除 .active），避免与知识面板同时可见
+            document.querySelectorAll('#main > .panel:not(#p-loop):not(#p-knowledge)').forEach(function (p) {
+                p.classList.remove('active');
+            });
+            // 懒加载初始化知识管理面板
+            if (!this._knowledgeInited && typeof initKnowledgePanel === 'function') {
+                this._knowledgeInited = true;
+                initKnowledgePanel();
+            }
+            history.replaceState(null, '', '#knowledge');
         } else {
             // 切到功能工作台时，确保有一个功能面板处于激活态
-            var hasActive = document.querySelector('#main > .panel:not(#p-loop).active');
+            var hasActive = document.querySelector('#main > .panel:not(#p-loop):not(#p-knowledge).active');
             if (!hasActive) {
                 Nav.switchTo('p-codecheck');
             }
@@ -67,10 +81,12 @@ var ViewMode = {
         var hash = location.hash.slice(1);
         if (hash === 'loop') {
             this.set('loop');
+        } else if (hash === 'knowledge' || hash === 'p-knowledge') {
+            this.set('knowledge');
         } else if (hash && hash.startsWith('p-')) {
             // hash 指向某个功能面板 → 切到 features 模式并激活该面板
             var target = document.getElementById(hash);
-            if (target && target.classList.contains('panel') && hash !== 'p-loop') {
+            if (target && target.classList.contains('panel') && hash !== 'p-loop' && hash !== 'p-knowledge') {
                 this.set('features');
                 Nav.switchTo(hash);
                 return;
@@ -81,6 +97,8 @@ var ViewMode = {
             var saved = localStorage.getItem('view-mode');
             if (saved === 'loop') {
                 this.set('loop');
+            } else if (saved === 'knowledge') {
+                this.set('knowledge');
             } else {
                 this.set('features');
             }
@@ -113,8 +131,8 @@ var Nav = {
             n.classList.toggle('active', n.dataset.panel === panelId);
         });
 
-        // 显示/隐藏功能面板（排除 #p-loop，它由 ViewMode 控制）
-        document.querySelectorAll('#main > .panel:not(#p-loop)').forEach(function (p) {
+        // 显示/隐藏功能面板（排除 #p-loop / #p-knowledge，它们由 ViewMode 控制）
+        document.querySelectorAll('#main > .panel:not(#p-loop):not(#p-knowledge)').forEach(function (p) {
             p.classList.toggle('active', p.id === panelId);
         });
 

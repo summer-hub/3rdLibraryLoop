@@ -75,6 +75,45 @@ class OrchestratorController {
     }
 
     /**
+     * 任务终态时回写注册表：status + 结构化指标。
+     *
+     * metrics 来自步骤的 meta .json 旁车文件（通用键值对，如 mergeLevel / score），
+     * 存入 task_registry.metadata JSON 列，后端不解释键语义。
+     * 多步骤时合并各步骤 metrics（后完成的覆盖同名字段）。
+     *
+     * @param {string} taskId
+     * @param {Orchestrator} orch - 已到终态的编排器实例
+     * @returns {Promise<void>}
+     * @private
+     */
+    async _patchRegistryFinalState(taskId, orch) {
+        const registry = this._getRegistry();
+        if (!registry) return;
+
+        const progress = orch.getProgress();
+
+        // 合并各步骤 metrics（通用键值对，后写覆盖同名）
+        let metrics = null;
+        for (const s of (progress.steps || [])) {
+            if (s.metrics && typeof s.metrics === 'object') {
+                metrics = { ...(metrics || {}), ...s.metrics };
+            }
+        }
+
+        const patch = { status: progress.status || 'completed' };
+        if (metrics) {
+            // 与已有 metadata 合并（保留 load 时写入的其他摘要字段，如 stepCount）
+            const existing = await registry.get(taskId);
+            const existingMeta = existing && existing.metadata && typeof existing.metadata === 'object'
+                ? existing.metadata
+                : {};
+            patch.metadata = { ...existingMeta, ...metrics };
+        }
+
+        await registry.patch(taskId, patch);
+    }
+
+    /**
      * 获取已有实例，不存在则报错。
      */
     _getOrchestrator(taskId) {
@@ -296,9 +335,17 @@ class OrchestratorController {
         }
 
         // 异步启动，不阻塞 HTTP 响应
-        orch.start().catch(err => {
-            console.error(`[OrchestratorController] taskId=${taskId} 执行异常:`, err.message);
-        });
+        orch.start()
+            .catch(err => {
+                console.error(`[OrchestratorController] taskId=${taskId} 执行异常:`, err.message);
+            })
+            .finally(() => {
+                // 终态回写注册表：status + 结构化指标（metrics 存入通用 metadata 列，后端不解释键）
+                // 使历史列表一次 SQL 即可拿到真实状态与等级，前端无需逐任务调 progress
+                this._patchRegistryFinalState(taskId, orch).catch(err => {
+                    console.warn(`[OrchestratorController] 注册表终态回写失败: taskId=${taskId}, ${err.message}`);
+                });
+            });
 
         res.json({
             status: 'ok',
@@ -419,15 +466,14 @@ class OrchestratorController {
         try {
             orch = this._getOrchestrator(taskId);
         } catch (_) {
-            // 内存中不存在，尝试从磁盘恢复
+            // 内存中不存在，尝试从磁盘恢复（只读响应，不写入内存 Map——
+            // 避免前端翻阅大量历史任务时 Orchestrator 实例无限驻留内存）
             if (this.storage) {
                 try {
                     const state = await this.storage.json('task').read(`${taskId}/orchestration`);
                     if (state) {
                         orch = this._createOrchestrator();
                         await orch.restoreState(state);
-                        this._orchestrators.set(taskId, orch);
-                        console.log(`[OrchestratorController] 从磁盘恢复到内存: taskId=${taskId}`);
                     }
                 } catch (err) {
                     console.warn(`[OrchestratorController] 恢复失败: ${err.message}`);

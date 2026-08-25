@@ -68,7 +68,6 @@ class CopilotCLI {
      * 检查 Copilot SDK 是否可用（尝试启动客户端连接）
      */
     async checkHealth() {
-        this._log('info', 'checkHealth: 检测 Copilot SDK 连接');
         try {
             const client = await this._getClient();
             return { status: 'ok', message: 'Copilot SDK is connected', target: 'copilot-cli' };

@@ -958,7 +958,6 @@ document.querySelectorAll('.main-tab').forEach(function(tab){
         if(tgt==='rounds')$('tabRounds').classList.add('active');
         else if(tgt==='orchestrator')$('tabOrchestrator').classList.add('active');
         else if(tgt==='brain')$('tabBrain').classList.add('active');
-        else if(tgt==='knowledge'){$('tabKnowledge').classList.add('active');if(typeof initKnowledgePanel==='function')initKnowledgePanel();}
     };
 });
 

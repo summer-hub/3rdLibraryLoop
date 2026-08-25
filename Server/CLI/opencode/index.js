@@ -52,7 +52,6 @@ class OpenCodeCLI {
             // 轻量健康检查：只调用 session.list() 验证连通性
             // 不再为每个 session 拉取全量消息（原 listSessions 会拉所有 session 的所有消息）
             await this.client.session.list();
-            this._log('info', 'checkHealth: 连通正常');
             return { status: 'ok', message: 'OpenCode CLI is healthy', target: this.baseUrl };
         } catch (error) {
             this._log('warn', `checkHealth: 连接失败 — ${error.message}`);

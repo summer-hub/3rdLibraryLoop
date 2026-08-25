@@ -255,130 +255,108 @@ function _renderSkillIntro() {
         '</div>';
 }
 
-/* ── 历史任务加载 ────────────────────────────────────────────────────── */
-async function _loadCodeCheckHistory() {
-    try {
-        var r = await apiFetch('GET', '/api/orchestrator/tasks?page=1&pageSize=100');
-        if (!r.data || r.data.status !== 'ok') return;
+/* ── 历史任务加载（分页，只靠列表响应渲染，不逐任务调 progress） ──────── */
 
-        var allTasks = r.data.tasks || [];
-        // 过滤出 codecheck_ 前缀的任务
-        var ccTasks = allTasks.filter(function (t) {
-            var tid = t.taskId || t.task_id || '';
-            return tid.startsWith('codecheck_');
-        });
+/**
+ * 渲染一页历史任务卡片。
+ * 数据全部来自 /api/orchestrator/tasks 列表响应：
+ *   - status：终态由后端在任务结束时回写注册表（_patchRegistryFinalState）
+ *   - metadata.mergeLevel：结构化指标（后端收割 meta .json 后写入）
+ * 仅活跃状态（running/pending/ready/loaded/idle）的任务才连接 SSE + 轮询。
+ *
+ * @param {object[]} tasks - 一页任务（来自列表 API）
+ * @param {boolean} isFirstPage
+ */
+function _renderCCHistoryPage(tasks, isFirstPage) {
+    // 过滤出 codecheck_ 前缀的任务
+    var ccTasks = tasks.filter(function (t) {
+        var tid = t.taskId || t.task_id || '';
+        return tid.startsWith('codecheck_');
+    });
 
-        // 按创建时间降序
-        ccTasks.sort(function (a, b) {
-            var ta = new Date(a.createdAt || a.created_at || a.startTime || 0).getTime();
-            var tb = new Date(b.createdAt || b.created_at || b.startTime || 0).getTime();
-            return tb - ta;
-        });
+    var emptyEl = $('cc-tasks-empty');
+    if (emptyEl) emptyEl.style.display = ccTasks.length > 0 ? 'none' : '';
 
-        var listEl = $('cc-tasks-list');
-        if (listEl) listEl.innerHTML = '';
+    // 后端按 created_at 降序返回（最新在前）；卡片用 insertBefore 前插（后渲染的在上面），
+    // 故需反转遍历：最旧的先渲染、被前插到下面 → 最新的最终在最上面
+    ccTasks.reverse();
+    for (var i = 0; i < ccTasks.length; i++) {
+        var t = ccTasks[i];
+        var tid = t.taskId || t.task_id;
+        var status = t.status || 'idle';
+        var startTime = t.created_at || t.createdAt || t.startTime;
+        var endTime = t.endTime || (t.progress && t.progress.endTime);
 
-        var emptyEl = $('cc-tasks-empty');
-        if (emptyEl) emptyEl.style.display = ccTasks.length > 0 ? 'none' : '';
-
-        var countEl = $('cc-task-count');
-        if (countEl) countEl.textContent = ccTasks.length + ' 个任务';
-
-        // 升序遍历（insertBefore 前插反转顺序）
-        ccTasks.reverse();
-        for (var i = 0; i < ccTasks.length; i++) {
-            var t = ccTasks[i];
-            var tid = t.taskId || t.task_id;
-            var status = t.status || (t.progress && t.progress.status) || 'idle';
-            var startTime = t.startTime || t.created_at || t.createdAt;
-            var endTime = t.endTime || (t.progress && t.progress.endTime);
-
-            // 从 description（body.title）中解析 prUrl 和 libraryType
-            // 格式: PR检视|{libraryType}|{prUrl}
-            var desc = t.description || t.title || '';
-            var prUrl = '';
-            var libType = 'arkts';
-            if (desc.indexOf('PR检视|') === 0) {
-                var segs = desc.split('|');
-                if (segs.length >= 3) {
-                    libType = segs[1] || 'arkts';
-                    prUrl = segs[2] || '';
-                }
-            } else if (desc) {
-                // 兼容旧格式：description 直接是 prUrl
-                prUrl = desc;
+        // 从 description（body.title）中解析 prUrl 和 libraryType
+        // 格式: PR检视|{libraryType}|{prUrl}
+        var desc = t.description || t.title || '';
+        var prUrl = '';
+        var libType = 'arkts';
+        if (desc.indexOf('PR检视|') === 0) {
+            var segs = desc.split('|');
+            if (segs.length >= 3) {
+                libType = segs[1] || 'arkts';
+                prUrl = segs[2] || '';
             }
-
-            // 从 taskId 解析显示名称
-            var displayLabel = _ccTaskIdToLabel(tid);
-
-            var idx = ++_ccCounter;
-            _ccTasks[idx] = {
-                taskId: tid,
-                prUrl: prUrl,
-                libraryType: libType,
-                sse: null,
-                timer: null,
-                startTime: startTime ? new Date(startTime).getTime() : Date.now(),
-                startedAt: startTime || null,
-                finishedAt: endTime || null,
-                resultPath: null,
-            };
-
-            _createCCCard(idx, displayLabel, prUrl, libType, startTime, true);
-            _updateCCStage(idx, status, { startedAt: startTime, finishedAt: endTime });
-
-            // 注册表 status 可能未更新（后端 fire-and-forget 无 finally 回调），
-            // 额外调用 progress 接口拿真实状态
-            _refreshTaskStatus(idx, status);
+        } else if (desc) {
+            // 兼容旧格式：description 直接是 prUrl
+            prUrl = desc;
         }
-    } catch (e) {
-        console.error('[CodeCheck] 加载历史任务失败:', e.message);
+
+        var displayLabel = _ccTaskIdToLabel(tid);
+
+        var idx = ++_ccCounter;
+        _ccTasks[idx] = {
+            taskId: tid,
+            prUrl: prUrl,
+            libraryType: libType,
+            sse: null,
+            timer: null,
+            startTime: startTime ? new Date(startTime).getTime() : Date.now(),
+            startedAt: startTime || null,
+            finishedAt: endTime || null,
+            resultPath: null,
+            // 列表响应中的结构化指标（终态任务直接渲染徽章，无需额外请求）
+            metrics: t.metadata || null,
+        };
+
+        _createCCCard(idx, displayLabel, prUrl, libType, startTime, true);
+        _updateCCStage(idx, status, { startedAt: startTime, finishedAt: endTime });
+
+        // 终态任务：直接用列表携带的 metadata 渲染等级徽章（零额外请求）
+        var level = _ccExtractMergeLevel(t.metadata || null, null);
+        if (level) {
+            _updateMergeLevelBadge(idx, level, null);
+        }
+
+        // 活跃任务才连接 SSE + 轮询（终态任务不再逐个调 progress）
+        _handleTaskStage(idx, status);
     }
 }
 
-/* ── 刷新单个历史任务的真实状态 ──────────────────────────────────────── */
-async function _refreshTaskStatus(idx, fallbackStatus) {
-    var task = _ccTasks[idx];
-    if (!task) return;
-
-    try {
-        var r = await apiFetch('GET', '/api/orchestrator/progress?taskId=' + encodeURIComponent(task.taskId), null, 10000);
-        if (!r.data || r.data.status !== 'ok') {
-            // progress 接口不可用（可能编排器已从内存移除且磁盘文件也找不到）
-            // 按注册表的 fallback status 处理
-            _handleTaskStage(idx, fallbackStatus);
-            return;
-        }
-
-        var progress = r.data.progress;
-        if (!progress) {
-            _handleTaskStage(idx, fallbackStatus);
-            return;
-        }
-
-        var stage = progress.status;
-        var startedAt = progress.startTime;
-        var finishedAt = progress.endTime;
-        var resultPath = null;
-
-        // 提取步骤级信息
-        if (progress.steps && progress.steps.length > 0) {
-            var step = progress.steps[0];
-            if (step.resultPath) resultPath = step.resultPath;
-            if (step.startTime) startedAt = step.startTime;
-            if (step.endTime) finishedAt = step.endTime;
-        }
-
-        _updateCCStage(idx, stage, { startedAt: startedAt, finishedAt: finishedAt, resultPath: resultPath });
-        _handleTaskStage(idx, stage);
-    } catch (e) {
-        // 静默失败，按 fallback status 处理
-        _handleTaskStage(idx, fallbackStatus);
-    }
+/**
+ * 初始化检视历史分页器。
+ */
+function _initCCHistoryPager() {
+    if (_ccPager) return _ccPager;
+    _ccPager = createPagination({
+        apiPath: '/api/orchestrator/tasks',
+        listContainerId: 'cc-tasks-list',
+        emptyId: 'cc-tasks-empty',
+        countId: 'cc-task-count',
+        pagerId: 'cc-tasks-pager',
+        renderPage: _renderCCHistoryPage,
+        pageSize: 20
+    });
+    return _ccPager;
 }
 
-/* ── 根据阶段决定后续操作（重连 SSE / 读取结果）─────────────────────── */
+async function _loadCodeCheckHistory() {
+    var pg = _initCCHistoryPager();
+    await pg.load(1);
+}
+
+/* ── 根据阶段决定后续操作（重连 SSE / 懒加载结果）──────────────────── */
 function _handleTaskStage(idx, stage) {
     var activeStages = ['running', 'pending', 'ready', 'loaded', 'idle'];
     if (activeStages.indexOf(stage) >= 0) {
@@ -386,7 +364,8 @@ function _handleTaskStage(idx, stage) {
         _startProgressPoll(idx);
     } else {
         _finishCCSSE(idx);
-        _loadCCResultFiles(idx);
+        // 终态任务不主动拉文件（上千任务时列表渲染零额外请求）；
+        // 展开卡片 / 点击预览/下载时才懒加载（toggleCCCard / viewCCReport / downloadCCReport）
     }
 }
 
@@ -570,25 +549,13 @@ function _ccExtractMergeLevel(metrics, reportContent) {
     return null;
 }
 
-/* ── 加载结果文件 ────────────────────────────────────────────────────── */
+/* ── 加载结果文件（终态懒加载：仅在需要展示下载/预览/等级回退时调用） ──── */
 async function _loadCCResultFiles(idx) {
     var task = _ccTasks[idx];
     if (!task) return;
 
-    // ── 优先：从 progress 接口读结构化指标（后端收割落库，不依赖报告文本） ──
-    try {
-        var pg = await apiFetch('GET', '/api/orchestrator/progress?taskId=' + encodeURIComponent(task.taskId), null, 10000);
-        var step0 = pg && pg.data && pg.data.progress && pg.data.progress.steps && pg.data.progress.steps[0];
-        if (step0 && step0.metrics) {
-            task.metrics = step0.metrics;
-            var mLevel = _ccExtractMergeLevel(step0.metrics, null);
-            if (mLevel) {
-                _updateMergeLevelBadge(idx, mLevel, null);
-                var dl0 = document.getElementById('cc-' + idx + '-dl-wrap');
-                if (dl0 && task.resultPath) dl0.style.display = 'flex';
-            }
-        }
-    } catch (e) { /* 静默失败，走报告回退 */ }
+    // 已解析过则跳过（幂等）
+    if (task.filesResolved) return;
 
     try {
         var r = await apiFetch('GET', '/api/flexrunner/steps?taskId=' + encodeURIComponent(task.taskId));
@@ -615,6 +582,7 @@ async function _loadCCResultFiles(idx) {
 
         if (targetFile) {
             task.resultPath = targetFile.path;
+            task.filesResolved = true;
             // 显示下载/预览按钮
             var dlWrap = document.getElementById('cc-' + idx + '-dl-wrap');
             if (dlWrap) dlWrap.style.display = 'flex';
@@ -719,13 +687,20 @@ function _createCCCard(idx, displayLabel, prUrl, libType, createdAt, isHistory) 
     }
 }
 
-/* ── 卡片折叠 ────────────────────────────────────────────────────────── */
+/* ── 卡片折叠（展开时懒加载结果文件）───────────────────────────────── */
 function toggleCCCard(idx) {
     var card = document.getElementById('cc-card-' + idx);
     var body = document.getElementById('cc-' + idx + '-body');
     if (!card || !body) return;
     var isOpen = card.classList.toggle('open');
     body.style.display = isOpen ? '' : 'none';
+    // 展开时才解析结果文件路径（终态懒加载，列表渲染零额外请求）
+    if (isOpen) {
+        var task = _ccTasks[idx];
+        if (task && !task.filesResolved) {
+            _loadCCResultFiles(idx);
+        }
+    }
 }
 
 /* ── SSE 连接（监听 Orchestrator 事件）───────────────────────────────── */
@@ -941,7 +916,10 @@ async function stopCCTask(idx) {
 /* ── 报告下载 ────────────────────────────────────────────────────────── */
 async function downloadCCReport(idx) {
     var task = _ccTasks[idx];
-    if (!task || !task.resultPath) { toast('warn', '检视报告尚未生成'); return; }
+    if (!task) return;
+    // 懒加载兑底：未解析过文件路径时先解析
+    if (!task.resultPath) await _loadCCResultFiles(idx);
+    if (!task.resultPath) { toast('warn', '检视报告尚未生成'); return; }
 
     try {
         var r = await fetch('/api/flexrunner/file?path=' + encodeURIComponent(task.resultPath));
@@ -961,7 +939,10 @@ async function downloadCCReport(idx) {
 /* ── 报告预览 ────────────────────────────────────────────────────────── */
 async function viewCCReport(idx) {
     var task = _ccTasks[idx];
-    if (!task || !task.resultPath) { toast('warn', '检视报告尚未生成'); return; }
+    if (!task) return;
+    // 懒加载兑底：未解析过文件路径时先解析
+    if (!task.resultPath) await _loadCCResultFiles(idx);
+    if (!task.resultPath) { toast('warn', '检视报告尚未生成'); return; }
 
     try {
         var r = await apiFetch('GET', '/api/flexrunner/file?path=' + encodeURIComponent(task.resultPath));

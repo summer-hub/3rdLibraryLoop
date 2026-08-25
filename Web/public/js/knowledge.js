@@ -371,7 +371,7 @@ $('resultOverlay').onclick = function (e) { if (e.target === $('resultOverlay'))
 // 暴露内联调用
 window.selectKnowledge = selectKnowledge;
 
-/* ─── 知识管理 tab 懒加载（首次切到知识 tab 时加载数据） ─────────────── */
+/* ─── 知识管理面板懒加载（首次切到知识管理视图时由 ViewMode 触发加载） ── */
 var _knInited = false;
 function initKnowledgePanel() {
     if (_knInited) return;
