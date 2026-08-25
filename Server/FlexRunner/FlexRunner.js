@@ -12,9 +12,14 @@
  *   6. persistKnowledge — 将有效经验存入任务
  *   7. getSessionContent / checkResult — 辅助查询
  *
+ * 固定 SKILL 语义（skillPath 入参）：
+ *   当 initContext 显式传入 skillPath（SKILL 目录绝对/相对路径）时，
+ *   executeStart 将跳过 SkillSelector 匹配（matchSkill 不执行），固定执行该 SKILL。
+ *   相对路径相对 skillDirectory 解析，且必须落在 skillDirectory 之内。
+ *
  * 依赖：
  *   - CLIController (opencode)  用于执行 Skill
- *   - SkillSelector Agent       用于语义匹配 Skill
+ *   - SkillSelector Agent       用于语义匹配 Skill（skillPath 未指定时）
  *   - TaskStepStore (SQLite)    用于步骤持久化
  *
  * @example
@@ -34,6 +39,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs/promises';
+import { existsSync, statSync } from 'node:fs';
 
 import { nowCST } from '../library/cstTime.js';
 import { createLogger } from '../Routes/library/logger.js';
@@ -154,6 +160,9 @@ class FlexRunner {
     /** @type {string} SKILL 目录路径 */
     #skillDirectory = '';
 
+    /** @type {string} 固定 SKILL 目录路径（跳过 SkillSelector，为空则走语义匹配） */
+    #fixedSkillPath = '';
+
     /** @type {string} 任务描述 */
     #taskDescription = '';
 
@@ -250,6 +259,8 @@ class FlexRunner {
     get inputReport() { return this.#inputReport; }
     /** @returns {string} */
     get skillDirectory() { return this.#skillDirectory; }
+    /** @returns {string} 固定 SKILL 目录路径（为空表示走语义匹配） */
+    get fixedSkillPath() { return this.#fixedSkillPath; }
     /** @returns {string} */
     get taskDescription() { return this.#taskDescription; }
     /** @returns {number} */
@@ -291,6 +302,9 @@ class FlexRunner {
      * @param {string} params.taskId          - 任务 ID（必填）
      * @param {string} [params.taskDir]       - 工作目录（默认基于 taskId 推导）
      * @param {string} [params.skillDirectory] - SKILL 目录路径
+     * @param {string} [params.skillPath]      - 固定执行某个 SKILL 目录（绝对/相对路径，
+     *                                           相对路径相对 skillDirectory 解析且必须在其内；
+     *                                           传入后跳过 SkillSelector 匹配）
      * @param {string} [params.taskDescription] - 任务描述
      * @param {string} [params.inputReport]   - 输入报告路径
      * @param {number} [params.maxRetries]    - 最大重试次数（默认 3）
@@ -315,6 +329,7 @@ class FlexRunner {
             taskId,
             taskDir,
             skillDirectory,
+            skillPath,
             taskDescription,
             inputReport,
             maxRetries,
@@ -360,6 +375,15 @@ class FlexRunner {
                 ? path.resolve(_rootDir, 'task', this.#taskId)
                 : path.resolve(process.cwd(), 'db', 'task', this.#taskId));
         this.#skillDirectory = skillDirectory || '';
+        // 固定 SKILL 路径解析：优先使用显式 skillPath，支持绝对/相对路径
+        this.#fixedSkillPath = '';
+        if (skillPath) {
+            const resolvedSkillPath = this._resolveFixedSkillPath(skillPath, this.#skillDirectory);
+            // 校验目标目录确实包含 SKILL.md
+            this._assertSkillDir(resolvedSkillPath, skillPath);
+            this.#fixedSkillPath = resolvedSkillPath;
+            this._log('info', `已指定固定 SKILL，将跳过 SkillSelector 匹配: ${this.#fixedSkillPath}`);
+        }
         this.#taskDescription = taskDescription || '';
         this.#inputReport = inputReport || '';
         this.#maxRetries = typeof maxRetries === 'number' ? maxRetries : DEFAULT_MAX_RETRIES;
@@ -463,12 +487,12 @@ class FlexRunner {
         });
 
         try {
-            // ── 步骤 1：matchSkill ──
+            // ── 步骤 1：matchSkill（已指定固定 SKILL 时跳过 SkillSelector，直接使用固定路径） ──
             await this._waitIfPaused();
             if (this.#aborted) {
                 this._log('warn', `任务在 matchSkill 前被终止`);
             } else {
-                this.#matchedSkillDir = await this.matchSkill(
+                this.#matchedSkillDir = this.#fixedSkillPath || await this.matchSkill(
                     this.#taskDescription,
                     this.#skillDirectory
                 );
@@ -1092,6 +1116,66 @@ class FlexRunner {
     // ─── 私有方法 ─────────────────────────────────────────────────────────────
 
     /**
+     * 解析固定 SKILL 目录路径。
+     *
+     * 支持绝对路径与相对路径：
+     *   - 绝对路径：按原样解析（在进程内，基于 cwd 或磁盘绝对路径）
+     *   - 相对路径：相对 skillDirectory（SKILL 检索根目录）解析，
+     *     且解析结果必须落在 skillDirectory 之内（越界拒绝，防注入）。
+     *
+     * @param {string} skillPath - 传入的 SKILL 目录路径
+     * @param {string} skillDirectory - SKILL 检索根目录
+     * @returns {string} 解析后的绝对路径
+     * @throws {Error} 相对路径越界 / 无 skillDirectory 时抛出
+     * @private
+     */
+    _resolveFixedSkillPath(skillPath, skillDirectory) {
+        if (!skillPath) return '';
+        if (path.isAbsolute(skillPath)) {
+            return path.resolve(skillPath);
+        }
+
+        // 相对路径必须以 skillDirectory 为基准解析
+        if (!skillDirectory) {
+            throw new Error(
+                `FlexRunner: 相对 skillPath "${skillPath}" 需要 skillDirectory 作为基准，但未提供 skillDirectory`
+            );
+        }
+        const base = path.resolve(skillDirectory);
+        const resolved = path.resolve(base, skillPath);
+
+        // 越界防护：解析结果必须在 skillDirectory 之内（或等于 skillDirectory）
+        const rel = path.relative(base, resolved);
+        if (rel.startsWith('..') || path.isAbsolute(rel)) {
+            throw new Error(
+                `FlexRunner: 相对 skillPath "${skillPath}" 解析到 skillDirectory 之外（${resolved}），已拒绝`
+            );
+        }
+        return resolved;
+    }
+
+    /**
+     * 校验指定目录是否为合法的 SKILL 目录（包含 SKILL.md）。
+     *
+     * @param {string} dirPath - 已解析的绝对路径
+     * @param {string} rawSkillPath - 用户传入的原始路径（用于报错信息）
+     * @throws {Error} 目录不存在 / 不是目录 / 无 SKILL.md 时抛出
+     * @private
+     */
+    _assertSkillDir(dirPath, rawSkillPath) {
+        if (!existsSync(dirPath)) {
+            throw new Error(`FlexRunner: 指定的 skillPath 目录不存在: ${rawSkillPath} (${dirPath})`);
+        }
+        const stat = statSync(dirPath);
+        if (!stat.isDirectory()) {
+            throw new Error(`FlexRunner: 指定的 skillPath 不是目录: ${rawSkillPath} (${dirPath})`);
+        }
+        if (!existsSync(path.join(dirPath, 'SKILL.md'))) {
+            throw new Error(`FlexRunner: 指定的 skillPath 目录中没有 SKILL.md: ${rawSkillPath} (${dirPath})`);
+        }
+    }
+
+    /**
      * 确保已调用 initContext 完成初始化。
      * @private
      */
@@ -1126,6 +1210,7 @@ class FlexRunner {
                 bigLoopIndex: this.#bigLoopIndex,
                 taskDescription: this.#taskDescription,
                 skillDirectory: this.#skillDirectory,
+                fixedSkillPath: this.#fixedSkillPath,
                 inputReport: this.#inputReport,
                 matchedSkillDir: this.#matchedSkillDir,
                 sessionId: this.#sessionId,

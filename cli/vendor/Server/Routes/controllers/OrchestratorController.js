@@ -1,0 +1,628 @@
+/**
+ * OrchestratorController —— 编排器 HTTP 接口控制器
+ *
+ * 职责：封装 Orchestrator 的 HTTP 接口，供前端进行任务编排和进度查看。
+ * 不感知 HTTP 层细节，只接收 RequestContext / ResponseContext。
+ *
+ * 管理多个 Orchestrator 实例（按 taskId 区分），支持：
+ *   - 加载任务定义
+ *   - 启动 / 暂停 / 恢复 / 终止编排
+ *   - 查询编排进度
+ *   - 查询步骤执行细节（实时消息 / 会话内容）
+ *   - 修改未执行步骤的配置
+ *
+ * 与 FlexRunnerController 的区别：
+ *   - FlexRunnerController 管理单个步骤的执行
+ *   - OrchestratorController 管理多步骤的编排调度
+ */
+
+import path from 'node:path';
+import fs from 'node:fs';
+import { Orchestrator, OrchestratorStatus } from '../../Orchestrator/Orchestrator.js';
+import { StorageManager } from '../../DbUse/index.js';
+
+/**
+ * OrchestratorController
+ */
+class OrchestratorController {
+    /**
+     * @param {object} [deps] - 共享依赖
+     * @param {object} [deps.sseHub]   - SseHub 实例
+     * @param {object} [deps.storage]  - 存储门面
+     * @param {function} [deps.flexRunnerFactory] - FlexRunner 工厂（测试用）
+     */
+    constructor(deps = {}) {
+        this.sseHub = deps.sseHub || null;
+        this.storage = deps.storage || null;
+        this.flexRunnerFactory = deps.flexRunnerFactory || null;
+
+        /** @type {Map<string, Orchestrator>} key = taskId */
+        this._orchestrators = new Map();
+    }
+
+    // ─── 辅助方法 ──────────────────────────────────────────────────────
+
+    /**
+     * 获取已有实例，不存在则报错。
+     */
+    _getOrchestrator(taskId) {
+        const orch = this._orchestrators.get(taskId);
+        if (!orch) {
+            throw new Error(`未找到编排任务: taskId=${taskId}，请先加载任务`);
+        }
+        return orch;
+    }
+
+    /**
+     * 创建新的 Orchestrator 实例。
+     */
+    _createOrchestrator() {
+        return new Orchestrator({
+            sseHub: this.sseHub,
+            storage: this.storage,
+            flexRunnerFactory: this.flexRunnerFactory
+        });
+    }
+
+    /**
+     * 释放指定任务编排器持有的重型引用，并（可选）从内存移除编排器实例。
+     *
+     * 调用 `orch.dispose()` 置空各步骤节点的 `_runner`，使 FlexRunner / CLIController /
+     * SkillSelector Agent / LLMClient / Storage 可被 GC 回收。保留磁盘持久化与
+     * Orchestrator 的轻量元信息（getProgress / getStepInfo 仍可用）。
+     *
+     * @param {string} taskId - 任务 ID
+     * @param {object} [opts]
+     * @param {boolean} [opts.removeInstance=false] - 是否同时从内存 Map 移除编排器实例
+     * @returns {boolean} 是否找到并处理了该任务
+     */
+    disposeOrchestrator(taskId, opts = {}) {
+        const { removeInstance = false } = opts;
+        const orch = this._orchestrators.get(taskId);
+        if (!orch) return false;
+
+        try {
+            orch.dispose();
+        } catch (err) {
+            console.warn(`[OrchestratorController] dispose 失败: taskId=${taskId}, error=${err.message}`);
+        }
+
+        if (removeInstance) {
+            this._orchestrators.delete(taskId);
+        }
+        return true;
+    }
+
+    // ─── 供 FlexRunnerController 跨域查询 ──────────────────────────────
+
+    /**
+     * 获取编排器中某步骤关联的 FlexRunner 实例。
+     *
+     * 编排执行时，Orchestrator 在步骤节点上创建 FlexRunner 并挂载到 node._runner。
+     * 此方法供 FlexRunnerController 查找由编排器创建（而非通过 /api/flexrunner/init 注册）的实例，
+     * 使前端的对话/控制/文件操作能正确路由到编排执行中的实例。
+     *
+     * @param {string} taskId
+     * @param {string|number} stepId
+     * @returns {object|null} FlexRunner 实例（可能为 null 表示步骤未执行或已结束且实例未存活）
+     */
+    getStepRunner(taskId, stepId) {
+        let orch;
+        try {
+            orch = this._getOrchestrator(taskId);
+        } catch {
+            return null;
+        }
+        const node = orch.getNode(stepId);
+        if (!node) return null;
+        return node._runner || null;
+    }
+
+    /**
+     * 获取编排器中某步骤的元信息（即使 FlexRunner 实例已不可用）。
+     *
+     * 用于步骤执行结束后，前端仍能查询到步骤的最终状态、sessionId、resultPath 等。
+     *
+     * @param {string} taskId
+     * @param {string|number} stepId
+     * @returns {object|null} 步骤的 JSON 快照
+     */
+    getStepInfo(taskId, stepId) {
+        let orch;
+        try {
+            orch = this._getOrchestrator(taskId);
+        } catch {
+            return null;
+        }
+        const node = orch.getNode(stepId);
+        if (!node) return null;
+        return node.toJSON();
+    }
+
+    /**
+     * 按大循环轮次从磁盘读取历史步骤的元信息。
+     *
+     * 当用户查看历史轮次的编排详情时，内存中只有最新轮次的编排器实例，
+     * 历史轮次的编排状态持久化在 orchestration_loop{N}.json 中。
+     * 此方法从磁盘读取对应轮次的编排快照，提取指定 stepId 的步骤信息（含 sessionId）。
+     *
+     * @param {string} taskId
+     * @param {string|number} stepId
+     * @param {number} loop - 大循环轮次（0-based）
+     * @returns {Promise<object|null>} 步骤的 JSON 快照
+     */
+    async getStepInfoByLoop(taskId, stepId, loop) {
+        if (!this.storage) return null;
+        try {
+            const state = await this.storage.json('task').read(`${taskId}/orchestration_loop${loop}`);
+            if (!state || !Array.isArray(state.steps)) return null;
+            const sid = String(stepId);
+            return state.steps.find(s => String(s.stepId) === sid) || null;
+        } catch (err) {
+            console.warn(`[OrchestratorController] 读取轮次步骤信息失败: taskId=${taskId}, loop=${loop}, stepId=${stepId}, ${err.message}`);
+            return null;
+        }
+    }
+
+    /**
+     * 获取编排器中某任务的所有步骤元信息列表。
+     *
+     * @param {string} taskId
+     * @returns {object[]} 步骤 JSON 快照数组（空数组表示任务不存在或无步骤）
+     */
+    getTaskSteps(taskId) {
+        let orch;
+        try {
+            orch = this._getOrchestrator(taskId);
+        } catch {
+            return [];
+        }
+        const progress = orch.getProgress();
+        return progress.steps || [];
+    }
+
+    // ─── HTTP Handlers ─────────────────────────────────────────────────
+
+    /**
+     * POST /api/orchestrator/load
+     * 加载任务定义 JSON，创建编排器实例
+     *
+     * Body: {
+     *   taskId, taskDir, skillDirectory,
+     *   steps: [{ stepId, taskDescription, dependId, nextStepId, failStepId, maxRetries, ... }]
+     * }
+     */
+    async load(req, res) {
+        const body = req.body || {};
+        const { taskId } = body;
+
+        if (!taskId) {
+            return res.error(400, 'taskId 为必填项');
+        }
+        if (!Array.isArray(body.steps) || body.steps.length === 0) {
+            return res.error(400, 'steps 为必填项且不能为空');
+        }
+
+        try {
+            // 若已存在同 taskId 的实例，先终止旧的
+            const existing = this._orchestrators.get(taskId);
+            if (existing && existing.status === OrchestratorStatus.RUNNING) {
+                await existing.abort();
+            }
+
+            const orch = this._createOrchestrator();
+            await orch.loadTask(body);
+
+            this._orchestrators.set(taskId, orch);
+
+            res.json({
+                status: 'ok',
+                message: `编排任务已加载: taskId=${taskId}`,
+                orchestrator: orch.getProgress()
+            });
+        } catch (err) {
+            res.error(400, err.message);
+        }
+    }
+
+    /**
+     * POST /api/orchestrator/start
+     * 启动编排执行
+     *
+     * Body: { taskId }
+     */
+    async start(req, res) {
+        const body = req.body || {};
+        const { taskId } = body;
+
+        let orch;
+        try {
+            orch = this._getOrchestrator(taskId);
+        } catch (err) {
+            return res.error(404, err.message);
+        }
+
+        if (orch.status !== OrchestratorStatus.LOADED) {
+            return res.error(409, `当前状态为 ${orch.status}，需先加载任务`);
+        }
+
+        // 异步启动，不阻塞 HTTP 响应
+        orch.start().catch(err => {
+            console.error(`[OrchestratorController] taskId=${taskId} 执行异常:`, err.message);
+        });
+
+        res.json({
+            status: 'ok',
+            message: `编排任务已启动: taskId=${taskId}`,
+            progress: orch.getProgress()
+        });
+    }
+
+    /**
+     * POST /api/orchestrator/pause
+     * 暂停编排执行
+     *
+     * Body: { taskId }
+     */
+    async pause(req, res) {
+        const body = req.body || {};
+        const { taskId } = body;
+
+        let orch;
+        try {
+            orch = this._getOrchestrator(taskId);
+        } catch (err) {
+            return res.error(404, err.message);
+        }
+
+        const ok = await orch.pause();
+        res.json({
+            status: ok ? 'ok' : 'error',
+            message: ok ? '编排已暂停' : '暂停失败（可能未在运行中）',
+            progress: orch.getProgress()
+        });
+    }
+
+    /**
+     * POST /api/orchestrator/resume
+     * 恢复编排执行
+     *
+     * Body: { taskId }
+     */
+    async resume(req, res) {
+        const body = req.body || {};
+        const { taskId } = body;
+
+        let orch;
+        try {
+            orch = this._getOrchestrator(taskId);
+        } catch (err) {
+            return res.error(404, err.message);
+        }
+
+        const ok = await orch.resume();
+        res.json({
+            status: ok ? 'ok' : 'error',
+            message: ok ? '编排已恢复' : '恢复失败（可能未在运行中）',
+            progress: orch.getProgress()
+        });
+    }
+
+    /**
+     * POST /api/orchestrator/abort
+     * 终止编排执行
+     *
+     * Body: { taskId }
+     */
+    async abort(req, res) {
+        const body = req.body || {};
+        const { taskId } = body;
+
+        let orch;
+        try {
+            orch = this._getOrchestrator(taskId);
+        } catch (err) {
+            return res.error(404, err.message);
+        }
+
+        const ok = await orch.abort();
+        res.json({
+            status: ok ? 'ok' : 'error',
+            message: ok ? '编排已终止' : '终止失败（可能未在运行中）',
+            progress: orch.getProgress()
+        });
+    }
+
+    /**
+     * GET /api/orchestrator/progress?taskId=xxx[&loop=N]
+     * 查询编排进度（全部步骤状态汇总）
+     *
+     * - 不传 loop：返回最新编排状态（内存实例或 orchestration.json 快照）
+     * - 传 loop=N：返回第 N 轮编排状态（从 orchestration_loopN.json 读取）
+     *
+     * 如果内存中没有该任务实例，尝试从磁盘恢复。
+     */
+    async progress(req, res) {
+        const { taskId } = req.query;
+        if (!taskId) return res.error(400, 'taskId 为必填项');
+
+        // ── 指定轮次：从磁盘读取 orchestration_loop{N}.json ──
+        const loopParam = req.query.loop;
+        if (loopParam != null && loopParam !== '') {
+            const loopNum = Number(loopParam);
+            if (this.storage) {
+                try {
+                    const state = await this.storage.json('task').read(`${taskId}/orchestration_loop${loopNum}`);
+                    if (state) {
+                        return res.json({ status: 'ok', progress: state });
+                    }
+                    return res.error(404, `未找到第 ${loopNum} 轮编排状态: taskId=${taskId}`);
+                } catch (err) {
+                    console.warn(`[OrchestratorController] 读取轮次编排状态失败: loop=${loopNum}, ${err.message}`);
+                    return res.error(404, `未找到第 ${loopNum} 轮编排状态: taskId=${taskId}`);
+                }
+            }
+            return res.error(404, `未找到第 ${loopNum} 轮编排状态: taskId=${taskId}`);
+        }
+
+        // ── 默认：返回最新编排状态 ──
+        let orch;
+        try {
+            orch = this._getOrchestrator(taskId);
+        } catch (_) {
+            // 内存中不存在，尝试从磁盘恢复
+            if (this.storage) {
+                try {
+                    const state = await this.storage.json('task').read(`${taskId}/orchestration`);
+                    if (state) {
+                        orch = this._createOrchestrator();
+                        await orch.restoreState(state);
+                        this._orchestrators.set(taskId, orch);
+                        console.log(`[OrchestratorController] 从磁盘恢复到内存: taskId=${taskId}`);
+                    }
+                } catch (err) {
+                    console.warn(`[OrchestratorController] 恢复失败: ${err.message}`);
+                }
+            }
+            if (!orch) {
+                return res.error(404, `未找到编排任务: taskId=${taskId}`);
+            }
+        }
+
+        res.json({
+            status: 'ok',
+            progress: orch.getProgress()
+        });
+    }
+
+    /**
+     * GET /api/orchestrator/step-detail?taskId=xxx&stepId=yyy&detailType=live
+     * 查询单个步骤的执行细节
+     *
+     * Query:
+     *   taskId     - 任务 ID
+     *   stepId     - 步骤 ID
+     *   detailType - 'live' | 'session' | 'status'（默认 live）
+     */
+    async stepDetail(req, res) {
+        const { taskId } = req.query;
+        const stepId = req.query.stepId;
+        const detailType = req.query.detailType || 'live';
+
+        if (!taskId || !stepId) {
+            return res.error(400, 'taskId 和 stepId 为必填项');
+        }
+
+        let orch;
+        try {
+            orch = this._getOrchestrator(taskId);
+        } catch (err) {
+            return res.error(404, err.message);
+        }
+
+        try {
+            const detail = await orch.getStepDetail(stepId, detailType);
+            res.json({ status: 'ok', detail });
+        } catch (err) {
+            res.error(404, err.message);
+        }
+    }
+
+    /**
+     * POST /api/orchestrator/update-step
+     * 修改未执行步骤的配置
+     *
+     * Body: {
+     *   taskId, stepId,
+     *   taskDescription?, dependId?, nextStepId?, failStepId?,
+     *   maxRetries?, skillDirectory?, taskDir?, inputReport?
+     * }
+     */
+    async updateStep(req, res) {
+        const body = req.body || {};
+        const { taskId, stepId } = body;
+
+        if (!taskId || stepId == null) {
+            return res.error(400, 'taskId 和 stepId 为必填项');
+        }
+
+        let orch;
+        try {
+            orch = this._getOrchestrator(taskId);
+        } catch (err) {
+            return res.error(404, err.message);
+        }
+
+        // 提取可修改字段（排除 taskId/stepId）
+        const patch = { ...body };
+        delete patch.taskId;
+        delete patch.stepId;
+
+        try {
+            const ok = orch.updateStepConfig(stepId, patch);
+            res.json({
+                status: ok ? 'ok' : 'error',
+                message: ok
+                    ? `步骤 ${stepId} 配置已修改`
+                    : `步骤 ${stepId} 当前状态不允许修改配置`,
+                progress: orch.getProgress()
+            });
+        } catch (err) {
+            res.error(400, err.message);
+        }
+    }
+
+    /**
+     * GET /api/orchestrator/tasks
+     * 列出所有编排任务（合并内存实例 + 磁盘持久化记录）
+     */
+    async tasks(req, res) {
+        const list = [];
+        const seenTaskIds = new Set();
+
+        // 1. 内存中的实例
+        for (const orch of this._orchestrators.values()) {
+            list.push(orch.getProgress());
+            seenTaskIds.add(orch.taskId);
+        }
+
+        // 2. 磁盘上持久化但不在内存中的任务
+        if (this.storage) {
+            const persistedIds = this._listPersistedTaskIds();
+            for (const taskId of persistedIds) {
+                if (seenTaskIds.has(taskId)) continue;
+                try {
+                    const state = await this.storage.json('task').read(`${taskId}/orchestration`);
+                    if (state) {
+                        list.push(state);
+                        seenTaskIds.add(taskId);
+                    }
+                } catch (err) {
+                    // 单个文件损坏（如 JSON 解析失败）不应中断整个列表
+                    console.warn(`[OrchestratorController] 读取任务状态失败: taskId=${taskId}, error=${err.message}`);
+                }
+            }
+        }
+
+        res.json({
+            status: 'ok',
+            count: list.length,
+            tasks: list
+        });
+    }
+
+    /**
+     * DELETE /api/orchestrator/task?taskId=xxx
+     * 移除一个编排任务实例（同时删除持久化文件）
+     */
+    async removeTask(req, res) {
+        const { taskId } = req.query;
+        const orch = this._orchestrators.get(taskId);
+
+        // 如果正在运行，先终止
+        if (orch && orch.status === OrchestratorStatus.RUNNING) {
+            await orch.abort();
+        }
+
+        // 先释放重型引用，再从内存移除
+        const existed = this.disposeOrchestrator(taskId, { removeInstance: true });
+
+        // 同时删除持久化文件
+        let diskRemoved = false;
+        if (this.storage) {
+            try {
+                diskRemoved = await this.storage.json('task').delete(`${taskId}/orchestration`);
+            } catch (err) {
+                console.warn(`[OrchestratorController] 删除持久化文件失败: ${err.message}`);
+            }
+        }
+
+        res.json({
+            status: 'ok',
+            removed: existed || diskRemoved,
+            message: (existed || diskRemoved) ? '编排任务已移除' : '任务不存在'
+        });
+    }
+
+    // ─── 持久化恢复 ──────────────────────────────────────────────────
+
+    /**
+     * 扫描 db/task/ 目录，列出有 orchestration.json 的 taskId 列表。
+     * @returns {string[]}
+     * @private
+     */
+    _listPersistedTaskIds() {
+        if (!this.storage) return [];
+        try {
+            const rootDir = this.storage.manager.rootDir;
+            const taskDir = path.join(rootDir, 'task');
+            if (!fs.existsSync(taskDir)) return [];
+            const entries = fs.readdirSync(taskDir, { withFileTypes: true });
+            const ids = [];
+            for (const entry of entries) {
+                if (entry.isDirectory()) {
+                    const orchFile = path.join(taskDir, entry.name, 'orchestration.json');
+                    if (fs.existsSync(orchFile)) {
+                        ids.push(entry.name);
+                    }
+                }
+            }
+            return ids;
+        } catch (err) {
+            console.warn('[OrchestratorController] _listPersistedTaskIds 失败:', err.message);
+            return [];
+        }
+    }
+
+    /**
+     * 从磁盘恢复所有持久化的编排任务到内存。
+     *
+     * 服务重启时调用。对每个 db/task/{taskId}/orchestration.json：
+     *   - 创建 Orchestrator 实例并 restoreState
+     *   - RUNNING 状态会被标记为 FAILED（执行中断）
+     *   - 其他状态原样恢复
+     *
+     * @returns {Promise<{restored: string[], failed: string[]}>}
+     */
+    async restoreFromDisk() {
+        const restored = [];
+        const failed = [];
+
+        if (!this.storage) {
+            console.warn('[OrchestratorController] storage 未注入，跳过恢复');
+            return { restored, failed };
+        }
+
+        const persistedIds = this._listPersistedTaskIds();
+        console.log(`[OrchestratorController] 发现 ${persistedIds.length} 个持久化编排任务`);
+
+        for (const taskId of persistedIds) {
+            try {
+                const state = await this.storage.json('task').read(`${taskId}/orchestration`);
+                if (!state) {
+                    console.warn(`[OrchestratorController] orchestration.json 为空: taskId=${taskId}`);
+                    failed.push(taskId);
+                    continue;
+                }
+
+                const orch = this._createOrchestrator();
+                await orch.restoreState(state);
+                this._orchestrators.set(taskId, orch);
+                restored.push(taskId);
+                console.log(`[OrchestratorController] 已恢复: taskId=${taskId}, status=${orch.status}`);
+            } catch (err) {
+                // JSON 损坏、字段缺失等情况下标记为 failed，不中断其他任务的恢复
+                const isJsonError = err instanceof SyntaxError;
+                console.error(
+                    `[OrchestratorController] 恢复失败: taskId=${taskId}, ` +
+                    `type=${isJsonError ? 'JSON损坏' : '其他错误'}, error=${err.message}`
+                );
+                failed.push(taskId);
+            }
+        }
+
+        return { restored, failed };
+    }
+}
+
+export default OrchestratorController;

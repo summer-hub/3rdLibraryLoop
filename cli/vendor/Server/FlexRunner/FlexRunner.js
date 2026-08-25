@@ -1,0 +1,1659 @@
+/**
+ * FlexRunner —— 通用执行模块
+ *
+ * 接收一个具体事项，将其拆解为多个步骤，并对每个步骤进行执行和追踪。
+ *
+ * 核心职责：
+ *   1. initContext     — 初始化任务上下文（工作目录、报告路径等）
+ *   2. matchSkill      — 基于语义拆解与重排序机制匹配最佳 Skill
+ *   3. invokeSkill     — 通过 opencode cli 执行选定的 Skill
+ *   4. executeStart    — 驱动完整执行流程（匹配 → 执行 → 检查 → 持久化）
+ *   5. controlExecution — 控制执行步骤（暂停 / 继续 / 终止）
+ *   6. persistKnowledge — 将有效经验存入任务
+ *   7. getSessionContent / checkResult — 辅助查询
+ *
+ * 固定 SKILL 语义（skillPath 入参）：
+ *   当 initContext 显式传入 skillPath（SKILL 目录绝对/相对路径）时，
+ *   executeStart 将跳过 SkillSelector 匹配（matchSkill 不执行），固定执行该 SKILL。
+ *   相对路径相对 skillDirectory 解析，且必须落在 skillDirectory 之内。
+ *
+ * 依赖：
+ *   - CLIController (opencode)  用于执行 Skill
+ *   - SkillSelector Agent       用于语义匹配 Skill（skillPath 未指定时）
+ *   - TaskStepStore (SQLite)    用于步骤持久化
+ *
+ * @example
+ * import { FlexRunner } from './FlexRunner/FlexRunner.js';
+ *
+ * const runner = new FlexRunner();
+ * await runner.initContext({
+ *   taskId: 'task-001',
+ *   taskDir: '/workspace/tasks/task-001',
+ *   skillDirectory: '/workspace/Server/Skills',
+ *   taskDescription: '分析 libcurl 的鸿蒙化可行性',
+ *   maxRetries: 3
+ * });
+ * const ok = await runner.executeStart();
+ */
+
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import fs from 'node:fs/promises';
+import { existsSync, statSync } from 'node:fs';
+
+import { nowCST } from '../library/cstTime.js';
+import { createLogger } from '../Routes/library/logger.js';
+
+// dotenv 为可选依赖：生产环境加载 .env，未安装时跳过（如纯 mock 测试场景）
+try {
+    const dotenv = (await import('dotenv')).default;
+    dotenv.config({ path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '.env') });
+} catch {
+    // dotenv 未安装，跳过 .env 加载
+}
+
+// CLIController / SkillSelectorAgent / createStorage 为惰性加载：
+// 测试中通过 initContext 注入 mock 时不需要加载这些模块及其重依赖（@opencode-ai/sdk、openai 等）。
+// 仅在未注入对应实例时才动态 import。
+let _CLIController = null;
+let _SkillSelectorAgent = null;
+let _createStorage = null;
+let _KnowledgeManager = null;
+let _McpToolGuide = null;
+
+async function _loadCLIController() {
+    if (!_CLIController) {
+        const mod = await import('../CLI/cli.js');
+        _CLIController = mod.CLIController;
+    }
+    return _CLIController;
+}
+
+async function _loadSkillSelectorAgent() {
+    if (!_SkillSelectorAgent) {
+        const mod = await import('../Agent/SkillSelector/index.js');
+        _SkillSelectorAgent = mod.Agent;
+    }
+    return _SkillSelectorAgent;
+}
+
+async function _loadCreateStorage() {
+    if (!_createStorage) {
+        const mod = await import('../DbUse/index.js');
+        _createStorage = mod.createStorage;
+    }
+    return _createStorage;
+}
+
+async function _loadKnowledgeManager() {
+    if (!_KnowledgeManager) {
+        const mod = await import('../Knowledge/index.js');
+        _KnowledgeManager = mod.KnowledgeManager;
+    }
+    return _KnowledgeManager;
+}
+
+async function _loadMcpToolGuide() {
+    if (!_McpToolGuide) {
+        const mod = await import('../library/McpToolGuide.js');
+        _McpToolGuide = mod.McpToolGuide;
+    }
+    return _McpToolGuide;
+}
+
+// ─── 常量 ────────────────────────────────────────────────────────────────────
+
+/** 执行控制类型 */
+const ControlType = Object.freeze({
+    PAUSE: 'pause',
+    RESUME: 'resume',
+    ABORT: 'abort'
+});
+
+/** 步骤状态 */
+const StepStatus = Object.freeze({
+    PENDING: 'pending',
+    RUNNING: 'running',
+    COMPLETED: 'completed',
+    ERROR: 'error',
+    SKIPPED: 'skipped'
+});
+
+/** 默认最大重试次数 */
+const DEFAULT_MAX_RETRIES = 3;
+
+/** 经验总结环节等待文件生成超时（ms），默认 5 分钟 */
+const SUMMARY_TIMEOUT_MS = 5 * 60 * 1000;
+
+/** 轮询间隔（ms），用于等待 opencode session 执行完成 */
+const POLL_INTERVAL_MS = 5000;
+
+/** 轮询超时（ms），单个步骤最多等待 1.5 小时 */
+const POLL_TIMEOUT_MS = 90 * 60 * 1000;
+
+// ─── FlexRunner 类 ──────────────────────────────────────────────────────────
+
+class FlexRunner {
+    // ─── 私有变量（通过 # 前缀约定，配合 getter 暴露只读访问） ──────────────────
+
+    /** @type {string} 任务 ID */
+    #taskId = '';
+
+    /** @type {string} 工作目录 */
+    #taskDir = '';
+
+    /** @type {number} 最大重试次数 */
+    #maxRetries = DEFAULT_MAX_RETRIES;
+
+    /** @type {number} 已循环次数 */
+    #retryTimes = 0;
+
+    /** @type {string|null} 执行开始时间 */
+    #startTime = null;
+
+    /** @type {string|null} 执行结束时间 */
+    #endTime = null;
+
+    /** @type {string} 输入报告路径 */
+    #inputReport = '';
+
+    /** @type {string} SKILL 目录路径 */
+    #skillDirectory = '';
+
+    /** @type {string} 固定 SKILL 目录路径（跳过 SkillSelector，为空则走语义匹配） */
+    #fixedSkillPath = '';
+
+    /** @type {string} 任务描述 */
+    #taskDescription = '';
+
+    /** @type {number} 当前步骤 ID（正整数） */
+    #stepId = 0;
+
+    /** @type {number} 依赖步骤 ID（0 = 无依赖） */
+    #dependId = 0;
+
+    /** @type {number} 下一步骤 ID（0 = 无下一步） */
+    #nextStepId = 0;
+
+    /** @type {number} 失败跳转步骤 ID（0 = 失败即终止） */
+    #failStepId = 0;
+
+    /** @type {number} 大循环索引（0=首轮），由 LoopEngine 传递 */
+    #bigLoopIndex = 0;
+
+    /** @type {number} 当前已执行到的步骤序号（单步内重试计数） */
+    #executeStep = 0;
+
+    /** @type {string} 最新结果文件路径 */
+    #resultPath = '';
+
+    /** @type {string} 会话 ID */
+    #sessionId = '';
+
+    // ─── 内部依赖（注入或懒加载） ──────────────────────────────────────────────
+
+    /** @type {CLIController|null} */
+    #cli = null;
+
+    /** @type {SkillSelectorAgent|null} */
+    #skillSelector = null;
+
+    /** @type {ReturnType<createStorage>|null} */
+    #storage = null;
+
+    /** @type {import('../Knowledge/KnowledgeManager.js').default|null} */
+    #knowledgeManager = null;
+
+    /** @type {import('../library/McpToolGuide.js').default|null} */
+    #mcpToolGuide = null;
+
+    /** @type {boolean} 是否已初始化 */
+    #initialized = false;
+
+    /** @type {boolean} 是否暂停 */
+    #paused = false;
+
+    /** @type {boolean} 是否已终止 */
+    #aborted = false;
+
+    /** @type {string|null} 匹配到的最佳 SKILL 目录 */
+    #matchedSkillDir = null;
+
+    /** @type {((sessionId: string) => void)|null} Session 创建后的回调（用于实时同步 sessionId 到编排层） */
+    #onSessionCreated = null;
+
+    /** @type {number} 轮询间隔（ms） */
+    #pollIntervalMs = POLL_INTERVAL_MS;
+
+    /**
+     * 构造函数 — 创建 FlexRunner 实例。
+     *
+     * 支持两种使用方式：
+     *   1. 无参构造 + 后续调用 initContext()
+     *   2. 构造时传入配置对象，自动完成初始化
+     *
+     * @param {object} [config] - 可选的初始化配置（同 initContext 入参）
+     */
+    constructor(config) {
+        if (config && typeof config === 'object') {
+            // 延迟到 initContext 中处理，避免构造函数中执行异步逻辑
+            this._pendingConfig = config;
+        }
+    }
+
+    // ─── 只读 getter ───────────────────────────────────────────────────────────
+
+    /** @returns {string} */
+    get taskId() { return this.#taskId; }
+    /** @returns {string} */
+    get taskDir() { return this.#taskDir; }
+    /** @returns {number} */
+    get maxRetries() { return this.#maxRetries; }
+    /** @returns {number} */
+    get retryTimes() { return this.#retryTimes; }
+    /** @returns {string|null} */
+    get startTime() { return this.#startTime; }
+    /** @returns {string|null} */
+    get endTime() { return this.#endTime; }
+    /** @returns {string} */
+    get inputReport() { return this.#inputReport; }
+    /** @returns {string} */
+    get skillDirectory() { return this.#skillDirectory; }
+    /** @returns {string} 固定 SKILL 目录路径（为空表示走语义匹配） */
+    get fixedSkillPath() { return this.#fixedSkillPath; }
+    /** @returns {string} */
+    get taskDescription() { return this.#taskDescription; }
+    /** @returns {number} */
+    get stepId() { return this.#stepId; }
+    /** @returns {number} */
+    get dependId() { return this.#dependId; }
+    /** @returns {number} */
+    get nextStepId() { return this.#nextStepId; }
+    /** @returns {number} */
+    get failStepId() { return this.#failStepId; }
+    /** @returns {number} 大循环索引（0=首轮） */
+    get bigLoopIndex() { return this.#bigLoopIndex; }
+    /** @returns {number} */
+    get executeStep() { return this.#executeStep; }
+    /** @returns {string} */
+    get resultPath() { return this.#resultPath; }
+    /** @returns {string} */
+    get sessionId() { return this.#sessionId; }
+    /** @returns {boolean} */
+    get initialized() { return this.#initialized; }
+
+    /**
+     * 设置 Session 创建后的回调（可在 initContext 之后注入）。
+     * @param {((sessionId: string) => void|Promise<void>)|null} fn
+     */
+    set onSessionCreated(fn) {
+        this.#onSessionCreated = typeof fn === 'function' ? fn : null;
+    }
+
+    // ─── 公开方法 ─────────────────────────────────────────────────────────────
+
+    /**
+     * initContext — 初始化任务上下文。
+     *
+     * 解析入参 JSON 对象，设置任务 ID、工作目录、SKILL 目录、任务描述等，
+     * 并懒初始化 CLI 控制器、Skill 选择器、存储层等内部依赖。
+     *
+     * @param {object} params - 初始化参数
+     * @param {string} params.taskId          - 任务 ID（必填）
+     * @param {string} [params.taskDir]       - 工作目录（默认基于 taskId 推导）
+     * @param {string} [params.skillDirectory] - SKILL 目录路径
+     * @param {string} [params.skillPath]      - 固定执行某个 SKILL 目录（绝对/相对路径，
+     *                                           相对路径相对 skillDirectory 解析且必须在其内；
+     *                                           传入后跳过 SkillSelector 匹配）
+     * @param {string} [params.taskDescription] - 任务描述
+     * @param {string} [params.inputReport]   - 输入报告路径
+     * @param {number} [params.maxRetries]    - 最大重试次数（默认 3）
+     * @param {number} [params.stepId]        - 当前步骤 ID（正整数，必填）
+     * @param {number} [params.dependId]      - 依赖步骤 ID（0 = 无依赖）
+     * @param {number} [params.nextStepId]    - 下一步骤 ID（0 = 无下一步）
+     * @param {number} [params.failStepId]    - 失败跳转步骤 ID（0 = 失败即终止）
+     * @param {CLIController} [params.cli]    - 注入自定义 CLI 控制器（测试用）
+     * @param {SkillSelectorAgent} [params.skillSelector] - 注入自定义 Skill 选择器
+     * @param {ReturnType<createStorage>} [params.storage] - 注入自定义存储层
+     * @param {number} [params.pollIntervalMs] - 轮询间隔 ms（默认 3000）
+     * @param {string} [params.mcpConfigPath] - MCP config.json 路径（默认自动推导）
+     * @param {((sessionId: string) => void|Promise<void>)} [params.onSessionCreated] - Session 创建后的回调
+     * @returns {Promise<void>}
+     */
+    async initContext(params = {}) {
+        if (!params || typeof params !== 'object') {
+            throw new Error('FlexRunner.initContext: 入参必须是一个 JSON 对象');
+        }
+
+        const {
+            taskId,
+            taskDir,
+            skillDirectory,
+            skillPath,
+            taskDescription,
+            inputReport,
+            maxRetries,
+            stepId,
+            dependId,
+            nextStepId,
+            failStepId,
+            bigLoopIndex,
+            cli,
+            skillSelector,
+            storage,
+            knowledgeManager,
+            pollIntervalMs,
+            mcpConfigPath,
+            onSessionCreated
+        } = params;
+
+        if (!taskId) {
+            throw new Error('FlexRunner.initContext: taskId 为必填项');
+        }
+
+        // stepId 必须为正整数
+        const numStepId = Number(stepId);
+        if (!Number.isInteger(numStepId) || numStepId <= 0) {
+            throw new Error(`FlexRunner.initContext: stepId 必须为正整数，当前值: ${stepId}`);
+        }
+
+        // ── 初始化内部依赖（支持注入，便于测试；未注入时惰性加载） ──
+        // 先初始化 storage，因为 taskDir 的 fallback 需要用到 storage.manager.rootDir
+        if (storage) {
+            this.#storage = storage;
+        } else {
+            const createStorage = await _loadCreateStorage();
+            this.#storage = createStorage();
+        }
+
+        // ── 设置私有变量 ──
+        this.#taskId = String(taskId);
+        // taskDir 默认为 db/task/{taskId}（与 storage.json('task') 同目录）
+        const _rootDir = this.#storage?.manager?.rootDir;
+        this.#taskDir = taskDir ||
+            (_rootDir
+                ? path.resolve(_rootDir, 'task', this.#taskId)
+                : path.resolve(process.cwd(), 'db', 'task', this.#taskId));
+        this.#skillDirectory = skillDirectory || '';
+        // 固定 SKILL 路径解析：优先使用显式 skillPath，支持绝对/相对路径
+        this.#fixedSkillPath = '';
+        if (skillPath) {
+            const resolvedSkillPath = this._resolveFixedSkillPath(skillPath, this.#skillDirectory);
+            // 校验目标目录确实包含 SKILL.md
+            this._assertSkillDir(resolvedSkillPath, skillPath);
+            this.#fixedSkillPath = resolvedSkillPath;
+            this._log('info', `已指定固定 SKILL，将跳过 SkillSelector 匹配: ${this.#fixedSkillPath}`);
+        }
+        this.#taskDescription = taskDescription || '';
+        this.#inputReport = inputReport || '';
+        this.#maxRetries = typeof maxRetries === 'number' ? maxRetries : DEFAULT_MAX_RETRIES;
+        this.#stepId = numStepId;
+        // dependId 支持数组（fan-in 聚合），此处仅取第一个作为回退锚点语义
+        this.#dependId = Number(Array.isArray(dependId) ? dependId[0] : dependId) || 0;
+        this.#nextStepId = Number(nextStepId) || 0;
+        this.#failStepId = Number(failStepId) || 0;
+        this.#bigLoopIndex = Number(bigLoopIndex) || 0;
+        this.#executeStep = 0;
+        this.#retryTimes = 0;
+        this.#startTime = null;
+        this.#endTime = null;
+        this.#resultPath = '';
+        this.#sessionId = '';
+        this.#paused = false;
+        this.#aborted = false;
+        this.#matchedSkillDir = null;
+        this.#onSessionCreated = typeof onSessionCreated === 'function' ? onSessionCreated : null;
+        this.#pollIntervalMs = typeof pollIntervalMs === 'number' && pollIntervalMs > 0
+            ? pollIntervalMs
+            : POLL_INTERVAL_MS;
+
+        // ── 初始化其他内部依赖（支持注入，便于测试；未注入时惰性加载） ──
+        if (cli) {
+            this.#cli = cli;
+        } else {
+            const CLIController = await _loadCLIController();
+            this.#cli = new CLIController('opencode', {});
+        }
+
+        if (skillSelector) {
+            this.#skillSelector = skillSelector;
+        } else {
+            const SkillSelectorAgent = await _loadSkillSelectorAgent();
+            this.#skillSelector = new SkillSelectorAgent();
+        }
+
+        // 知识沉淀管理器（支持注入，便于测试；未注入时惰性加载 + init）
+        if (knowledgeManager) {
+            this.#knowledgeManager = knowledgeManager;
+        } else {
+            const KnowledgeManager = await _loadKnowledgeManager();
+            this.#knowledgeManager = new KnowledgeManager();
+            await this.#knowledgeManager.init();
+        }
+
+        // MCP 工具引导（支持注入；未注入时惰性加载，用 mcpConfigPath 或默认路径）
+        const McpToolGuide = await _loadMcpToolGuide();
+        this.#mcpToolGuide = new McpToolGuide(mcpConfigPath);
+
+        this.#initialized = true;
+    }
+
+    /**
+     * executeStart — 驱动单次执行流程（6 步）。
+     *
+     * 本方法为**单次执行**，不内部循环。外部执行机构根据返回值决定是否
+     * 再次调用本方法进行重试。每次调用 #executeStep 递增，生成的文件
+     * 以 loopCount 区分。
+     *
+     * 流程：
+     *   1. matchSkill          → 匹配最佳 Skill（未匹配到时返回 null，降级为无 SKILL 模式）
+     *   2. invokeSkill         → 通过 opencode 执行 Skill，生成 result .md 文件
+     *      （skillDir 为 null 时，基于任务描述本身直接执行，不使用 SKILL）
+     *      （第 N 次执行时，自动收集历史 result/summary .md 作为上下文）
+     *      （初始 prompt 仅负责执行任务 + 生成 result .md，不包含经验总结指令）
+     *   3. checkResult         → 读取 result .md，判断成功/失败
+     *   4. 返回 { resultPath, success, nextStepId }
+     *   5.（后台异步）_summarizeAndPersist → 仅在成功后，向同一 Session 追加经验总结 prompt
+     *      （通过 sendAndWaitMessage 等待 AI 生成 Summary .md，再 persistKnowledge）
+     *      （fire-and-forget：不阻塞 executeStart 返回，不影响步骤流转）
+     *      （失败/超时降级：不影响步骤成功状态，仅记录 warn 日志）
+     *
+     * 文件命名（按大循环轮次 + 步骤内重试次数区分）：
+     *   - 结果文件: stepId{actualStepId}_loop{bigLoopIndex}_result_{retryCount}.md
+     *   - 经验文件: stepId{actualStepId}_loop{bigLoopIndex}_Summary_{retryCount}.md
+     *
+     * 控制信号（pause/resume/abort）在步骤边界检查，非实时。
+     *
+     * @returns {Promise<{resultPath: string, success: boolean, nextStepId: number}>}}
+     */
+    async executeStart() {
+        this._ensureInitialized();
+        if (this.#aborted) {
+            throw new Error('FlexRunner.executeStart: 任务已被终止，无法启动');
+        }
+
+        const loopCount = this.#executeStep;
+        this.#startTime = nowCST();
+        let resultPath = '';
+        let success = false;
+
+        this._log('info', `── 第 ${loopCount + 1} 次执行（loopCount=${loopCount}）──`);
+
+        // 写入初始步骤记录
+        await this._persistStep({
+            status: StepStatus.RUNNING,
+            startTime: this.#startTime,
+            executeStep: loopCount
+        });
+
+        try {
+            // ── 步骤 1：matchSkill（已指定固定 SKILL 时跳过 SkillSelector，直接使用固定路径） ──
+            await this._waitIfPaused();
+            if (this.#aborted) {
+                this._log('warn', `任务在 matchSkill 前被终止`);
+            } else {
+                this.#matchedSkillDir = this.#fixedSkillPath || await this.matchSkill(
+                    this.#taskDescription,
+                    this.#skillDirectory
+                );
+                await this._persistStep({
+                    matchedSkillDir: this.#matchedSkillDir,
+                    executeStep: loopCount
+                });
+            }
+
+            // ── 构建文件路径（按大循环轮次区分，避免跨轮覆盖） ──
+            resultPath = path.join(
+                this.#taskDir,
+                `stepId${this.#stepId}_loop${this.#bigLoopIndex}_result_${loopCount}.md`
+            );
+            const summaryFilePath = path.join(
+                this.#taskDir,
+                `stepId${this.#stepId}_loop${this.#bigLoopIndex}_Summary_${loopCount}.md`
+            );
+
+            // ── 收集历史执行文档（第 N 次执行时传入之前的结果/经验） ──
+            const historyDocs = await this._collectHistoryDocs(loopCount);
+
+            // ── 步骤 2：invokeSkill（生成 result .md） ──
+            await this._waitIfPaused();
+            if (!this.#aborted) {
+                const invoked = await this.invokeSkill(
+                    this.#taskDescription,
+                    this.#matchedSkillDir,
+                    this.#inputReport || undefined,
+                    { resultFilePath: resultPath, historyDocs }
+                );
+
+                if (!invoked) {
+                    throw new Error('invokeSkill 返回 false，执行失败');
+                }
+
+                if (this.#sessionId) {
+                    await this._persistStep({
+                        sessionId: this.#sessionId,
+                        executeStep: loopCount
+                    });
+                }
+
+                // ── 步骤 3：checkResult（读取 result .md 判断成功/失败） ──
+                await this._waitIfPaused();
+                const ok = await this.checkResult(resultPath);
+
+                if (ok) {
+                    success = true;
+                    this._log('info', '✅ 执行成功，经验总结将在后台异步进行');
+                    // ── 后台异步：经验总结 + 知识持久化（不阻塞 executeStart 返回） ──
+                    // capture sessionId 防止实例复用时被覆盖
+                    const sid = this.#sessionId;
+                    const skillDir = this.#matchedSkillDir;
+                    this._summarizeAndPersist(summaryFilePath, skillDir, sid).catch((err) => {
+                        this._log('warn', `后台经验总结/持久化异常: ${err.message}`);
+                    });
+                } else {
+                    this._log('warn', `checkResult 未通过（loopCount=${loopCount}）`);
+                }
+            }
+        } catch (err) {
+            this._log('error', `执行异常: ${err.message}`);
+        }
+
+        this.#endTime = nowCST();
+        this.#resultPath = resultPath;
+
+        // 更新步骤记录：成功 / 失败 / 终止
+        const finalStatus = this.#aborted
+            ? StepStatus.SKIPPED
+            : (success ? StepStatus.COMPLETED : StepStatus.ERROR);
+        await this._persistStep({
+            status: finalStatus,
+            endTime: this.#endTime,
+            executeStep: loopCount,
+            resultPath,
+            retryTimes: loopCount
+        });
+
+        // 递增执行计数，供下一次调用使用
+        this.#executeStep++;
+
+        // 成功 → nextStepId；失败 → failStepId（与 Orchestrator 的失败流转语义对齐）
+        const nextStepId = success ? this.#nextStepId : this.#failStepId;
+
+        return { resultPath, success, nextStepId };
+    }
+
+    /**
+     * canRetry — 判断当前步骤是否还可以继续重试。
+     *
+     * 供外部执行机构在调用 executeStart() 前检查：
+     *   - 若返回 false，表示已达最大重试次数，不应再次调用。
+     *   - 若返回 true，可以继续调用 executeStart() 进行重试。
+     *
+     * @returns {boolean} 是否还能重试
+     */
+    canRetry() {
+        return this.#executeStep <= this.#maxRetries && !this.#aborted;
+    }
+
+    /**
+     * matchSkill — 基于语义拆解与重排序机制匹配最佳 Skill。
+     *
+     * 委托 SkillSelector Agent（ReAct 模式）：
+     *   Reason #1: LLM 拆解任务 → 生成关键词/意图/技术栈
+     *   Act:       模糊匹配召回 topK 候选
+     *   Reason #2: LLM 评分排序 → 选出最佳
+     *
+     * 匹配失败时的策略：
+     *   - SKILL 目录为空或未找到任何 SKILL → 返回 null（降级为无 SKILL 执行）
+     *   - 模糊匹配未召回任何候选 → 返回 null
+     *   - top1 分数低于命中阈值 → 返回 null
+     *   - 匹配结果缺少目录路径 → 返回 null
+     *   调用方（executeStart）收到 null 后将以无 SKILL 模式继续向下执行。
+     *
+     * @param {string} taskDescription - 任务描述字符串
+     * @param {string} skillDirectory - SKILL 目录路径
+     * @returns {Promise<string|null>} 最适合的 SKILL 目录绝对路径；未匹配到时返回 null
+     */
+    async matchSkill(taskDescription, skillDirectory) {
+        this._ensureInitialized();
+
+        if (!taskDescription) {
+            throw new Error('FlexRunner.matchSkill: taskDescription 不能为空');
+        }
+        if (!skillDirectory) {
+            this._log('warn', 'matchSkill: skillDirectory 为空，将以无 SKILL 模式执行');
+            return null;
+        }
+
+        this._log('info', `matchSkill 开始 — task: "${taskDescription.slice(0, 80)}…"`);
+
+        let selection;
+        try {
+            selection = await this.#skillSelector.selectSkill(taskDescription, skillDirectory);
+        } catch (err) {
+            this._log('warn', `matchSkill: SkillSelector 执行异常 — ${err.message}，将以无 SKILL 模式执行`);
+            return null;
+        }
+
+        if (!selection || !selection.best) {
+            this._log('warn', `matchSkill: 未匹配到任何合适的 Skill（topScore=${selection?.topScore ?? 0}），将以无 SKILL 模式执行`);
+            return null;
+        }
+
+        // 优先使用 SkillSelection.skillPath，回退到 SkillMeta.skillPath
+        const bestDir = selection.skillPath || selection.best.skillPath;
+        if (!bestDir) {
+            this._log('warn', 'matchSkill: 匹配结果缺少 Skill 目录路径，将以无 SKILL 模式执行');
+            return null;
+        }
+
+        this._log('info', `matchSkill 完成 — 最佳 Skill: ${selection.best.name} (${bestDir})`);
+        return bestDir;
+    }
+
+    /**
+     * invokeSkill — 通过 opencode cli 执行选定的 Skill（或无 SKILL 直接执行）。
+     *
+     * 流程：
+     *   1. 创建 opencode Session（标题=taskId+stepId+loopCount）
+     *   2. 发送初始 prompt（任务描述 + SKILL 目录 + 报告路径 + 结果文件路径）
+     *      — skillDir 为 null 时，prompt 不包含 SKILL 目录，改为基于任务描述直接执行
+     *      — 初始 prompt 仅负责执行任务 + 生成 result .md，**不包含经验总结指令**
+     *      — 经验总结在 checkResult 成功后由 _summarizeExperience 独立追加
+     *   3. 轮询 Session 状态直到完成或超时
+     *   4. 记录 sessionId
+     *
+     * opencode 执行过程中会固定生成：
+     *   - resultFilePath:  stepId{actualStepId}_loop{bigLoopIndex}_result_{retryCount}.md
+     *
+     * @param {string} taskDescription   - 任务描述字符串
+     * @param {string|null} skillDir     - 选定的 SKILL 目录路径；null 表示无 SKILL 模式
+     * @param {string} [reportPath]      - 输入报告路径（可选）
+     * @param {object} [filePaths]       - 文件路径
+     * @param {string} [filePaths.resultFilePath]  - 结果文件输出路径
+     * @returns {Promise<boolean>} 是否成功
+     */
+    async invokeSkill(taskDescription, skillDir, reportPath, filePaths = {}) {
+        this._ensureInitialized();
+
+        if (!taskDescription) {
+            throw new Error('FlexRunner.invokeSkill: taskDescription 不能为空');
+        }
+        // skillDir 允许为 null：未匹配到 SKILL 时以无 SKILL 模式执行
+
+        const modeLabel = skillDir ? 'SKILL 模式' : '无 SKILL 模式';
+        this._log('info', `invokeSkill 开始 — ${modeLabel}${skillDir ? `: ${skillDir}` : ''}`);
+
+        try {
+            // ── 1. 健康检查 ──
+            const health = await this.#cli.checkHealth();
+            if (health.status !== 'ok') {
+                this._log('error', `opencode 服务不可用: ${health.message}`);
+                return false;
+            }
+
+            // ── 2. 构建 prompt（含历史执行文档） ──
+            const title = `task=${this.#taskId}|step=${this.#stepId}|bigLoop=${this.#bigLoopIndex}|retry=${this.#executeStep}`;
+            const prompt = this._buildPrompt(taskDescription, skillDir, reportPath, filePaths);
+
+            // ── 3. 创建 Session 并发送初始 prompt ──
+            // 指定工作目录为 taskDir，确保 opencode session 的文件操作（git clone 等）在 db/task/{taskId}/ 下执行
+            // const { sessionId } = await this.#cli.startSession(title, prompt, { cwd: this.#taskDir });
+            const { sessionId } = await this.#cli.startSession(title, prompt);
+            this.#sessionId = sessionId
+            this._log('info', `Session 已创建: ${sessionId}`);
+
+            // 实时通知编排层（静默失败，不影响主流程）
+            if (this.#onSessionCreated) {
+                try {
+                    await this.#onSessionCreated(sessionId);
+                } catch (err) {
+                    this._log('warn', `onSessionCreated 回调异常: ${err.message}`);
+                }
+            }
+
+            // ── 4. 轮询等待执行完成 ──
+            const completed = await this._pollSession(sessionId);
+            if (!completed) {
+                this._log('warn', `Session ${sessionId} 未在超时时间内完成`);
+                return false;
+            }
+
+            this._log('info', `invokeSkill 完成 — sessionId: ${sessionId}`);
+            return true;
+        } catch (err) {
+            this._log('error', `invokeSkill 异常: ${err.message}`);
+            return false;
+        }
+    }
+
+    /**
+     * persistKnowledge — 读取经验文件，将有效经验存入任务。
+     *
+     * 读取 Summary .md 文件内容，将其作为经验知识记录到 TaskStepStore，
+     * 并登记到知识沉淀系统（KnowledgeManager）。
+     *
+     * 调用时序（由 executeStart 驱动）：
+     *   1. invokeSkill 执行任务（生成 result .md）
+     *   2. checkResult 判断成功
+     *   3. _summarizeExperience 追加经验总结 prompt（AI 生成 Summary .md）
+     *   4. persistKnowledge（本方法）读取 Summary .md 并持久化
+     *
+     * 判断逻辑：
+     *   - _summarizeExperience 成功后，Summary .md 通常已生成。
+     *   - AI 可能判断无有价值经验而不生成文件（沉淀类型 = 无），此时跳过登记。
+     *   - 文件不存在时静默跳过，返回 false。
+     *
+     * 流程：
+     *   1. 检查 summaryFilePath 对应的文件是否存在（不存在 → 跳过，返回 false）
+     *   2. 读取文件内容，持久化到步骤记录（knowledgeSummary 字段）
+     *   3. 调用 KnowledgeManager.addExperience() 登记到知识沉淀系统
+     *
+     * 静默失败：持久化失败不影响主流程。
+     *
+     * @param {string} summaryFilePath - 经验文件路径
+     * @returns {Promise<boolean>} 是否成功
+     */
+    async persistKnowledge(summaryFilePath) {
+        this._ensureInitialized();
+
+        if (!summaryFilePath) {
+            this._log('warn', 'persistKnowledge: summaryFilePath 为空');
+            return false;
+        }
+
+        // ── 检查经验文档是否存在 ──
+        // 无 SKILL 模式下，AI 可能判断无有价值经验而不生成 Summary 文件，
+        // 此时跳过知识沉淀登记。
+        let exists = false;
+        try {
+            await fs.access(summaryFilePath);
+            exists = true;
+        } catch {
+            exists = false;
+        }
+
+        if (!exists) {
+            this._log('info', `persistKnowledge: 经验文档不存在，跳过知识沉淀登记 — ${summaryFilePath}`);
+            return false;
+        }
+
+        try {
+            const content = await fs.readFile(summaryFilePath, 'utf-8');
+            this._log('info', `persistKnowledge: 已读取经验文件 (${content.length} 字符)`);
+
+            // 1. 将经验内容持久化到步骤记录
+            await this._persistStep({ knowledgeSummary: content });
+            this._log('info', 'persistKnowledge: 经验已持久化到步骤记录');
+
+            // 2. 登记到知识沉淀系统
+            if (this.#knowledgeManager) {
+                // 避免重复登记：先检查是否已存在
+                const existing = await this.#knowledgeManager.findByDocPath(summaryFilePath);
+                if (existing) {
+                    this._log('info', `persistKnowledge: 经验已登记过，跳重复登记 — id: ${existing.id}`);
+                } else {
+                    const record = await this.#knowledgeManager.addExperience({
+                        docPath: summaryFilePath,
+                        taskId: this.#taskId,
+                        stepId: this.#stepId,
+                        bigLoopIndex: this.#bigLoopIndex,
+                        retryCount: this.#executeStep,
+                        skillDir: this.#matchedSkillDir,
+                        taskDescription: this.#taskDescription
+                    });
+                    this._log('info', `persistKnowledge: 经验已登记到知识沉淀系统 — id: ${record.id}`);
+                }
+            } else {
+                this._log('warn', 'persistKnowledge: KnowledgeManager 未初始化，跳过知识沉淀登记');
+            }
+
+            return true;
+        } catch (err) {
+            this._log('warn', `persistKnowledge: 处理经验文件失败: ${summaryFilePath} — ${err.message}`);
+            return false;
+        }
+    }
+
+    /**
+     * controlExecution — 控制执行步骤。
+     *
+     * @param {string} type - 控制类型：'pause' | 'resume' | 'abort'
+     * @returns {Promise<boolean>} 是否成功
+     */
+    async controlExecution(type) {
+        this._ensureInitialized();
+
+        switch (type) {
+            case ControlType.PAUSE:
+                this.#paused = true;
+                this._log('info', '⏸  执行已暂停');
+                await this._persistStep({ status: 'paused' });
+                return true;
+
+            case ControlType.RESUME:
+                this.#paused = false;
+                this._log('info', '▶  执行已继续');
+                await this._persistStep({ status: StepStatus.RUNNING });
+                return true;
+
+            case ControlType.ABORT:
+                this.#aborted = true;
+                this.#paused = false;
+                this._log('warn', '⏹  执行已终止');
+                // 若有活跃 session，尝试中止
+                if (this.#sessionId) {
+                    try {
+                        await this.#cli.abortSession(this.#sessionId);
+                        this._log('info', `已中止 Session: ${this.#sessionId}`);
+                    } catch (err) {
+                        this._log('warn', `中止 Session 失败: ${err.message}`);
+                    }
+                }
+                await this._persistStep({
+                    status: StepStatus.SKIPPED,
+                    endTime: nowCST()
+                });
+                return true;
+
+            default:
+                this._log('warn', `未知的控制类型: "${type}"，支持: pause | resume | abort`);
+                return false;
+        }
+    }
+
+    /**
+     * getSessionContent — 获取当前会话的内容。
+     *
+     * 通过读取 db/Session/ 目录下的归档文件获取会话内容：
+     *   - <sessionId>.jsonl       — 消息流（每行一条消息）
+     *   - <sessionId>.meta.json   — 会话元信息
+     *
+     * 返回合并后的 JSON 文本字符串，结构为：
+     *   { "meta": {...}, "messages": [{...}, ...] }
+     *
+     * @returns {Promise<string>} JSON 文本（包含 meta 和 messages）
+     */
+    async getSessionContent() {
+        this._ensureInitialized();
+
+        if (!this.#sessionId) {
+            this._log('warn', 'getSessionContent: 当前无活跃会话');
+            return JSON.stringify({ meta: null, messages: [] });
+        }
+
+        try {
+            const sessionStore = this.#storage.sessionStore();
+
+            // 并行读取元信息与消息流
+            const [meta, messages] = await Promise.all([
+                sessionStore.readMeta(this.#sessionId).catch(() => null),
+                sessionStore.readMessages(this.#sessionId).catch(() => [])
+            ]);
+
+            this._log(
+                'info',
+                `getSessionContent: 读取 session ${this.#sessionId}，共 ${messages.length} 条消息`
+            );
+
+            return JSON.stringify({ meta, messages }, null, 2);
+        } catch (err) {
+            this._log('error', `getSessionContent: 读取失败: ${err.message}`);
+            return JSON.stringify({ meta: null, messages: [], error: err.message });
+        }
+    }
+
+    /**
+     * checkResult — 读取结果文件，判断执行是否成功。
+     *
+     * 兼容 SKILL 产物中多种执行状态标记格式（按优先级匹配）：
+     *   1. 标题下独立行：`## 执行状态` 下一行为 `成功` / `失败`
+     *   2. 标题内联：`## 执行状态: 成功` / `## 执行状态：失败`
+     *   3. 末尾 `状态:` 行：文件末尾附近 `状态: 成功` / `状态: 失败`
+     *      （如 ArkTsLibraryInterfaceSpecSkill 的 count-report.cjs 写回格式）
+     *
+     * 状态值归一化：`成功` 判 true；`失败` 判 false；
+     * 已知中间态（`部分通过` / `源库构建问题` / `环境不可用` / `设备不可用`）
+     * 视为成功（产物已完成，非失败），记录 warn 日志；
+     * 其他未知状态值视为无法解析 → false。
+     *
+     * @param {string} resultFilePath - 结果文件路径
+     * @returns {Promise<boolean>} 执行是否成功
+     */
+    async checkResult(resultFilePath) {
+        this._ensureInitialized();
+
+        if (!resultFilePath) {
+            this._log('warn', 'checkResult: resultFilePath 为空');
+            return false;
+        }
+
+        try {
+            const content = await fs.readFile(resultFilePath, 'utf-8');
+
+            // 1. 标题下独立行：`## 执行状态` 下一行为状态值（可能带 - / * / > 列表前缀）
+            let match = content.match(/^#{1,6}\s*执行状态\s*$\n\s*(.+)$/m);
+            if (match) {
+                return this._parseStatusValue(match[1].trim(), resultFilePath);
+            }
+
+            // 2. 标题内联：`## 执行状态: 成功` / `## 执行状态：失败`
+            match = content.match(/^#{1,6}\s*执行状态\s*[:：]\s*([^\n]+)/m);
+            if (match) {
+                return this._parseStatusValue(match[1].trim(), resultFilePath);
+            }
+
+            // 3. 末尾 `状态:` 行：仅取文件最后 10 行，避免正文中误出现"状态:"字样
+            const tailLines = content.split('\n').slice(-10);
+            for (const line of tailLines) {
+                const tailMatch = line.match(/^\s*状态\s*[:：]\s*(.+)$/);
+                if (tailMatch) {
+                    return this._parseStatusValue(tailMatch[1].trim(), resultFilePath);
+                }
+            }
+
+            this._log('warn', `checkResult: 结果文件中未找到有效的执行状态字段: ${resultFilePath}`);
+            return false;
+        } catch (err) {
+            this._log('warn', `checkResult: 读取结果文件失败: ${resultFilePath} — ${err.message}`);
+            return false;
+        }
+    }
+
+    /**
+     * 解析结果文件中的状态值。
+     *
+     * 状态判定规则：
+     *   - `成功` → true
+     *   - `失败` → false
+     *   - 已知中间态（`部分通过` / `源库构建问题` / `环境不可用` / `设备不可用`）
+     *     视为成功（产物已完成，非失败），记录 warn 日志
+     *   - 其他未知状态值 → false（视为无法解析，避免误判成功）
+     *
+     * @param {string} raw - 状态值原始文本
+     * @param {string} resultFilePath - 结果文件路径（仅用于日志）
+     * @returns {boolean} 执行是否成功
+     * @private
+     */
+    _parseStatusValue(raw, resultFilePath) {
+        if (!raw) {
+            this._log('warn', `checkResult: 执行状态值解析为空: ${resultFilePath}`);
+            return false;
+        }
+
+        const value = raw.replace(/^[#>*\-\s]+/, '').trim();
+
+        if (value === '成功') {
+            this._log('info', `checkResult: 执行状态 = 成功 (${resultFilePath})`);
+            return true;
+        }
+
+        if (value === '失败') {
+            this._log('info', `checkResult: 执行状态 = 失败 (${resultFilePath})`);
+            return false;
+        }
+
+        // 已知中间态：产物已完成但非完全成功，视为成功（记录 warn 提示）
+        const KNOWN_MIDDLE_STATES = ['部分通过', '源库构建问题', '环境不可用', '设备不可用'];
+        if (KNOWN_MIDDLE_STATES.includes(value)) {
+            this._log('warn', `checkResult: 识别到中间态状态「${value}」，视为成功 (${resultFilePath})`);
+            return true;
+        }
+
+        this._log('warn', `checkResult: 无法识别的执行状态「${value}」，视为失败 (${resultFilePath})`);
+        return false;
+    }
+
+    /**
+     * getLiveMessages — 获取当前会话的实时对话消息。
+     *
+     * 委托 CLI 的 getLiveMessages，从远端拉取当前已有消息并返回精简格式。
+     * 运行中安全调用，不写入本地存档，不影响后续归档去重。
+     *
+     * 如果当前无活跃会话，返回空数组。
+     *
+     * @returns {Promise<Array<{id,role,content,finish,timestamp}>>}
+     */
+    async getLiveMessages() {
+        this._ensureInitialized();
+
+        if (!this.#sessionId) {
+            this._log('warn', 'getLiveMessages: 当前无活跃会话');
+            return [];
+        }
+
+        if (typeof this.#cli.getLiveMessages !== 'function') {
+            this._log('warn', `getLiveMessages: CLI 不支持 getLiveMessages 方法`);
+            return [];
+        }
+
+        return this.#cli.getLiveMessages(this.#sessionId);
+    }
+
+    /**
+     * injectPrompt — 向当前会话注入提示词/上下文（不触发 AI 回复）。
+     *
+     * 利用 CLI 的 injectPrompt 能力，将文本注入对话历史但不触发 AI 生成回复。
+     * 适用于对话过程中动态补充上下文、规则、指令。
+     *
+     * 如果当前无活跃会话，返回失败。
+     *
+     * @param {string} message - 要注入的提示词/上下文
+     * @returns {Promise<{ success: boolean }>}
+     */
+    async injectPrompt(message) {
+        this._ensureInitialized();
+
+        if (!message || typeof message !== 'string') {
+            throw new Error('injectPrompt: message 为必填项且必须为字符串');
+        }
+
+        if (!this.#sessionId) {
+            this._log('warn', 'injectPrompt: 当前无活跃会话');
+            return { success: false };
+        }
+
+        if (typeof this.#cli.injectPrompt !== 'function') {
+            this._log('warn', `injectPrompt: CLI 不支持 injectPrompt 方法`);
+            return { success: false };
+        }
+
+        try {
+            const result = await this.#cli.injectPrompt(this.#sessionId, message);
+            this._log(
+                'info',
+                `injectPrompt: 已向 session ${this.#sessionId} 注入 ${message.length} 字符提示词`
+            );
+            return result;
+        } catch (err) {
+            this._log('error', `injectPrompt: 注入失败: ${err.message}`);
+            return { success: false };
+        }
+    }
+
+    /**
+     * sendAndWaitMessage — 向当前会话发送消息并同步等待 AI 回复完成。
+     *
+     * 发送消息后阻塞等待 AI 生成完整回复，然后返回回复内容。
+     * 与普通的 fire-and-forget 发送不同，此方法会等到 AI 回复完成才返回。
+     *
+     * 如果当前无活跃会话，返回失败。
+     *
+     * @param {string} message - 要发送的消息
+     * @returns {Promise<{ success: boolean, response: object|string, content: string }>}
+     */
+    async sendAndWaitMessage(message) {
+        this._ensureInitialized();
+
+        if (!message || typeof message !== 'string') {
+            throw new Error('sendAndWaitMessage: message 为必填项且必须为字符串');
+        }
+
+        if (!this.#sessionId) {
+            this._log('warn', 'sendAndWaitMessage: 当前无活跃会话');
+            return { success: false, response: '', content: '' };
+        }
+
+        if (typeof this.#cli.sendAndWaitMessage !== 'function') {
+            this._log('warn', `sendAndWaitMessage: CLI 不支持 sendAndWaitMessage 方法`);
+            return { success: false, response: '', content: '' };
+        }
+
+        try {
+            const result = await this.#cli.sendAndWaitMessage(this.#sessionId, message);
+            this._log(
+                'info',
+                `sendAndWaitMessage: session ${this.#sessionId} 已收到回复，` +
+                `content 长度 ${result?.content?.length || 0}`
+            );
+            return result;
+        } catch (err) {
+            this._log('error', `sendAndWaitMessage: 发送并等待失败: ${err.message}`);
+            return { success: false, response: '', content: '' };
+        }
+    }
+
+    // ─── 私有方法 ─────────────────────────────────────────────────────────────
+
+    /**
+     * 解析固定 SKILL 目录路径。
+     *
+     * 支持绝对路径与相对路径：
+     *   - 绝对路径：按原样解析（在进程内，基于 cwd 或磁盘绝对路径）
+     *   - 相对路径：相对 skillDirectory（SKILL 检索根目录）解析，
+     *     且解析结果必须落在 skillDirectory 之内（越界拒绝，防注入）。
+     *
+     * @param {string} skillPath - 传入的 SKILL 目录路径
+     * @param {string} skillDirectory - SKILL 检索根目录
+     * @returns {string} 解析后的绝对路径
+     * @throws {Error} 相对路径越界 / 无 skillDirectory 时抛出
+     * @private
+     */
+    _resolveFixedSkillPath(skillPath, skillDirectory) {
+        if (!skillPath) return '';
+        if (path.isAbsolute(skillPath)) {
+            return path.resolve(skillPath);
+        }
+
+        // 相对路径必须以 skillDirectory 为基准解析
+        if (!skillDirectory) {
+            throw new Error(
+                `FlexRunner: 相对 skillPath "${skillPath}" 需要 skillDirectory 作为基准，但未提供 skillDirectory`
+            );
+        }
+        const base = path.resolve(skillDirectory);
+        const resolved = path.resolve(base, skillPath);
+
+        // 越界防护：解析结果必须在 skillDirectory 之内（或等于 skillDirectory）
+        const rel = path.relative(base, resolved);
+        if (rel.startsWith('..') || path.isAbsolute(rel)) {
+            throw new Error(
+                `FlexRunner: 相对 skillPath "${skillPath}" 解析到 skillDirectory 之外（${resolved}），已拒绝`
+            );
+        }
+        return resolved;
+    }
+
+    /**
+     * 校验指定目录是否为合法的 SKILL 目录（包含 SKILL.md）。
+     *
+     * @param {string} dirPath - 已解析的绝对路径
+     * @param {string} rawSkillPath - 用户传入的原始路径（用于报错信息）
+     * @throws {Error} 目录不存在 / 不是目录 / 无 SKILL.md 时抛出
+     * @private
+     */
+    _assertSkillDir(dirPath, rawSkillPath) {
+        if (!existsSync(dirPath)) {
+            throw new Error(`FlexRunner: 指定的 skillPath 目录不存在: ${rawSkillPath} (${dirPath})`);
+        }
+        const stat = statSync(dirPath);
+        if (!stat.isDirectory()) {
+            throw new Error(`FlexRunner: 指定的 skillPath 不是目录: ${rawSkillPath} (${dirPath})`);
+        }
+        if (!existsSync(path.join(dirPath, 'SKILL.md'))) {
+            throw new Error(`FlexRunner: 指定的 skillPath 目录中没有 SKILL.md: ${rawSkillPath} (${dirPath})`);
+        }
+    }
+
+    /**
+     * 确保已调用 initContext 完成初始化。
+     * @private
+     */
+    _ensureInitialized() {
+        if (!this.#initialized) {
+            throw new Error('FlexRunner 尚未初始化，请先调用 initContext()');
+        }
+    }
+
+    /**
+     * 将当前步骤的执行状态持久化到 db/task/{taskId}/stepid_{stepId}_loop{L}.json。
+     *
+     * 在执行过程的关键节点（开始、匹配后、会话创建后、结束、终止）被调用，
+     * 增量更新记录文件，方便外部追踪任务执行进度。
+     * 按大循环轮次独立存储，避免跨轮覆盖。
+     *
+     * 静默失败：持久化不影响主流程，仅记录 warn 日志。
+     *
+     * @param {object} patch - 要合并的字段
+     * @private
+     */
+    async _persistStep(patch) {
+        try {
+            if (!this.#taskId || this.#stepId <= 0) return;
+            const store = this.#storage.taskExecStore();
+            await store.patchStep(this.#taskId, this.#stepId, {
+                taskId: this.#taskId,
+                stepId: this.#stepId,
+                dependId: this.#dependId,
+                nextStepId: this.#nextStepId,
+                failStepId: this.#failStepId,
+                bigLoopIndex: this.#bigLoopIndex,
+                taskDescription: this.#taskDescription,
+                skillDirectory: this.#skillDirectory,
+                fixedSkillPath: this.#fixedSkillPath,
+                inputReport: this.#inputReport,
+                matchedSkillDir: this.#matchedSkillDir,
+                sessionId: this.#sessionId,
+                executeStep: this.#executeStep,
+                retryTimes: this.#retryTimes,
+                maxRetries: this.#maxRetries,
+                startTime: this.#startTime,
+                endTime: this.#endTime,
+                ...patch
+            }, this.#bigLoopIndex);
+        } catch (err) {
+            this._log('warn', `_persistStep: 步骤记录持久化失败: ${err.message}`);
+        }
+    }
+
+    /**
+     * 构建 opencode 初始执行 prompt。
+     *
+     * 仅负责任务执行 + 生成 result .md，**不包含经验总结指令**。
+     * 经验总结在 checkResult 成功后由 _buildSummaryPrompt 独立构建。
+     *
+     * @param {string} taskDescription - 任务描述
+     * @param {string|null} skillDir   - SKILL 目录（null 表示无 SKILL 模式）
+     * @param {string} [reportPath]    - 输入报告路径
+     * @param {object} [filePaths]     - 文件路径
+     * @param {string} [filePaths.resultFilePath]  - 结果文件输出路径
+     * @returns {string} 拼接后的 prompt 文本
+     * @private
+     */
+    _buildPrompt(taskDescription, skillDir, reportPath, filePaths = {}) {
+        const parts = [
+            `## 任务描述\n${taskDescription}`
+        ];
+
+        // 工作目录：告知 AI 当前工作目录路径，所有文件操作（git clone、读写文件等）均在此目录下执行
+        if (this.#taskDir) {
+            parts.push(`## 工作目录\n${this.#taskDir}\n\n所有文件操作（git clone、读写文件等）请在此目录下执行。`);
+        }
+
+        if (skillDir) {
+            // ── 有 SKILL：按照 SKILL 指令执行 ──
+            parts.push(`## SKILL 目录\n${skillDir}`);
+            if (reportPath) {
+                parts.push(`## 输入报告路径\n${reportPath}`);
+            }
+            if (filePaths.resultFilePath) {
+                parts.push(`## 结果文件输出路径\n${filePaths.resultFilePath}`);
+            }
+            // 历史结果文档路径（第 N 次执行时传入之前的 result .md 路径，不传内容）
+            if (filePaths.historyDocs && filePaths.historyDocs.length > 0) {
+                const historyLines = filePaths.historyDocs.map(
+                    (doc) => `- 本轮重试结果 (retry=${doc.loop}): ${doc.path}`
+                );
+                parts.push(
+                    `## 历史执行文档路径\n\n以下为本轮大循环中之前重试的结果文件路径，请自行读取参考：\n${historyLines.join('\n')}`
+                );
+            }
+            parts.push(
+                '请按照 SKILL 中的指令执行任务。',
+                '执行完成后，请将结果写入上述"结果文件输出路径"。',
+                '结果文件需包含 `## 执行状态` 字段（值为 `成功` 或 `失败`），用于判断执行结果。'
+            );
+        } else {
+            // ── 无 SKILL：基于任务描述本身直接执行 ──
+            if (reportPath) {
+                parts.push(`## 输入报告路径\n${reportPath}`);
+            }
+            if (filePaths.resultFilePath) {
+                parts.push(`## 结果文件输出路径\n${filePaths.resultFilePath}`);
+            }
+            // 历史结果文档路径（第 N 次执行时传入之前的 result .md 路径，不传内容）
+            if (filePaths.historyDocs && filePaths.historyDocs.length > 0) {
+                const historyLines = filePaths.historyDocs.map(
+                    (doc) => `- 本轮重试结果 (retry=${doc.loop}): ${doc.path}`
+                );
+                parts.push(
+                    `## 历史执行文档路径\n\n以下为本轮大循环中之前重试的结果文件路径，请自行读取参考：\n${historyLines.join('\n')}`
+                );
+            }
+            parts.push(
+                '本次任务未匹配到专用 SKILL，请直接基于上述任务描述执行任务。',
+                '执行完成后，请将结果写入上述"结果文件输出路径"。',
+                '结果文件需包含 `## 执行状态` 字段（值为 `成功` 或 `失败`），用于判断执行结果。'
+            );
+        }
+
+        // ── MCP 工具引导：提醒 AI 主动使用 MCP Gateway 提供的工具 ──
+        if (this.#mcpToolGuide) {
+            const toolGuide = this.#mcpToolGuide.buildToolGuide();
+            if (toolGuide) {
+                parts.push(toolGuide);
+            }
+        }
+
+        return parts.join('\n\n');
+    }
+
+    /**
+     * _buildSummaryPrompt — 构建经验总结专用 prompt。
+     *
+     * 此 prompt 在 checkResult 成功后，通过 sendAndWaitMessage 向同一 Session
+     * 追加发送，要求 AI 基于已有的执行上下文生成 Summary .md 经验总结文件。
+     *
+     * 与初始执行 prompt 分离的原因：
+     *   - 确保经验总结仅在执行成功后触发
+     *   - AI 在总结时已有完整的执行上下文（同一 Session），总结质量更高
+     *   - 初始 prompt 更简洁，AI 专注执行任务
+     *
+     * @param {string} summaryFilePath - 经验文件输出路径
+     * @param {string|null} skillDir   - SKILL 目录路径（null 表示无 SKILL 模式）
+     * @returns {string} 拼接后的经验总结 prompt 文本
+     * @private
+     */
+    _buildSummaryPrompt(summaryFilePath, skillDir) {
+        const parts = [
+            '## 任务已执行成功，请进行经验总结',
+            '',
+            '以上任务已执行成功。请基于本次执行过程中的实际情况，评估是否产生了**有价值的、可复用的经验总结**。',
+            '',
+            '## 判断标准',
+            '- 本次执行中发现了关键的踩坑点、解决方案、最佳实践或可复用的模式',
+            '- 这些经验对未来类似的任务有明确的参考价值',
+            '- 不是简单的执行流水账或重复的通用知识',
+            '',
+            '## 处理方式',
+            '如果存在有价值的经验，请将经验总结写入以下路径：',
+            `经验文件输出路径：${summaryFilePath}`,
+            '',
+            '经验文件应包含：关键发现、踩坑记录、解决方案、可复用建议等。',
+            '',
+            '## 经验分类（必须在经验文件末尾输出）',
+            '在经验文件末尾附上以下经验分类块，用于标记本次经验的归属类型：',
+            '```',
+            '## 经验分类',
+            '- 沉淀类型: skill优化 | 知识库 | 无'
+        ];
+
+        if (skillDir) {
+            parts.push(
+                `- 适用SKILL: ${skillDir}`,
+                '- 优化建议: <对当前SKILL的具体修改/新增点，skill优化类必填>'
+            );
+        } else {
+            parts.push(
+                '- 适用SKILL: <无，本次未匹配到SKILL>',
+                '- 优化建议: <skill优化类必填，但本次无SKILL，通常填"无">'
+            );
+        }
+
+        parts.push(
+            '```',
+            '',
+            '字段说明：',
+            '- 沉淀类型：三选一。'
+        );
+
+        if (skillDir) {
+            parts.push(
+                '  - skill优化 = 当前SKILL有可改进之处（检查项缺失/规则错误/可复用模式未被覆盖）；',
+                '  - 知识库 = 通用领域经验，与具体SKILL逻辑无关；'
+            );
+        } else {
+            parts.push(
+                '  - skill优化 = 需为某个SKILL沉淀优化建议；',
+                '  - 知识库 = 通用领域经验，与具体SKILL逻辑无关；'
+            );
+        }
+
+        parts.push(
+            '  - 无 = 无有价值经验，此时不生成经验文件。'
+        );
+
+        if (skillDir) {
+            parts.push(
+                '- 适用SKILL：仅 skill优化 类必填，填上面注入的当前 step 调用 SKILL 的路径，原样保留不要改动。',
+                '- 优化建议：仅 skill优化 类必填，描述对当前SKILL的具体修改/新增点（如"新增 XX 检查项"、"修正 YY 规则"）。'
+            );
+        } else {
+            parts.push(
+                '- 适用SKILL：本次未匹配到 SKILL，此处标记"无"。若沉淀类型为 skill优化，请在优化建议中注明建议沉淀到哪个 SKILL（如期望新增或修改的 SKILL 名称）。',
+                '- 优化建议：仅 skill优化 类必填，描述建议新建或修改的 SKILL 的具体点。'
+            );
+        }
+
+        parts.push(
+            '',
+            '如果没有有价值的经验可沉淀（如任务过于简单、未发现新的经验），则**不需要生成经验文件**。',
+            '请勿创建空文件或无实质内容的经验文件。',
+            '',
+            '请现在进行经验总结。'
+        );
+
+        return parts.join('\n');
+    }
+
+    /**
+     * _summarizeAndPersist — 后台异步执行经验总结 + 知识持久化。
+     *
+     * 此方法为 fire-and-forget 入口，由 executeStart 在成功后以 `.catch()` 方式调用，
+     * **不阻塞 executeStart 返回**，不影响 Orchestrator 步骤流转。
+     *
+     * 内部流程：
+     *   1. _summarizeExperience → 向指定 Session 追加经验总结 prompt，等待 AI 回复 + 文件生成
+     *   2. persistKnowledge     → 读取 Summary .md，持久化到步骤记录 + 知识沉淀系统
+     *
+     * 所有异常在方法内部 catch，仅记录日志，不向上抛出。
+     *
+     * @param {string} summaryFilePath - 经验文件输出路径
+     * @param {string|null} skillDir   - SKILL 目录路径（null 表示无 SKILL 模式）
+     * @param {string} sessionId       - 执行任务的 Session ID（显式传入，避免实例复用后被覆盖）
+     * @returns {Promise<void>}
+     * @private
+     */
+    async _summarizeAndPersist(summaryFilePath, skillDir, sessionId) {
+        try {
+            const summarized = await this._summarizeExperience(summaryFilePath, skillDir, sessionId);
+            if (!summarized) {
+                this._log('warn', '后台经验总结未生成（超时/失败），跳过知识持久化');
+                return;
+            }
+            await this.persistKnowledge(summaryFilePath);
+            this._log('info', '✅ 后台经验总结完成，知识已持久化');
+        } catch (err) {
+            this._log('warn', `_summarizeAndPersist 异常: ${err.message}`);
+        }
+    }
+
+    /**
+     * _summarizeExperience — 向指定 Session 追加经验总结 prompt 并等待文件生成。
+     *
+     * 通过 CLI 的 sendAndWaitMessage 向指定 Session 发送经验总结 prompt，
+     * 同步等待 AI 回复完成，然后验证 Summary .md 文件是否已生成。
+     *
+     * 降级策略（不影响步骤成功状态）：
+     *   - 无效 sessionId → 返回 false
+     *   - sendAndWaitMessage 失败 → 返回 false
+     *   - AI 回复完成但未生成 Summary .md → 等待超时后返回 false
+     *   - 任何异常 → 返回 false
+     *
+     * @param {string} summaryFilePath - 经验文件输出路径
+     * @param {string|null} skillDir   - SKILL 目录路径（null 表示无 SKILL 模式）
+     * @param {string} sessionId       - 执行任务的 Session ID
+     * @returns {Promise<boolean>} 经验总结是否成功生成 Summary .md
+     * @private
+     */
+    async _summarizeExperience(summaryFilePath, skillDir, sessionId) {
+        if (!summaryFilePath) {
+            this._log('warn', '_summarizeExperience: summaryFilePath 为空');
+            return false;
+        }
+
+        if (!sessionId) {
+            this._log('warn', '_summarizeExperience: sessionId 为空，无法追加经验总结');
+            return false;
+        }
+
+        this._log('info', `经验总结开始 — session: ${sessionId}`);
+
+        try {
+            // 构建经验总结 prompt
+            const summaryPrompt = this._buildSummaryPrompt(summaryFilePath, skillDir);
+
+            // 直接调用 CLI 的 sendAndWaitMessage，显式传入 sessionId
+            // （不经过 this.sendAndWaitMessage 包装，避免读取 this.#sessionId 被实例复用覆盖）
+            if (typeof this.#cli.sendAndWaitMessage !== 'function') {
+                this._log('warn', '_summarizeExperience: CLI 不支持 sendAndWaitMessage 方法');
+                return false;
+            }
+
+            const result = await this.#cli.sendAndWaitMessage(sessionId, summaryPrompt);
+
+            if (!result || !result.success) {
+                this._log('warn', '_summarizeExperience: sendAndWaitMessage 返回失败，经验总结未完成');
+                return false;
+            }
+
+            this._log('info',
+                `_summarizeExperience: AI 回复完成，content 长度 ${result.content?.length || 0}，` +
+                `等待 Summary 文件生成…`
+            );
+
+            // AI 回复完成，但文件写入可能有延迟，轮询等待文件出现
+            const fileReady = await this._waitForFile(summaryFilePath, SUMMARY_TIMEOUT_MS);
+            if (!fileReady) {
+                this._log('warn',
+                    `_summarizeExperience: 等待 Summary 文件超时（${SUMMARY_TIMEOUT_MS / 1000}s）— ${summaryFilePath}`
+                );
+                return false;
+            }
+
+            this._log('info', `经验总结完成 — Summary 文件已生成: ${summaryFilePath}`);
+            return true;
+        } catch (err) {
+            this._log('error', `_summarizeExperience 异常: ${err.message}`);
+            return false;
+        }
+    }
+
+    /**
+     * _waitForFile — 轮询等待文件出现。
+     *
+     * AI 回复完成后，文件写入可能有延迟（如工具调用尚未 flush），
+     * 此方法按固定间隔轮询文件是否存在，直到超时。
+     *
+     * @param {string} filePath  - 等待的文件路径
+     * @param {number} timeoutMs - 超时时间（ms）
+     * @returns {Promise<boolean>} 文件是否在超时前出现
+     * @private
+     */
+    async _waitForFile(filePath, timeoutMs) {
+        const deadline = Date.now() + timeoutMs;
+        const interval = 3000; // 3s 轮询间隔
+
+        while (Date.now() < deadline) {
+            if (this.#aborted) return false;
+
+            try {
+                await fs.access(filePath);
+                return true;
+            } catch {
+                // 文件尚未出现，继续等待
+            }
+
+            await this._sleep(interval);
+        }
+
+        return false;
+    }
+
+    /**
+     * 收集当前大循环内的历史结果文档路径，供 _buildPrompt 使用。
+     *
+     * 收集范围：仅当前大循环轮次内，本次执行之前的重试结果（retry < loopCount）
+     *   文件名: stepId{n}_loop{L}_result_{R}.md（R < loopCount）
+     *
+     * 注意：不再收集上一轮大循环的结果，且只收集文件路径不读取内容。
+     *
+     * 静默失败：文件不存在时跳过，不影响主流程。
+     *
+     * @param {number} loopCount - 当前步骤内重试次数（收集 R < loopCount 的文件）
+     * @returns {Promise<Array<{type: string, loop: number, path: string}>>}
+     * @private
+     */
+    async _collectHistoryDocs(loopCount) {
+        const docs = [];
+        const prefix = `stepId${this.#stepId}`;
+
+        // ── 收集当前大循环内的重试历史（仅路径，不读取内容） ──
+        for (let n = 0; n < loopCount; n++) {
+            const resultPath = path.join(
+                this.#taskDir,
+                `${prefix}_loop${this.#bigLoopIndex}_result_${n}.md`
+            );
+            try {
+                await fs.access(resultPath);
+                docs.push({ type: 'result', loop: n, path: resultPath });
+            } catch {
+                // 文件不存在，跳过
+            }
+        }
+
+        if (docs.length > 0) {
+            this._log('info', `_collectHistoryDocs: 收集到 ${docs.length} 份历史结果文档路径`);
+        }
+
+        return docs;
+    }
+
+    /**
+     * 轮询 opencode Session 状态，直到完成或超时。
+     *
+     * @param {string} sessionId
+     * @returns {Promise<boolean>} 是否完成
+     * @private
+     */
+    async _pollSession(sessionId) {
+        const deadline = Date.now() + POLL_TIMEOUT_MS;
+
+        while (Date.now() < deadline) {
+            if (this.#aborted) return false;
+
+            await this._sleep(this.#pollIntervalMs);
+
+            try {
+                const { status } = await this.#cli.checkSessionStatus(sessionId);
+                if (status === 'completed') {
+                    return true;
+                }
+                if (status === 'unknown') {
+                    this._log('debug', `Session ${sessionId} 状态未知，继续等待…`);
+                }
+            } catch (err) {
+                this._log('warn', `轮询 Session 状态失败: ${err.message}`);
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * 若处于暂停状态则等待，直到被 resume。
+     * @private
+     */
+    async _waitIfPaused() {
+        while (this.#paused && !this.#aborted) {
+            await this._sleep(500);
+        }
+    }
+
+    /**
+     * Promise 版 sleep。
+     * @param {number} ms
+     * @returns {Promise<void>}
+     * @private
+     */
+    _sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    /**
+     * 统一日志输出。
+     * @param {'info'|'warn'|'error'|'debug'} level
+     * @param {string} message
+     * @private
+     */
+    _log(level, message) {
+        const tag = `FlexRunner:${this.#taskId || 'uninit'}`;
+        const logger = createLogger(tag);
+        switch (level) {
+            case 'error':
+                logger.error(`❌ ${message}`);
+                break;
+            case 'warn':
+                logger.warn(`⚠  ${message}`);
+                break;
+            case 'debug':
+                logger.debug(`🔍 ${message}`);
+                break;
+            default:
+                logger.info(`ℹ  ${message}`);
+        }
+    }
+}
+
+export { FlexRunner, ControlType, StepStatus };
+export default FlexRunner;

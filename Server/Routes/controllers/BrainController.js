@@ -23,12 +23,14 @@ class BrainController {
      * @param {object} [deps.storage]              - 存储门面
      * @param {object} [deps.orchestratorController] - OrchestratorController（用于 planAndExecute）
      * @param {string} [deps.skillDirectory]       - SKILL 目录路径
+     * @param {object} [deps.cli]                  - CLIController 实例（可选，透传给 Brain 的 SkillExecutor）
      */
     constructor(deps = {}) {
         this.sseHub = deps.sseHub || null;
         this.storage = deps.storage || null;
         this.orchestratorController = deps.orchestratorController || null;
         this.skillDirectory = deps.skillDirectory || null;
+        this.cli = deps.cli || null;
 
         // Brain 实例（单例，复用 LLM 连接）
         this._brain = null;
@@ -43,7 +45,8 @@ class BrainController {
             this._brain = new Brain({
                 sseHub: this.sseHub,
                 storage: this.storage,
-                skillDirectory: this.skillDirectory
+                skillDirectory: this.skillDirectory,
+                cli: this.cli
             });
         }
         return this._brain;

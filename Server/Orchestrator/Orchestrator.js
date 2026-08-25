@@ -168,6 +168,7 @@ class Orchestrator {
      *         failStepId: 3,     // 失败后指向（0 = 失败即终止）
      *         maxRetries: 3,
      *         skillDirectory: '...',  // 可选，覆盖全局
+     *         skillPath: '...',       // 可选，固定执行的 SKILL 目录（跳过 SkillSelector 匹配）
      *         taskDir: '...',         // 可选，覆盖全局
      *         inputReport: '...'      // 可选，初始输入报告
      *       },
@@ -715,6 +716,7 @@ class Orchestrator {
             failStepId: Number(node.failStepId) || 0,
             taskDescription: node.taskDescription,
             skillDirectory: node.skillDirectory,
+            skillPath: node.skillPath || '',
             taskDir: node.taskDir,
             inputReport,
             maxRetries: node.maxRetries,
@@ -1062,6 +1064,7 @@ class Orchestrator {
                     failStepId: s.failStepId,
                     maxRetries: s.maxRetries,
                     skillDirectory: s.skillDirectory,
+                    skillPath: s.skillPath || '',
                     taskDir: s.taskDir,
                     inputReport: s.inputReport
                 });
