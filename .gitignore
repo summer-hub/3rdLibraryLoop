@@ -47,3 +47,6 @@ build/
 
 # 类型契约（本地保留，不提交远端）
 Server/Agent/SkillSelector/types.js
+
+# CLI 发布产物（仅 npm pack/publish 时临时生成，不入库）
+cli/vendor/

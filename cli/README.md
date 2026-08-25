@@ -242,8 +242,8 @@ LLM 凭据变量（`DASHSCOPE_API_KEY` / `LLM_MODEL` 等）：按 `.env` 加载�
 # ① 安装 CLI（正式发布后）
 npm i -g @3lib/loop-cli
 
-# 开发期替代：与后端共用仓库时用 npm link
-cd cli && npm install && npm run prepack && npm link
+# 开发期替代：与后端共用仓库时用 npm link（直引 Server/ 源码，无需生成 vendor）
+cd cli && npm install && npm link
 
 # ② 环境自检，缺什么看什么
 loop doctor
@@ -259,49 +259,64 @@ loop run "冒烟：分析一个三方库的鸿蒙化可行性" --max-loops 1
 
 数据目录默认在仓库根同级 `<项目根同级>/db`（与核心引擎默认一致，团队同机共享任务数据）；如需每用户隔离，用 `--data-dir` 或 `3LIB_DATA_DIR` 覆盖。
 
-## 场景二：后端更新，同步 CLI
+## 场景二：后端更新与软链
 
-CLI 通过 `npm run prepack` 把 `Server/` 核心引擎**快照复制**进 `cli/vendor/`。
-后端改代码后必须重新 prepack，否则 CLI 仍用旧引擎。
+### 开发期（仓库内共享）：零副本，直引源码
+
+CLI 在**开发期不生成 `cli/vendor/`**，直接引用仓库 `Server/` 源码：
+- 引擎模块回退：`cli/vendor/Server` 不存在时，加载 `../Server`（`runner.js: resolveVendorServer`）。
+- SKILL 目录回退：`vendor/Server/Skills` 不存在时，用仓库 `Server/Skills`（`config.js: resolveSkillDir`）。
+
+后端代码改完立即可用，无需任何复制步骤：
 
 ```bash
 cd cli
 
-# ① 重新复制最新 Server/ → vendor/（含 VERSION 与密钥扫描）
-npm run prepack
+# ① npm link 后全局 loop 与本地一致（直引 Server/ 源码）
+npm link
 
-# ② 校验 vendor 引入的外部依赖是否都在 package.json 声明
+# ② 校验 Server/ 源码引入的外部依赖都在 package.json 声明
 #    后端新增第三方库时会在这一步暴露，然后 npm install <新依赖> 补上
 npm run verify-deps
 
 # ③ 回归冒烟
 npm test
 
-# ④ 确认全局命令使用新代码（走 npm link / 源码时）
+# ④ 确认当前用的引擎来源（vendor 缺失时显示源码回退）
 loop doctor
-loop version
 ```
 
-发布给他人时，把版本换代并发布：
+### 发布期（打包给他人）：临时生成 vendor + 自动清理
+
+发布 tarball 必须自包含引擎（npm `files` 只能打包包内文件），所以发布时才把
+`Server/` 快照复制进 `cli/vendor/`，打包完成后自动删除本地副本：
 
 ```bash
 cd cli
-npm run prepack
-npm version patch        # 0.1.0 → 0.1.1（prepack 会自动执行）
-npm publish              # 发布（私有 registry 可配 publishConfig）
+npm version patch        # 0.1.0 → 0.1.1
+npm publish              # prepack 自动复制 vendor → 打包 → postpack 自动清理
 ```
 
-> **不要**直接改动 `cli/vendor/Server/` —— 它是生成物，下次 `npm run prepack` 会覆盖。
-> 忘记 prepack 是"后端改了但 CLI 行为没变"的最常见原因。
+`npm pack` / `npm publish` 的全自动流程：
+
+| 阶段 | 钩子 | 动作 |
+|------|------|------|
+| 打包前 | `prepack` | 复制 `Server/` → `cli/vendor/Server/`，写 VERSION，扫描敏感文件 |
+| 打包中 | — | tarball 包含完整 vendor（自包含引擎） |
+| 打包后 | `postpack` | 删除本地 `cli/vendor/`，工作区回归仅一份源码 |
+
+> **不要**手工改动 `cli/vendor/Server/` —— 它是发布期临时生成物，不入库
+> （`.gitignore` 已忽略），下次 `npm pack/publish` 会重新生成并自动清理。
+> `npm run verify-deps` 同样双模式：有 vendor 扫 vendor，否则回退扫 `Server/` 源码。
 
 ## 开发者
 
 ```bash
 cd cli
 npm install
-npm run prepack   # 复制 Server/ 核心引擎到 cli/vendor/
-npm link
+npm link              # 直引仓库 Server/ 源码，无需 prepack
 node bin/loop.mjs doctor
 ```
 
-发布前检查：`npm run verify-deps` 校验 vendor 代码的依赖声明完整性。
+发布前检查：`npm run verify-deps`（有 vendor 扫 vendor，否则回退扫 `Server/` 源码）
+校验引擎代码的依赖声明完整性。

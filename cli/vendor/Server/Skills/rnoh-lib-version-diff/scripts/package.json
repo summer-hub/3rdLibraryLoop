@@ -1,5 +1,0 @@
-{
-  "type": "commonjs",
-  "private": true,
-  "comment": "Override parent package.json type:module to allow CommonJS require() in .js scripts"
-}
