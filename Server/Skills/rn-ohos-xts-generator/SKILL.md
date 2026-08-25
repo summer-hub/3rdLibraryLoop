@@ -4,8 +4,7 @@ description: 为 React Native 鸿蒙化三方库（@react-native-ohos/*）生成
 license: Apache-2.0
 compatibility: 需要 MCP Gateway 运行中（script_rn_extract_interfaces、script_rn_analyze_test_coverage 等脚本工具）；源码探查模式需配置 RN_TEST_PROJECT 路径
 metadata:
-  author: LoopEngine
-  version: "2.1.0"
+  version: "1.0.0"
   category: testing
 ---
 

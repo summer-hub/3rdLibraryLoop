@@ -3,10 +3,7 @@ name: arkts-library-demo-code
 description: 基于 Demo 场景文档（由 ArkTsLibraryDemoScenarioSkill 生成）自动生成可在 OpenHarmony 系统上编译运行的 ArkTS 测试 Demo 实现代码。所有 Demo ETS 页面文件统一存放在 pages/ 目录下，文件名格式为"序号_PascalCase描述Page.ets"，通过主页面统一导航，并同步生成中英文字符串资源。场景文档已自包含接口签名，无需额外读取接口规格文档。生成代码严格遵循华为 ArkTS 编码规范，包含 hilog 日志、错误处理、必要注释和权限适配。当用户需要将 demo 场景描述转化为实际ArkTs代码时使用此技能。
 license: Apache-2.0
 metadata:
-  author: AIWeb
-  version: "2.0.0"
-  category: harmonyos-development
-  language: ArkTS/ETS
+  version: "1.0.0"
 ---
 
 # 鸿蒙ArkTs原生库 Demo 代码生成

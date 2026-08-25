@@ -13,9 +13,7 @@ description: >-
 compatibility: 需要 git、node、npm、python3、rsync，以及网络访问能力
 allowed-tools: Bash Read Grep Glob Edit Write
 metadata:
-  author: rnoh-team
-  version: "1.4"
-  phase: "3-of-4"
+  version: "1.0.0"
 ---
 
 # RN 鸿蒙三方库测试对齐与补全

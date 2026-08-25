@@ -4,8 +4,7 @@ description: 基于XTS覆盖率报告，为未覆盖接口自动判断可测试�
 license: Apache-2.0
 compatibility: 需要XTS覆盖率报告（由ArkTsLibraryXTSCoverageSkill生成），需要文件写入权限到输出目录
 metadata:
-  author: AIWeb
-  version: "3.0.0"
+  version: "1.0.0"
   category: ohos-testing
   language: ArkTS/ETS
 ---

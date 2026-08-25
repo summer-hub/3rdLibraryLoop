@@ -13,7 +13,6 @@ description: >-
 license: Apache-2.0
 compatibility: 需要 MCP Gateway 运行中（script_rn_extract_interfaces、script_rn_render_spec_doc），需要文件读取与写入权限
 metadata:
-  author: rnoh-team
   version: "1.0.0"
   category: rn-testing
   language: JavaScript/TypeScript/React Native

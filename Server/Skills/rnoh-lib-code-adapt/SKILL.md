@@ -11,9 +11,7 @@ description: >-
 compatibility: 需要 git、node、npm；DevEco Studio >= 6.0.0 或 Command Line Tools >= 26.0.0；推荐安装 devecocli (npm install -g @deveco/deveco-cli@latest) 和 rnoh-build-har (npm install -g rnoh-build-har)
 allowed-tools: Bash Read Grep Glob Edit Write
 metadata:
-  author: rnoh-team
-  version: "2.2.0"
-  phase: "2-of-4"
+  version: "1.0.0"
 ---
 
 # RN 鸿蒙三方库代码适配与编译验证

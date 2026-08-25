@@ -4,8 +4,7 @@ description: 基于 XTS 用例描述文档（由 ArkTsLibraryXTSDocSkill 生成�
 license: Apache-2.0
 compatibility: 需要 devecocli CLI（编译/静态检查/文档检索）、ohpm（依赖管理）、PowerShell（build.ps1）、hvigor 构建环境；MCP Gateway 运行中（script_deveco_docs 工具）
 metadata:
-  author: AIWeb
-  version: "3.0.0"
+  version: "1.0.0"
   category: ohos-testing
   language: ArkTS/ETS
 ---

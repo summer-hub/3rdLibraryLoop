@@ -6,8 +6,7 @@ license: Apache-2.0
 compatibility: 需要 bash、node、npm；目标 RN 工程需已有 example/ 目录（缺失时引导使用 rn-lib-add-example 创建）
 allowed-tools: Bash Read Grep Glob Edit Write
 metadata:
-  author: rnoh-team
-  version: "1.1.0"
+  version: "1.0.0"
   category: rn-demo-porting
   language: JavaScript/TypeScript
   consumed-by: rnohLibAddExampleSkill

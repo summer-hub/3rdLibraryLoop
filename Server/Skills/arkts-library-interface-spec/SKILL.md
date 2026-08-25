@@ -4,12 +4,10 @@ description: 扫描提取鸿蒙ArkTs原生库源码中对外公开的方法级�
 license: Apache-2.0
 compatibility: 适用于鸿蒙原生库工程（含 library 模块和 Index.ets 入口文件）。需要 git 命令行工具（用于克隆源码）和 Node.js（运行提取脚本）。
 metadata:
-  author: AIWeb
-  version: "4.1.0"
+  version: "1.0.0"
   category: harmonyos-development
   language: ArkTS/ETS
   useWhen: 从鸿蒙原生库源码提取方法级接口规格时
-  consumed-by: ArkTsLibraryDemoCoverageSkill（parse-spec.cjs 解析报告）、ArkTsLibraryDemoScenarioSkill、ArkTsLibraryXTSDocSkill
 ---
 
 # 鸿蒙ArkTs原生库方法级接口规格提取

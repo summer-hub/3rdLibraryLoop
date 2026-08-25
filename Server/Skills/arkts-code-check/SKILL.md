@@ -4,8 +4,7 @@ description: 自动化检视 ArkTS 三方库 Pull Request，包括获取 PR 差�
 license: Apache-2.0
 compatibility: 需要 git、curl、网络访问代码仓库平台 API
 metadata:
-  author: CPPAgent
-  version: "2.1"
+  version: "1.0.0"
 ---
 
 # ArkTsCodeCheckSkill — ArkTS 三方库 PR 代码检视

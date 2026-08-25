@@ -4,8 +4,7 @@ description: 对 Flutter（OpenHarmony 平台适配）三方库的 Pull Request 
 license: Apache-2.0
 compatibility: 需要 MCP Gateway 运行中（script_flutter_* 脚本工具 + gitcode_ 工具），需要 curl、git、jq 及访问 GitCode/GitHub/Gitee API 的网络权限
 metadata:
-  author: CPPAgent
-  version: "3.0"
+  version: "1.0.0"
   category: code-check
   language: Dart
 ---

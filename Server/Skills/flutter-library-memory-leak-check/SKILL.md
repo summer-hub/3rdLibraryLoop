@@ -4,8 +4,7 @@ description: 对 Flutter 三方库的**鸿蒙化代码**进行内存泄露检视
 license: Apache-2.0
 compatibility: 需要访问 Git 仓库、分析 ohos 目录下的 ETS/C++ 源码
 metadata:
-  author: CPPAgent
-  version: "2.0"
+  version: "1.0.0"
 ---
 
 # FlutterLibraryMemoryLeakCheckSkill

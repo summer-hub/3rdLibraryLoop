@@ -1,0 +1,378 @@
+/* ════════════════════════════════════════════════════════════════════
+ * rnlibrarycheck.css — RN 仓库检视面板专用样式
+ *
+ * 依赖：theme.css（CSS 变量）、codecheck.css（cc-* 通用卡片/徽章/按钮样式）
+ * ════════════════════════════════════════════════════════════════════ */
+
+/* ─── 入参说明 ─────────────────────────────────────────────────────── */
+.rn-param-intro {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+}
+
+.rn-param-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text2);
+    margin-bottom: 10px;
+}
+
+.rn-param-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+@media (max-width: 900px) {
+    .rn-param-grid { grid-template-columns: 1fr; }
+}
+
+.rn-param-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 8px 10px;
+    background: var(--bg);
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+}
+
+.rn-param-name {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--blue);
+}
+
+.rn-param-code {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text2);
+    background: var(--code-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    word-break: break-all;
+    line-height: 1.5;
+}
+
+.rn-param-note {
+    font-size: 10px;
+    color: var(--text3);
+}
+
+.rn-param-tip {
+    margin-top: 10px;
+    font-size: 11px;
+    color: var(--text3);
+    padding-top: 8px;
+    border-top: 1px dashed var(--border-light);
+}
+
+/* ─── SKILL 流程介绍（6 步编排图）────────────────────────────────── */
+.rn-flow {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    border-top: 1px solid var(--border-light);
+}
+
+.rn-flow-step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.rn-flow-num {
+    width: 26px;
+    height: 26px;
+    font-size: 12px;
+    font-weight: 700;
+    border: 2px solid rgba(59,130,246,0.4);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #3b82f6;
+    background: rgba(59,130,246,0.08);
+    flex-shrink: 0;
+}
+
+.rn-flow-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+}
+
+.rn-flow-desc {
+    font-size: 10px;
+    color: var(--text3);
+    white-space: nowrap;
+}
+
+.rn-flow-arrow {
+    color: var(--text3);
+    font-size: 14px;
+    flex-shrink: 0;
+    align-self: center;
+}
+
+/* ─── 评分概览面板 ─────────────────────────────────────────────────── */
+.rn-score-panel {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+}
+
+.rn-score-panel-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 10px;
+}
+
+.rn-score-overall-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: var(--card);
+    border-radius: 6px;
+    margin-bottom: 10px;
+}
+
+.rn-score-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text);
+    width: 64px;
+    flex-shrink: 0;
+}
+
+.rn-score-value {
+    font-size: 18px;
+    font-weight: 700;
+    font-family: var(--mono);
+    padding: 3px 12px;
+    border-radius: 6px;
+}
+
+.rn-score-weights {
+    font-size: 10px;
+    color: var(--text3);
+    margin-left: auto;
+    text-align: right;
+}
+
+.rn-score-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+}
+
+@media (max-width: 900px) {
+    .rn-score-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+.rn-score-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 10px;
+    background: var(--card);
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+}
+
+.rn-score-item-label {
+    font-size: 11px;
+    color: var(--text2);
+    flex-shrink: 0;
+}
+
+.rn-score-item-value {
+    font-size: 13px;
+    font-weight: 700;
+    font-family: var(--mono);
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--text3);
+}
+
+/* ─── 步骤进度面板 ─────────────────────────────────────────────────── */
+.rn-steps-panel {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+}
+
+.rn-steps-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.rn-steps-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 0;
+}
+
+/* ─── 打包下载全部报告按钮 ─────────────────────────────────────────── */
+.rn-archive-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    background: rgba(52,199,89,0.12);
+    color: var(--green);
+    border: 1px solid rgba(52,199,89,0.3);
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: all 0.15s;
+}
+.rn-archive-btn:hover:not(:disabled) {
+    background: rgba(52,199,89,0.2);
+    border-color: rgba(52,199,89,0.5);
+}
+.rn-archive-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.rn-steps-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.rn-step-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 0;
+    border-bottom: 1px dashed var(--border-light);
+}
+
+.rn-step-row:last-child { border-bottom: none; }
+
+.rn-step-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+    font-weight: 700;
+    border: 2px solid var(--border);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--card);
+    color: var(--text2);
+    flex-shrink: 0;
+    transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+
+.rn-step-icon.running {
+    border-color: var(--blue);
+    background: rgba(0,113,227,0.08);
+}
+.rn-step-icon.completed {
+    border-color: var(--green);
+    background: rgba(52,199,89,0.1);
+    color: var(--green);
+}
+.rn-step-icon.failed {
+    border-color: var(--red);
+    background: rgba(255,59,48,0.1);
+    color: var(--red);
+}
+.rn-step-icon.skipped {
+    border-color: var(--gray);
+    background: rgba(142,142,147,0.08);
+    color: var(--gray);
+}
+
+.rn-step-info { flex: 1; min-width: 0; }
+
+.rn-step-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 1px;
+}
+
+.rn-step-weight {
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--text3);
+    font-family: var(--mono);
+}
+
+.rn-step-desc {
+    font-size: 11px;
+    color: var(--text3);
+    font-family: var(--mono);
+}
+
+.rn-step-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.rn-step-score {
+    font-size: 12px;
+    font-weight: 700;
+    font-family: var(--mono);
+    padding: 3px 9px;
+    border-radius: 5px;
+}
+
+/* ─── 步骤对话按钮 ─────────────────────────────────────────────────── */
+.rn-session-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 26px;
+    padding: 0;
+    border-radius: 6px;
+    font-size: 12px;
+    background: rgba(175,82,222,0.1);
+    color: var(--purple);
+    border: 1px solid rgba(175,82,222,0.3);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+}
+
+.rn-session-btn:hover:not(:disabled) {
+    background: rgba(175,82,222,0.2);
+    border-color: rgba(175,82,222,0.5);
+}
+
+.rn-session-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ─── 面板布局 ─────────────────────────────────────────────────────── */
+#p-rnlibrarycheck .panel-pad {
+    padding: 20px 24px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}

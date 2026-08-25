@@ -4,8 +4,7 @@ description: RN 三方库双仓库接口分析，下载鸿蒙化仓库与上游�
 license: Apache-2.0
 compatibility: 需要访问 Git 仓库、需要 git 命令（≥ 2.25.0 支持 Sparse Checkout）、需要 Node.js ≥ 14 和 npm（运行接口提取脚本）、需要网络访问
 metadata:
-  author: CPPAgent
-  version: "4.0"
+  version: "1.0.0"
 ---
 
 # RNLibraryInterfaceAnalyzer

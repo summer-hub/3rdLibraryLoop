@@ -13,9 +13,7 @@ description: >-
 compatibility: 无特殊环境要求
 allowed-tools: Read Grep Glob Bash
 metadata:
-  author: rnoh-team
-  version: "1.0"
-  phase: "4-of-4"
+  version: "1.0.0"
 ---
 
 # RN 鸿蒙三方库功能测试验证指引

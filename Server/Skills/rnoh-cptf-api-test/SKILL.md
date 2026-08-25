@@ -14,7 +14,6 @@ compatibility: >-
   需要 CPTF 框架源码（@cptf/framework 可 link）、pnpm、文件读写权限
 allowed-tools: Read Grep Glob Bash
 metadata:
-  author: rnoh-team
   version: "1.0.0"
   category: rnoh-testing
   consumes: rnohLibInterfaceSpecSkill

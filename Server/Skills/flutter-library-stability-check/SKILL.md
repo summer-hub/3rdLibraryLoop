@@ -4,8 +4,7 @@ description: 对 Flutter 三方库的鸿蒙化代码进行稳定性检视，聚�
 license: Apache-2.0
 compatibility: 需要访问 Git 仓库、分析 ohos 目录源码、识别代码来源（Copyright/git blame）
 metadata:
-  author: CPPAgent
-  version: "3.0"
+  version: "1.0.0"
 ---
 
 # FlutterLibraryStabilityCheckSkill

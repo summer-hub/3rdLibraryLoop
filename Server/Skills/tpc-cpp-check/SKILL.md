@@ -4,12 +4,10 @@ description: 检视 tpc_c_cplusplus 仓库适配库 PR 的规范性，包括编�
 license: Apache-2.0
 compatibility: 需要 curl、网络访问 GitCode API 的权限，无需 git clone
 metadata:
-  author: CPPAgent
-  version: "2.0"
+  version: "1.0.0"
   platform: gitcode
   libraryType: tpccplus
 ---
-
 # TpcCheckSkill — tpc_c_cplusplus 适配库 PR 规范性检视
 
 ## 概述

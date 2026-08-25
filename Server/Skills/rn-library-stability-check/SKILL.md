@@ -4,8 +4,7 @@ description: 对 RN 三方库鸿蒙化代码进行稳定性检视，聚焦 ArkTS
 license: Apache-2.0
 compatibility: 需要访问源码目录、分析 ArkTS/ETS 和 C++ 源码，可选调用 MCP 脚本工具辅助代码扫描
 metadata:
-  author: CPPAgent
-  version: "2.1.0"
+  version: "1.0.0"
   category: rn-library-check
 ---
 
@@ -222,6 +221,27 @@ python3 scripts/scan-harmony-code.py '{"sourceDir": "{outputDir}/source"}'
 | 稳定性检视报告 | `稳定性检视报告.md` | 评分 + 维度明细 + 调用链 + 问题清单 + 修复建议 |
 
 所有产物写入 `{outputDir}` 目录。
+
+> ⚠️ **输出文件自检**：写入结果文件前，先确认 `稳定性检视报告.md` 已存在且内容完整（**独立文件，禁止只写入 result 执行结果文件**）。若报告内容仅在草稿中，必须先将其保存为上述独立文件。
+
+### 结构化指标输出（必须执行）
+
+执行环境会在任务 prompt 中下发一个**结构化指标文件输出路径**（`stepId{X}_loop{L}_meta_{N}.json`）。
+检视完成后，**必须**将最终评分以下述 JSON 对象写入该路径：
+
+```json
+{
+  "stabilityScore": 85,
+  "scoreReason": "异常处理缺失2处-16等（一句话判定依据，≤50字；触发一票否决时必须注明）"
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `stabilityScore` | number | 稳定性评分（0-100 整数，与报告中 `**综合评分：XX/100**` 的数值一致） |
+| `scoreReason` | string | 评分判定依据摘要（可选，前端悬浮提示展示；0 分时强烈建议写明触发规则，如"Critical≥5 触发归零"） |
+
+**说明**：该文件由执行框架自动收割入库（前端/历史列表直接读取评分，无需解析报告文本）。若 prompt 未下发该路径则跳过本节。
 
 ---
 

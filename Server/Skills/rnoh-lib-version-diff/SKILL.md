@@ -14,8 +14,7 @@ license: MIT
 compatibility: 需要 node、npm、tar、diff；仅需 npm registry 访问；鸿蒙 API 核查需 devecocli CLI
 allowed-tools: Bash Read Grep Glob Write
 metadata:
-  author: rnoh-team
-  version: "3.0"
+  version: "1.0.0"
   phase: "1-of-4"
 ---
 

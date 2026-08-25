@@ -3,7 +3,6 @@ name: arkts-library-xts-code-fix
 description: 依据失败报告修正有缺陷的 XTS 测试用例代码，使其通过编译与执行验证。Use when 已有待修复的测试代码和下游失败报告，需要根据失败原因针对性修正。本技能只纠错，不创作新用例。
 license: Apache-2.0
 metadata:
-  author: AIWeb
   version: "1.0.0"
   category: ohos-testing
   language: ArkTS/ETS

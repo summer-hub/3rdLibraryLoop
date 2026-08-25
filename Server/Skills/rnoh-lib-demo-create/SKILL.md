@@ -10,8 +10,7 @@ description: >-
 license: Apache-2.0
 compatibility: 需要 MCP Gateway 运行中（script_rn_extract_interfaces、kb_search），需要文件读取与写入权限，需要 RN 工程（含 example/demo 目录和 Tester 框架）
 metadata:
-  author: rnoh-team
-  version: "2.2.0"
+  version: "1.0.0"
   category: rn-testing
   language: JavaScript/TypeScript/React Native
   useWhen: 基于 Demo 描述文档生成 RN Tester 框架 Demo 代码

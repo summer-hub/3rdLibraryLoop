@@ -4,10 +4,7 @@ description: 对 ArkTS 鸿蒙化库进行用例覆盖度检视，分析公开接
 license: Apache-2.0
 compatibility: 需要访问 Git 仓库、分析测试文件、读取接口规格说明文档
 metadata:
-  author: CPPAgent
-  version: "3.0"
-  stage: "6"
-  weight: "15"
+  version: "1.0.0"
 ---
 
 # ArktsLibraryTestCoverageCheckSkill

@@ -4,8 +4,7 @@ description: 对 ArkTS 鸿蒙化库核心实现代码进行稳定性检视，分
 license: Apache-2.0
 compatibility: 需要访问 Git 仓库、分析 ArkTS/ETS 和 C++ 源码
 metadata:
-  author: CPPAgent
-  version: "3.1.0"
+  version: "1.1.0"
   category: harmonyos-testing
   language: ArkTS/ETS/C++
   invoked-by: LoopEngine

@@ -4,8 +4,7 @@ description: React Native 三方库 PR 自动化代码检视，重点检查鸿�
 license: Apache-2.0
 compatibility: 需要 git、curl、网络访问（GitHub/GitCode/Gitee API）
 metadata:
-  author: CPPAgent
-  version: "1.0"
+  version: "1.0.0"
   platform: gitcode, gitee, github, gitlab
   libraryType: rn
 ---

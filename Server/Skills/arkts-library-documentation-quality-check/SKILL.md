@@ -4,8 +4,7 @@ description: 对已鸿蒙化的 ArkTS 库进行文档质量检视，覆盖完整
 license: Apache-2.0
 compatibility: Requires access to Git repos and ability to read Markdown, ETS, TS, and JSON5 files
 metadata:
-  author: CPPAgent
-  version: "4.1"
+  version: "1.0.0"
   category: harmonyos-development
 ---
 

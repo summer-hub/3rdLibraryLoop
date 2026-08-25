@@ -4,8 +4,7 @@ description: 对 Flutter 三方库进行用例覆盖度检视，**核心聚焦 D
 license: Apache-2.0
 compatibility: 需要 Node.js 运行环境、Git 仓库访问、接口规格说明文档（可选，脚本可直接从源码提取）
 metadata:
-  author: CPPAgent
-  version: "3.0"
+  version: "1.0.0"
 ---
 
 # FlutterLibraryTestCoverageCheckSkill

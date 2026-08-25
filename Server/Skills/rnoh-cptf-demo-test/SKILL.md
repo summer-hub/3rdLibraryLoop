@@ -8,8 +8,7 @@ license: Apache-2.0
 compatibility: 需要 CPTF 框架源码（@cptf/framework 可 link）、pnpm、demo 构建产物路径（用于配置 appPath）
 allowed-tools: Read Grep Glob Bash
 metadata:
-  author: rnoh-team
-  version: "2.0.0"
+  version: "1.0.0"
   category: rnoh-testing
 ---
 

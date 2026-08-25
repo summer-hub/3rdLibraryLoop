@@ -4,8 +4,7 @@ description: 分析 Flutter 三方库的对外接口能力，使用 flutter-extr
 license: MIT
 compatibility: 需要 Node.js 运行环境（执行 .cjs 脚本），需要 git（克隆远程仓库时）
 metadata:
-  author: AIWeb
-  version: "2.0.0"
+  version: "1.0.0"
   category: interface-analysis
   language-support: "Dart/Flutter（完整支持，基于正则解析引擎）"
   script-powered: "flutter-extract-interfaces.cjs + flutter-render-spec-doc.cjs"

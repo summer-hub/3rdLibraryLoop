@@ -7,7 +7,6 @@ license: Apache-2.0
 compatibility: 需要 CPTF 测试工程（已由 rnoh-cptf-demo-test 生成）、hdc 工具、鸿蒙真机/模拟器、pnpm、cptf CLI
 allowed-tools: Read Grep Glob Bash
 metadata:
-  author: rnoh-team
   version: "1.0.0"
   category: rnoh-testing
 ---

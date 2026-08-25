@@ -4,12 +4,10 @@ description: 分析鸿蒙ArkTs原生库现有 Demo 对接口的覆盖情况。�
 license: Apache-2.0
 compatibility: 需要 Node.js 运行环境
 metadata:
-  author: AIWeb
-  version: "4.1.0"
+  version: "1.0.0"
   category: harmonyos-development
   language: ArkTS/ETS
   useWhen: 分析鸿蒙原生库 Demo 对接口的覆盖情况
-  consumed-by: ArkTsLibraryDemoScenarioSkill、ArkTsLibraryDemoCodeSkill
 ---
 
 # 鸿蒙ArkTs原生库 Demo 接口覆盖率分析

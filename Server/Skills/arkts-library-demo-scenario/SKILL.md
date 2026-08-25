@@ -3,8 +3,7 @@ name: arkts-library-demo-scenario
 description: 基于覆盖率报告，为未覆盖接口生成 ArkTS 测试 Demo 描述文档。读取覆盖率报告中的未覆盖接口清单（含签名和功能描述），以接口为单位生成测试 Demo 描述（名称、描述、步骤、预期结果），并以表格形式汇总输出。允许将存在直接调用关系或属于同一功能模块的接口合并到同一个 Demo 中。当需要对鸿蒙原生库进行 Demo 覆盖率缺口填补、未覆盖接口场景规划时调用。
 license: Apache-2.0
 metadata:
-  author: AIWeb
-  version: "2.0.0"
+  version: "1.0.0"
   category: harmonyos-development
   language: ArkTS/ETS
 ---

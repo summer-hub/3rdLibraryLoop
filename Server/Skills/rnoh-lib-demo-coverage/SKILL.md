@@ -5,7 +5,7 @@ license: Apache-2.0
 compatibility: 需要 Node.js 运行环境
 metadata:
   author: rnoh-team
-  version: "3.0.0"
+  version: "1.0.0"
   category: rn-testing
   language: JavaScript/TypeScript
   useWhen: 分析 RN 鸿蒙三方库 Demo 对接口的覆盖情况

@@ -3,10 +3,7 @@ name: arkts-library-compile-validate
 description: 对鸿蒙 ArkTS 工程执行工程迁移、Code Linter 静态代码检查、devecocli 编译验证（5 轮修复循环）以及 ohpm 线上版本替换兜底，输出质量检查与编译验证报告。作为生成代码（Demo / XTS / 任意指定目录）后的质量验证收尾环节，验证生成的 ArkTS 代码能否在鸿蒙环境中编译通过。当需要对已生成或修改的 ArkTS 代码进行编码规范静态检查与编译验证时使用此技能。
 license: Apache-2.0
 metadata:
-  author: AIWeb
   version: "1.0.0"
-  category: harmonyos-development
-  language: ArkTS/ETS
 ---
 
 # 鸿蒙 ArkTS 代码质量检查与编译验证

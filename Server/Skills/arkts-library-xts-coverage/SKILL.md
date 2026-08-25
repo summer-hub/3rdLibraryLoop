@@ -4,8 +4,7 @@ description: 分析鸿蒙ArkTs原生库现有 XTS 测试用例对接口的覆盖
 license: Apache-2.0
 compatibility: 需要Node.js运行环境
 metadata:
-  author: AIWeb
-  version: "3.0.0"
+  version: "1.0.0"
   category: ohos-testing
   language: ArkTS/ETS
 ---

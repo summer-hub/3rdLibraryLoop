@@ -4,10 +4,7 @@ description: 通过脚本自动化分析 RN 三方库鸿蒙化代码的用例覆
 license: Apache-2.0
 compatibility: 需要Node.js环境、Git ≥ 2.25.0（Sparse Checkout）、访问鸿蒙化仓库源码目录。AST 匹配模式需 TypeScript 模块，首次使用前须在 SKILL 目录执行 `npm install`（参见 Phase 0）
 metadata:
-  author: CPPAgent
-  version: "4.0"
-  stage: "7"
-  weight: "15"
+  version: "1.0.0"
 ---
 
 # RNLibraryTestCoverageCheckSkill
@@ -455,6 +452,27 @@ AI 通过以下特征识别平台特有接口（满足任一即判定）：
 | 用例覆盖度检视报告 | `用例覆盖度检视报告.md` | Phase 6 AI | 最终统一报告 |
 
 所有产物写入 `{outputDir}` 目录。
+
+> ⚠️ **输出文件自检**：写入结果文件前，先确认 `用例覆盖度检视报告.md` 已存在且内容完整（**独立文件，禁止只写入 result 执行结果文件**）；同时核对脚本产出清单（`interface-spec.json` / `test-coverage-report.md` / `demo-coverage-report.md`，demo 报告仅在执行 Demo 覆盖率分析后存在）。若报告内容仅在草稿中，必须先将其保存为上述独立文件。
+
+### 结构化指标输出（必须执行）
+
+执行环境会在任务 prompt 中下发一个**结构化指标文件输出路径**（`stepId{X}_loop{L}_meta_{N}.json`）。
+检视完成后，**必须**将最终评分以下述 JSON 对象写入该路径：
+
+```json
+{
+  "testCoverageScore": 85,
+  "scoreReason": "有效接口覆盖率62%扣18，未覆盖接口38个扣17等（一句话判定依据，≤50字；触发一票否决时必须注明）"
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `testCoverageScore` | number | 用例覆盖度评分（0-100 整数，与报告中 `**综合评分：XX/100**` 的数值一致） |
+| `scoreReason` | string | 评分判定依据摘要（可选，前端悬浮提示展示；0 分时强烈建议写明触发规则，如"有效接口覆盖率<10% 触发归零"） |
+
+**说明**：该文件由执行框架自动收割入库（前端/历史列表直接读取评分，无需解析报告文本）。若 prompt 未下发该路径则跳过本节。
 
 ---
 

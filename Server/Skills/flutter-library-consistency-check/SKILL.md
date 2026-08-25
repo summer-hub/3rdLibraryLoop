@@ -4,8 +4,7 @@ description: 对 Flutter 三方库的鸿蒙化代码进行一致性检视，聚�
 license: Apache-2.0
 compatibility: 需要访问 Git 仓库、分析 ohos 目录源码、对比 Android/iOS 实现函数
 metadata:
-  author: CPPAgent
-  version: "3.1"
+  version: "1.0.0"
 ---
 
 # FlutterLibraryConsistencyCheckSkill

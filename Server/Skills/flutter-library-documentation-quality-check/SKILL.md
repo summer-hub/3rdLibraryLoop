@@ -4,8 +4,7 @@ description: 对 Flutter 三方库的**鸿蒙化代码相关文档**进行文档
 license: Apache-2.0
 compatibility: 需要访问 Git 仓库、智能识别鸿蒙化相关文档、分析文档内容
 metadata:
-  author: CPPAgent
-  version: "3.0"
+  version: "1.0.0"
 ---
 
 # FlutterLibraryDocumentationQualityCheckSkill
