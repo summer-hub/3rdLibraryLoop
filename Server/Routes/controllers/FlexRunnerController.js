@@ -135,11 +135,8 @@ class FlexRunnerController {
      *
      * Body: {
      *   taskId, stepId, dependId, nextStepId, failStepId, taskDescription,
-     *   skillDirectory, skillPath, taskDir, inputReport, maxRetries
+     *   skillDirectory, taskDir, inputReport, maxRetries
      * }
-     *
-     * 说明：body.skillPath 传入后跳过 SkillSelector 匹配，固定执行该 SKILL 目录
-     * （绝对/相对路径，相对路径相对 skillDirectory 解析）。
      */
     async init(req, res) {
         const body = req.body || {};
@@ -164,7 +161,6 @@ class FlexRunnerController {
             failStepId: Number(body.failStepId) || 0,
             taskDescription: body.taskDescription || '',
             skillDirectory: body.skillDirectory || '',
-            skillPath: body.skillPath || '',
             taskDir: body.taskDir || '',
             inputReport: body.inputReport || '',
             maxRetries: typeof body.maxRetries === 'number' ? body.maxRetries : undefined,

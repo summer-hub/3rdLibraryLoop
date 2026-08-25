@@ -32,7 +32,6 @@ export const NodeStatus = Object.freeze({
  * @property {number|string} [failStepId=0]- 失败后指向步骤 ID（0 = 失败即终止）
  * @property {number}        [maxRetries=3]- 最大重试次数
  * @property {string}        [skillDirectory] - SKILL 目录路径
- * @property {string}        [skillPath]     - 固定 SKILL 目录路径（跳过 SkillSelector 匹配，绝对/相对路径均可）
  * @property {string}        [taskDir]     - 工作目录
  * @property {string}        [inputReport] - 输入报告路径
  * @property {string}        [taskDescription] - 任务描述
@@ -100,7 +99,6 @@ class StepNode {
         this.failStepId = config.failStepId != null ? String(config.failStepId) : '0';
         this.maxRetries = typeof config.maxRetries === 'number' ? config.maxRetries : 3;
         this.skillDirectory = config.skillDirectory || '';
-        this.skillPath = config.skillPath || '';
         this.taskDir = config.taskDir || '';
         this.inputReport = config.inputReport || '';
 
@@ -264,7 +262,6 @@ class StepNode {
         if (patch.failStepId !== undefined) this.failStepId = String(patch.failStepId);
         if (patch.maxRetries !== undefined) this.maxRetries = Number(patch.maxRetries);
         if (patch.skillDirectory !== undefined) this.skillDirectory = patch.skillDirectory;
-        if (patch.skillPath !== undefined) this.skillPath = patch.skillPath;
         if (patch.taskDir !== undefined) this.taskDir = patch.taskDir;
         if (patch.inputReport !== undefined) this.inputReport = patch.inputReport;
 
@@ -286,7 +283,6 @@ class StepNode {
             failStepId: this.failStepId,
             maxRetries: this.maxRetries,
             skillDirectory: this.skillDirectory,
-            skillPath: this.skillPath,
             taskDir: this.taskDir,
             inputReport: this.inputReport,
             status: this.status,
