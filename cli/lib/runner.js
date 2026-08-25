@@ -422,7 +422,7 @@ let _activeStandaloneRunner = null;
  * @param {number} params.stepId
  * @param {string} params.taskDescription
  * @param {string} [params.skillDirectory]
- * @param {string} [params.skillPath]      - 固定执行的 SKILL 目录（跳过 SkillSelector 匹配）
+ * @param {string} [params.specifiedSkill] - 指定的 SKILL name 或目录名（跳过 SkillSelector 匹配）
  * @param {string} [params.taskDir]
  * @param {string} [params.inputReport]
  * @param {number} [params.maxRetries]
@@ -452,7 +452,7 @@ export async function createStandaloneFlexRunner(ctx, params) {
         failStepId: 0,
         taskDescription: params.taskDescription,
         skillDirectory: params.skillDirectory || ctx.skillDir || '',
-        skillPath: params.skillPath || '',
+        specifiedSkill: params.specifiedSkill || '',
         taskDir: params.taskDir,
         inputReport: params.inputReport || '',
         maxRetries: params.maxRetries ?? 3,
@@ -476,6 +476,7 @@ export async function createStandaloneFlexRunner(ctx, params) {
  * @param {number} params.stepId
  * @param {string} params.taskDescription
  * @param {string} [params.skillDirectory]
+ * @param {string} [params.specifiedSkill] - 指定的 SKILL name 或目录名（跳过 SkillSelector 匹配）
  * @param {string} [params.taskDir]
  * @param {string} [params.inputReport]
  * @param {number} [params.maxRetries]
@@ -674,7 +675,7 @@ export function createOrchestratorFlexRunnerFactory(ctx) {
             failStepId: Number(node.failStepId) || 0,
             taskDescription: node.taskDescription,
             skillDirectory: node.skillDirectory,
-            skillPath: node.skillPath || '',
+            specifiedSkill: node.specifiedSkill || '',
             taskDir: node.taskDir,
             inputReport,
             maxRetries: node.maxRetries,
