@@ -168,6 +168,7 @@ class Orchestrator {
      *         failStepId: 3,     // 失败后指向（0 = 失败即终止）
      *         maxRetries: 3,
      *         skillDirectory: '...',  // 可选，覆盖全局
+     *         specifiedSkill: '...',  // 可选，指定 SKILL（name 或目录名），跳过自动匹配
      *         taskDir: '...',         // 可选，覆盖全局
      *         inputReport: '...'      // 可选，初始输入报告
      *       },
@@ -475,6 +476,7 @@ class Orchestrator {
         let resultPath = '';
         let sessionId = '';
         let errorMsg = null;
+        let metrics = null;
 
         try {
             // 创建并初始化 FlexRunner
@@ -492,6 +494,7 @@ class Orchestrator {
             const result = await runner.executeStart();
             resultPath = result.resultPath;
             success = result.success;
+            metrics = result.metrics || null;
 
             // 推送执行细节
             this._emit(SSE_EVENT.STEP_DETAIL, {
@@ -510,7 +513,7 @@ class Orchestrator {
         }
 
         // 标记完成状态
-        node.markFinished({ success, resultPath, sessionId, error: errorMsg });
+        node.markFinished({ success, resultPath, sessionId, error: errorMsg, metrics });
         this._emitStepStatus(node);
 
         // 已被终止：整条链终止，不再激活后续步骤（nextStepId / failStepId 均不流转）
@@ -715,6 +718,7 @@ class Orchestrator {
             failStepId: Number(node.failStepId) || 0,
             taskDescription: node.taskDescription,
             skillDirectory: node.skillDirectory,
+            specifiedSkill: node.specifiedSkill,
             taskDir: node.taskDir,
             inputReport,
             maxRetries: node.maxRetries,
@@ -943,6 +947,7 @@ class Orchestrator {
             startTime: runner.startTime,
             endTime: runner.endTime,
             resultPath: runner.resultPath,
+            metrics: runner.metrics,
             canRetry: runner.canRetry()
         };
     }
@@ -961,7 +966,8 @@ class Orchestrator {
             endTime: node.endTime,
             resultPath: node.resultPath,
             sessionId: node.sessionId,
-            error: node.error
+            error: node.error,
+            metrics: node.metrics
         });
         // 同时推送整体进度
         this._emit(SSE_EVENT.TASK_PROGRESS, this.getProgress());
@@ -1062,6 +1068,7 @@ class Orchestrator {
                     failStepId: s.failStepId,
                     maxRetries: s.maxRetries,
                     skillDirectory: s.skillDirectory,
+                    specifiedSkill: s.specifiedSkill,
                     taskDir: s.taskDir,
                     inputReport: s.inputReport
                 });
@@ -1073,6 +1080,7 @@ class Orchestrator {
                 node.resultPath = s.resultPath || '';
                 node.sessionId = s.sessionId || '';
                 node.error = s.error || null;
+                node.metrics = s.metrics || null;
                 if (Array.isArray(s.history)) {
                     node.history = s.history;
                 }
@@ -1106,8 +1114,6 @@ class Orchestrator {
         } else {
             this._status = state.status || OrchestratorStatus.LOADED;
         }
-
-        this._log('info', `状态已恢复: taskId=${this._taskId}, status=${this._status}, 步骤数=${this._nodes.size}`);
     }
 
     /**

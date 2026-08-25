@@ -1,0 +1,458 @@
+/* ════════════════════════════════════════════════════════════════════
+ * codecheck.css — PR 代码检视面板专用样式
+ *
+ * 依赖：theme.css（CSS 变量 / 按钮 / 表单 / 弹窗基础样式）
+ * ════════════════════════════════════════════════════════════════════ */
+
+/* ─── 面板布局 ───────────────────────────────────────────────────────── */
+#p-codecheck .panel-pad {
+    padding: 20px 24px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* ─── SKILL 介绍区域 ─────────────────────────────────────────────────── */
+.cc-skill-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.cc-skill-icon { font-size: 18px; }
+.cc-skill-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.cc-skill-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.cc-skill-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.15s;
+}
+.cc-skill-card:hover { border-color: var(--blue); }
+
+.cc-skill-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.cc-skill-badge {
+    font-size: 10px;
+    font-weight: 700;
+    font-family: var(--mono);
+    padding: 2px 7px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+.cc-skill-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+}
+.cc-skill-card-desc {
+    font-size: 12px;
+    color: var(--text2);
+    padding: 8px 14px;
+    line-height: 1.6;
+}
+
+/* ─── 提交表单 ───────────────────────────────────────────────────────── */
+.cc-form-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+/* ─── 历史标签行 ─────────────────────────────────────────────────────── */
+.cc-history-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+.cc-history-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text2);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+.cc-task-count {
+    font-size: 12px;
+    font-family: var(--mono);
+    color: var(--text3);
+}
+
+/* ─── 任务列表 ───────────────────────────────────────────────────────── */
+.cc-tasks-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* ─── 任务卡片 ───────────────────────────────────────────────────────── */
+.cc-task-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    border-left: 3px solid var(--text3);
+    overflow: hidden;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.cc-task-card.running {
+    border-left-color: var(--blue);
+    box-shadow: 0 1px 12px rgba(0,113,227,0.06);
+}
+.cc-task-card.cc-done { border-left-color: var(--green); }
+.cc-task-card.cc-failed { border-left-color: var(--red); }
+.cc-task-card.cc-cancelled { border-left-color: var(--gray); }
+
+/* ─── 卡片头部 ───────────────────────────────────────────────────────── */
+.cc-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+}
+.cc-card-header:hover { background: rgba(0,113,227,0.04); }
+[data-theme="dark"] .cc-card-header:hover { background: rgba(77,140,247,0.05); }
+.cc-task-card.open .cc-card-header { border-bottom: 1px solid var(--border-light); }
+
+.cc-chevron {
+    font-size: 10px;
+    color: var(--text3);
+    transition: transform 0.2s;
+    flex-shrink: 0;
+}
+.cc-task-card.open .cc-chevron { transform: rotate(90deg); }
+
+.cc-run-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text3);
+    flex-shrink: 0;
+    transition: background 0.2s;
+}
+.cc-task-card.running .cc-run-dot {
+    background: var(--blue);
+    animation: cc-blink 1.5s ease-in-out infinite;
+}
+.cc-task-card.cc-done .cc-run-dot { background: var(--green); }
+.cc-task-card.cc-failed .cc-run-dot { background: var(--red); }
+.cc-task-card.cc-cancelled .cc-run-dot { background: var(--gray); }
+
+@keyframes cc-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+.cc-lib {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+}
+
+.cc-type-badge {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-family: var(--mono);
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.cc-spacer { flex: 1; }
+
+.cc-time {
+    font-size: 11px;
+    color: var(--text3);
+    font-family: var(--mono);
+    flex-shrink: 0;
+}
+
+.cc-elapsed {
+    font-size: 11px;
+    color: var(--text3);
+    font-family: var(--mono);
+    flex-shrink: 0;
+}
+
+/* ─── 阶段徽章 ───────────────────────────────────────────────────────── */
+.cc-stage-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: var(--mono);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.cc-stage-badge::before {
+    content: '';
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+}
+
+.s-pending    { background: rgba(142,142,147,0.15); color: var(--gray); }
+.s-ready      { background: rgba(0,113,227,0.12); color: var(--blue); }
+.s-running    { background: rgba(0,113,227,0.12); color: var(--blue); }
+.s-completed  { background: rgba(52,199,89,0.12); color: var(--green); }
+.s-failed     { background: rgba(255,59,48,0.12); color: var(--red); }
+.s-aborted    { background: rgba(142,142,147,0.15); color: var(--gray); }
+.s-error      { background: rgba(255,59,48,0.12); color: var(--red); }
+.s-idle       { background: rgba(142,142,147,0.15); color: var(--gray); }
+.s-loaded     { background: rgba(0,113,227,0.12); color: var(--blue); }
+.s-deadlocked { background: rgba(255,59,48,0.12); color: var(--red); }
+
+[data-theme="dark"] .s-pending    { background: rgba(83,91,122,0.2); color: var(--text3); }
+[data-theme="dark"] .s-ready      { background: rgba(77,140,247,0.15); color: var(--blue); }
+[data-theme="dark"] .s-running    { background: rgba(77,140,247,0.15); color: var(--blue); }
+[data-theme="dark"] .s-completed  { background: rgba(58,181,113,0.15); color: var(--green); }
+[data-theme="dark"] .s-failed     { background: rgba(223,69,69,0.15); color: var(--red); }
+[data-theme="dark"] .s-aborted    { background: rgba(83,91,122,0.2); color: var(--text3); }
+[data-theme="dark"] .s-error      { background: rgba(223,69,69,0.15); color: var(--red); }
+[data-theme="dark"] .s-idle       { background: rgba(83,91,122,0.2); color: var(--text3); }
+[data-theme="dark"] .s-loaded     { background: rgba(77,140,247,0.15); color: var(--blue); }
+[data-theme="dark"] .s-deadlocked { background: rgba(223,69,69,0.15); color: var(--red); }
+
+/* ─── 合入建议分级徽章 ───────────────────────────────────────────────── */
+.cc-merge-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: var(--mono);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* ─── 取消按钮 ───────────────────────────────────────────────────────── */
+.cc-stop-btn {
+    display: none;
+    padding: 3px 10px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    background: rgba(255,59,48,0.1);
+    color: var(--red);
+    border: 1px solid rgba(255,59,48,0.3);
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: all 0.15s;
+}
+.cc-stop-btn:hover:not(:disabled) {
+    background: rgba(255,59,48,0.2);
+    border-color: rgba(255,59,48,0.5);
+}
+.cc-task-card.running .cc-stop-btn { display: inline-flex; }
+
+/* ─── 卡片内容 ───────────────────────────────────────────────────────── */
+.cc-card-body {
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.cc-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    overflow: hidden;
+}
+.cc-meta-label {
+    color: var(--text3);
+    flex-shrink: 0;
+}
+.cc-meta-value {
+    color: var(--text2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ─── 流程展示区 ─────────────────────────────────────────────────────── */
+.cc-pipeline {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 18px;
+}
+
+.cc-pipe-icon {
+    width: 38px;
+    height: 38px;
+    font-size: 16px;
+    border: 2px solid var(--border);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--card);
+    flex-shrink: 0;
+    transition: border-color 0.2s, background 0.2s;
+}
+.cc-pipe-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 2px;
+}
+.cc-pipe-stage {
+    font-size: 11px;
+    color: var(--text3);
+    font-family: var(--mono);
+}
+
+/* ─── 下载/预览按钮 ──────────────────────────────────────────────────── */
+.cc-dl-wrap {
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-end;
+}
+
+.cc-download-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    background: rgba(52,199,89,0.12);
+    color: var(--green);
+    border: 1px solid rgba(52,199,89,0.3);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+}
+.cc-download-btn:hover {
+    background: rgba(52,199,89,0.2);
+    border-color: rgba(52,199,89,0.5);
+}
+
+.cc-preview-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    background: rgba(0,113,227,0.1);
+    color: var(--blue);
+    border: 1px solid rgba(0,113,227,0.3);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+}
+.cc-preview-btn:hover {
+    background: rgba(0,113,227,0.2);
+    border-color: rgba(0,113,227,0.5);
+}
+
+/* ─── 操作按钮区 ─────────────────────────────────────────────────────── */
+.cc-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.cc-session-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    background: rgba(175,82,222,0.1);
+    color: var(--purple);
+    border: 1px solid rgba(175,82,222,0.3);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+}
+.cc-session-btn:hover:not(:disabled) {
+    background: rgba(175,82,222,0.2);
+    border-color: rgba(175,82,222,0.5);
+}
+.cc-session-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ─── 空状态提示 ─────────────────────────────────────────────────────── */
+.cc-empty-hint {
+    color: var(--text3);
+    font-style: italic;
+    font-size: 13px;
+    padding: 16px 0;
+    text-align: center;
+}
+
+/* ─── 错误提示 ───────────────────────────────────────────────────────── */
+.cc-error-msg {
+    display: none;
+    color: var(--red);
+    font-size: 13px;
+    padding: 8px 12px;
+    background: var(--red-light);
+    border-radius: 7px;
+}
+
+/* ─── 高级选项 ───────────────────────────────────────────────────────── */
+.cc-advanced-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--blue);
+    cursor: pointer;
+    margin: 4px 0;
+    user-select: none;
+}
+.cc-advanced-toggle::before { content: '\25B6'; font-size: 9px; transition: transform 0.2s; }
+.cc-advanced-toggle.open::before { transform: rotate(90deg); }
+.cc-advanced-section {
+    display: none;
+    background: var(--code-bg);
+    border-radius: 8px;
+    padding: 12px;
+}
+.cc-advanced-section.show { display: block; }

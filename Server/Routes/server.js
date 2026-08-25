@@ -56,10 +56,14 @@ export async function createServer(options = {}) {
     const storage = createStorage();
 
     // OrchestratorController 同样有状态（管理多个编排器实例），需单例
+    // skillDirectory：默认 SKILL 根目录，taskDef 未指定时兜底（供 specifiedSkill 解析 / 自动匹配）
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    const skillDirectory = path.resolve(__dirname, '..', 'Skills');
     const orchestratorController = new OrchestratorController({
         sseHub,
         storage,
-        flexRunnerFactory: null
+        flexRunnerFactory: null,
+        skillDirectory
     });
 
     // FlexRunnerController 是有状态的（管理多个 FlexRunner 实例），需单例。
@@ -68,8 +72,6 @@ export async function createServer(options = {}) {
     const flexRunnerController = new FlexRunnerController({ orchestratorController, storage });
 
     // BrainController 管理 Brain 拆解实例（需单例，复用 LLM 连接）
-    const __dirname = path.dirname(fileURLToPath(import.meta.url));
-    const skillDirectory = path.resolve(__dirname, '..', 'Skills');
     const brainController = new BrainController({
         sseHub,
         storage,

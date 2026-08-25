@@ -30,11 +30,13 @@ class OrchestratorController {
      * @param {object} [deps.sseHub]   - SseHub 实例
      * @param {object} [deps.storage]  - 存储门面
      * @param {function} [deps.flexRunnerFactory] - FlexRunner 工厂（测试用）
+     * @param {string} [deps.skillDirectory] - 默认 SKILL 根目录（taskDef 未指定 skillDirectory 时兜底）
      */
     constructor(deps = {}) {
         this.sseHub = deps.sseHub || null;
         this.storage = deps.storage || null;
         this.flexRunnerFactory = deps.flexRunnerFactory || null;
+        this.skillDirectory = deps.skillDirectory || '';
 
         /** @type {Map<string, Orchestrator>} key = taskId */
         this._orchestrators = new Map();
@@ -241,6 +243,11 @@ class OrchestratorController {
             }
 
             const orch = this._createOrchestrator();
+            // taskDef 未指定 skillDirectory 时，用服务端默认 SKILL 根目录兜底
+            // （保证 specifiedSkill / SkillSelector 自动匹配有根目录可解析）
+            if (!body.skillDirectory && this.skillDirectory) {
+                body.skillDirectory = this.skillDirectory;
+            }
             await orch.loadTask(body);
 
             this._orchestrators.set(taskId, orch);
@@ -716,7 +723,6 @@ class OrchestratorController {
                 await orch.restoreState(state);
                 this._orchestrators.set(taskId, orch);
                 restored.push(taskId);
-                console.log(`[OrchestratorController] 已恢复: taskId=${taskId}, status=${orch.status}`);
             } catch (err) {
                 // JSON 损坏、字段缺失等情况下标记为 failed，不中断其他任务的恢复
                 const isJsonError = err instanceof SyntaxError;

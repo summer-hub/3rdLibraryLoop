@@ -102,6 +102,7 @@ new FlexRunner(config?)
 | `stepId` | `number` | ✅ | 当前步骤 ID（正整数） |
 | `taskDir` | `string` | | 工作目录（默认 `cwd/tasks/{taskId}`） |
 | `skillDirectory` | `string` | | SKILL 目录路径 |
+| `specifiedSkill` | `string` | | 指定 SKILL（name 或目录名）；非空时跳过自动匹配直接使用 |
 | `taskDescription` | `string` | | 任务描述 |
 | `inputReport` | `string` | | 输入报告路径 |
 | `maxRetries` | `number` | | 最大重试次数（默认 3） |
@@ -118,11 +119,13 @@ new FlexRunner(config?)
 
 流程（5 步）：
 
-1. `matchSkill` → 匹配最佳 Skill
-2. `invokeSkill` → 通过 opencode 执行 Skill，生成 result `.md`
-3. `checkResult` → 读取 result `.md`，判断成功/失败
+1. `matchSkill` → 匹配最佳 Skill（传入 `specifiedSkill` 时跳过，直接解析指定 SKILL）
+2. `invokeSkill` → 通过 opencode 执行 Skill，生成 result `.md`（同时下发可选的 meta `.json` 指标文件路径约定）
+3. `checkResult` → 读取 result `.md`，判断成功/失败；成功后收割 meta `.json` 为 `metrics`（通用键值对，后端不解释语义）
 4. `persistKnowledge` → 读取 Summary `.md`，持久化经验
-5. 返回 `{ resultPath, success, nextStepId }`
+5. 返回 `{ resultPath, success, nextStepId, metrics }`
+
+**结构化指标（metrics）契约**：初始 prompt 中下发 `stepId{X}_loop{L}_meta_{N}.json` 路径；SKILL 若约定了结构化结论指标（如 code-check 的 `mergeLevel`、仓库检查的 `score`），由 AI 以 JSON 对象写入。后端 `_harvestMetrics` 校验后**原样**透传（`executeStart` 返回值 → Orchestrator `StepNode.metrics` → SSE/progress/持久化 JSON），新增领域字段后端零改动。
 
 **文件命名**（按循环次数 `loopCount` 区分）：
 - 结果文件: `stepId{stepId}_result_{loopCount}.md`
@@ -145,6 +148,8 @@ new FlexRunner(config?)
 供外部执行机构在调用 `executeStart()` 前检查。返回 `false` 表示已达最大重试次数或已终止。
 
 **`matchSkill(taskDescription, skillDirectory)` — 匹配最佳 Skill**
+
+基于语义拆解与重排序机制匹配最佳 Skill。当 `initContext` 传入 `specifiedSkill`（SKILL 的 name 或目录名）时，`executeStart` 会**跳过本方法**，改用 `_resolveSpecifiedSkill` 直接解析指定 SKILL（目录名精确匹配优先，其次扫描 frontmatter `name` 字段），解析失败降级为无 SKILL 模式。
 
 委托 SkillSelector Agent（ReAct 模式）：LLM 拆解任务 → 模糊匹配召回 topK 候选 → LLM 评分排序 → 选出最佳。返回 SKILL 目录绝对路径。
 

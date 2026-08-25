@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="css/loop.css">
     <link rel="stylesheet" href="css/knowledge.css">
     <link rel="stylesheet" href="css/md-reader.css">
+    <link rel="stylesheet" href="css/codecheck.css">
 </head>
 <body>
 <div class="layout" data-view="features">
@@ -44,14 +45,9 @@
     <!-- ═══ 左侧导航栏（仅功能工作台模式显示） ═════════════════════════ -->
     <nav>
         <div class="nav-links">
-            <div class="nav-section">系统</div>
-            <div class="nav-item active" data-panel="p-health">
-                <span class="method m-get">live</span> 健康检查
-            </div>
-
             <div class="nav-section">代码检视</div>
-            <div class="nav-item nav-item-disabled" data-panel="p-codecheck">
-                <span class="method m-post">PR</span> PR 代码检视 <span class="nav-soon">即将支持</span>
+            <div class="nav-item active" data-panel="p-codecheck">
+                <span class="method m-post">PR</span> PR 代码检视
             </div>
             <div class="nav-item nav-item-disabled" data-panel="p-flutterlibrarycheck">
                 <span class="method m-post">FLT</span> Flutter 仓库检视 <span class="nav-soon">即将支持</span>
@@ -84,18 +80,60 @@
     <!-- ═══ 主内容区 ═══════════════════════════════════════════════════ -->
     <main id="main">
 
-        <!-- ─── 健康检查面板 ─────────────────────────────────────────── -->
-        <div class="panel" id="p-health">
+        <!-- ─── PR 代码检视面板 ───────────────────────────────────────── -->
+        <div class="panel" id="p-codecheck">
             <div class="panel-head">
-                <span class="method m-get">GET</span>
-                <h2>健康检查</h2>
-                <span class="path">/api/health</span>
-                <div class="ml">
-                    <button class="btn btn-primary" onclick="doHealthCheck()">▶ 立即检测</button>
-                </div>
+                <span class="method m-post">POST</span>
+                <h2>PR 代码检视</h2>
+                <span class="path">/api/orchestrator/load + start</span>
             </div>
             <div class="panel-pad" style="flex:1; overflow-y:auto;">
-                <div class="output-box empty" id="health-out">点击「立即检测」查看后端服务状态…</div>
+                <!-- SKILL 介绍 -->
+                <div id="cc-skill-intro"></div>
+
+                <!-- PR 提交表单 -->
+                <div class="cc-form-card">
+                    <div class="form-row">
+                        <label>PR 地址 <span style="color:var(--red)">*</span></label>
+                        <input id="cc-pr-url" placeholder="https://gitee.com/openharmony-tpc/community/pulls/123" />
+                    </div>
+                    <div class="form-inline">
+                        <div class="form-row">
+                            <label>三方库类型 <span style="color:var(--red)">*</span></label>
+                            <select id="cc-lib-type">
+                                <option value="arkts">ArkTS</option>
+                                <option value="flutter">Flutter</option>
+                                <option value="rn">React Native</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" id="cc-submit-btn">▶ 开始检视</button>
+                    </div>
+                    <div class="cc-advanced-toggle" id="cc-advanced-toggle">高级选项</div>
+                    <div class="cc-advanced-section" id="cc-advanced-section">
+                        <div class="form-row">
+                            <label>SKILL 根目录（可选，留空使用服务端默认）</label>
+                            <input id="cc-skill-dir" placeholder="如 /path/to/Server/Skills" />
+                            <div class="hint" style="font-size:11px;color:var(--text3);margin-top:4px">
+                                检视将按三方库类型固定使用对应 SKILL（ArkTS → arkts-code-check，Flutter → flutter-code-check，React Native → rn-code-check）。此处可自定义 SKILL 根目录，留空时使用服务端默认目录。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="cc-error" class="cc-error-msg"></div>
+
+                <!-- 检视历史 -->
+                <div>
+                    <div class="cc-history-label-row">
+                        <span class="cc-history-label">检视历史</span>
+                        <span id="cc-task-count" class="cc-task-count">0 个任务</span>
+                    </div>
+                    <div id="cc-tasks-list" class="cc-tasks-list">
+                        <div id="cc-tasks-empty" class="cc-empty-hint">
+                            暂无检视任务，提交 PR 后将在此显示
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -419,7 +457,7 @@
 
 <div class="toast-container" id="toastContainer"></div>
 
-<!-- ═══ 脚本加载（顺序：utils → theme → md-reader → health → navigation → loop → knowledge） ═══ -->
+<!-- ═══ 脚本加载 ═══ -->
 <script src="js/utils.js"></script>
 <script src="js/theme.js"></script>
 <script src="js/md-reader.js"></script>
@@ -428,5 +466,6 @@
 <script src="js/navigation.js"></script>
 <script src="js/loop.js"></script>
 <script src="js/knowledge.js"></script>
+<script src="js/codecheck.js"></script>
 </body>
 </html>

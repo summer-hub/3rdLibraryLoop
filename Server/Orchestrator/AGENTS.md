@@ -64,7 +64,8 @@ Server/Routes/
       "dependId": 0,
       "nextStepId": 2,
       "failStepId": 0,
-      "maxRetries": 3
+      "maxRetries": 3,
+      "specifiedSkill": "cpp-porting-analysis"
     },
     {
       "stepId": 2,
@@ -95,6 +96,7 @@ Server/Routes/
 - `dependId=0`：无前置依赖（入口步骤），可并行启动
 - `nextStepId=0`：成功后无后续，编排结束
 - `failStepId=0`：失败后终止链，不跳转
+- `specifiedSkill`：可选，指定 SKILL（name 或目录名）；非空时该步骤跳过 SkillSelector 自动匹配，直接使用指定 SKILL（省去 2 次 LLM 调用，且避免选错）；解析失败降级为无 SKILL 模式
 
 ## 编排逻辑
 

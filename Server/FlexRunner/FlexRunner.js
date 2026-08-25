@@ -154,6 +154,9 @@ class FlexRunner {
     /** @type {string} SKILL 目录路径 */
     #skillDirectory = '';
 
+    /** @type {string} 指定 SKILL（name 或目录名）；非空时跳过自动匹配直接使用 */
+    #specifiedSkill = '';
+
     /** @type {string} 任务描述 */
     #taskDescription = '';
 
@@ -210,6 +213,9 @@ class FlexRunner {
     /** @type {string|null} 匹配到的最佳 SKILL 目录 */
     #matchedSkillDir = null;
 
+    /** @type {object|null} 本次执行收割的结构化指标（来自 meta .json 旁车文件，通用键值对） */
+    #metrics = null;
+
     /** @type {((sessionId: string) => void)|null} Session 创建后的回调（用于实时同步 sessionId 到编排层） */
     #onSessionCreated = null;
 
@@ -250,6 +256,8 @@ class FlexRunner {
     get inputReport() { return this.#inputReport; }
     /** @returns {string} */
     get skillDirectory() { return this.#skillDirectory; }
+    /** @returns {string} 指定 SKILL（name 或目录名），未指定时为空串 */
+    get specifiedSkill() { return this.#specifiedSkill; }
     /** @returns {string} */
     get taskDescription() { return this.#taskDescription; }
     /** @returns {number} */
@@ -270,6 +278,8 @@ class FlexRunner {
     get sessionId() { return this.#sessionId; }
     /** @returns {boolean} */
     get initialized() { return this.#initialized; }
+    /** @returns {object|null} 本次执行收割的结构化指标（无则 null） */
+    get metrics() { return this.#metrics; }
 
     /**
      * 设置 Session 创建后的回调（可在 initContext 之后注入）。
@@ -291,6 +301,8 @@ class FlexRunner {
      * @param {string} params.taskId          - 任务 ID（必填）
      * @param {string} [params.taskDir]       - 工作目录（默认基于 taskId 推导）
      * @param {string} [params.skillDirectory] - SKILL 目录路径
+     * @param {string} [params.specifiedSkill] - 指定 SKILL（name 或目录名）；
+     *                                           非空时跳过 matchSkill 自动匹配，直接解析并使用该 SKILL
      * @param {string} [params.taskDescription] - 任务描述
      * @param {string} [params.inputReport]   - 输入报告路径
      * @param {number} [params.maxRetries]    - 最大重试次数（默认 3）
@@ -315,6 +327,7 @@ class FlexRunner {
             taskId,
             taskDir,
             skillDirectory,
+            specifiedSkill,
             taskDescription,
             inputReport,
             maxRetries,
@@ -360,6 +373,7 @@ class FlexRunner {
                 ? path.resolve(_rootDir, 'task', this.#taskId)
                 : path.resolve(process.cwd(), 'db', 'task', this.#taskId));
         this.#skillDirectory = skillDirectory || '';
+        this.#specifiedSkill = String(specifiedSkill || '').trim();
         this.#taskDescription = taskDescription || '';
         this.#inputReport = inputReport || '';
         this.#maxRetries = typeof maxRetries === 'number' ? maxRetries : DEFAULT_MAX_RETRIES;
@@ -437,6 +451,7 @@ class FlexRunner {
      * 文件命名（按大循环轮次 + 步骤内重试次数区分）：
      *   - 结果文件: stepId{actualStepId}_loop{bigLoopIndex}_result_{retryCount}.md
      *   - 经验文件: stepId{actualStepId}_loop{bigLoopIndex}_Summary_{retryCount}.md
+     *   - 指标文件: stepId{actualStepId}_loop{bigLoopIndex}_meta_{retryCount}.json（可选，SKILL 约定的结构化结论）
      *
      * 控制信号（pause/resume/abort）在步骤边界检查，非实时。
      *
@@ -464,9 +479,19 @@ class FlexRunner {
 
         try {
             // ── 步骤 1：matchSkill ──
+            // 指定 SKILL（specifiedSkill 非空）时跳过自动匹配，直接解析使用
             await this._waitIfPaused();
             if (this.#aborted) {
                 this._log('warn', `任务在 matchSkill 前被终止`);
+            } else if (this.#specifiedSkill) {
+                this.#matchedSkillDir = await this._resolveSpecifiedSkill(
+                    this.#specifiedSkill,
+                    this.#skillDirectory
+                );
+                await this._persistStep({
+                    matchedSkillDir: this.#matchedSkillDir,
+                    executeStep: loopCount
+                });
             } else {
                 this.#matchedSkillDir = await this.matchSkill(
                     this.#taskDescription,
@@ -487,6 +512,10 @@ class FlexRunner {
                 this.#taskDir,
                 `stepId${this.#stepId}_loop${this.#bigLoopIndex}_Summary_${loopCount}.md`
             );
+            const metaFilePath = path.join(
+                this.#taskDir,
+                `stepId${this.#stepId}_loop${this.#bigLoopIndex}_meta_${loopCount}.json`
+            );
 
             // ── 收集历史执行文档（第 N 次执行时传入之前的结果/经验） ──
             const historyDocs = await this._collectHistoryDocs(loopCount);
@@ -498,7 +527,7 @@ class FlexRunner {
                     this.#taskDescription,
                     this.#matchedSkillDir,
                     this.#inputReport || undefined,
-                    { resultFilePath: resultPath, historyDocs }
+                    { resultFilePath: resultPath, metaFilePath, historyDocs }
                 );
 
                 if (!invoked) {
@@ -518,6 +547,8 @@ class FlexRunner {
 
                 if (ok) {
                     success = true;
+                    // ── 收割结构化指标（meta .json 旁车文件，通用键值对，后端不解释语义） ──
+                    this.#metrics = await this._harvestMetrics(metaFilePath);
                     this._log('info', '✅ 执行成功，经验总结将在后台异步进行');
                     // ── 后台异步：经验总结 + 知识持久化（不阻塞 executeStart 返回） ──
                     // capture sessionId 防止实例复用时被覆盖
@@ -546,7 +577,8 @@ class FlexRunner {
             endTime: this.#endTime,
             executeStep: loopCount,
             resultPath,
-            retryTimes: loopCount
+            retryTimes: loopCount,
+            metrics: this.#metrics
         });
 
         // 递增执行计数，供下一次调用使用
@@ -555,7 +587,7 @@ class FlexRunner {
         // 成功 → nextStepId；失败 → failStepId（与 Orchestrator 的失败流转语义对齐）
         const nextStepId = success ? this.#nextStepId : this.#failStepId;
 
-        return { resultPath, success, nextStepId };
+        return { resultPath, success, nextStepId, metrics: this.#metrics };
     }
 
     /**
@@ -625,6 +657,124 @@ class FlexRunner {
 
         this._log('info', `matchSkill 完成 — 最佳 Skill: ${selection.best.name} (${bestDir})`);
         return bestDir;
+    }
+
+    /**
+     * _resolveSpecifiedSkill — 解析用户指定的 SKILL（跳过自动匹配）。
+     *
+     * 解析顺序（在 skillDirectory 下）：
+     *   1. 目录名精确匹配   → {skillDirectory}/{specifiedSkill}
+     *   2. SKILL name 匹配  → 扫描所有 SKILL.md frontmatter 的 name 字段
+     *
+     * 解析失败时的策略：
+     *   - skillDirectory 为空 / 目录不存在 / 未找到匹配 SKILL → 返回 null（降级为无 SKILL 模式）
+     *   - 仅记录 warn 日志，不抛异常，保证执行流程不中断
+     *
+     * @param {string} specifiedSkill  - 指定的 SKILL name 或目录名
+     * @param {string} skillDirectory  - SKILL 根目录路径
+     * @returns {Promise<string|null>} SKILL 目录绝对路径；解析失败时返回 null
+     */
+    async _resolveSpecifiedSkill(specifiedSkill, skillDirectory) {
+        this._ensureInitialized();
+
+        if (!specifiedSkill) {
+            return null;
+        }
+        if (!skillDirectory) {
+            this._log('warn', `specifiedSkill: skillDirectory 为空，无法解析指定 SKILL "${specifiedSkill}"，将以无 SKILL 模式执行`);
+            return null;
+        }
+
+        this._log('info', `specifiedSkill 开始 — 指定 Skill: "${specifiedSkill}"`);
+
+        try {
+            // ── 1. 目录名精确匹配 ──
+            const directDir = path.resolve(skillDirectory, specifiedSkill);
+            const directSkillMd = path.join(directDir, 'SKILL.md');
+            try {
+                const stat = await fs.stat(directSkillMd);
+                if (stat.isFile()) {
+                    this._log('info', `specifiedSkill 完成 — 目录名匹配: ${directDir}`);
+                    return directDir;
+                }
+            } catch {
+                // 直接路径不存在 SKILL.md，继续尝试 name 匹配
+            }
+
+            // ── 2. 扫描 SKILL name 匹配（frontmatter 的 name 字段） ──
+            let entries;
+            try {
+                entries = await fs.readdir(skillDirectory, { withFileTypes: true });
+            } catch (err) {
+                this._log('warn', `specifiedSkill: 无法读取 SKILL 目录 ${skillDirectory} — ${err.message}，将以无 SKILL 模式执行`);
+                return null;
+            }
+
+            const target = specifiedSkill.toLowerCase();
+            for (const entry of entries) {
+                if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
+                const dirPath = path.join(skillDirectory, entry.name);
+                const skillMdPath = path.join(dirPath, 'SKILL.md');
+                try {
+                    const md = await fs.readFile(skillMdPath, 'utf-8');
+                    // 解析 frontmatter 中的 name 字段（--- 包围的 YAML 头）
+                    const fmMatch = md.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+                    if (fmMatch) {
+                        const nameMatch = fmMatch[1].match(/^name:\s*(.+)$/m);
+                        if (nameMatch) {
+                            const name = nameMatch[1].trim().replace(/^['"]|['"]$/g, '');
+                            if (name.toLowerCase() === target) {
+                                this._log('info', `specifiedSkill 完成 — name 匹配: ${name} (${dirPath})`);
+                                return dirPath;
+                            }
+                        }
+                    }
+                } catch {
+                    // 读取失败跳过该目录
+                }
+            }
+
+            this._log('warn', `specifiedSkill: 在 ${skillDirectory} 下未找到名为 "${specifiedSkill}" 的 SKILL（目录名/name 均未命中），将以无 SKILL 模式执行`);
+            return null;
+        } catch (err) {
+            this._log('warn', `specifiedSkill: 解析异常 — ${err.message}，将以无 SKILL 模式执行`);
+            return null;
+        }
+    }
+
+    /**
+     * _harvestMetrics — 收割结构化指标（meta .json 旁车文件）。
+     *
+     * 通用契约：初始 prompt 中下发 meta 文件路径，SKILL 若定义了结构化结论指标
+     * （如 code-check 的 mergeLevel、仓库检查的 score），由 AI 以 JSON 对象写入该路径。
+     * 后端不解释键的语义，仅校验 JSON 合法性后原样透传（键名由各 SKILL 自行约定）。
+     *
+     * 降级策略（均不影响执行状态）：
+     *   - 文件不存在 → 返回 null（SKILL 未约定指标，正常情况）
+     *   - JSON 解析失败 / 非对象 → 返回 null，记录 warn
+     *
+     * @param {string} metaFilePath - 指标文件路径
+     * @returns {Promise<object|null>} 结构化指标对象；无/非法时返回 null
+     */
+    async _harvestMetrics(metaFilePath) {
+        if (!metaFilePath) return null;
+        try {
+            const raw = await fs.readFile(metaFilePath, 'utf-8');
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                this._log('info', `metrics 已收割 — ${Object.keys(parsed).join(', ')}`);
+                return parsed;
+            }
+            this._log('warn', 'metrics: meta 文件内容非 JSON 对象，忽略');
+            return null;
+        } catch (err) {
+            if (err.code === 'ENOENT') {
+                // SKILL 未约定指标文件，正常情况，不打日志
+                return null;
+            }
+            this._log('warn', `metrics: 读取/解析 meta 文件失败 — ${err.message}，忽略`);
+            return null;
+        }
     }
 
     /**
@@ -1126,6 +1276,7 @@ class FlexRunner {
                 bigLoopIndex: this.#bigLoopIndex,
                 taskDescription: this.#taskDescription,
                 skillDirectory: this.#skillDirectory,
+                specifiedSkill: this.#specifiedSkill,
                 inputReport: this.#inputReport,
                 matchedSkillDir: this.#matchedSkillDir,
                 sessionId: this.#sessionId,
@@ -1152,6 +1303,7 @@ class FlexRunner {
      * @param {string} [reportPath]    - 输入报告路径
      * @param {object} [filePaths]     - 文件路径
      * @param {string} [filePaths.resultFilePath]  - 结果文件输出路径
+     * @param {string} [filePaths.metaFilePath]    - 结构化指标文件输出路径（可选）
      * @returns {string} 拼接后的 prompt 文本
      * @private
      */
@@ -1174,6 +1326,10 @@ class FlexRunner {
             if (filePaths.resultFilePath) {
                 parts.push(`## 结果文件输出路径\n${filePaths.resultFilePath}`);
             }
+            // 结构化指标文件路径（通用契约：SKILL 约定了结构化结论指标时写入）
+            if (filePaths.metaFilePath) {
+                parts.push(`## 结构化指标文件输出路径\n${filePaths.metaFilePath}`);
+            }
             // 历史结果文档路径（第 N 次执行时传入之前的 result .md 路径，不传内容）
             if (filePaths.historyDocs && filePaths.historyDocs.length > 0) {
                 const historyLines = filePaths.historyDocs.map(
@@ -1188,6 +1344,13 @@ class FlexRunner {
                 '执行完成后，请将结果写入上述"结果文件输出路径"。',
                 '结果文件需包含 `## 执行状态` 字段（值为 `成功` 或 `失败`），用于判断执行结果。'
             );
+            if (filePaths.metaFilePath) {
+                parts.push(
+                    '若本次使用的 SKILL 中定义了结构化结论指标（如合入等级、评分等），请在执行完成后，',
+                    `将指标以 JSON 对象形式写入上述"结构化指标文件输出路径"（键名按 SKILL 约定，如 {"mergeLevel":"PASS"}）。`,
+                    '若 SKILL 未定义结构化指标，则无需创建该文件。'
+                );
+            }
         } else {
             // ── 无 SKILL：基于任务描述本身直接执行 ──
             if (reportPath) {
@@ -1195,6 +1358,9 @@ class FlexRunner {
             }
             if (filePaths.resultFilePath) {
                 parts.push(`## 结果文件输出路径\n${filePaths.resultFilePath}`);
+            }
+            if (filePaths.metaFilePath) {
+                parts.push(`## 结构化指标文件输出路径\n${filePaths.metaFilePath}`);
             }
             // 历史结果文档路径（第 N 次执行时传入之前的 result .md 路径，不传内容）
             if (filePaths.historyDocs && filePaths.historyDocs.length > 0) {

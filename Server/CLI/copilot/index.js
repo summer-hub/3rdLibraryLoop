@@ -194,8 +194,6 @@ class CopilotCLI {
      * @param {string} message
      */
     async sendMessage(sessionId, message) {
-        this._log('info', `sendMessage id=${sessionId}`);
-        this._log('info', `  message (前100字): ${message.slice(0, 100)}${message.length > 100 ? '...' : ''}`);
 
         const record = this.sessions.get(sessionId);
         if (!record) {

@@ -172,8 +172,6 @@ class OpenCodeCLI {
      * @param {string} message
      */
     async sendMessage(sessionId, message) {
-        this._log('info', `sendMessage id=${sessionId}`);
-        this._log('info', `  message (前100字): ${message.slice(0, 100)}${message.length > 100 ? '...' : ''}`);
         try {
             await this.client.session.promptAsync({
                 path: { id: sessionId },
@@ -217,8 +215,6 @@ class OpenCodeCLI {
      *   content: AI 回复的文本内容（从 parts 中提取拼接）
      */
     async sendAndWaitMessage(sessionId, message) {
-        this._log('info', `sendAndWaitMessage id=${sessionId}`);
-        this._log('info', `  message (前100字): ${message.slice(0, 100)}${message.length > 100 ? '...' : ''}`);
         try {
             const result = await this.client.session.prompt({
                 path: { id: sessionId },
@@ -268,8 +264,8 @@ class OpenCodeCLI {
      * @returns {Promise<{ success: boolean }>}
      */
     async injectPrompt(sessionId, message) {
-        this._log('info', `injectPrompt id=${sessionId}`);
-        this._log('info', `  message (前100字): ${message.slice(0, 100)}${message.length > 100 ? '...' : ''}`);
+        this._log('debug', `injectPrompt id=${sessionId}`);
+        this._log('debug', `  message (前100字): ${message.slice(0, 100)}${message.length > 100 ? '...' : ''}`);
         try {
             await this.client.session.promptAsync({
                 path: { id: sessionId },

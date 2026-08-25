@@ -733,6 +733,7 @@ class FlexRunnerController {
      * Body: {
      *   taskDescription: string,       // 必填
      *   skillDirectory?: string,       // 可选
+     *   specifiedSkill?: string,       // 可选，指定 SKILL（name 或目录名），跳过自动匹配
      *   taskDir?: string,              // 可选
      *   inputReport?: string,          // 可选
      *   maxRetries?: number,           // 可选，默认 3
@@ -807,6 +808,7 @@ class FlexRunnerController {
                     failStepId: 0,     // 失败即终止
                     maxRetries,
                     skillDirectory,
+                    specifiedSkill: body.specifiedSkill || '',
                     taskDir,
                     inputReport: body.inputReport || ''
                 }]

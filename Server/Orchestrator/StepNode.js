@@ -32,6 +32,7 @@ export const NodeStatus = Object.freeze({
  * @property {number|string} [failStepId=0]- 失败后指向步骤 ID（0 = 失败即终止）
  * @property {number}        [maxRetries=3]- 最大重试次数
  * @property {string}        [skillDirectory] - SKILL 目录路径
+ * @property {string}        [specifiedSkill] - 指定 SKILL（name 或目录名）；非空时跳过自动匹配
  * @property {string}        [taskDir]     - 工作目录
  * @property {string}        [inputReport] - 输入报告路径
  * @property {string}        [taskDescription] - 任务描述
@@ -99,6 +100,7 @@ class StepNode {
         this.failStepId = config.failStepId != null ? String(config.failStepId) : '0';
         this.maxRetries = typeof config.maxRetries === 'number' ? config.maxRetries : 3;
         this.skillDirectory = config.skillDirectory || '';
+        this.specifiedSkill = String(config.specifiedSkill || '').trim();
         this.taskDir = config.taskDir || '';
         this.inputReport = config.inputReport || '';
 
@@ -117,6 +119,8 @@ class StepNode {
         this.sessionId = '';
         /** @type {ExecutionRecord[]} 历史执行记录 */
         this.history = [];
+        /** @type {object|null} 结构化指标（SKILL 约定的键值对，如 mergeLevel / score；无则 null） */
+        this.metrics = null;
         /** @type {string|null} 失败原因 */
         this.error = null;
         /** @type {FlexRunner|null} 关联的 FlexRunner 实例（运行时注入） */
@@ -193,13 +197,15 @@ class StepNode {
 
     /**
      * 标记执行完成
-     * @param {{success: boolean, resultPath: string, sessionId?: string, error?: string}} result
+     * @param {{success: boolean, resultPath: string, sessionId?: string, error?: string, metrics?: object|null}} result
      */
     markFinished(result) {
         this.endTime = nowCST();
         this.resultPath = result.resultPath || '';
         this.sessionId = result.sessionId || '';
         this.error = result.error || null;
+        // 结构化指标（SKILL 约定的键值对，如 mergeLevel / score；无则 null）
+        this.metrics = result.metrics || null;
 
         this.history.push({
             attempt: this.retryCount,
@@ -208,7 +214,8 @@ class StepNode {
             success: result.success,
             resultPath: this.resultPath,
             sessionId: this.sessionId,
-            error: this.error
+            error: this.error,
+            metrics: this.metrics
         });
 
         this.status = result.success ? NodeStatus.COMPLETED : NodeStatus.FAILED;
@@ -262,6 +269,7 @@ class StepNode {
         if (patch.failStepId !== undefined) this.failStepId = String(patch.failStepId);
         if (patch.maxRetries !== undefined) this.maxRetries = Number(patch.maxRetries);
         if (patch.skillDirectory !== undefined) this.skillDirectory = patch.skillDirectory;
+        if (patch.specifiedSkill !== undefined) this.specifiedSkill = String(patch.specifiedSkill || '').trim();
         if (patch.taskDir !== undefined) this.taskDir = patch.taskDir;
         if (patch.inputReport !== undefined) this.inputReport = patch.inputReport;
 
@@ -283,6 +291,7 @@ class StepNode {
             failStepId: this.failStepId,
             maxRetries: this.maxRetries,
             skillDirectory: this.skillDirectory,
+            specifiedSkill: this.specifiedSkill,
             taskDir: this.taskDir,
             inputReport: this.inputReport,
             status: this.status,
@@ -292,6 +301,7 @@ class StepNode {
             resultPath: this.resultPath,
             sessionId: this.sessionId,
             error: this.error,
+            metrics: this.metrics,
             canRetry: this.canRetry,
             history: this.history
         };

@@ -779,8 +779,6 @@ class LoopEngine {
                     }
                 }
             }
-
-            this._log('info', `大循环状态已恢复: taskId=${taskId}, status=${ctx.status}`);
             return ctx;
         } catch {
             return null;

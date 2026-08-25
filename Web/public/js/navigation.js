@@ -9,8 +9,7 @@
  *
  * URL Hash 规则：
  *   - #loop              → 循环控制台
- *   - #p-health          → 功能工作台 / 健康检查
- *   - #p-knowledge       → 功能工作台 / 知识导入
+ *   - #p-codecheck       → 功能工作台 / PR 代码检视
  *   - 其他 #p-xxx        → 功能工作台 / 对应面板
  * ════════════════════════════════════════════════════════════════════ */
 'use strict';
@@ -48,7 +47,7 @@ var ViewMode = {
             // 切到功能工作台时，确保有一个功能面板处于激活态
             var hasActive = document.querySelector('#main > .panel:not(#p-loop).active');
             if (!hasActive) {
-                Nav.switchTo('p-health');
+                Nav.switchTo('p-codecheck');
             }
         }
 

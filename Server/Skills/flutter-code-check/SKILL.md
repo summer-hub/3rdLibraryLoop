@@ -257,15 +257,28 @@ git clone --depth=50 --branch {targetBranch} https://{platform}/{owner}/{repo}.g
 
 `result.txt` 用于存储分级结果和统计信息，格式详见 [输出模板](assets/OUTPUT_TEMPLATE.md) 的 result.txt 生成规范。
 
-### 5.3 数据库存储
+### 5.3 结构化指标输出（必须执行）
 
-分级结果需写入数据库，用于后续统计查询：
+执行环境会在任务 prompt 中下发一个**结构化指标文件输出路径**（`stepId{X}_loop{L}_meta_{N}.json`）。
+检视完成后，**必须**将分级结果以下述 JSON 对象写入该路径：
 
-| 字段名 | 类型 | 说明 |
-|--------|------|------|
-| `mergeLevel` | TEXT | 合入等级：PASS / CONDITIONAL / NEED_FIX / REJECT |
+```json
+{
+  "mergeLevel": "PASS | CONDITIONAL | NEED_FIX | REJECT",
+  "critical": 0,
+  "major": 0,
+  "minor": 0
+}
+```
 
-**说明**：数据库仅记录合入等级，详细的统计数据已在 `result.txt` 中完整记录，前端可直接读取展示。
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `mergeLevel` | string | 合入等级：PASS / CONDITIONAL / NEED_FIX / REJECT |
+| `critical` | number | Critical 级别问题数 |
+| `major` | number | Major 级别问题数 |
+| `minor` | number | Minor 级别问题数 |
+
+**说明**：该文件由执行框架自动收割入库（前端/历史列表直接读取，无需解析报告文本）；详细的统计与理由已在 `result.txt` 中完整记录。若 prompt 未下发该路径则跳过本节。
 
 ---
 
