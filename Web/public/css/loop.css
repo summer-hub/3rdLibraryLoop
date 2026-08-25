@@ -1,96 +1,13 @@
 /* ════════════════════════════════════════════════════════════════════
- * AI Loop 大循环控制台 — 主样式表
+ * AI Loop 大循环控制台 — 专用样式
+ * 主题变量、基础重置、布局骨架由 theme.css 统一定义
  * ════════════════════════════════════════════════════════════════════ */
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
-:root {
-    --bg: #f0f0f5;
-    --sidebar: #e8e8ed;
-    --card: #ffffff;
-    --border: #d2d2d7;
-    --border-light: #e0e0e5;
-    --text: #1d1d1f;
-    --text2: #86868b;
-    --text3: #aeaeb2;
-    --blue: #0071e3;
-    --blue-hover: #0077ed;
-    --blue-light: #d4e5ff;
-    --green: #34c759;
-    --green-light: #d4f4dd;
-    --red: #ff3b30;
-    --red-light: #fde0e0;
-    --orange: #ff9500;
-    --orange-light: #fff0d4;
-    --yellow: #ffd60a;
-    --yellow-light: #fff9e0;
-    --gray: #8e8e93;
-    --gray-light: #e5e5ea;
-    --purple: #af52de;
-    --purple-light: #f0d4ff;
-    --code-bg: #f5f5f7;
-    --shadow: 0 1px 8px rgba(0,0,0,0.06);
-    --shadow-lg: 0 4px 20px rgba(0,0,0,0.12);
-}
-
-html, body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    height: 100vh;
-    overflow: hidden;
-}
-
-/* ─── 顶栏 ──────────────────────────────────────────────────────────── */
-.app-header {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 0 20px;
-    height: 56px;
-    background: var(--card);
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-    z-index: 100;
-}
-.app-header h1 { font-size: 17px; font-weight: 700; white-space: nowrap; }
-
-/* ─── 导航链接 ──────────────────────────────────────────────────────── */
-.nav-links { display: flex; gap: 4px; margin-left: 8px; }
-.nav-link {
-    padding: 4px 12px;
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--text2);
-    text-decoration: none;
-    border-radius: 5px;
-    transition: all 0.15s;
-}
-.nav-link:hover { background: var(--bg); color: var(--text); }
-.nav-link.active { background: var(--blue-light); color: var(--blue); }
-
-.health-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: var(--card);
-    cursor: pointer;
-    font-size: 12px;
-    margin-left: auto;
-    transition: all 0.15s;
-}
-.health-btn:hover { border-color: var(--blue); }
-.health-dot { width: 8px; height: 8px; border-radius: 50%; }
-.health-dot.ok { background: var(--green); }
-.health-dot.error { background: var(--red); }
-.health-dot.unknown { background: var(--text2); }
-
-/* ─── 主体布局 ──────────────────────────────────────────────────────── */
+/* ─── 主体布局（面板内 .app-body 撑满父容器） ───────────────────────── */
 .app-body {
+    flex: 1;
     display: flex;
-    height: calc(100vh - 56px);
+    min-height: 0;
     overflow: hidden;
 }
 
@@ -169,19 +86,11 @@ html, body {
 }
 .new-task-btn.single:hover { background: var(--green); filter: brightness(0.92); }
 
-.status-badge.single-exec {
-    background: var(--green-light);
-    color: var(--green);
-    border: 1px solid var(--green);
-    font-size: 10px;
-    padding: 1px 6px;
-    border-radius: 4px;
-    font-weight: 600;
-}
-
 /* ─── 主内容区 ──────────────────────────────────────────────────────── */
 .main-content {
     flex: 1;
+    min-width: 0;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -202,33 +111,16 @@ html, body {
 .task-controls { display: flex; gap: 6px; margin-left: auto; }
 .task-controls button { padding: 5px 12px; font-size: 11px; }
 
-/* ─── 状态徽章 ──────────────────────────────────────────────────────── */
-.status-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 2px 8px;
-    border-radius: 10px;
+/* ─── 状态徽章（基础定义由 theme.css 统一管理，此处仅保留 loop 专属） ── */
+.status-badge.single-exec {
+    background: var(--green-light);
+    color: var(--badge-green-text);
+    border: 1px solid var(--green);
     font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 4px;
     font-weight: 600;
-    white-space: nowrap;
 }
-.status-badge.idle { background: var(--gray-light); color: var(--gray); }
-.status-badge.planning { background: var(--purple-light); color: var(--purple); }
-.status-badge.executing { background: var(--orange-light); color: var(--orange); }
-.status-badge.checking { background: var(--yellow-light); color: #c5a900; }
-.status-badge.passed { background: var(--green-light); color: #1a8a34; }
-.status-badge.failed { background: var(--red-light); color: #c5231a; }
-.status-badge.aborted { background: var(--gray-light); color: var(--gray); }
-.status-badge.error { background: var(--red-light); color: var(--red); }
-.status-badge.running { background: var(--orange-light); color: var(--orange); }
-.status-badge.completed { background: var(--green-light); color: #1a8a34; }
-.status-badge.loaded { background: var(--blue-light); color: var(--blue); }
-.status-badge.pending { background: var(--gray-light); color: var(--gray); }
-.status-badge.ready { background: var(--blue-light); color: var(--blue); }
-.status-badge.skipped { background: var(--yellow-light); color: #c5a900; }
-.status-badge.blocked { background: #e0e0e5; color: var(--gray); }
-.status-badge.deadlocked { background: var(--red-light); color: var(--red); }
 
 /* ─── 主 Tab ────────────────────────────────────────────────────────── */
 .main-tabs {
@@ -257,7 +149,7 @@ html, body {
     margin-left: 4px;
 }
 
-.tab-content { flex: 1; overflow: hidden; display: none; }
+.tab-content { flex: 1; min-height: 0; overflow: hidden; display: none; }
 .tab-content.active { display: flex; flex-direction: column; }
 
 /* ─── 循环轮次 ──────────────────────────────────────────────────────── */
@@ -371,7 +263,7 @@ html, body {
     overflow: hidden;
     position: relative;
     background: var(--bg);
-    background-image: radial-gradient(circle, #d2d2d7 1px, transparent 1px);
+    background-image: radial-gradient(circle, var(--grid-dot) 1px, transparent 1px);
     background-size: 20px 20px;
     cursor: grab;
 }
@@ -396,13 +288,13 @@ html, body {
 }
 .node-group:hover .node-drag-handle { opacity: 0.8; }
 .node-rect { stroke: var(--border); stroke-width: 1.5; rx: 8; }
-.node-rect.pending { fill: #f5f5f7; stroke: var(--gray); }
+.node-rect.pending { fill: var(--code-bg); stroke: var(--gray); }
 .node-rect.ready { fill: var(--blue-light); stroke: var(--blue); }
 .node-rect.running { fill: var(--orange-light); stroke: var(--orange); }
 .node-rect.completed { fill: var(--green-light); stroke: var(--green); }
 .node-rect.failed { fill: var(--red-light); stroke: var(--red); }
 .node-rect.skipped { fill: var(--yellow-light); stroke: var(--yellow); }
-.node-rect.blocked { fill: #e0e0e5; stroke: var(--gray); }
+.node-rect.blocked { fill: var(--gray-light); stroke: var(--gray); }
 .edge-line { fill: none; stroke: var(--text3); stroke-width: 1.5; }
 .edge-line.success { stroke: var(--green); stroke-width: 2; }
 .edge-line.fail { stroke: var(--red); stroke-width: 1.5; stroke-dasharray: 5,3; }
@@ -669,10 +561,5 @@ button.sm { padding: 3px 8px; font-size: 10px; }
 .toast.warn { background: var(--orange); color: #fff; }
 @keyframes slideIn { from { transform: translateX(400px); } to { transform: translateX(0); } }
 
-/* ─── 通用辅助 ──────────────────────────────────────────────────────── */
+/* ─── 通用辅助（基础定义由 theme.css 管理） ──────────────────────── */
 .muted { color: var(--text2); }
-.badge { font-size: 10px; padding: 1px 7px; border-radius: 10px; font-weight: 600; }
-.badge.ok { background: var(--green-light); color: #1a8a34; }
-.badge.error { background: var(--red-light); color: #c5231a; }
-.badge.info { background: var(--blue-light); color: var(--blue); }
-.badge.pending { background: var(--gray-light); color: var(--gray); }

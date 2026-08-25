@@ -7,7 +7,7 @@
 ## 模板 1：库移植分析
 
 ```
-步骤1: 源码分析（CPPAnalysisSkill / FlutterCodeCheck）
+步骤1: 源码分析（CPPAnalysisSkill / flutter-code-check）
   → 成功: 步骤2    → 失败: 终止(failStepId=0)
 
 步骤2: 接口分析（HarmonyLibraryInterface / LibraryInterface）

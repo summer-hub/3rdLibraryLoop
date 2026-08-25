@@ -76,7 +76,7 @@ async function main() {
   console.log('[3] fuzzyMatch 单路 BM25 召回');
   const mockSkills = [
     { dirName: 'CPPAnalysisSkill', name: 'cpp-porting-analysis', description: 'C++ 鸿蒙化分析 可行性', category: 'harmonyos-porting', language: 'C/C++', searchableText: 'cpp porting analysis c++ 鸿蒙化分析可行性 harmonyos porting'.toLowerCase() },
-    { dirName: 'FlutterCodeCheck', name: 'flutter-code-check', description: 'Flutter 代码检视', category: 'code-check', language: 'Dart', searchableText: 'flutter code check 代码检视 dart'.toLowerCase() },
+    { dirName: 'flutter-code-check', name: 'flutter-code-check', description: 'Flutter 代码检视', category: 'code-check', language: 'Dart', searchableText: 'flutter code check 代码检视 dart'.toLowerCase() },
     { dirName: 'CPPCompileSkill', name: 'cpp-compile', description: 'C++ 编译', category: 'compile', language: 'C/C++', searchableText: 'cpp compile 编译 c++'.toLowerCase() },
     { dirName: 'CPPPortingSkill', name: 'cpp-porting', description: 'C++ 移植', category: 'porting', language: 'C/C++', searchableText: 'cpp porting 移植 c++'.toLowerCase() },
     { dirName: 'LibraryInterface', name: 'library-interface-analyzer', description: '接口分析', category: 'interface', language: 'JS/TS', searchableText: 'library interface analyzer 接口分析'.toLowerCase() },

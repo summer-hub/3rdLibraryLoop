@@ -49,6 +49,37 @@ class LoopEngineController {
     // ─── 辅助方法 ──────────────────────────────────────────────────────
 
     /**
+     * 获取任务注册表（懒初始化）。
+     * 用于历史任务列表的高性能分页查询（SQLite），避免逐个扫描 JSON 文件。
+     * @returns {import('../../DbUse/stores/TaskRegistryStore.js').default|null}
+     * @private
+     */
+    _getRegistry() {
+        if (!this.storage) return null;
+        try {
+            return this.storage.taskRegistryStore();
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * 注册任务摘要到注册表（幂等 upsert）。
+     * @param {object} entry - { taskId, taskType, status, title, description, createdAt, metadata }
+     * @returns {Promise<void>}
+     * @private
+     */
+    async _registerTask(entry) {
+        const registry = this._getRegistry();
+        if (!registry) return;
+        try {
+            await registry.upsert(entry);
+        } catch (err) {
+            console.warn(`[LoopEngineController] 注册任务摘要失败: taskId=${entry.taskId}, error=${err.message}`);
+        }
+    }
+
+    /**
      * 获取已有实例，不存在则报错。
      * @param {string} taskId
      * @returns {LoopEngine}
@@ -150,6 +181,17 @@ class LoopEngineController {
             const engine = this._createEngine();
             this._engines.set(taskId, engine);
 
+            // 注册任务摘要到注册表（SQLite），供历史列表分页查询
+            this._registerTask({
+                taskId,
+                taskType: 'loop',
+                status: 'running',
+                title: taskDescription.slice(0, 200),
+                description: taskDescription,
+                createdAt: new Date().toISOString(),
+                metadata: { maxLoops, currentLoop: 0 }
+            });
+
             // 异步启动大循环，不阻塞 HTTP 响应
             const loopPromise = engine.startLoop({
                 taskDescription,
@@ -160,9 +202,37 @@ class LoopEngineController {
                 maxLoops
             }).catch(err => {
                 console.error(`[LoopEngineController] taskId=${taskId} 大循环异常:`, err.message);
-            }).finally(() => {
+            }).finally(async () => {
                 // 循环结束后清理运行标记，允许同一 taskId 后续重新启动
                 this._running.delete(taskId);
+
+                // 更新注册表中的任务状态为终态
+                const engine = this._engines.get(taskId);
+                if (engine) {
+                    const ctx = engine.getLoop(taskId);
+                    if (ctx) {
+                        const terminalStates = [
+                            LoopStatus.PASSED, LoopStatus.FAILED,
+                            LoopStatus.ABORTED, LoopStatus.ERROR
+                        ];
+                        if (terminalStates.includes(ctx.status)) {
+                            await this._registerTask({
+                                taskId,
+                                taskType: 'loop',
+                                status: ctx.status,
+                                title: (ctx.taskDescription || '').slice(0, 200),
+                                description: ctx.taskDescription || '',
+                                createdAt: ctx.startTime || new Date().toISOString(),
+                                metadata: {
+                                    maxLoops: ctx.maxLoops,
+                                    currentLoop: ctx.currentLoop,
+                                    totalRounds: ctx.rounds.length,
+                                    passed: ctx.status === LoopStatus.PASSED
+                                }
+                            });
+                        }
+                    }
+                }
 
                 // 释放该任务对应的 Orchestrator 重型引用（FlexRunner/LLM/CLI 等），防止内存泄露。
                 // 保留 Orchestrator 轻量元信息与磁盘持久化，前端历史查看不受影响。
@@ -175,8 +245,7 @@ class LoopEngineController {
                 }
 
                 // 从内存移除已进入终态的大循环实例（PASSED/FAILED/ABORTED/ERROR）。
-                // 历史列表由 list() 扫描磁盘 loop.json 提供，不依赖内存 _engines。
-                const engine = this._engines.get(taskId);
+                // 历史列表由注册表提供，不依赖内存 _engines。
                 if (engine) {
                     const terminalStates = [
                         LoopStatus.PASSED, LoopStatus.FAILED,
@@ -303,17 +372,111 @@ class LoopEngineController {
 
     /**
      * GET /api/loopengine/list
-     * 列出所有大循环任务。
+     * 列出所有大循环任务（分页，注册表优先）。
      *
      * 数据来源：
-     *   1. 内存中活跃的 LoopEngine 实例（运行中 / 刚结束）
-     *   2. 持久化存储 db/task/{taskId}/loop.json（历史任务，服务重启后恢复）
+     *   1. SQLite 注册表（db/TaskRegistry/registry.db）— 高性能分页，优先使用
+     *   2. 内存中活跃的 LoopEngine 实例 — 合并运行中任务（覆盖注册表状态）
+     *   3. 持久化扫描 JSON 文件 — 兜底（注册表不存在时使用）
      *
-     * 合并去重：同一 taskId 内存优先。
+     * Query 参数：
+     *   page     - 页码，从 1 开始（默认 1）
+     *   pageSize - 每页条数（默认 20，最大 100）
+     *   status   - 可选，按状态过滤
+     *
+     * 响应格式：
+     *   { status, tasks: [...], total, page, pageSize, totalPages }
      */
     async list(req, res) {
+        const query = req.query || {};
+        const page = Math.max(1, parseInt(query.page, 10) || 1);
+        const pageSize = Math.min(100, Math.max(1, parseInt(query.pageSize, 10) || 20));
+        const statusFilter = query.status || null;
+
+        // ── 优先方案：从注册表分页查询 ──
+        const registry = this._getRegistry();
+        if (registry) {
+            try {
+                // 从注册表获取分页数据
+                const result = await registry.listPage({
+                    page,
+                    pageSize,
+                    status: statusFilter,
+                    taskType: 'loop'
+                });
+
+                // 合并内存中活跃任务的状态（覆盖注册表中的"running"状态为最新值）
+                const mergedTasks = result.tasks.map(t => {
+                    const memEngine = this._engines.get(t.task_id);
+                    if (memEngine) {
+                        const ctx = memEngine.getLoop(t.task_id);
+                        if (ctx) {
+                            return {
+                                ...t,
+                                taskId: t.task_id,
+                                status: ctx.status,
+                                currentLoop: ctx.currentLoop,
+                                maxLoops: ctx.maxLoops,
+                                startTime: ctx.startTime,
+                                endTime: ctx.endTime,
+                                taskDescription: t.description
+                            };
+                        }
+                    }
+                    return {
+                        ...t,
+                        taskId: t.task_id,
+                        currentLoop: t.metadata?.currentLoop ?? 0,
+                        maxLoops: t.metadata?.maxLoops ?? 3,
+                        startTime: t.created_at,
+                        taskDescription: t.description
+                    };
+                });
+
+                // 如果第一页，还要把活跃但不在注册表中的任务加进去（如刚启动注册表写入延迟）
+                if (page === 1) {
+                    const existingIds = new Set(result.tasks.map(t => t.task_id));
+                    for (const engine of this._engines.values()) {
+                        for (const ctx of engine.getLoops()) {
+                            if (!existingIds.has(ctx.taskId)) {
+                                mergedTasks.unshift({
+                                    task_id: ctx.taskId,
+                                    task_type: 'loop',
+                                    status: ctx.status,
+                                    title: (ctx.taskDescription || '').slice(0, 200),
+                                    description: ctx.taskDescription || '',
+                                    created_at: ctx.startTime || new Date().toISOString(),
+                                    updated_at: null,
+                                    metadata: { currentLoop: ctx.currentLoop, maxLoops: ctx.maxLoops },
+                                    taskId: ctx.taskId,
+                                    currentLoop: ctx.currentLoop,
+                                    maxLoops: ctx.maxLoops,
+                                    startTime: ctx.startTime,
+                                    endTime: ctx.endTime,
+                                    taskDescription: ctx.taskDescription || ''
+                                });
+                            }
+                        }
+                    }
+                }
+
+                return res.json({
+                    status: 'ok',
+                    tasks: mergedTasks,
+                    loops: mergedTasks,          // 向后兼容：前端 loop.js 期望 d.loops
+                    total: result.total,
+                    page: result.page,
+                    pageSize: result.pageSize,
+                    totalPages: result.totalPages
+                });
+            } catch (err) {
+                console.warn('[LoopEngineController] 注册表查询失败，降级到磁盘扫描:', err.message);
+                // 降级到磁盘扫描
+            }
+        }
+
+        // ── 降级方案：内存 + 磁盘扫描（向后兼容） ──
         try {
-            // ── 1. 收集内存中的任务 ──
             const memTaskIds = new Set();
             const summaries = [];
 
@@ -334,9 +497,6 @@ class LoopEngineController {
                 }
             }
 
-            // ── 2. 从持久化存储扫描历史任务 ──
-            // loop.json 存储在 db/task/{taskId}/loop.json（子目录中），
-            // 直接用 fs 递归扫描 task 目录下的子目录
             try {
                 const storage = this._getStorage();
                 const taskRoot = join(storage.manager.rootDir, 'task');
@@ -350,6 +510,7 @@ class LoopEngineController {
                         const data = JSON.parse(raw);
                         if (!data || !data.taskId) continue;
                         if (memTaskIds.has(data.taskId)) continue;
+                        if (statusFilter && data.status !== statusFilter) continue;
 
                         summaries.push({
                             taskId: data.taskId,
@@ -363,14 +524,13 @@ class LoopEngineController {
                             taskDescription: data.taskDescription || ''
                         });
                     } catch {
-                        // loop.json 不存在或解析失败时，回退读取 orchestration.json
-                        // 确保因系统重启导致 loop.json 未写入的任务也能在列表中可见
                         try {
                             const orchFile = join(taskRoot, entry.name, 'orchestration.json');
                             const orchRaw = await fs.readFile(orchFile, 'utf8');
                             const orchData = JSON.parse(orchRaw);
                             if (!orchData || !orchData.taskId) continue;
                             if (memTaskIds.has(orchData.taskId)) continue;
+                            if (statusFilter && orchData.status !== statusFilter) continue;
 
                             summaries.push({
                                 taskId: orchData.taskId,
@@ -383,25 +543,33 @@ class LoopEngineController {
                                 isSingleExecution: false,
                                 taskDescription: ''
                             });
-                        } catch { /* orchestration.json 也不存在，跳过 */ }
+                        } catch { /* skip */ }
                     }
                 }
             } catch (err) {
-                // 持久化扫描失败不阻塞，仅记日志
                 console.warn('[LoopEngineController] 扫描持久化任务失败:', err.message);
             }
 
-            // ── 3. 按开始时间倒序排列 ──
             summaries.sort((a, b) => {
                 const ta = a.startTime || '';
                 const tb = b.startTime || '';
                 return tb.localeCompare(ta);
             });
 
-            res.json({
+            // 降级方案也做分页
+            const total = summaries.length;
+            const totalPages = Math.max(1, Math.ceil(total / pageSize));
+            const offset = (page - 1) * pageSize;
+            const paged = summaries.slice(offset, offset + pageSize);
+
+            return res.json({
                 status: 'ok',
-                total: summaries.length,
-                loops: summaries
+                tasks: paged,
+                loops: paged,                   // 向后兼容：前端 loop.js 期望 d.loops
+                total,
+                page,
+                pageSize,
+                totalPages
             });
         } catch (err) {
             res.error(500, `列举大循环任务失败: ${err.message}`);

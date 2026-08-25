@@ -5,6 +5,8 @@ import { createOrchestratorRouter } from './orchestrator.js';
 import { createBrainRouter } from './brain.js';
 import { createLoopEngineRouter } from './loopengine.js';
 import { createKnowledgeRouter } from './knowledge.js';
+import { createRegistryRouter } from './registry.js';
+import { createStatsRouter } from './stats.js';
 
 /**
  * 路由组装器 — 将各业务域路由组合到主路由器
@@ -44,6 +46,12 @@ export function registerRoutes(router, dependencies) {
 
     // ─── Knowledge 知识导入与查询 ─────────────────────────────────────
     router.use('/api/knowledge', createKnowledgeRouter(dependencies));
+
+    // ─── 任务注册表统一查询（分页历史列表）───────────────────────────────
+    router.use('/api/registry', createRegistryRouter(dependencies));
+
+    // ─── 统计服务（访问计数 / Session 调用计数）──────────────────────────
+    router.use('/api/stats', createStatsRouter(dependencies));
 }
 
 export default registerRoutes;

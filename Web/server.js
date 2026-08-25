@@ -81,24 +81,22 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    // ─── 知识导入页面路由 ─────────────────────────────────────────────
-    // /knowledge → knowledge.html（支持子路径如 /knowledge/detail 等）
+    // ─── 知识导入（已整合到循环控制台 tab，重定向到 loop 视图） ────────
     if (pathname === '/knowledge' || pathname.startsWith('/knowledge/')) {
-        const filePath = path.join(__dirname, 'public', 'knowledge.html');
-        fs.readFile(filePath, (err, data) => {
-            if (err) {
-                res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-                res.end('Not Found');
-                return;
-            }
-            res.writeHead(200, { 'Content-Type': MIME['.html'] });
-            res.end(data);
-        });
+        res.writeHead(302, { 'Location': '/#loop' });
+        res.end();
         return;
     }
 
-    // ─── 静态文件托管 ─────────────────────────────────────────────────
-    let filePath = path.join(__dirname, 'public', pathname === '/' ? 'loop.html' : pathname);
+    // ─── 旧版 loop.html 重定向到统一页面 ──────────────────────────────
+    if (pathname === '/loop.html') {
+        res.writeHead(302, { 'Location': '/#p-loop' });
+        res.end();
+        return;
+    }
+
+    // ─── 静态文件托管（默认页 index.html） ────────────────────────────
+    let filePath = path.join(__dirname, 'public', pathname === '/' ? 'index.html' : pathname);
     // 防止路径穿越
     if (!filePath.startsWith(path.join(__dirname, 'public'))) {
         res.writeHead(403);

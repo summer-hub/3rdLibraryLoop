@@ -1,28 +1,10 @@
 /* ════════════════════════════════════════════════════════════════════
  * 知识导入页面 — 主脚本
- * 自包含（不复用 loop.js，因其底部绑定了 loop.html 专属事件）
+ * 共享工具函数（$, escapeHtml, toast, API 等）由 utils.js 统一提供
  * ════════════════════════════════════════════════════════════════════ */
 'use strict';
 
-/* ─── 工具函数 ──────────────────────────────────────────────────────── */
-function $(id) { return document.getElementById(id); }
-function escapeHtml(t) { if (t == null) return ''; var d = document.createElement('div'); d.textContent = String(t); return d.innerHTML; }
-function truncate(s, n) { if (!s) return ''; n = n || 80; return s.length > n ? s.substring(0, n) + '...' : s; }
-function formatTime(ts) { if (!ts) return '—'; try { return new Date(ts).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch (e) { return ts; } }
-
-var API = {
-    _fetch: function (url, opts) { return fetch(url, opts).then(function (r) { return r.json(); }); },
-    get: function (url) { return this._fetch(url); },
-    post: function (url, body) { return this._fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); },
-    del: function (url) { return this._fetch(url, { method: 'DELETE' }); }
-};
-
-function toast(type, msg) {
-    var el = document.createElement('div'); el.className = 'toast ' + type; el.textContent = msg;
-    $('toastContainer').appendChild(el);
-    setTimeout(function () { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(function () { el.remove(); }, 300); }, 4000);
-}
-
+/* ─── knowledge 专属工具函数 ────────────────────────────────────────── */
 function importStatusLabel(s) {
     var m = { running: '运行中', completed: '已完成', failed: '失败', error: '错误', pending: '待执行' };
     return m[s] || s || '—';
@@ -34,21 +16,10 @@ var KnState = {
     filtered: [],
     selectedId: null,
     selectedExp: null,
-    importMode: 'sync',     // sync | async
+    importMode: 'sync',
     pollTimer: null,
     currentImportId: null
 };
-
-/* ─── 健康检查 ──────────────────────────────────────────────────────── */
-async function checkHealth() {
-    var dot = $('healthDot'), text = $('healthText');
-    dot.className = 'health-dot unknown'; text.textContent = '检测中';
-    try {
-        var d = await API.get('/api/health');
-        if (d.status === 'ok') { dot.className = 'health-dot ok'; text.textContent = '服务正常'; }
-        else { dot.className = 'health-dot error'; text.textContent = '服务异常'; }
-    } catch (err) { dot.className = 'health-dot error'; text.textContent = '后端不可达'; }
-}
 
 /* ─── 加载知识列表 ──────────────────────────────────────────────────── */
 async function loadKnowledgeList() {
@@ -347,7 +318,6 @@ function showImportResult(title, data) {
 }
 
 /* ─── 事件绑定 & 初始化 ──────────────────────────────────────────────── */
-$('healthBtn').onclick = checkHealth;
 $('knSearch').oninput = filterKnowledge;
 $('btnKnRefresh').onclick = loadKnowledgeList;
 
@@ -392,6 +362,8 @@ $('btnStopPoll').onclick = function () {
 };
 
 // 弹窗关闭
+$('docClose').onclick = function () { $('docOverlay').classList.remove('show'); };
+$('docOverlay').onclick = function (e) { if (e.target === $('docOverlay')) $('docOverlay').classList.remove('show'); };
 $('resultClose').onclick = function () { $('resultOverlay').classList.remove('show'); };
 $('resultOk').onclick = function () { $('resultOverlay').classList.remove('show'); };
 $('resultOverlay').onclick = function (e) { if (e.target === $('resultOverlay')) $('resultOverlay').classList.remove('show'); };
@@ -399,6 +371,10 @@ $('resultOverlay').onclick = function (e) { if (e.target === $('resultOverlay'))
 // 暴露内联调用
 window.selectKnowledge = selectKnowledge;
 
-// 启动
-checkHealth();
-loadKnowledgeList();
+/* ─── 知识管理 tab 懒加载（首次切到知识 tab 时加载数据） ─────────────── */
+var _knInited = false;
+function initKnowledgePanel() {
+    if (_knInited) return;
+    _knInited = true;
+    loadKnowledgeList();
+}

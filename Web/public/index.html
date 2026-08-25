@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OHOS CPF-ApplicationTPC 工作台</title>
+    <link rel="stylesheet" href="css/theme.css">
+    <link rel="stylesheet" href="css/loop.css">
+    <link rel="stylesheet" href="css/knowledge.css">
+    <link rel="stylesheet" href="css/md-reader.css">
+</head>
+<body>
+<div class="layout" data-view="features">
+
+    <!-- ═══ 顶栏 ═══════════════════════════════════════════════════════ -->
+    <header>
+        <div class="logo">OHOS <span>CPF-ApplicationTPC</span></div>
+        <div class="view-switcher" id="viewSwitcher">
+            <button class="view-btn active" data-view="features">🛠 功能工作台</button>
+            <button class="view-btn" data-view="loop">🔁 循环控制台</button>
+        </div>
+        <div class="header-right">
+            <div class="stats-pill" title="页面访问次数">
+                <span class="sp-icon">👁</span>
+                <span id="visit-count">--</span>
+                <span class="sp-label">访问</span>
+            </div>
+            <div class="stats-pill" title="Session 调用次数">
+                <span class="sp-icon">⚡</span>
+                <span id="session-count">--</span>
+                <span class="sp-label">调用</span>
+            </div>
+            <button class="theme-toggle" id="themeToggle" title="切换日间/夜间模式">
+                <span class="theme-icon-light">☀️</span>
+                <span class="theme-icon-dark">🌙</span>
+            </button>
+            <div class="server-tag" id="serverTag" title="点击重新检测">
+                <span id="health-dot"></span>
+                后端 <b id="health-label">检测中…</b>
+            </div>
+        </div>
+    </header>
+
+    <!-- ═══ 左侧导航栏（仅功能工作台模式显示） ═════════════════════════ -->
+    <nav>
+        <div class="nav-links">
+            <div class="nav-section">系统</div>
+            <div class="nav-item active" data-panel="p-health">
+                <span class="method m-get">live</span> 健康检查
+            </div>
+
+            <div class="nav-section">代码检视</div>
+            <div class="nav-item nav-item-disabled" data-panel="p-codecheck">
+                <span class="method m-post">PR</span> PR 代码检视 <span class="nav-soon">即将支持</span>
+            </div>
+            <div class="nav-item nav-item-disabled" data-panel="p-flutterlibrarycheck">
+                <span class="method m-post">FLT</span> Flutter 仓库检视 <span class="nav-soon">即将支持</span>
+            </div>
+            <div class="nav-item nav-item-disabled" data-panel="p-arktslibrarycheck">
+                <span class="method m-post">AKT</span> ArkTS 仓库检视 <span class="nav-soon">即将支持</span>
+            </div>
+            <div class="nav-item nav-item-disabled" data-panel="p-rnlibrarycheck">
+                <span class="method m-post">RN</span> RN 仓库检视 <span class="nav-soon">即将支持</span>
+            </div>
+            <div class="nav-item nav-item-disabled" data-panel="p-kmplibrarycheck">
+                <span class="method m-post">KMP</span> KMP 仓库检视 <span class="nav-soon">即将支持</span>
+            </div>
+
+            <div class="nav-section">文档与修改</div>
+            <div class="nav-item nav-item-disabled" data-panel="p-librarydocfix">
+                <span class="method m-post">DOC</span> 文档修改 <span class="nav-soon">即将支持</span>
+            </div>
+            <div class="nav-item nav-item-disabled" data-panel="p-libraryintelligentfix">
+                <span class="method m-post">AIF</span> 智能修改 <span class="nav-soon">即将支持</span>
+            </div>
+
+            <div class="nav-section">问题分析</div>
+            <div class="nav-item nav-item-disabled" data-panel="p-issueanalysis">
+                <span class="method m-post">ISS</span> Issue 分析 <span class="nav-soon">即将支持</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ═══ 主内容区 ═══════════════════════════════════════════════════ -->
+    <main id="main">
+
+        <!-- ─── 健康检查面板 ─────────────────────────────────────────── -->
+        <div class="panel" id="p-health">
+            <div class="panel-head">
+                <span class="method m-get">GET</span>
+                <h2>健康检查</h2>
+                <span class="path">/api/health</span>
+                <div class="ml">
+                    <button class="btn btn-primary" onclick="doHealthCheck()">▶ 立即检测</button>
+                </div>
+            </div>
+            <div class="panel-pad" style="flex:1; overflow-y:auto;">
+                <div class="output-box empty" id="health-out">点击「立即检测」查看后端服务状态…</div>
+            </div>
+        </div>
+
+        <!-- ─── 循环控制台面板（由顶栏视图切换器控制，不属于功能面板 nav 系统） ── -->
+        <div class="panel loop-panel" id="p-loop">
+            <div class="app-body">
+                <!-- 侧边栏：任务列表 -->
+                <div class="sidebar">
+                    <div class="sidebar-header">
+                        <h2>📋 大循环任务 <span class="count-badge" id="loopCount">0</span></h2>
+                        <button class="new-task-btn" id="btnNewLoop">🚀 启动大循环</button>
+                        <button class="new-task-btn single" id="btnNewSingle">⚡ 启动单次执行</button>
+                        <input class="search-box" id="loopSearch" placeholder="搜索任务 ID..." />
+                    </div>
+                    <div class="task-list" id="loopList">
+                        <div class="detail-empty">加载中...</div>
+                    </div>
+                </div>
+
+                <!-- 主内容区 -->
+                <div class="main-content">
+                    <div class="loop-overview" id="loopOverview" style="display:none;">
+                        <div class="title-row">
+                            <h2 id="ovTaskId">—</h2>
+                            <span class="status-badge idle" id="ovStatus">—</span>
+                            <div class="task-controls">
+                                <button class="danger sm" id="btnLoopAbort" disabled>⏹ 终止循环</button>
+                                <button class="secondary sm" id="btnLoopRefresh">🔄 刷新</button>
+                            </div>
+                        </div>
+                        <div class="desc" id="ovDesc">—</div>
+                        <div class="stats-row" id="ovStats"></div>
+                    </div>
+
+                    <div class="main-tabs" id="mainTabs">
+                        <div class="main-tab active" data-tab="rounds">🔄 循环轮次</div>
+                        <div class="main-tab" data-tab="orchestrator">🔀 编排详情</div>
+                        <div class="main-tab" data-tab="brain">🧠 Brain 拆解</div>
+                        <div class="main-tab" data-tab="knowledge">📚 知识管理</div>
+                    </div>
+
+                    <div class="tab-content active" id="tabRounds">
+                        <div class="rounds-section" id="roundsSection">
+                            <div class="rounds-empty">请从左侧选择一个大循环任务，或点击「启动大循环」</div>
+                        </div>
+                    </div>
+
+                    <div class="tab-content" id="tabOrchestrator">
+                        <div class="graph-detail-split">
+                            <div class="graph-section">
+                                <div class="graph-toolbar">
+                                    <h3>🔀 步骤编排图</h3>
+                                    <span class="muted" style="font-size:11px;" id="graphHint"></span>
+                                    <div class="toolbar-actions">
+                                        <button class="secondary sm" id="btnGraphZoomOut" title="缩小">🔍−</button>
+                                        <span class="zoom-display" id="zoomDisplay">100%</span>
+                                        <button class="secondary sm" id="btnGraphZoomIn" title="放大">🔍+</button>
+                                        <button class="secondary sm" id="btnGraphFit" title="自适应">📐 自适应</button>
+                                        <button class="secondary sm" id="btnGraphRefresh" title="刷新">🔄 刷新</button>
+                                    </div>
+                                </div>
+                                <div class="graph-canvas-wrap" id="graphCanvas">
+                                    <div class="graph-empty" id="graphEmpty">请先选择一个大循环任务</div>
+                                    <svg class="graph-svg" id="graphSvg" style="display:none;">
+                                        <defs>
+                                            <marker id="arrow-success" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                                <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--green)" />
+                                            </marker>
+                                            <marker id="arrow-fail" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                                <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--red)" />
+                                            </marker>
+                                            <marker id="arrow-depend" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                                <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text3)" />
+                                            </marker>
+                                        </defs>
+                                        <g class="graph-viewport" id="graphViewport"></g>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="detail-panel">
+                                <div class="detail-tabs">
+                                    <div class="detail-tab active" data-tab="detail">📋 详情</div>
+                                    <div class="detail-tab" data-tab="conversation">💬 对话</div>
+                                    <div class="detail-tab" data-tab="control">⚡ 控制</div>
+                                    <div class="detail-tab" data-tab="files">📁 文件</div>
+                                </div>
+                                <div class="detail-content" id="detailContent">
+                                    <div class="detail-empty">请选择一个步骤节点</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-content" id="tabBrain">
+                        <div class="brain-section" id="brainSection">
+                            <div class="rounds-empty">请先选择一个大循环任务</div>
+                        </div>
+                    </div>
+
+                    <div class="tab-content" id="tabKnowledge">
+                        <div class="kn-body">
+                            <!-- 左侧：知识列表 -->
+                            <div class="kn-sidebar">
+                                <div class="kn-sidebar-header">
+                                    <h2>📋 知识库 <span class="count-badge" id="knCount">0</span></h2>
+                                    <input class="search-box" id="knSearch" placeholder="搜索任务描述或 ID..." />
+                                    <button class="secondary sm kn-refresh-btn" id="btnKnRefresh">🔄 刷新列表</button>
+                                </div>
+                                <div class="kn-list" id="knList">
+                                    <div class="detail-empty">加载中...</div>
+                                </div>
+                            </div>
+
+                            <!-- 右侧：知识详情 + 导入操作 -->
+                            <div class="kn-main">
+                                <!-- 知识详情卡 -->
+                                <div class="kn-detail-card" id="knDetailCard" style="display:none;">
+                                    <div class="kn-detail-header">
+                                        <div class="kn-detail-title">
+                                            <h2 id="knTitle">—</h2>
+                                            <span class="kn-id" id="knDetailId">—</span>
+                                        </div>
+                                        <div class="kn-detail-actions">
+                                            <button class="primary sm" id="btnStartImport">📥 开始导入</button>
+                                            <button class="secondary sm" id="btnViewDoc">📄 查看原文</button>
+                                            <button class="danger sm" id="btnDeleteKn">🗑️ 删除知识</button>
+                                        </div>
+                                    </div>
+                                    <div class="kn-detail-meta" id="knDetailMeta"></div>
+                                    <div class="kn-detail-desc" id="knDetailDesc">—</div>
+                                </div>
+
+                                <!-- 导入面板 -->
+                                <div class="kn-import-panel" id="knImportPanel" style="display:none;">
+                                    <div class="kn-import-header">
+                                        <h3>📥 知识导入</h3>
+                                        <span class="muted" id="knImportTarget"></span>
+                                    </div>
+                                    <div class="kn-import-body">
+                                        <div class="form-group">
+                                            <label>导入模式</label>
+                                            <div class="kn-mode-tabs">
+                                                <div class="kn-mode-tab active" data-mode="sync">⚡ 同步导入</div>
+                                                <div class="kn-mode-tab" data-mode="async">🔄 异步导入</div>
+                                            </div>
+                                            <div class="hint" id="knModeHint">同步等待导入完成，适合较短任务</div>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>自定义提示词（可选）</label>
+                                            <textarea class="large" id="knUserPrompt" placeholder="输入额外的提示文字，将追加到导入执行 prompt 中...&#10;&#10;例如：请重点关注鸿蒙端 API 适配部分，生成可复用的 SKILL 文档"></textarea>
+                                            <div class="hint">提示词会追加到知识导入的执行 prompt 末尾，用于引导 AI 更精准地处理知识</div>
+                                        </div>
+                                        <div class="advanced-toggle" id="knAdvancedToggle">高级选项</div>
+                                        <div class="advanced-section" id="knAdvancedSection">
+                                            <div class="form-group">
+                                                <label>工作目录（可选）</label>
+                                                <input id="knWorkDir" placeholder="留空则自动推导（基于来源任务 ID）">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>SKILL 目录（可选）</label>
+                                                <input id="knSkillDir" placeholder="留空则使用默认 SKILL 目录">
+                                            </div>
+                                        </div>
+                                        <div class="kn-import-actions">
+                                            <button class="secondary" id="btnImportCancel">取消</button>
+                                            <button class="primary" id="btnImportSubmit" disabled>📥 执行导入</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 异步导入状态轮询 -->
+                                <div class="kn-import-status" id="knImportStatus" style="display:none;">
+                                    <div class="kn-status-header">
+                                        <h3>📊 导入进度</h3>
+                                        <button class="secondary sm" id="btnStopPoll">停止轮询</button>
+                                    </div>
+                                    <div class="kn-status-body" id="knStatusBody"></div>
+                                </div>
+
+                                <!-- 空状态 -->
+                                <div class="kn-empty" id="knEmpty">
+                                    <div class="kn-empty-icon">📚</div>
+                                    <div class="kn-empty-text">请从左侧选择一条知识，或点击「刷新列表」加载知识库</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<!-- ═══ 弹窗（共享） ═════════════════════════════════════════════════ -->
+
+<!-- 启动大循环 -->
+<div class="modal-overlay" id="newLoopOverlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>🚀 启动大循环</h3>
+            <button class="modal-close" id="newLoopClose">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>任务描述 *</label>
+                <textarea class="large" id="newLoopDesc" placeholder="输入自然语言任务描述..."></textarea>
+                <div class="hint">Brain 将自动拆解为步骤，Orchestrator 执行后 TestCheck 审核准出，未通过则自动重规划</div>
+            </div>
+            <div class="form-group">
+                <label>验收标准（可选）</label>
+                <textarea id="newLoopCriteria" placeholder="输入自定义验收标准..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>最大循环次数</label>
+                <input id="newLoopMaxLoops" type="number" min="1" max="10" value="3">
+                <div class="hint">达到最大次数仍未通过准出审核则标记为失败</div>
+            </div>
+            <div class="advanced-toggle" id="advancedToggle">高级选项</div>
+            <div class="advanced-section" id="advancedSection">
+                <div class="form-group">
+                    <label>任务 ID（可选）</label>
+                    <input id="newLoopTaskId" placeholder="留空则自动生成 task_xxx">
+                </div>
+                <div class="form-group">
+                    <label>SKILL 目录（可选）</label>
+                    <input id="newLoopSkillDir" placeholder="留空则使用默认 SKILL 目录">
+                </div>
+                <div class="form-group">
+                    <label>工作目录（可选）</label>
+                    <input id="newLoopTaskDir" placeholder="留空则自动生成 task/{taskId}">
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="secondary" id="btnNewLoopCancel">取消</button>
+            <button class="primary" id="btnNewLoopSubmit">🚀 启动大循环</button>
+        </div>
+    </div>
+</div>
+
+<!-- 启动单次执行 -->
+<div class="modal-overlay" id="newSingleOverlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>⚡ 启动单次执行</h3>
+            <button class="modal-close" id="newSingleClose">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>任务描述 *</label>
+                <textarea class="large" id="newSingleDesc" placeholder="输入自然语言任务描述，将直接执行不经过 Brain 拆解..."></textarea>
+                <div class="hint">单步骤直接执行，不循环、不拆解，结果可在编排详情中查看</div>
+            </div>
+            <div class="advanced-toggle" id="singleAdvancedToggle">高级选项</div>
+            <div class="advanced-section" id="singleAdvancedSection">
+                <div class="form-group">
+                    <label>任务 ID（可选）</label>
+                    <input id="newSingleTaskId" placeholder="留空则自动生成 single_xxx">
+                </div>
+                <div class="form-group">
+                    <label>SKILL 目录（可选）</label>
+                    <input id="newSingleSkillDir" placeholder="留空则使用默认 SKILL 目录">
+                </div>
+                <div class="form-group">
+                    <label>工作目录（可选）</label>
+                    <input id="newSingleTaskDir" placeholder="留空则自动生成 task/{taskId}">
+                </div>
+                <div class="form-group">
+                    <label>输入报告（可选）</label>
+                    <textarea id="newSingleInputReport" placeholder="前置报告/上下文内容，传递给执行步骤..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>最大重试次数</label>
+                    <input id="newSingleMaxRetries" type="number" min="1" max="10" value="3">
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="secondary" id="btnNewSingleCancel">取消</button>
+            <button class="primary" id="btnNewSingleSubmit">⚡ 启动单次执行</button>
+        </div>
+    </div>
+</div>
+
+<!-- 通用弹窗 -->
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="modalTitle">—</h3>
+            <button class="modal-close" id="modalClose">✕</button>
+        </div>
+        <div class="modal-body"><pre id="modalContent"></pre></div>
+    </div>
+</div>
+
+<!-- 知识查看原文弹窗 -->
+<div class="modal-overlay" id="docOverlay">
+    <div class="modal" style="width:820px;">
+        <div class="modal-header">
+            <h3 id="docTitle">经验文档</h3>
+            <button class="modal-close" id="docClose">✕</button>
+        </div>
+        <div class="modal-body"><pre id="docContent">加载中...</pre></div>
+    </div>
+</div>
+
+<!-- 知识导入结果弹窗 -->
+<div class="modal-overlay" id="resultOverlay">
+    <div class="modal" style="width:720px;">
+        <div class="modal-header">
+            <h3 id="resultTitle">导入结果</h3>
+            <button class="modal-close" id="resultClose">✕</button>
+        </div>
+        <div class="modal-body"><pre id="resultContent"></pre></div>
+        <div class="modal-footer">
+            <button class="secondary" id="resultOk">关闭</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ═══ 脚本加载（顺序：utils → theme → md-reader → health → navigation → loop → knowledge） ═══ -->
+<script src="js/utils.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/md-reader.js"></script>
+<script src="js/health.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/navigation.js"></script>
+<script src="js/loop.js"></script>
+<script src="js/knowledge.js"></script>
+</body>
+</html>

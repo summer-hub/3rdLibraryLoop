@@ -1,7 +1,14 @@
 /* ════════════════════════════════════════════════════════════════════
- * 知识导入页面 — 专用样式
- * 基础元素（按钮、表单、弹窗、Toast）复用 loop.css
+ * 知识管理 — 专用样式（作为循环控制台的 tab-content 内嵌）
+ * 基础元素（按钮、表单、弹窗、Toast）复用 theme.css / loop.css
  * ════════════════════════════════════════════════════════════════════ */
+
+/* ─── 知识管理主体布局（sidebar + main 水平排列，撑满 tab-content） ── */
+.kn-body {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+}
 
 /* ─── 左侧知识列表栏 ────────────────────────────────────────────────── */
 .kn-sidebar {
@@ -255,8 +262,8 @@
     font-weight: 600;
 }
 .kn-import-badge.running { background: var(--orange-light); color: var(--orange); }
-.kn-import-badge.completed { background: var(--green-light); color: #1a8a34; }
-.kn-import-badge.failed { background: var(--red-light); color: #c5231a; }
+.kn-import-badge.completed { background: var(--green-light); color: var(--badge-green-text); }
+.kn-import-badge.failed { background: var(--red-light); color: var(--badge-red-text); }
 .kn-import-badge.error { background: var(--red-light); color: var(--red); }
 
 /* 导入进度日志 */

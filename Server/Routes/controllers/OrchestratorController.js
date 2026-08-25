@@ -43,6 +43,36 @@ class OrchestratorController {
     // ─── 辅助方法 ──────────────────────────────────────────────────────
 
     /**
+     * 获取任务注册表（懒初始化）。
+     * @returns {import('../../DbUse/stores/TaskRegistryStore.js').default|null}
+     * @private
+     */
+    _getRegistry() {
+        if (!this.storage) return null;
+        try {
+            return this.storage.taskRegistryStore();
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * 注册任务摘要到注册表。
+     * @param {object} entry
+     * @returns {Promise<void>}
+     * @private
+     */
+    async _registerTask(entry) {
+        const registry = this._getRegistry();
+        if (!registry) return;
+        try {
+            await registry.upsert(entry);
+        } catch (err) {
+            console.warn(`[OrchestratorController] 注册任务摘要失败: ${err.message}`);
+        }
+    }
+
+    /**
      * 获取已有实例，不存在则报错。
      */
     _getOrchestrator(taskId) {
@@ -214,6 +244,18 @@ class OrchestratorController {
             await orch.loadTask(body);
 
             this._orchestrators.set(taskId, orch);
+
+            // 注册任务摘要到注册表（SQLite），供历史列表分页查询
+            const firstStep = body.steps[0] || {};
+            this._registerTask({
+                taskId,
+                taskType: 'orchestrator',
+                status: 'loaded',
+                title: (firstStep.taskDescription || body.title || '').slice(0, 200),
+                description: body.title || firstStep.taskDescription || '',
+                createdAt: new Date().toISOString(),
+                metadata: { stepCount: body.steps.length }
+            });
 
             res.json({
                 status: 'ok',
@@ -477,16 +519,72 @@ class OrchestratorController {
      * 列出所有编排任务（合并内存实例 + 磁盘持久化记录）
      */
     async tasks(req, res) {
+        const query = req.query || {};
+        const page = Math.max(1, parseInt(query.page, 10) || 1);
+        const pageSize = Math.min(100, Math.max(1, parseInt(query.pageSize, 10) || 20));
+
+        // ── 优先方案：从注册表分页查询 ──
+        const registry = this._getRegistry();
+        if (registry) {
+            try {
+                const result = await registry.listPage({
+                    page,
+                    pageSize,
+                    taskType: 'orchestrator'
+                });
+
+                // 合并内存中活跃任务的状态
+                const mergedTasks = result.tasks.map(t => {
+                    const orch = this._orchestrators.get(t.task_id);
+                    if (orch) {
+                        const progress = orch.getProgress();
+                        return { ...t, taskId: t.task_id, status: progress.status || t.status };
+                    }
+                    return { ...t, taskId: t.task_id };
+                });
+
+                // 第一页补充活跃但注册表未同步的任务
+                if (page === 1) {
+                    const existingIds = new Set(result.tasks.map(t => t.task_id));
+                    for (const [taskId, orch] of this._orchestrators) {
+                        if (!existingIds.has(taskId)) {
+                            const progress = orch.getProgress();
+                            mergedTasks.unshift({
+                                task_id: taskId,
+                                task_type: 'orchestrator',
+                                status: progress.status || 'loaded',
+                                title: (progress.taskDescription || '').slice(0, 200),
+                                description: progress.taskDescription || '',
+                                created_at: progress.startTime || new Date().toISOString(),
+                                metadata: null,
+                                taskId
+                            });
+                        }
+                    }
+                }
+
+                return res.json({
+                    status: 'ok',
+                    tasks: mergedTasks,
+                    total: result.total,
+                    page: result.page,
+                    pageSize: result.pageSize,
+                    totalPages: result.totalPages
+                });
+            } catch (err) {
+                console.warn('[OrchestratorController] 注册表查询失败，降级到磁盘扫描:', err.message);
+            }
+        }
+
+        // ── 降级方案：内存 + 磁盘扫描 ──
         const list = [];
         const seenTaskIds = new Set();
 
-        // 1. 内存中的实例
         for (const orch of this._orchestrators.values()) {
             list.push(orch.getProgress());
             seenTaskIds.add(orch.taskId);
         }
 
-        // 2. 磁盘上持久化但不在内存中的任务
         if (this.storage) {
             const persistedIds = this._listPersistedTaskIds();
             for (const taskId of persistedIds) {
@@ -498,16 +596,25 @@ class OrchestratorController {
                         seenTaskIds.add(taskId);
                     }
                 } catch (err) {
-                    // 单个文件损坏（如 JSON 解析失败）不应中断整个列表
                     console.warn(`[OrchestratorController] 读取任务状态失败: taskId=${taskId}, error=${err.message}`);
                 }
             }
         }
 
+        // 降级也做分页
+        list.sort((a, b) => ((b.startTime || '') > (a.startTime || '') ? 1 : -1));
+        const total = list.length;
+        const totalPages = Math.max(1, Math.ceil(total / pageSize));
+        const offset = (page - 1) * pageSize;
+        const paged = list.slice(offset, offset + pageSize);
+
         res.json({
             status: 'ok',
-            count: list.length,
-            tasks: list
+            tasks: paged,
+            total,
+            page,
+            pageSize,
+            totalPages
         });
     }
 

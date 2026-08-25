@@ -43,9 +43,10 @@ import StorageManager from './StorageManager.js';
 import SessionStore from './stores/SessionStore.js';
 import TaskStepStore from './stores/TaskStepStore.js';
 import TaskExecutionStore from './stores/TaskExecutionStore.js';
+import TaskRegistryStore from './stores/TaskRegistryStore.js';
 import MessageArchive from './MessageArchive.js';
 
-export { StorageManager, SessionStore, TaskStepStore, TaskExecutionStore, MessageArchive };
+export { StorageManager, SessionStore, TaskStepStore, TaskExecutionStore, TaskRegistryStore, MessageArchive };
 export { default as BaseAdapter } from './adapters/BaseAdapter.js';
 export { default as JsonAdapter } from './adapters/JsonAdapter.js';
 export { default as JsonlAdapter } from './adapters/JsonlAdapter.js';
@@ -59,6 +60,7 @@ export const SubDirs = Object.freeze({
     SESSION: 'Session',
     TASK_STEP: 'TaskStep',
     TASK: 'task',
+    TASK_REGISTRY: 'TaskRegistry',
     ARTIFACTS: 'Artifacts'
 });
 
@@ -73,6 +75,7 @@ export const SubDirs = Object.freeze({
  *   sessionStore: () => SessionStore,
  *   taskStepStore: () => TaskStepStore,
  *   taskExecStore: () => TaskExecutionStore,
+ *   taskRegistryStore: () => TaskRegistryStore,
  *   messageArchive: () => MessageArchive,
  *   file: (subDir?: string) => import('./adapters/FileAdapter.js').default,
  *   json: (subDir: string) => import('./adapters/JsonAdapter.js').default,
@@ -86,7 +89,7 @@ export function createStorage(options = {}) {
     const stallThresholdMs = options.stallThresholdMs;
 
     // 懒初始化的 Store 实例（首次调用时创建，复用同一适配器实例）
-    let _sessionStore, _taskStepStore, _taskExecStore, _messageArchive;
+    let _sessionStore, _taskStepStore, _taskExecStore, _taskRegistryStore, _messageArchive;
 
     return {
         manager,
@@ -121,6 +124,16 @@ export function createStorage(options = {}) {
                 });
             }
             return _taskExecStore;
+        },
+
+        /** 任务注册表（SQLite，db/TaskRegistry/registry.db，供历史列表分页查询） */
+        taskRegistryStore() {
+            if (!_taskRegistryStore) {
+                _taskRegistryStore = new TaskRegistryStore({
+                    sqlite: manager.sqlite(SubDirs.TASK_REGISTRY, { dbName: 'registry.db' })
+                });
+            }
+            return _taskRegistryStore;
         },
 
         /** MessageArchive 兼容门面（供 CLI 适配器直接使用） */

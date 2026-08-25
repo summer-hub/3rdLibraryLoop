@@ -1,14 +1,8 @@
 /* ════════════════════════════════════════════════════════════════════
  * AI Loop 大循环控制台 — 主脚本
+ * 共享工具函数（$, escapeHtml, toast, API 等）由 utils.js 统一提供
  * ════════════════════════════════════════════════════════════════════ */
 'use strict';
-
-/* ─── API 封装 ──────────────────────────────────────────────────────── */
-var API = {
-    _fetch: function(url, opts) { return fetch(url, opts).then(function(r) { return r.json(); }); },
-    get: function(url) { return this._fetch(url); },
-    post: function(url, body) { return this._fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
-};
 
 /* ─── 全局状态 ──────────────────────────────────────────────────────── */
 var State = {
@@ -20,38 +14,13 @@ var State = {
     graphNodes: [], graphEdges: [], nodePositions: {},
     graphTransform: { scale: 1, tx: 0, ty: 0 },
     graphInteract: null,
-    selectedLoop: null  // 当前查看的轮次（null=最新轮）
+    selectedLoop: null
 };
 
-/* ─── 工具函数 ──────────────────────────────────────────────────────── */
-function $(id) { return document.getElementById(id); }
-function escapeHtml(t) { if (t == null) return ''; var d = document.createElement('div'); d.textContent = String(t); return d.innerHTML; }
-function truncate(s, n) { if (!s) return ''; n = n || 50; return s.length > n ? s.substring(0, n) + '...' : s; }
-function formatTime(ts) { if (!ts) return '—'; try { return new Date(ts).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch(e) { return ts; } }
+/* ─── loop 专属工具函数 ─────────────────────────────────────────────── */
 function copySessionId(sid) { if (!sid) return; try { navigator.clipboard.writeText(sid); } catch(e) {} }
 
-function statusLabel(s) {
-    var m = { idle:'空闲', planning:'拆解中', executing:'执行中', checking:'审核中', passed:'已通过', failed:'未通过', aborted:'已终止', error:'错误', loaded:'已加载', running:'运行中', completed:'已完成', pending:'待执行', ready:'就绪', skipped:'已跳过', blocked:'已阻塞', deadlocked:'死锁' };
-    return m[s] || s || '—';
-}
-
-function toast(type, msg) {
-    var el = document.createElement('div'); el.className = 'toast ' + type; el.textContent = msg;
-    $('toastContainer').appendChild(el);
-    setTimeout(function() { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(function() { el.remove(); }, 300); }, 4000);
-}
-
-/* ─── 健康检查 & 任务列表 ────────────────────────────────────────────── */
-async function checkHealth() {
-    var dot = $('healthDot'), text = $('healthText');
-    dot.className = 'health-dot unknown'; text.textContent = '检测中';
-    try {
-        var d = await API.get('/api/health');
-        if (d.status === 'ok') { dot.className = 'health-dot ok'; text.textContent = '服务正常'; }
-        else { dot.className = 'health-dot error'; text.textContent = '服务异常'; }
-    } catch(err) { dot.className = 'health-dot error'; text.textContent = '后端不可达'; }
-}
-
+/* ─── 任务列表 ──────────────────────────────────────────────────────── */
 async function loadLoopList() {
     try {
         var d = await API.get('/api/loopengine/list');
@@ -989,6 +958,7 @@ document.querySelectorAll('.main-tab').forEach(function(tab){
         if(tgt==='rounds')$('tabRounds').classList.add('active');
         else if(tgt==='orchestrator')$('tabOrchestrator').classList.add('active');
         else if(tgt==='brain')$('tabBrain').classList.add('active');
+        else if(tgt==='knowledge'){$('tabKnowledge').classList.add('active');if(typeof initKnowledgePanel==='function')initKnowledgePanel();}
     };
 });
 
@@ -999,7 +969,6 @@ document.querySelectorAll('.detail-tab').forEach(function(tab){
     };
 });
 
-$('healthBtn').onclick=checkHealth;
 $('loopSearch').oninput=filterLoops;
 $('btnNewLoop').onclick=openNewLoopModal;
 $('newLoopClose').onclick=closeNewLoopModal;
@@ -1034,8 +1003,13 @@ window.loadCheckSession=loadCheckSession;
 window.switchToOrchTab=switchToOrchTab;
 window.switchToBrainTab=switchToBrainTab;
 window.showModal=showModal;
+window.copySessionId=copySessionId;
 
-// 启动
-checkHealth();
-loadLoopList();
-setInterval(function(){loadLoopList();},30000);
+/* ─── 循环控制台懒加载初始化（由 ViewMode.set('loop') 触发） ────────── */
+var _loopInited = false;
+function initLoopPanel() {
+    if (_loopInited) return;
+    _loopInited = true;
+    loadLoopList();
+    setInterval(function(){ loadLoopList(); }, 30000);
+}
