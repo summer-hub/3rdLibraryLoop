@@ -37,7 +37,7 @@ loop result <taskId> --json
 | `loop abort <taskId>` | 中止任务 |
 | `loop list [--status st] [--limit N] [--older-than 7d]` | 列出任务 |
 | `loop result <taskId> [--raw]` | 读取最终结果 |
-| `loop step run <desc> [--task-id id] [--step-id N] [--input-report p] [--max-retries N] [--loop N] [--task-dir p]` | 单步执行（FlexRunner 直连，不经拆解/编排/审核） |
+| `loop step run <desc> [--task-id id] [--step-id N] [--input-report p] [--max-retries N] [--loop N] [--task-dir p] [--specified-skill <SKILL name\|目录名>]` | 单步执行（FlexRunner 直连，不经拆解/编排/审核） |
 | `loop step status <taskId> [--step-id N]` | 查询单步状态/产物/会话 |
 | `loop step result <taskId> [--step-id N]` | 读取该步 result.md 内容 |
 | `loop orch run <task-def.json>` | 加载任务定义 + 启动编排，阻塞到终态 |
