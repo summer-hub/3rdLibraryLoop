@@ -1,11 +1,30 @@
 {
-  "_comment": "可用 SKILL 扫描黑名单（list-available-skills.cjs 使用）。列于此的 SKILL（按 name 或目录名匹配，大小写不敏感）不会出现在可用 SKILL 列表中。默认排除编排层/元技能——它们由 Brain/LoopEngine 按固定链路调用，不应作为步骤执行 SKILL 被 specifiedSkill 引用。",
+  "_comment": "可用 SKILL 扫描黑名单（list-available-skills.cjs 使用）。列于此的 SKILL（按 name 或目录名匹配，大小写不敏感）不会出现在可用 SKILL 列表中。默认排除两类：(1) 编排层/元技能——它们由 Brain/LoopEngine 按固定链路调用，不应作为步骤执行 SKILL 被 specifiedSkill 引用；(2) 仓库检视专用 SKILL——它们由 Web 前端固定编排（arktslibrarycheck.js / flutterlibrarycheck.js / rnlibrarycheck.js）通过 specifiedSkill 直接指定，不应出现在通用拆解的可用列表中。",
   "exclude": [
     "task-analysis",
     "task-decomposition",
     "acceptance-check",
     "skill-generator",
     "knowledge-import",
-    "rn-library-issue-generalizer"
+    "rn-library-issue-generalizer",
+    "arkts-library-source-clone",
+    "arkts-library-interface-spec",
+    "arkts-library-stability-check",
+    "arkts-library-memory-leak-check",
+    "arkts-library-documentation-quality-check",
+    "arkts-library-test-coverage-check",
+    "flutter-interface",
+    "flutter-library-stability-check",
+    "flutter-library-consistency-check",
+    "flutter-library-memory-leak-check",
+    "flutter-library-documentation-quality-check",
+    "flutter-library-test-coverage-check",
+    "rn-library-interface-analyzer",
+    "rn-library-stability-check",
+    "rn-library-consistency-check",
+    "rn-library-memory-leak-check",
+    "rn-library-documentation-quality-check",
+    "rn-library-test-coverage-check",
+    "rn-library-known-issue-check"
   ]
 }
