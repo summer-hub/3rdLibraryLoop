@@ -5,20 +5,20 @@ license: Apache-2.0
 compatibility: 由 Brain 模块通过 opencode CLI 调用（SkillExecutor），或降级为直接 LLM 调用。需要写入权限到任务工作目录，输出纯 JSON 格式拆解结果。
 metadata:
   author: LoopEngine
-  version: "2.2.0"
+  version: "2.3.0"
   category: task-planning
   language: natural-language
   invoked-by: DecompositionStrategies._decomposeViaCLI / _decomposeWithContextViaCLI
-  consumed-by: DecompositionStrategies.normalizeSteps → Brain.taskDef → Orchestrator.loadTask
+  consumed-by: DecompositionStrategies.normalizeSteps → Brain.taskDef → Orchestrator.loadTask（步骤的 specifiedSkill 透传至 FlexRunner）
   upstream: task-analysis（提供 intent/domain/techStack/estimatedSteps/acceptanceCriteria）
-  downstream: Orchestrator（调度步骤图）、TestCheck（消费任务级验收标准）、acceptance-check（消费步骤级产物）
+  downstream: Orchestrator（调度步骤图，步骤经 specifiedSkill 显式绑定执行 SKILL）、TestCheck（消费任务级验收标准）、acceptance-check（消费步骤级产物）
 ---
 
 # 任务拆解技能
 
 本技能通过 LLM 将自然语言任务描述拆解为多个可独立执行的步骤，生成包含依赖关系的步骤图与步骤级验收标准，供 Orchestrator 编排器调度执行。
 
-> ⚠️ **核心原则：每个步骤只做一件可独立完成、可验证的事，步骤描述包含足够技术细节。输出必须为纯 JSON。** 拆解层与 SKILL 层解耦，步骤描述面向任务本身，不绑定具体 SKILL。拆解是设计活动而非研究活动：拆解输入只消费 prompt 注入的任务描述、分析结果与验收标准。
+> ⚠️ **核心原则：每个步骤只做一件可独立完成、可验证的事，步骤描述包含足够技术细节。输出必须为纯 JSON。** 步骤描述面向任务本身（做什么/预期输出）；当步骤职责与可用 SKILL 匹配时，通过 `specifiedSkill` 字段显式绑定（不在描述文本中写推荐语），技术细节由 SKILL 承载。拆解是设计活动而非研究活动：拆解输入只消费 prompt 注入的任务描述、分析结果与验收标准。
 
 ---
 
@@ -38,6 +38,8 @@ metadata:
 - `## 验收标准` — 任务级验收标准列表（`[ac1] (type) criterion → 验证: verification`）
 - 重规划时额外注入：`## 重规划上下文` / `## 上一轮审核摘要` / `## 未满足的验收标准` / `## 改进建议` / `## 重拆解要求`
 
+> 可用执行 SKILL 列表**不通过 prompt 注入**：由本 SKILL 的脚本在拆解时实时扫描获取（见 Phase 1.5），保证 SKILL 注册表的单一事实源在 SKILL 内的脚本，系统侧不硬编码。
+
 > 完整调用链路与消费方式参见 [集成上下文说明](references/INTEGRATION_CONTEXT.md)
 
 ---
@@ -50,7 +52,7 @@ metadata:
 | `analysis` | object | ✅ | task-analysis SKILL 输出（intent/domain/keywords/constraints/techStack/complexity/estimatedSteps/acceptanceCriteria） |
 | `resultFilePath` | string | ✅ | 拆解结果 JSON 输出路径（由调用方指定） |
 | `context` | object | ❌ | 重规划上下文（仅重规划时提供，含 failedCriteria、improvementSuggestions、prevCheckSummary、loopCount 等） |
-| `skillDirectory` | string | ❌ | SKILL 目录路径（用于参考已有 SKILL 列表，调用方通过 `## SKILL 目录` 注入） |
+| `skillDirectory` | string | ❌ | SKILL 根目录路径（覆盖可用 SKILL 扫描脚本的默认根目录，调用方通过 `## SKILL 目录` 注入） |
 
 ---
 
@@ -58,7 +60,7 @@ metadata:
 
 - **前置 SKILL**：`task-analysis`（提供任务分析结果，含 intent/domain/techStack/estimatedSteps/acceptanceCriteria）
 - **输入文件**：无（任务描述与分析结果通过 prompt 注入）
-- **下游 SKILL**：各执行类 SKILL（由 Orchestrator 按步骤的 taskDescription 匹配调度）
+- **下游 SKILL**：各执行类 SKILL（步骤通过 `specifiedSkill` 字段显式绑定，未绑定的步骤由 SkillSelector 运行时按 taskDescription 自动匹配）
 
 ---
 
@@ -111,7 +113,7 @@ Phase 4: 结果输出（纯 JSON 写入 resultFilePath）
 
 | 参数类别 | 提取规则 | 示例 |
 |----------|----------|------|
-| 版本号 | 所有 `\d+\.\d+` 格式的数字 | `0.82`, `0.84` |
+| 版本号 | 所有 `\d+(\.\d+){1,3}` 格式的数字（支持 2-4 段式） | `0.82`, `0.84`, `7.88.0` |
 | 分支名 | `br_` 前缀的标识符 | `br_rnoh0.82` |
 | 仓库 URL | `https://` 开头的完整 URL | `https://gitcode.com/CPF-RN/rntpc_react-native-pager-view/tree/br_rnoh0.82` |
 | 库名 | 任务描述中的三方库名称 | `rntpc_react-native-pager-view` |
@@ -119,6 +121,21 @@ Phase 4: 结果输出（纯 JSON 写入 resultFilePath）
 提取的参数写入输出 JSON 的 `keyParameters` 字段（结构见 Phase 4.2）。生成步骤描述时，涉及上述参数的位置必须从 `keyParameters` 中取值，不得从记忆中重新生成。
 
 > ⚠️ **高频错误案例**：任务描述中源分支为 `br_rnoh0.82`（版本 `0.82`），但 LLM 在步骤描述中臆造为 `br_rnoh0.72`（版本 `0.72`）。这类版本号/分支名篡改会导致后续所有步骤执行完全错误，且现有结构校验无法发现。`keyParameters` 字段 + `validate-param-consistency.cjs` 脚本用于强制拦截此类错误。
+
+### 1.5 获取可用 SKILL 列表
+
+步骤与执行 SKILL 的绑定依赖**实时扫描**的可用 SKILL 列表（单一事实源：SKILL 根目录下各 SKILL.md 的 frontmatter，由本 SKILL 内的脚本提供，系统侧不硬编码、不预置）。**拆解时必须先运行以下脚本获取列表**：
+
+```bash
+node {SKILL目录}/scripts/list-available-skills.cjs
+```
+
+脚本行为：
+- 扫描 SKILL 根目录（默认脚本所在目录的上上级，即 Skills 根目录）下所有含 SKILL.md 的一级子目录
+- 读取各 SKILL.md frontmatter 的 `name` / `description`，按 `- name（目录名）: description` 每行一个输出
+- **黑名单过滤**：命中 `scripts/skill-blacklist.json`（默认排除编排层/元技能：task-analysis、task-decomposition、acceptance-check、skill-generator、knowledge-import——它们由 Brain/LoopEngine 按固定链路调用，不应被步骤引用）、`--exclude` 参数或环境变量 `SKILL_BLACKLIST` 的 SKILL 会被跳过
+
+> **`specifiedSkill` 的合法取值只能来自该脚本实时返回的列表**，由 `validate-specified-skills.cjs` 强制校验（校验脚本同样实时扫描，不读取任何缓存或预置清单）。
 
 ---
 
@@ -203,47 +220,11 @@ Phase 4: 结果输出（纯 JSON 写入 resultFilePath）
 
 #### few-shot 示例
 
-**示例 1（过细，错误）：**
-```
-将"获取源码并分析结构"拆成 4 个原子步骤
-  ✗ 步骤: git clone
-    步骤: cd 进入目录
-    步骤: ls 查看文件
-    步骤: cat README
-改正 → 合并为一步: "获取 libcurl 源码并扫描其结构、依赖与构建系统，输出分析报告"
-```
-
-**示例 2（过粗，错误）：**
-```
-一步含多个独立产出
-  ✗ 步骤: "分析源码、编译验证并生成最终报告"
-改正 → 拆为三阶段:
-  步骤1: 分析源码结构，输出分析报告
-  步骤2: 鸿蒙化编译验证，输出编译结果
-  步骤3: 汇总生成最终报告
-```
-
-**示例 3（凑数式，错误）：**
-```
-任务: 定位某库日志模块的实现并说明其用法（estimatedSteps=6）
-  ✗ 步骤1: 克隆仓库
-    步骤2: 确认开发环境
-    步骤3: 搜索日志相关文件
-    步骤4: 阅读日志模块代码
-    步骤5: 整理要点
-    步骤6: 校验并输出说明
-改正 → 1 步: "克隆仓库，定位并分析日志模块实现，输出说明文档"
-（简单任务单一产物，无需中间产物链；estimatedSteps 是参考而非目标）
-```
-
-**示例 4（合理，正确）：**
-```
-任务: 检视三方库代码质量（estimatedSteps=4）
-  ✓ 步骤1: 克隆仓库并准备环境 (dependId=0)
-    步骤2: 代码质量检视 (dependId=1)
-    步骤3: 文档质量检视 (dependId=1，与步骤2并行)
-    步骤4: 汇总检视结果生成报告 (dependId=[2,3], nextStepId=0)
-```
+> 4 个正反例（过细/过粗/凑数式/合理）参见 [常见任务拆解模板](references/TASK_DECOMPOSITION_TEMPLATES.md) 的「颗粒度 few-shot 示例」章节。核心记忆点：
+>
+> - 原子操作（git clone / cd / ls）合并为一步
+> - 一步含多个独立产出必须拆分
+> - 简单任务单一产物时 1 步即可，estimatedSteps 是参考而非目标
 
 #### 领域模板优先匹配
 
@@ -309,29 +290,24 @@ failStepId → 失败后跳转到哪个步骤（0 = 失败即终止）
 
 判断标准：描述中的路径/函数名/行为断言必须能在任务描述或分析结果中找到出处；找不到出处的，改写为"识别/梳理/确认"类探索目标。
 
-#### RN 三方库框架升级适配的推荐 SKILL 标注
+#### 步骤的 SKILL 匹配与 specifiedSkill 标注
 
-当任务命中「RN 三方库框架升级适配」领域模板时，每个步骤的 `taskDescription` 末尾应追加一句推荐执行 SKILL 的提示，格式为`推荐使用 {SKILL目录名} SKILL 执行。`。无对应专用 SKILL 的步骤（如克隆仓库、设备部署等通用操作）无需追加。已知映射：
+拆解时参考 Phase 1.5 获取的**可用 SKILL 列表**：当某步骤的职责与某个可用 SKILL 匹配（该 SKILL 的 description 覆盖此步骤的目标产出）时，在该步骤 JSON 中设置 `specifiedSkill` 字段，值为该 SKILL 的 `name` 或目录名。执行层（FlexRunner）收到 `specifiedSkill` 后将跳过自动匹配直接使用该 SKILL——因此**该字段是步骤与执行 SKILL 的唯一绑定方式，不要在 `taskDescription` 中追加"推荐使用 X SKILL 执行"之类的推荐文本**（旧模式已废止，由 `validate-specified-skills.cjs` 拦截）。
 
-| 步骤职责 | 推荐 SKILL | SKILL 说明 |
-|----------|----------|----------|
-| 版本差异分析 | `rnoh-lib-version-diff` | 版本分析与差异生成 |
-| 代码适配与编译验证 | `rnoh-lib-code-adapt` | 代码适配与编译验证 |
-| 测试对齐与补全 | `rnoh-lib-test-align` | 测试对齐与补全 |
-| 功能测试总结 | `rnoh-lib-func-test` | 功能测试验证指引 |
+无匹配 SKILL 的步骤（如克隆仓库、设备部署等通用操作）不设置 `specifiedSkill`，`taskDescription` 仍需写明具体操作步骤。
 
-#### 有推荐 SKILL 时步骤描述精简规则
+#### 设置 specifiedSkill 时步骤描述精简规则
 
-> ⚠️ **核心原则：有推荐 SKILL 的步骤，`taskDescription` 只需描述任务目标与关键参数（版本号/分支名/库名），技术执行细节由 SKILL 承载，不需要在步骤描述中重复。**
+> ⚠️ **核心原则：设置了 `specifiedSkill` 的步骤，`taskDescription` 只需描述任务目标与关键参数（版本号/分支名/库名），技术执行细节由 SKILL 承载，不需要在步骤描述中重复。**
 
-当某步骤有对应的推荐 SKILL 时，`taskDescription` 应遵循以下精简模式：
+当某步骤绑定了 `specifiedSkill` 时，`taskDescription` 应遵循以下精简模式：
 
 1. **一句话描述任务目标** — 做什么、预期产出是什么
 2. **保留关键参数锚定** — 版本号、分支名、库名等 `keyParameters` 中的值必须出现（参数一致性校验要求）
-3. **末尾追加 SKILL 推荐** — `推荐使用 {SKILL目录名} SKILL 执行。`
+3. **设置 `specifiedSkill` 字段** — 值必须来自可用 SKILL 列表，不在描述文本中出现任何推荐语
 4. **不重复 SKILL 内的技术细节** — 如脚本名、编译步骤、适配层级、具体命令等，这些由 SKILL 自身描述
 
-**精简前（冗长，错误）：**
+**精简前（错误：技术细节冗长 + 旧式推荐文本）：**
 ```
 执行 detect-upstream-version.js 脚本识别鸿蒙化基线版本号与 npm 上游最新版本号，判定升级类型 A/B/C；
 如为类型 A 使用 generate-diff.js 对比上游社区仓库两个版本标签（注意 --repo 必须是上游社区仓库 URL，
@@ -341,13 +317,14 @@ failStepId → 失败后跳转到哪个步骤（0 = 失败即终止）
 推荐使用 rnoh-lib-version-diff SKILL 执行。
 ```
 
-**精简后（正确）：**
+**精简后（正确：specifiedSkill 显式绑定）：**
 ```
-对 rntpc_react-native-netinfo 进行版本差异分析，对比 br_rnoh0.82 基线版本与 0.84 目标版本的差异，
-检查 br_rnoh0.84 分支是否存在，输出版本分析报告。推荐使用 rnoh-lib-version-diff SKILL 执行。
+taskDescription: 对 rntpc_react-native-netinfo 进行版本差异分析，对比 br_rnoh0.82 基线版本与 0.84 目标版本的差异，
+                检查 br_rnoh0.84 分支是否存在，输出版本分析报告。
+specifiedSkill: rnoh-lib-version-diff
 ```
 
-> 无推荐 SKILL 的步骤（如克隆仓库、设备部署等通用操作）仍需在 `taskDescription` 中写明具体操作步骤，因为这些操作没有 SKILL 承载细节。
+> 未绑定 `specifiedSkill` 的步骤（如克隆仓库、设备部署等通用操作）仍需在 `taskDescription` 中写明具体操作步骤，因为这些操作没有 SKILL 承载细节。
 
 ---
 
@@ -395,6 +372,7 @@ failStepId → 失败后跳转到哪个步骤（0 = 失败即终止）
     {
       "stepId": 1,
       "taskDescription": "步骤的具体描述",
+      "specifiedSkill": "rnoh-lib-version-diff",
       "dependId": 0,
       "nextStepId": 2,
       "failStepId": 0,
@@ -414,6 +392,8 @@ failStepId → 失败后跳转到哪个步骤（0 = 失败即终止）
 ```
 
 > `keyParameters` 为必填字段，由 Phase 1.4 从任务描述中提取。步骤描述中出现的所有版本号、分支名必须与 `keyParameters` 中的值一致，由 `validate-param-consistency.cjs` 强制校验。
+
+> `specifiedSkill` 为可选字段，由 Phase 2.4 的 SKILL 匹配产生：步骤职责与某个可用 SKILL 匹配时设置（值为该 SKILL 的 name 或目录名），未匹配时不设置或留空。值必须来自 Phase 1.5 的可用 SKILL 列表，由 `validate-specified-skills.cjs` 强制校验。
 
 > 完整输出示例参见 [输出示例](assets/OUTPUT_EXAMPLES.md)
 
@@ -443,7 +423,7 @@ failStepId → 失败后跳转到哪个步骤（0 = 失败即终止）
 - ✅ `acceptanceCriteria[].id` 格式为 `ac{stepId}_{序号}`
 - ✅ 所有字符串字段非空
 - ✅ 步骤描述中出现的版本号/分支名与 `keyParameters` 一致（由 `validate-param-consistency.cjs` 强制校验）
-- ✅ 重规划时 `stepId` 从 1 重新编号
+- ✅ `specifiedSkill`（可选）值必须来自可用 SKILL 列表（由 `validate-specified-skills.cjs` 强制校验）
 
 ---
 
@@ -467,14 +447,19 @@ failStepId → 失败后跳转到哪个步骤（0 = 失败即终止）
 
 ```bash
 # 1. 字段/引用/验收标准合规性校验
-bash scripts/validate-decomposition-output.sh <resultFile>
+node scripts/validate-decomposition-output.cjs <resultFile>
 
 # 2. 死锁/循环检测（必须通过，否则重拆解）
 node scripts/validate-step-graph.cjs <resultFile>
 
 # 3. 关键参数一致性校验（版本号/分支名篡改检测）
 node scripts/validate-param-consistency.cjs <resultFile>
+
+# 4. specifiedSkill 校验（引用的 SKILL 必须在可用列表中，且无旧式推荐文本）
+node scripts/validate-specified-skills.cjs <resultFile>
 ```
+
+> 四个脚本均为 Node.js（`.cjs`）实现，跨平台（Windows/macOS/Linux）可直接运行，仅需 Node.js 环境。
 
 ### 参数一致性校验规则（强制）
 
@@ -486,6 +471,15 @@ node scripts/validate-param-consistency.cjs <resultFile>
 4. **`keyParameters` 中声明的参数在步骤中完全未引用** — 如 `keyParameters.versionNumbers` 含 `0.82` 但所有步骤描述中均未出现，判定为参数声明但未使用
 
 > ⚠️ **强制要求**：若脚本 exit 非 0（检测到参数篡改），**必须对照原始任务描述修正 `keyParameters` 及相关步骤描述后重新生成 JSON，并重新运行校验，直至全部通过**。
+
+### specifiedSkill 校验规则（强制）
+
+`validate-specified-skills.cjs` 会实时扫描 SKILL 根目录（黑名单过滤后）作为合法集合，检测以下问题，任一项不通过则脚本以非零码退出：
+
+1. **specifiedSkill 不在可用列表中** — 步骤引用了不存在的 SKILL（含黑名单中的编排层/元技能），判定为臆造引用。修正方式：运行 `node scripts/list-available-skills.cjs` 查看实时列表，对照修正
+2. **旧式推荐文本残留** — `taskDescription` 中出现"推荐使用 X SKILL 执行"字样（旧模式已废止）。修正方式：删除该句，改为在步骤 JSON 中设置 `specifiedSkill` 字段
+
+> ⚠️ **强制要求**：若脚本 exit 非 0，**必须修正 `specifiedSkill` 引用或移除旧式推荐文本后重新生成 JSON，并重新运行校验，直至全部通过**。
 
 ### 死锁校验规则（强制）
 
@@ -518,7 +512,7 @@ node scripts/validate-param-consistency.cjs <resultFile>
 
 ## 注意事项
 
-1. **每个步骤只做一件独立可验证的事** — 任务编排层与 SKILL 层解耦，步骤描述面向任务本身（做什么/怎么做/预期输出），不绑定具体 SKILL；SkillSelector 在运行时负责将步骤匹配到执行 SKILL
+1. **每个步骤只做一件独立可验证的事** — 步骤描述面向任务本身（做什么/预期输出）；职责与可用 SKILL 匹配的步骤通过 `specifiedSkill` 字段显式绑定（跳过自动匹配），其余步骤由 SkillSelector 在运行时按 taskDescription 自动匹配
 2. **验收标准必须可验证** — 避免模糊描述，verification 要具体到可执行
 3. **依赖图不能有死循环** — failStepId 回退链必须有限，配合 maxRetries 控制；成功链/失败链/依赖环均会死锁。最终以 `node scripts/validate-step-graph.cjs <resultFile>` 校验结果为准，检测到死锁必须重拆解直至通过
 4. **步骤级 AC 的 taskACIds 要覆盖任务级 AC** — 合并所有步骤的 taskACIds 应覆盖所有任务级标准 ID
@@ -526,4 +520,6 @@ node scripts/validate-param-consistency.cjs <resultFile>
 6. **输出纯 JSON** — 下游有容错机制但应输出纯 JSON，不依赖容错
 7. **步骤级 AC 实际由 acceptance-check SKILL 消费** — Orchestrator 仅消费图字段调度，步骤级 AC 通过产物文件传递给 acceptance-check SKILL 评估
 8. **关键参数逐字保真** — 版本号、分支名、仓库 URL、库名等关键参数必须从任务描述中原样提取到 `keyParameters`，步骤描述中引用时必须与 `keyParameters` 一致。LLM 生成时易将版本号臆造为相似但错误的值（如 `0.82`→`0.72`），由 `validate-param-consistency.cjs` 强制拦截
-9. **RN 三方库升级步骤描述追加推荐 SKILL** — 当任务命中「RN 三方库框架升级适配」领域模板时，每个步骤的 `taskDescription` 末尾追加`推荐使用 {SKILL目录名} SKILL 执行。`，帮助 SkillSelector 更精准匹配执行 SKILL（详见 Phase 2.4）
+9. **步骤与执行 SKILL 通过 specifiedSkill 字段绑定** — 职责与可用 SKILL 匹配的步骤设置 `specifiedSkill`（值必须来自 Phase 1.5 实时扫描的可用 SKILL 列表），执行层 FlexRunner 将跳过自动匹配直接使用该 SKILL；
+10. **拆解是设计不是研究** — 拆解输入只来自 prompt 注入文本，不通过克隆仓库、读源码、拉 Issue 等检索补充；步骤描述只写有 prompt 出处的断言，其余表达为探索目标（见 Phase 2.0 三原则）
+11. **最少充分步骤** — 步骤数由任务复杂度决定（简单 1-3 步 / 中等 3-5 步 / 复杂 5-8 步），以覆盖全部任务级 AC 的最少独立产物数为目标，禁止凑数式拆解（见 Phase 2.1 拆解数量基本原则）

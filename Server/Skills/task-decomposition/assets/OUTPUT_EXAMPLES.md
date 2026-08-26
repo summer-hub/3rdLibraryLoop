@@ -17,7 +17,7 @@
   "steps": [
     {
       "stepId": 1,
-      "taskDescription": "对 libcurl 源码进行鸿蒙化可行性分析：git clone 源码仓库到工作目录，扫描源码结构、第三方依赖、平台相关代码（#ifdef 平台宏）及构建系统（CMake/Makefile），输出标准化分析报告（analysis-report.md）",
+      "taskDescription": "对 libcurl 7.88.0 源码进行鸿蒙化可行性分析：git clone 源码仓库到工作目录，扫描源码结构、第三方依赖、平台相关代码（#ifdef 平台宏）及构建系统（CMake/Makefile），输出标准化分析报告（analysis-report.md）",
       "dependId": 0,
       "nextStepId": 2,
       "failStepId": 0,
@@ -90,7 +90,7 @@
     {
       "stepId": 4,
       "taskDescription": "对编译失败的问题进行修复：分析编译错误原因，修改源码或构建配置，输出修复记录（fix-record.md），记录每个问题的修复方案",
-      "dependId": 3,
+      "dependId": -1,
       "nextStepId": 3,
       "failStepId": 5,
       "maxRetries": 3,
@@ -147,7 +147,7 @@
   "steps": [
     {
       "stepId": 1,
-      "taskDescription": "准备代码质量检查环境：克隆仓库到工作目录，安装依赖，确认项目可正常加载",
+      "taskDescription": "准备代码质量检查环境：克隆 libexample 仓库 main 分支到工作目录，安装依赖，确认项目可正常加载",
       "dependId": 0,
       "nextStepId": 2,
       "failStepId": 0,
@@ -230,7 +230,7 @@
     {
       "stepId": 5,
       "taskDescription": "对检查发现的问题进行修复：根据质量报告中的问题清单，逐项修复代码或文档问题，输出修复记录（fix-record.md）",
-      "dependId": 2,
+      "dependId": -1,
       "nextStepId": 2,
       "failStepId": 4,
       "maxRetries": 3,
@@ -265,7 +265,7 @@
   "steps": [
     {
       "stepId": 1,
-      "taskDescription": "获取 PR 信息并克隆仓库：通过 git clone 获取目标仓库指定分支代码，记录 PR 变更文件列表",
+      "taskDescription": "获取 PR 信息并克隆仓库：通过 git clone 获取目标仓库 feature/fix-123 分支代码，记录 PR 变更文件列表",
       "dependId": 0,
       "nextStepId": 2,
       "failStepId": 0,
@@ -324,9 +324,9 @@
 
 ---
 
-## 示例 4：RN 三方库框架升级适配（含推荐 SKILL 标注）
+## 示例 4：RN 三方库框架升级适配（含 specifiedSkill 绑定）
 
-> 该示例展示「RN 三方库框架升级适配」领域模板的标准 6 步拆解。**有推荐 SKILL 的步骤（2/3/4/6）`taskDescription` 只描述任务目标与关键参数，技术细节由 SKILL 承载；无推荐 SKILL 的步骤（1/5）仍写明具体操作。**
+> 该示例展示「RN 三方库框架升级适配」领域模板的标准 6 步拆解。**绑定了 specifiedSkill 的步骤（2/3/4/6）`taskDescription` 只描述任务目标与关键参数，技术细节由 SKILL 承载，绑定关系写入 `specifiedSkill` 字段；未绑定的步骤（1/5）仍写明具体操作。**
 
 ```json
 {
@@ -359,7 +359,8 @@
     },
     {
       "stepId": 2,
-      "taskDescription": "对 rntpc_react-native-netinfo 进行版本差异分析，对比 br_rnoh0.82 基线版本与 0.84 目标版本的差异，检查 br_rnoh0.84 分支是否存在，输出版本分析报告。推荐使用 rnoh-lib-version-diff SKILL 执行。",
+      "taskDescription": "对 rntpc_react-native-netinfo 进行版本差异分析，对比 br_rnoh0.82 基线版本与 0.84 目标版本的差异，检查 br_rnoh0.84 分支是否存在，输出版本分析报告。",
+      "specifiedSkill": "rnoh-lib-version-diff",
       "dependId": 1,
       "nextStepId": 3,
       "failStepId": 0,
@@ -376,7 +377,8 @@
     },
     {
       "stepId": 3,
-      "taskDescription": "对 rntpc_react-native-netinfo 进行 0.82→0.84 框架升级代码适配与编译验证，输出适配变更清单。推荐使用 rnoh-lib-code-adapt SKILL 执行.",
+      "taskDescription": "对 rntpc_react-native-netinfo 进行 0.82→0.84 框架升级代码适配与编译验证（框架依赖升级至 react 19.2），输出适配变更清单。",
+      "specifiedSkill": "rnoh-lib-code-adapt",
       "dependId": 2,
       "nextStepId": 4,
       "failStepId": 0,
@@ -393,7 +395,8 @@
     },
     {
       "stepId": 4,
-      "taskDescription": "对 rntpc_react-native-netinfo 移植上游测试 demo 并执行测试验证，补充缺失测试用例，输出测试结果。推荐使用 rnoh-lib-test-align SKILL 执行.",
+      "taskDescription": "对 rntpc_react-native-netinfo 移植上游测试 demo 并执行测试验证，补充缺失测试用例，输出测试结果。",
+      "specifiedSkill": "rnoh-lib-test-align",
       "dependId": 3,
       "nextStepId": 5,
       "failStepId": 0,
@@ -427,7 +430,8 @@
     },
     {
       "stepId": 6,
-      "taskDescription": "基于适配变更清单与设备验证记录，对 rntpc_react-native-netinfo 生成功能测试 checklist 与 fix-summary.json，标注高风险场景。推荐使用 rnoh-lib-func-test SKILL 执行.",
+      "taskDescription": "基于适配变更清单与设备验证记录，对 rntpc_react-native-netinfo 生成功能测试 checklist 与 fix-summary.json，标注高风险场景。",
+      "specifiedSkill": "rnoh-lib-func-test",
       "dependId": 5,
       "nextStepId": 0,
       "failStepId": 0,

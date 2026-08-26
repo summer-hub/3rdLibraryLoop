@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 /**
- * validate-param-consistency.cjs — 校验 task-decomposition SKILL 输出中的关键参数一致性。
+ * @tool validate-param-consistency
+ * @description 校验 task-decomposition SKILL 输出中的关键参数一致性（拦截 LLM 生成时版本号/分支名臆造问题）。跨平台（Windows/macOS/Linux），仅需 Node.js。
+ * @param resultFile: string - 拆解结果 JSON 文件路径
+ *
+ * validate-param-consistency.cjs
  *
  * 检测范围（拦截 LLM 生成时版本号/分支名臆造问题）：
  *   1. keyParameters 缺失 — 输出 JSON 未包含 keyParameters 字段
@@ -39,9 +43,10 @@ function extractJson(raw) {
 
 // ── 参数提取工具 ──────────────────────────────────────────
 
-/** 提取所有版本号（如 0.82, 0.84, 1.5），使用 \b 边界匹配 */
+/** 提取所有版本号（如 0.82, 7.88.0, 19.2，支持 2-4 段式），使用 \b 边界匹配。
+ *  注意：br_rnoh0.82 等分支名内的数字因无词边界不会误提取为版本号。 */
 function extractVersionNumbers(text) {
-  const matches = text.match(/\b\d+\.\d+\b/g);
+  const matches = text.match(/\b\d+(?:\.\d+){1,3}\b/g);
   return matches ? [...new Set(matches)] : [];
 }
 

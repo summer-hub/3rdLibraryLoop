@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 /**
- * validate-step-graph.cjs — 校验 task-decomposition SKILL 生成的步骤图是否存在死锁/循环。
+ * @tool validate-step-graph
+ * @description 校验 task-decomposition SKILL 生成的步骤图是否存在死锁/循环（成功链环/失败链环/依赖环/不可达步骤/无终止）。跨平台（Windows/macOS/Linux），仅需 Node.js。
+ * @param resultFile: string - 拆解结果 JSON 文件路径
+ *
+ * validate-step-graph.cjs
  *
  * 检测范围（覆盖成功链 / 失败链 / 依赖链三类有向边 + 可达性）：
  *   1. 成功链环（nextStepId 边成环）—— 如 step4.nextStepId→5、step5.nextStepId→4

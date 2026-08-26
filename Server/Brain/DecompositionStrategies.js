@@ -146,7 +146,7 @@ export class DecompositionStrategies {
             userCriteria.trim()
                 ? `## 用户提供的验收标准\n${userCriteria.trim()}`
                 : null,
-            `## 拆解要求\n请按照 SKILL 中的拆解原则执行，确保：\n1. 每个步骤只做一件独立可验证的事\n2. 步骤间通过 dependId/nextStepId/failStepId 构成有向图\n3. 必须有入口步骤（dependId=0）和终止步骤（nextStepId=0）\n4. 每个步骤必须有明确的验收标准\n5. 所有步骤的验收标准合并后应覆盖任务级验收标准`
+            `## 拆解要求\n请按照 SKILL 中的拆解原则执行，确保：\n1. 每个步骤只做一件独立可验证的事\n2. 步骤间通过 dependId/nextStepId/failStepId 构成有向图\n3. 必须有入口步骤（dependId=0）和终止步骤（nextStepId=0）\n4. 每个步骤必须有明确的验收标准\n5. 所有步骤的验收标准合并后应覆盖任务级验收标准\n6. 职责与可用 SKILL 匹配的步骤设置 specifiedSkill 字段（可用列表按 SKILL.md 指令运行 SKILL 内脚本获取，值必须来自该列表）`
         ].filter(Boolean);
 
         const title = `brain|task=${taskId}|decompose|loop=${loopCount}`;
@@ -188,6 +188,10 @@ export class DecompositionStrategies {
             .map(c => `  - [${c.id}] (${c.type}) ${c.criterion} → 验证: ${c.verification}`)
             .join('\n');
 
+        // 可用 SKILL 列表不在系统侧注入：由 SKILL.md 指令（Phase 1.5）运行
+        // SKILL 内的 scripts/list-available-skills.cjs 实时获取，保持单一事实源在 SKILL 内。
+        // LLM fallback 路径无法执行脚本，specifiedSkill 按字段说明可选输出。
+
         const prompt = `你是一个任务拆解专家。请将以下自然语言任务拆解为多个可独立执行的步骤。
 
 ## 任务描述
@@ -214,6 +218,7 @@ ${skillInstructions}
     {
       "stepId": 1,
       "taskDescription": "该步骤的具体任务描述（需要足够详细，能被 Skill 匹配器理解）",
+      "specifiedSkill": "rnoh-lib-version-diff",
       "dependId": 0,
       "nextStepId": 2,
       "failStepId": 0,
@@ -234,6 +239,7 @@ ${skillInstructions}
 ### 字段说明
 - stepId: 步骤 ID，从 1 开始的正整数
 - taskDescription: 该步骤的具体任务描述，必须详细且可执行
+- specifiedSkill: 可选。步骤职责与某个可用 SKILL 匹配时设置（值为该 SKILL 的 name 或目录名），执行层将直接使用该 SKILL；无法确认可用 SKILL 列表时不设置该字段。禁止在 taskDescription 中写"推荐使用 X SKILL 执行"推荐文本
 - dependId: 依赖的步骤 ID，0 表示无依赖（入口步骤）
 - nextStepId: 成功后执行的下一步 ID，0 表示结束
 - failStepId: 失败后跳转的步骤 ID，0 表示失败即终止
@@ -346,7 +352,7 @@ ${skillInstructions}
                 : null,
             `## 上一轮失败信息\n### 审核摘要\n${prevCheckSummary || '（无）'}\n### 未满足的验收标准\n${failedText}\n### 改进建议\n${suggestionText}`,
             `## 上一轮步骤执行详情\n${prevStepsText}`,
-            `## 重拆解要求\n当前是第 ${loopCount} 轮重规划，请基于上一轮失败信息和已完成步骤重新拆解任务：\n1. 已完成的步骤无需重新执行，它们的产物已生成并可用\n2. 针对失败的步骤和未满足的验收标准，调整步骤描述或新增步骤\n3. 增加或强化验证步骤\n4. 考虑改进建议中的方向，新增必要的步骤\n5. 保持步骤间的依赖关系合理\n6. 新步骤 ID 从 1 开始重新编号，但在步骤描述中注明引用了上一轮哪个步骤的产物（如"基于上一轮步骤3的产物…"）`
+            `## 重拆解要求\n当前是第 ${loopCount} 轮重规划，请基于上一轮失败信息和已完成步骤重新拆解任务：\n1. 已完成的步骤无需重新执行，它们的产物已生成并可用\n2. 针对失败的步骤和未满足的验收标准，调整步骤描述或新增步骤\n3. 增加或强化验证步骤\n4. 考虑改进建议中的方向，新增必要的步骤\n5. 保持步骤间的依赖关系合理\n6. 新步骤 ID 从 1 开始重新编号，但在步骤描述中注明引用了上一轮哪个步骤的产物（如"基于上一轮步骤3的产物…"）\n7. 职责与可用 SKILL 匹配的步骤设置 specifiedSkill 字段（可用列表按 SKILL.md 指令运行 SKILL 内脚本获取，值必须来自该列表）`
         ].filter(Boolean);
 
         const title = `brain|task=${taskId}|decompose|replan|loop=${loopCount}`;
@@ -398,6 +404,9 @@ ${skillInstructions}
         // 格式化上一轮步骤执行摘要（已完成步骤 + 失败步骤 + 产物路径）
         const prevStepsText = this._formatPrevStepsSummary(context);
 
+        // 可用 SKILL 列表不在系统侧注入：由 SKILL.md 指令（Phase 1.5）运行
+        // SKILL 内的 scripts/list-available-skills.cjs 实时获取，保持单一事实源在 SKILL 内。
+
         const prompt = `你是一个任务拆解专家。当前是第 ${loopCount} 轮重规划，上一轮执行后准出审核未通过，请基于失败信息和已完成步骤重新拆解任务。
 
 ## 原始任务描述
@@ -437,6 +446,7 @@ ${skillInstructions}
 5. 保持步骤间的依赖关系合理
 6. 新步骤 ID 从 1 开始重新编号，但在步骤描述中注明引用了上一轮哪个步骤的产物（如"基于上一轮步骤3的产物…"）
 7. 若上一轮存在"编译/执行验证失败"且失败归因于本次生成的代码，应新增一个独立的"修复代码"步骤，并让验证步骤的 failStepId 指向它（而非生成步骤），修复成功后再通过 nextStepId 指回验证步骤重试
+8. 职责与可用 SKILL 匹配的步骤设置 specifiedSkill 字段（值为该 SKILL 的 name 或目录名）；无法确认可用 SKILL 列表时不设置该字段。禁止在 taskDescription 中写"推荐使用 X SKILL 执行"推荐文本
 
 ## 输出要求
 请以 JSON 格式返回：
@@ -445,6 +455,7 @@ ${skillInstructions}
     {
       "stepId": 1,
       "taskDescription": "该步骤的具体任务描述",
+      "specifiedSkill": "rnoh-lib-version-diff",
       "dependId": 0,
       "nextStepId": 2,
       "failStepId": 0,
@@ -461,6 +472,8 @@ ${skillInstructions}
     }
   ]
 }
+
+字段说明：specifiedSkill 为可选字段，步骤职责与某个可用 SKILL 匹配时设置（值为该 SKILL 的 name 或目录名），执行层将直接使用该 SKILL 跳过自动匹配；未匹配时不设置。
 
 注意：只返回 JSON，不要包含其他文字。`;
 
@@ -489,6 +502,8 @@ ${skillInstructions}
         const normalized = steps.map((s, idx) => ({
             stepId: typeof s.stepId === 'number' ? s.stepId : idx + 1,
             taskDescription: s.taskDescription || '',
+            // specifiedSkill 透传：拆解时绑定的执行 SKILL（name 或目录名），空串表示未绑定
+            specifiedSkill: typeof s.specifiedSkill === 'string' ? s.specifiedSkill.trim() : '',
             dependId: normalizeStepDependId(s.dependId),
             nextStepId: s.nextStepId ?? 0,
             failStepId: s.failStepId ?? 0,

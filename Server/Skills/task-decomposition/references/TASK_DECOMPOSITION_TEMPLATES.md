@@ -4,6 +4,54 @@
 
 ---
 
+## 颗粒度 few-shot 示例
+
+> 配合 SKILL.md Phase 2.1「拆解数量基本原则」与「通用拆分规则」使用。
+
+**示例 1（过细，错误）：**
+```
+将"获取源码并分析结构"拆成 4 个原子步骤
+  ✗ 步骤: git clone
+    步骤: cd 进入目录
+    步骤: ls 查看文件
+    步骤: cat README
+改正 → 合并为一步: "获取 libcurl 源码并扫描其结构、依赖与构建系统，输出分析报告"
+```
+
+**示例 2（过粗，错误）：**
+```
+一步含多个独立产出
+  ✗ 步骤: "分析源码、编译验证并生成最终报告"
+改正 → 拆为三阶段:
+  步骤1: 分析源码结构，输出分析报告
+  步骤2: 鸿蒙化编译验证，输出编译结果
+  步骤3: 汇总生成最终报告
+```
+
+**示例 3（凑数式，错误）：**
+```
+任务: 定位某库日志模块的实现并说明其用法（estimatedSteps=6）
+  ✗ 步骤1: 克隆仓库
+    步骤2: 确认开发环境
+    步骤3: 搜索日志相关文件
+    步骤4: 阅读日志模块代码
+    步骤5: 整理要点
+    步骤6: 校验并输出说明
+改正 → 1 步: "克隆仓库，定位并分析日志模块实现，输出说明文档"
+（简单任务单一产物，无需中间产物链；estimatedSteps 是参考而非目标）
+```
+
+**示例 4（合理，正确）：**
+```
+任务: 检视三方库代码质量（estimatedSteps=4）
+  ✓ 步骤1: 克隆仓库并准备环境 (dependId=0)
+    步骤2: 代码质量检视 (dependId=1)
+    步骤3: 文档质量检视 (dependId=1，与步骤2并行)
+    步骤4: 汇总检视结果生成报告 (dependId=[2,3], nextStepId=0)
+```
+
+---
+
 ## 模板 1：库移植分析
 
 ```
@@ -95,33 +143,30 @@
 
 > **适用场景**：将 RN 鸿蒙化三方库从某个 RNOH 版本升级到新版本（如 0.72→0.82、0.82→0.84），涉及版本差异分析、代码适配、测试对齐、设备验证与功能总结。
 >
-> **拆解依据**：此类任务天然对应 4 个执行 SKILL 的 phase（version-diff / code-adapt / test-align / func-test），加上前置克隆和设备验证独立，共 6 步。每步对应一个 SKILL phase 或其关键子集。**有推荐 SKILL 的步骤只需描述任务目标与关键参数，技术细节由 SKILL 承载；无推荐 SKILL 的步骤仍需写明具体操作。**
+> **拆解依据**：此类任务天然对应 4 个执行 SKILL 的 phase（version-diff / code-adapt / test-align / func-test），加上前置克隆和设备验证独立，共 6 步。每步对应一个 SKILL phase 或其关键子集。**设置了 specifiedSkill 的步骤只需描述任务目标与关键参数，技术细节由 SKILL 承载；未设置的步骤仍需写明具体操作。**
 >
 > **关键参数**：必须从任务描述中提取版本号（源版本 + 目标版本 + 框架依赖版本）、分支名（源分支 + 目标分支）、仓库 URL、库名到 `keyParameters`。
 
 ```
-步骤1: 克隆仓库并验证分支与结构 (dependId=0)
+步骤1: 克隆仓库并验证分支与结构 (dependId=0, specifiedSkill: 无)
   从 git URL 克隆源分支到工作目录；git branch --show-current 确认分支；
   ls 确认 package.json、src/、harmony/ 三部分结构
   → 成功: 步骤2  → 失败: 终止
 
-步骤2: 版本差异分析 (dependId=1)
+步骤2: 版本差异分析 (dependId=1, specifiedSkill: rnoh-lib-version-diff)
   对 {库名} 进行版本差异分析，对比 {源分支} 基线版本与 {目标版本} 的差异，
   检查 {目标分支} 分支是否存在，输出版本分析报告。
-  推荐使用 rnoh-lib-version-diff SKILL 执行。
   → 成功: 步骤3  → 失败: 终止
 
-步骤3: 代码适配与编译验证 (dependId=2)
+步骤3: 代码适配与编译验证 (dependId=2, specifiedSkill: rnoh-lib-code-adapt)
   对 {库名} 进行 0.82→0.84 框架升级代码适配与编译验证，输出适配变更清单。
-  推荐使用 rnoh-lib-code-adapt SKILL 执行。
   → 成功: 步骤4  → 失败: 终止
 
-步骤4: 测试对齐与补全 (dependId=3)
+步骤4: 测试对齐与补全 (dependId=3, specifiedSkill: rnoh-lib-test-align)
   对 {库名} 移植上游测试 demo 并执行测试验证，补充缺失测试用例，输出测试结果。
-  推荐使用 rnoh-lib-test-align SKILL 执行。
   → 成功: 步骤5  → 失败: 终止
 
-步骤5: 签名构建与设备运行时验证 (dependId=4)
+步骤5: 签名构建与设备运行时验证 (dependId=4, specifiedSkill: 无)
   确保 build-profile.json5 中 signingConfigs 已配置且非空（p12/cer 证书）；
   构建产出 entry-default-signed.hap（已签名），确认 size > 0；
   部署到设备，获取 UI 树 JSON grep 搜索库名关键词命中（确认非残留应用）；
@@ -129,10 +174,9 @@
   输出设备验证记录
   → 成功: 步骤6  → 失败: 终止
 
-步骤6: 功能测试总结 (dependId=5, nextStepId=0)
+步骤6: 功能测试总结 (dependId=5, nextStepId=0, specifiedSkill: rnoh-lib-func-test)
   基于适配变更清单与设备验证记录，生成功能测试 checklist 与 fix-summary.json，
   标注高风险场景。
-  推荐使用 rnoh-lib-func-test SKILL 执行。
   → 成功: 终止  → 失败: 终止
 ```
 
@@ -147,11 +191,11 @@
 | 步骤5 | 签名 HAP + signingConfigs + 设备 UI 树 + hilog 无崩溃 |
 | 步骤6 | fix-summary.json 独立文件 + fixItems 三字段 + testResult=pass 可追溯 |
 
-### 模板 6 的推荐 SKILL 映射
+### 模板 6 的 specifiedSkill 映射
 
-> 有推荐 SKILL 的步骤，`taskDescription` 只需描述任务目标与关键参数（版本号/分支名/库名），技术执行细节由 SKILL 承载，末尾追加`推荐使用 {SKILL目录名} SKILL 执行。`。无专用 SKILL 的步骤（步骤1、步骤5 为通用操作）仍需写明具体操作步骤。
+> 设置了 `specifiedSkill` 的步骤，`taskDescription` 只需描述任务目标与关键参数（版本号/分支名/库名），技术执行细节由 SKILL 承载，绑定关系写入步骤 JSON 的 `specifiedSkill` 字段。无专用 SKILL 的步骤（步骤1、步骤5 为通用操作）仍需写明具体操作步骤。注意：映射中的 SKILL 名以 Phase 1.5 脚本实时返回的可用列表为准。
 
-| 步骤 | 步骤职责 | 推荐 SKILL |
+| 步骤 | 步骤职责 | specifiedSkill |
 |------|----------|----------|
 | 步骤1 | 克隆仓库并验证分支与结构 | （无） |
 | 步骤2 | 版本差异分析 | `rnoh-lib-version-diff` |

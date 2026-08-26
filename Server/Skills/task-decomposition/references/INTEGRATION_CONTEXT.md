@@ -50,6 +50,8 @@ opencode 收到 prompt 后会读取 SKILL.md 并按指令执行。
 - `## 任务分析结果` — task-analysis SKILL 输出（格式化的 intent/domain/keywords/constraints/techStack/complexity/estimatedSteps）
 - `## 验收标准` — 任务级验收标准列表（`[ac1] (type) criterion → 验证: verification`）
 
+> 可用执行 SKILL 列表**不注入**：由本 SKILL 的 `scripts/list-available-skills.cjs` 在拆解时实时扫描获取（黑名单过滤），系统侧（Brain）不硬编码任何 SKILL 清单。
+
 ### 3.2 重规划拆解
 
 调用方（`_decomposeWithContextViaCLI`）在首轮基础上额外注入：
@@ -99,6 +101,7 @@ taskDef = {
     steps: rawSteps.map(s => ({
         stepId: s.stepId,
         taskDescription: s.taskDescription,
+        specifiedSkill: s.specifiedSkill || '',             // 步骤绑定的执行 SKILL（可选）
         dependId: s.dependId ?? 0,
         nextStepId: s.nextStepId ?? 0,
         failStepId: s.failStepId ?? 0,
@@ -107,6 +110,8 @@ taskDef = {
     }))
 };
 ```
+
+> `specifiedSkill` 由拆解时匹配可用 SKILL 列表产生（Phase 1.5 实时扫描 + Phase 2.4 绑定规则），经 `normalizeSteps` 透传（非字符串归一为空串），空串表示未绑定、由 SkillSelector 运行时自动匹配。
 
 重规划时额外记录：
 ```js
@@ -122,7 +127,7 @@ taskDef.replanInfo = {
 
 `Orchestrator.loadTask(taskDef)` 构建 `StepNode` 图：
 
-- **只消费图字段**：`stepId`、`taskDescription`、`dependId`、`nextStepId`、`failStepId`、`maxRetries`
+- **只消费图字段**：`stepId`、`taskDescription`、`dependId`、`nextStepId`、`failStepId`、`maxRetries`、`specifiedSkill`（透传给 FlexRunner）
 - **不消费 `acceptanceCriteria`**：StepNode 构造函数未声明 acceptanceCriteria 实例属性，通过 `...stepDef` 展开后被丢弃
 - **调度逻辑**：
   - 入口步骤 = `dependId === '0'` 或 dependId 指向不存在节点
@@ -130,6 +135,8 @@ taskDef.replanInfo = {
   - 成功 → 激活 `nextStepId`；失败（重试耗尽）→ 激活 `failStepId`
   - 循环检测 = `_execPathTrace` Set，重复 stepId → `markBlocked`
   - 全局上限 = `GLOBAL_EXEC_LIMIT = 200`
+
+`specifiedSkill` 的执行链路：StepNode → `Orchestrator._createFlexRunner` → `FlexRunner.initContext({ specifiedSkill })` → `executeStart` 中 `_resolveSpecifiedSkill` 直接解析该 SKILL（目录名精确匹配优先，其次 frontmatter name 匹配），跳过 SkillSelector 自动匹配；解析失败降级为无 SKILL 模式。
 
 ### 4.5 下游消费 — TestCheck / acceptance-check
 

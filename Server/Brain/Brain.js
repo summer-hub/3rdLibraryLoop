@@ -200,6 +200,7 @@ export class Brain {
                 steps: rawSteps.map(s => ({
                     stepId: s.stepId,
                     taskDescription: s.taskDescription,
+                    specifiedSkill: s.specifiedSkill || '',
                     dependId: s.dependId ?? 0,
                     nextStepId: s.nextStepId ?? 0,
                     failStepId: s.failStepId ?? 0,
@@ -420,6 +421,7 @@ export class Brain {
                 steps: rawSteps.map(s => ({
                     stepId: s.stepId,
                     taskDescription: s.taskDescription,
+                    specifiedSkill: s.specifiedSkill || '',
                     dependId: s.dependId ?? 0,
                     nextStepId: s.nextStepId ?? 0,
                     failStepId: s.failStepId ?? 0,

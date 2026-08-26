@@ -1,0 +1,10 @@
+{
+  "_comment": "可用 SKILL 扫描黑名单（list-available-skills.cjs 使用）。列于此的 SKILL（按 name 或目录名匹配，大小写不敏感）不会出现在可用 SKILL 列表中。默认排除编排层/元技能——它们由 Brain/LoopEngine 按固定链路调用，不应作为步骤执行 SKILL 被 specifiedSkill 引用。",
+  "exclude": [
+    "task-analysis",
+    "task-decomposition",
+    "acceptance-check",
+    "skill-generator",
+    "knowledge-import"
+  ]
+}
