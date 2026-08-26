@@ -4,7 +4,7 @@ description: 分析 Flutter 三方库的对外接口能力，使用 flutter-extr
 license: MIT
 compatibility: 需要 Node.js 运行环境（执行 .cjs 脚本），需要 git（克隆远程仓库时）
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   category: interface-analysis
   language-support: "Dart/Flutter（完整支持，基于正则解析引擎）"
   script-powered: "flutter-extract-interfaces.cjs + flutter-render-spec-doc.cjs"
@@ -13,7 +13,7 @@ metadata:
 
 # Flutter Interface Analyzer
 
-本技能用于**分析 Flutter 三方库的对外接口能力**，自动生成标准化的接口规格说明文档。核心接口提取由 `flutter-extract-interfaces.cjs` 脚本完成，AI 负责审查补充和文档整合。
+本技能用于**分析 Flutter 三方库的对外接口能力**，自动生成标准化的接口规格说明文档。核心接口提取由 `MCP/scripts/` 下的共享脚本 `flutter-extract-interfaces.cjs` 完成（本 SKILL 通过相对路径引用，不保存脚本副本），AI 负责审查补充和文档整合。
 
 > ⚠️ **核心原则：只分析对外公开导出的接口，不关注内部实现细节。接口提取由脚本自动完成，AI 不手动逐文件读取源码提取接口。**
 
@@ -32,6 +32,19 @@ metadata:
 ## 输入依赖
 
 无前置 SKILL。可作为独立任务调用。
+
+## 脚本依赖
+
+本 SKILL **不保存脚本副本**，直接调用 `MCP/scripts/` 目录下的两个共享 Node.js 脚本：
+
+| 脚本 | 功能 | 输出 |
+|------|------|------|
+| `flutter-extract-interfaces.cjs` | 从 Dart 源码提取接口规格 JSON | `interface-spec.json` |
+| `flutter-render-spec-doc.cjs` | 将 JSON 渲染为 Markdown 接口文档 | `接口规格说明.md` |
+
+**派生变量**：
+- `skillDir`：本 SKILL 所在目录（任务 prompt 中“SKILL 目录”下发的绝对路径）
+- `mcpScriptsDir`：共享脚本目录 = `{{skillDir}}/../../../MCP/scripts`（即 `3rdLibraryLoop/MCP/scripts`）
 
 ---
 
@@ -93,10 +106,10 @@ Phase 5: 最终文档输出
 
 ### 2.1 运行提取脚本
 
-使用 `scripts/flutter-extract-interfaces.cjs` 从 Dart 源码自动提取全部公开接口：
+使用共享脚本从 Dart 源码自动提取全部公开接口：
 
 ```bash
-node scripts/flutter-extract-interfaces.cjs --repoDir <analysisRoot> --output <outputDir>/interface-spec.json
+node "{{skillDir}}/../../../MCP/scripts/flutter-extract-interfaces.cjs" --repoDir <analysisRoot> --output <outputDir>/interface-spec.json
 ```
 
 **脚本自动完成的工作**：
@@ -153,16 +166,16 @@ node scripts/flutter-extract-interfaces.cjs --repoDir <analysisRoot> --output <o
 
 ### 3.1 运行渲染脚本
 
-使用 `scripts/flutter-render-spec-doc.cjs` 将 JSON 渲染为 Markdown 文档：
+使用共享脚本将 JSON 渲染为 Markdown 文档：
 
 ```bash
-node scripts/flutter-render-spec-doc.cjs --spec <outputDir>/interface-spec.json --output <outputDir>/接口规格说明.md
+node "{{skillDir}}/../../../MCP/scripts/flutter-render-spec-doc.cjs" --spec <outputDir>/interface-spec.json --output <outputDir>/接口规格说明.md
 ```
 
 **也可以一步到位**（跳过 Phase 2 的 JSON 输出，直接从源码生成文档）：
 
 ```bash
-node scripts/flutter-render-spec-doc.cjs --libroot <analysisRoot> --output <outputDir>/接口规格说明.md
+node "{{skillDir}}/../../../MCP/scripts/flutter-render-spec-doc.cjs" --libroot <analysisRoot> --output <outputDir>/接口规格说明.md
 ```
 
 > 推荐使用两步方式（先提取 JSON 再渲染），JSON 中间件可复用于下游覆盖率分析。
@@ -254,10 +267,10 @@ node scripts/flutter-render-spec-doc.cjs --libroot <analysisRoot> --output <outp
 
 | 脚本 | 用途 | 调用方式 |
 |------|------|----------|
-| `scripts/flutter-extract-interfaces.cjs` | 从 Dart 源码提取接口规格 JSON | `node scripts/flutter-extract-interfaces.cjs --repoDir <路径> --output <json路径>` |
-| `scripts/flutter-render-spec-doc.cjs` | 将 JSON 渲染为 Markdown 文档 | `node scripts/flutter-render-spec-doc.cjs --spec <json路径> --output <md路径>` |
+| `flutter-extract-interfaces.cjs` | 从 Dart 源码提取接口规格 JSON | `node "{{skillDir}}/../../../MCP/scripts/flutter-extract-interfaces.cjs" --repoDir <路径> --output <json路径>` |
+| `flutter-render-spec-doc.cjs` | 将 JSON 渲染为 Markdown 文档 | `node "{{skillDir}}/../../../MCP/scripts/flutter-render-spec-doc.cjs" --spec <json路径> --output <md路径>` |
 
-> 脚本详细参数、输出格式、故障排查参见 [脚本使用参考](references/SCRIPT_REFERENCE.md)
+> 脚本位于 `MCP/scripts/`（本 SKILL 不保存副本），详细参数、输出格式、故障排查参见 [脚本使用参考](references/SCRIPT_REFERENCE.md)
 
 ---
 

@@ -18,10 +18,6 @@
 flutter-interface/
 ├── SKILL.md                          # Skill 主文件（工作流指令）
 ├── README.md                         # 本文件
-├── scripts/
-│   ├── flutter-extract-interfaces.cjs  # 接口提取脚本（核心）
-│   ├── flutter-render-spec-doc.cjs     # 文档渲染脚本
-│   └── flutter-extract-interfaces.cjs  # 接口提取脚本
 └── references/
     ├── GIT_CLONE_GUIDE.md            # Git Clone 操作指南
     ├── SCRIPT_REFERENCE.md           # 脚本参数与故障排查
@@ -29,23 +25,25 @@ flutter-interface/
     └── TEMPLATE.md                   # 文档输出模板
 ```
 
+> 脚本不保存在本 SKILL 内，统一位于仓库的 `MCP/scripts/` 目录（`flutter-extract-interfaces.cjs`、`flutter-render-spec-doc.cjs`），通过相对路径 `{{skillDir}}/../../../MCP/scripts/` 引用。
+
 ## 快速开始
 
 ### 脚本驱动分析（推荐）
 
 ```bash
 # 1. 提取接口到 JSON
-node scripts/flutter-extract-interfaces.cjs --repoDir /path/to/flutter_lib --output spec.json
+node "{{skillDir}}/../../../MCP/scripts/flutter-extract-interfaces.cjs" --repoDir /path/to/flutter_lib --output spec.json
 
 # 2. 渲染为 Markdown 文档
-node scripts/flutter-render-spec-doc.cjs --spec spec.json --output 接口规格说明.md
+node "{{skillDir}}/../../../MCP/scripts/flutter-render-spec-doc.cjs" --spec spec.json --output 接口规格说明.md
 ```
 
 ### 一步到位
 
 ```bash
 # 直接从源码生成文档（不保留 JSON 中间件）
-node scripts/flutter-render-spec-doc.cjs --libroot /path/to/flutter_lib --output 接口规格说明.md
+node "{{skillDir}}/../../../MCP/scripts/flutter-render-spec-doc.cjs" --libroot /path/to/flutter_lib --output 接口规格说明.md
 ```
 
 ### 从 Git 仓库分析
@@ -60,6 +58,8 @@ node scripts/flutter-render-spec-doc.cjs --libroot /path/to/flutter_lib --output
 |------|------|------|------|
 | `flutter-extract-interfaces.cjs` | 从 Dart 源码提取接口 | 库源码目录 | interface-spec.json |
 | `flutter-render-spec-doc.cjs` | 渲染接口文档 | JSON 或源码目录 | Markdown 文档 |
+
+> 脚本位于仓库的 `MCP/scripts/` 目录（本 SKILL 不保存副本），通过相对路径 `{{skillDir}}/../../../MCP/scripts/` 引用。
 
 脚本详细参数和故障排查参见 [SCRIPT_REFERENCE.md](references/SCRIPT_REFERENCE.md)。
 

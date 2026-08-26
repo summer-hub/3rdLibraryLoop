@@ -1,6 +1,6 @@
 # 脚本使用指南
 
-> 本文档详细说明 SKILL 内置的三个 Node.js 脚本的用法、参数、输出格式及工作原理。
+> 本文档详细说明本 SKILL 使用的三个 Node.js 共享脚本（位于 `MCP/scripts/`，通过相对路径引用，不保存副本）的用法、参数、输出格式及工作原理。
 
 ---
 
@@ -12,7 +12,9 @@
 | `flutter-analyze-xts-coverage.cjs` | 分析测试用例覆盖率（test/ 目录） | 库源码目录 + 可选 spec | XTS 覆盖率报告 `.md` |
 | `flutter-analyze-demo-coverage.cjs` | 分析 Demo 覆盖率（example/lib 目录） | 库源码目录 + 可选 spec | Demo 覆盖率报告 `.md` |
 
-> 三个脚本位于 SKILL 的 `scripts/` 目录下，使用 Node.js 运行。`flutter-analyze-xts-coverage.cjs` 和 `flutter-analyze-demo-coverage.cjs` 依赖 `flutter-extract-interfaces.cjs`（通过 `require`），因此三个脚本必须在同一目录。
+> 三个脚本位于仓库的 `MCP/scripts/` 目录下（本 SKILL 通过相对路径 `{{skillDir}}/../../../MCP/scripts/` 引用，**不保存脚本副本**），使用 Node.js 运行。`flutter-analyze-xts-coverage.cjs` 和 `flutter-analyze-demo-coverage.cjs` 依赖同目录的 `flutter-extract-interfaces.cjs`（通过 `require`），三者已共存于 `MCP/scripts/`，直接引用即可。
+>
+> `{{skillDir}}` = 本 SKILL 的 SKILL.md 所在目录（任务 prompt 中“SKILL 目录”下发的绝对路径）。
 
 ---
 
@@ -43,13 +45,13 @@
 
 ```bash
 # 方式一：CLI 参数模式
-node scripts/flutter-extract-interfaces.cjs --repoDir <库源码目录> --output <interface-spec.json>
+node "{{skillDir}}/../../../MCP/scripts/flutter-extract-interfaces.cjs" --repoDir <库源码目录> --output <interface-spec.json>
 
 # 方式二：不指定 output，JSON 输出到 stdout
-node scripts/flutter-extract-interfaces.cjs --repoDir <库源码目录>
+node "{{skillDir}}/../../../MCP/scripts/flutter-extract-interfaces.cjs" --repoDir <库源码目录>
 
 # 方式三：MCP Gateway 模式（JSON 字符串作为第一个参数）
-node scripts/flutter-extract-interfaces.cjs '{"libroot":"/path/to/lib","output":"spec.json"}'
+node "{{skillDir}}/../../../MCP/scripts/flutter-extract-interfaces.cjs" '{"libroot":"/path/to/lib","output":"spec.json"}'
 ```
 
 ### 参数
@@ -144,11 +146,11 @@ node scripts/flutter-extract-interfaces.cjs '{"libroot":"/path/to/lib","output":
 
 ```bash
 # 方式一：先提取接口，再分析覆盖率（推荐，避免重复提取）
-node scripts/flutter-extract-interfaces.cjs --repoDir <库源码目录> --output <outputDir>/interface-spec.json
-node scripts/flutter-analyze-xts-coverage.cjs --spec <outputDir>/interface-spec.json --libroot <库源码目录> --output <outputDir>/03-XTS覆盖率报告.md
+node "{{skillDir}}/../../../MCP/scripts/flutter-extract-interfaces.cjs" --repoDir <库源码目录> --output <outputDir>/interface-spec.json
+node "{{skillDir}}/../../../MCP/scripts/flutter-analyze-xts-coverage.cjs" --spec <outputDir>/interface-spec.json --libroot <库源码目录> --output <outputDir>/03-XTS覆盖率报告.md
 
 # 方式二：直接从源码提取接口并分析（一步到位）
-node scripts/flutter-analyze-xts-coverage.cjs --libroot <库源码目录> --output <outputDir>/03-XTS覆盖率报告.md
+node "{{skillDir}}/../../../MCP/scripts/flutter-analyze-xts-coverage.cjs" --libroot <库源码目录> --output <outputDir>/03-XTS覆盖率报告.md
 ```
 
 ### 参数
@@ -202,10 +204,10 @@ node scripts/flutter-analyze-xts-coverage.cjs --libroot <库源码目录> --outp
 
 ```bash
 # 方式一：使用已有 spec
-node scripts/flutter-analyze-demo-coverage.cjs --spec <outputDir>/interface-spec.json --libroot <库源码目录> --output <outputDir>/02-Demo覆盖率报告.md
+node "{{skillDir}}/../../../MCP/scripts/flutter-analyze-demo-coverage.cjs" --spec <outputDir>/interface-spec.json --libroot <库源码目录> --output <outputDir>/02-Demo覆盖率报告.md
 
 # 方式二：直接从源码提取
-node scripts/flutter-analyze-demo-coverage.cjs --libroot <库源码目录> --output <outputDir>/02-Demo覆盖率报告.md
+node "{{skillDir}}/../../../MCP/scripts/flutter-analyze-demo-coverage.cjs" --libroot <库源码目录> --output <outputDir>/02-Demo覆盖率报告.md
 ```
 
 ### 参数
@@ -228,18 +230,18 @@ node scripts/flutter-analyze-demo-coverage.cjs --libroot <库源码目录> --out
 
 ```
 Step 1: 提取接口规格
-    node scripts/flutter-extract-interfaces.cjs \
+    node "{{skillDir}}/../../../MCP/scripts/flutter-extract-interfaces.cjs" \
         --repoDir {outputDir}/source \
         --output {outputDir}/interface-spec.json
 
 Step 2: 分析 XTS 测试覆盖率
-    node scripts/flutter-analyze-xts-coverage.cjs \
+    node "{{skillDir}}/../../../MCP/scripts/flutter-analyze-xts-coverage.cjs" \
         --spec {outputDir}/interface-spec.json \
         --libroot {outputDir}/source \
         --output {outputDir}/03-XTS覆盖率报告.md
 
 Step 3: 分析 Demo 覆盖率
-    node scripts/flutter-analyze-demo-coverage.cjs \
+    node "{{skillDir}}/../../../MCP/scripts/flutter-analyze-demo-coverage.cjs" \
         --spec {outputDir}/interface-spec.json \
         --libroot {outputDir}/source \
         --output {outputDir}/02-Demo覆盖率报告.md

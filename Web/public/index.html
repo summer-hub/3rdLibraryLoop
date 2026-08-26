@@ -155,9 +155,6 @@
                 <span class="path">/api/orchestrator/load + start</span>
             </div>
             <div class="panel-pad" style="flex:1; overflow-y:auto;">
-                <!-- SKILL 流程介绍 -->
-                <div id="flc-skill-intro"></div>
-
                 <!-- 入参说明 -->
                 <div class="flc-param-intro">
                     <div class="flc-param-title">📥 仓库地址支持的入参格式</div>
@@ -235,9 +232,6 @@
                 <span class="path">/api/orchestrator/load + start</span>
             </div>
             <div class="panel-pad" style="flex:1; overflow-y:auto;">
-                <!-- SKILL 流程介绍 -->
-                <div id="rn-skill-intro"></div>
-
                 <!-- 入参说明 -->
                 <div class="rn-param-intro">
                     <div class="rn-param-title">📥 双仓库地址支持的入参格式</div>
@@ -278,33 +272,19 @@
                         <label>上游原库地址 <span style="color:var(--red)">*</span></label>
                         <input id="rn-upstream-repo-url" placeholder="https://github.com/software-mansion/react-native-svg" />
                     </div>
-                    <div class="form-inline">
-                        <div class="form-row">
-                            <label>仓库类型</label>
-                            <input value="React Native 三方库（鸿蒙化适配检视）" disabled />
-                        </div>
-                        <button class="btn btn-primary" id="rn-submit-btn">▶ 开始检视</button>
+                    <div class="form-row">
+                        <label>RN 使用文档地址（可选，传给文档质量检视）</label>
+                        <input id="rn-rndoc-url" placeholder="https://gitcode.com/openharmony-sig/react-native-svg/blob/master/usage-docs/README.md" />
                     </div>
-                    <div class="cc-advanced-toggle" id="rn-advanced-toggle">高级选项</div>
-                    <div class="cc-advanced-section" id="rn-advanced-section">
-                        <div class="form-row">
-                            <label>RN 使用文档地址（可选，传给文档质量检视）</label>
-                            <input id="rn-rndoc-url" placeholder="https://gitcode.com/openharmony-sig/react-native-svg/blob/master/usage-docs/README.md" />
+                    <div class="form-row">
+                        <label>RNT 测试 Demo 地址（可选，传给用例覆盖度检视）</label>
+                        <input id="rn-rnt-url" placeholder="https://gitcode.com/react-native-oh-library/rnt-svg" />
+                        <div class="hint" style="font-size:11px;color:var(--text3);margin-top:4px">
+                            格式 {rnRntGitUrl}/tree/{branch}/{projectPath}/{demoPath}；留空时脚本自动从仓库 example/ tester/ demo/ 目录查找
                         </div>
-                        <div class="form-row">
-                            <label>RNT 测试 Demo 地址（可选，传给用例覆盖度检视）</label>
-                            <input id="rn-rnt-url" placeholder="https://gitcode.com/react-native-oh-library/rnt-svg" />
-                            <div class="hint" style="font-size:11px;color:var(--text3);margin-top:4px">
-                                格式 {rnRntGitUrl}/tree/{branch}/{projectPath}/{demoPath}；留空时脚本自动从仓库 example/ tester/ demo/ 目录查找
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <label>SKILL 根目录（可选，留空使用服务端默认）</label>
-                            <input id="rn-skill-dir" placeholder="如 /path/to/Server/Skills" />
-                            <div class="hint" style="font-size:11px;color:var(--text3);margin-top:4px">
-                                检视将固定编排 6 个 SKILL：rn-library-interface-analyzer（双仓库接口分析，先行）→ 稳定性 / 一致性 / 内存泄露 / 文档质量 / 用例覆盖度 5 个检视维度并发执行。此处可自定义 SKILL 根目录，留空时使用服务端默认目录。
-                            </div>
-                        </div>
+                    </div>
+                    <div class="form-inline">
+                        <button class="btn btn-primary" id="rn-submit-btn">▶ 开始检视</button>
                     </div>
                 </div>
 

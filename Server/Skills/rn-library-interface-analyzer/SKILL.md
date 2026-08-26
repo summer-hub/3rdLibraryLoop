@@ -34,11 +34,28 @@ RN 三方库**双仓库接口分析** SKILL，负责下载鸿蒙化仓库与上�
 
 > 💡 分支和子路径从 URL 中自动解析，无需单独指定。详细 URL 格式参见 [URL 格式解析规则](references/URL_PARSING_RULES.md)
 
+**派生变量**：
+- `skillDir`：本 SKILL 所在目录
+- `mcpScriptsDir`：分析脚本所在目录 = `{{skillDir}}/../../../MCP/scripts`（即 `3rdLibraryLoop/MCP/scripts`）
+
 ---
 
 ## 输入依赖
 
 无前置 SKILL。可作为独立任务调用。
+
+---
+
+## 脚本依赖
+
+接口提取与文档渲染脚本统一存放在 MCP 脚本目录，**本 SKILL 目录内不保存脚本副本**：
+
+```
+3rdLibraryLoop/MCP/scripts/rn-extract-interfaces.cjs
+3rdLibraryLoop/MCP/scripts/rn-render-spec-doc.cjs
+```
+
+**调用方式**：通过 `node` 命令行直接执行，使用 `{{skillDir}}/../../../MCP/scripts/` 相对路径定位脚本。
 
 ---
 
@@ -131,7 +148,7 @@ npm --version    # 确认 npm 可用（接口提取脚本依赖）
 在 `ohosAnalysisRoot` 目录上运行 `rn-extract-interfaces.cjs` 脚本：
 
 ```bash
-node scripts/rn-extract-interfaces.cjs \
+node "{{skillDir}}/../../../MCP/scripts/rn-extract-interfaces.cjs" \
   --repoDir "{ohosAnalysisRoot}" \
   --output "{outputDir}/interface-spec.json"
 ```
@@ -221,14 +238,14 @@ node scripts/rn-extract-interfaces.cjs \
 使用 `rn-render-spec-doc.cjs` 从 `interface-spec.json` 生成基础接口规格文档：
 
 ```bash
-node scripts/rn-render-spec-doc.cjs \
+node "{{skillDir}}/../../../MCP/scripts/rn-render-spec-doc.cjs" \
   --spec "{outputDir}/interface-spec.json" \
   --output "{outputDir}/接口规格说明.md"
 ```
 
 > 💡 脚本自动生成：基本信息、接口统计、按层级分布、按类分组的接口详情、源文件列表。
 
-> ⚠️ 脚本依赖 `rn-extract-interfaces.cjs`，两个脚本必须在同一目录。详见 [脚本使用指南](references/SCRIPT_USAGE_GUIDE.md)。
+> ⚠️ 脚本依赖 `rn-extract-interfaces.cjs`（通过相对路径 `require`），两个脚本同位于 `MCP/scripts/` 目录。详见 [脚本使用指南](references/SCRIPT_USAGE_GUIDE.md)。
 
 ### 4.2 AI 补充差异章节
 

@@ -235,8 +235,8 @@ function _renderSkillIntro() {
 
     var typeColors = {
         arkts: { bg: 'rgba(0,113,227,0.12)', color: 'var(--blue)', border: 'rgba(0,113,227,0.3)' },
-        flutter: { bg: 'rgba(59,130,246,0.12)', color: '#3b82f6', border: 'rgba(59,130,246,0.3)' },
-        rn: { bg: 'rgba(97,218,251,0.12)', color: '#61dafb', border: 'rgba(97,218,251,0.3)' },
+        flutter: { bg: 'var(--flutter-bg)', color: 'var(--flutter)', border: 'var(--flutter-border)' },
+        rn: { bg: 'var(--rn-bg)', color: 'var(--rn)', border: 'var(--rn-border)' },
         tpccplus: { bg: 'rgba(175,82,222,0.12)', color: 'var(--purple)', border: 'rgba(175,82,222,0.3)' },
     };
     var cc = typeColors[libType] || typeColors.arkts;
@@ -623,8 +623,8 @@ function _createCCCard(idx, displayLabel, prUrl, libType, createdAt, isHistory) 
 
     var typeBadgeStyle = {
         arkts: 'background:rgba(0,113,227,0.12);color:var(--blue)',
-        flutter: 'background:rgba(59,130,246,0.12);color:#3b82f6',
-        rn: 'background:rgba(97,218,251,0.12);color:#61dafb',
+        flutter: 'background:var(--flutter-bg);color:var(--flutter)',
+        rn: 'background:var(--rn-bg);color:var(--rn)',
         tpccplus: 'background:rgba(175,82,222,0.12);color:var(--purple)',
     }[libType] || 'background:rgba(0,113,227,0.12);color:var(--blue)';
 
@@ -1012,7 +1012,7 @@ async function viewCCSession(idx) {
                     var content = m.content != null ? m.content : ((m.parts && m.parts[0] && m.parts[0].text) || '');
                     if (!content || content.trim() === '') return;
                     html += '<div style="margin-bottom:16px;border-left:3px solid #ccc;padding-left:12px"><b style="color:';
-                    html += role === 'user' ? '#0066cc' : role === 'assistant' ? '#009933' : '#999';
+                    html += role === 'user' ? '#0066cc' : role === 'assistant' ? '#00772e' : '#767676';
                     html += '">' + _ccEsc(role) + '</b><pre style="white-space:pre-wrap;margin-top:4px">' + _ccEsc(content) + '</pre></div>';
                 });
                 w.document.write(html);

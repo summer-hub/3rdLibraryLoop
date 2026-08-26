@@ -1,17 +1,17 @@
 ---
 name: flutter-library-test-coverage-check
-description: 对 Flutter 三方库进行用例覆盖度检视，**核心聚焦 Dart 公开接口的覆盖程度**。通过内置脚本自动提取接口规格、分析测试覆盖率和 Demo 覆盖率，基于脚本报告采用严苛扣分制生成检视报告（0-100分）。作为 Flutter 仓库检视流程的最后阶段，依赖接口规格说明和文档质量检视结果。
+description: 对 Flutter 三方库进行用例覆盖度检视，**核心聚焦 Dart 公开接口的覆盖程度**。通过 MCP/scripts 共享脚本自动提取接口规格、分析测试覆盖率和 Demo 覆盖率，基于脚本报告采用严苛扣分制生成检视报告（0-100分）。作为 Flutter 仓库检视流程的最后阶段，依赖接口规格说明和文档质量检视结果。
 license: Apache-2.0
 compatibility: 需要 Node.js 运行环境、Git 仓库访问、接口规格说明文档（可选，脚本可直接从源码提取）
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # FlutterLibraryTestCoverageCheckSkill
 
-对 Flutter 三方库进行用例覆盖度检视，**核心聚焦：测试用例和 demo 示例对 Dart 公开接口的覆盖程度**。通过内置脚本自动完成接口提取和覆盖率分析，基于脚本报告采用严苛扣分制评分。
+对 Flutter 三方库进行用例覆盖度检视，**核心聚焦：测试用例和 demo 示例对 Dart 公开接口的覆盖程度**。通过共享脚本自动完成接口提取和覆盖率分析，基于脚本报告采用严苛扣分制评分。
 
-> ⚠️ **核心定位**：Flutter 三方库对外导出的接口是 **Dart 层定义的**（位于 `lib/` 目录），本 SKILL 聚焦于测试用例和 demo 对这些 **Dart 公开接口**的覆盖程度。接口提取和覆盖率分析由 `scripts/` 目录下的三个 Node.js 脚本自动完成，检视者基于脚本报告进行评分和深度分析。
+> ⚠️ **核心定位**：Flutter 三方库对外导出的接口是 **Dart 层定义的**（位于 `lib/` 目录），本 SKILL 聚焦于测试用例和 demo 对这些 **Dart 公开接口**的覆盖程度。接口提取和覆盖率分析由 `MCP/scripts/` 目录下的三个 Node.js 共享脚本自动完成（本 SKILL 通过相对路径引用，不保存脚本副本），检视者基于脚本报告进行评分和深度分析。
 
 ---
 
@@ -34,19 +34,23 @@ metadata:
 - **前置 SKILL**: `flutter-library-documentation-quality-check`（文档质量检视报告）
 - **输入文件**: `接口规格说明.md`（可选）、`文档质量检视报告.md`
 - **仓库源码**: 已克隆到 `{outputDir}/source/`
-- **运行环境**: Node.js（用于执行 `scripts/` 目录下的分析脚本）
+- **运行环境**: Node.js（用于执行 `MCP/scripts/` 目录下的共享分析脚本）
 
 ---
 
-## 内置脚本
+## 脚本依赖
 
-本 SKILL 在 `scripts/` 目录内置三个 Node.js 脚本，**自动完成接口提取和覆盖率分析**：
+本 SKILL **不保存脚本副本**，直接调用 `MCP/scripts/` 目录下的三个共享 Node.js 脚本，**自动完成接口提取和覆盖率分析**：
 
 | 脚本 | 功能 | 输出 |
 |------|------|------|
 | `flutter-extract-interfaces.cjs` | 从 `lib/` 源码提取 Dart 公开接口规格 | `interface-spec.json` |
 | `flutter-analyze-xts-coverage.cjs` | 分析 test/ 目录测试用例覆盖率 | `03-xxx-XTS覆盖率报告.md` |
 | `flutter-analyze-demo-coverage.cjs` | 分析 example/lib 目录 Demo 覆盖率 | `02-xxx-Demo覆盖率报告.md` |
+
+**派生变量**：
+- `skillDir`：本 SKILL 所在目录（任务 prompt 中“SKILL 目录”下发的绝对路径）
+- `mcpScriptsDir`：共享脚本目录 = `{{skillDir}}/../../../MCP/scripts`（即 `3rdLibraryLoop/MCP/scripts`）
 
 > 详细脚本参数、用法和输出格式参见 [脚本使用指南](references/SCRIPT_USAGE.md)
 
@@ -92,14 +96,14 @@ Phase 5: 评分计算与报告生成
 
 ### Phase 0：接口提取与覆盖率分析（脚本自动执行）
 
-> ⚠️ **关键改进**：本阶段使用内置脚本自动完成接口提取和覆盖率分析，替代原有的人工读取接口规格说明和手动匹配覆盖率的流程。脚本基于 Dart 正则解析，支持 export 链追踪、monorepo、实例变量追踪等复杂场景。
+> ⚠️ **关键改进**：本阶段使用共享脚本（位于 `{{skillDir}}/../../../MCP/scripts/`，本 SKILL 不保存副本）自动完成接口提取和覆盖率分析，替代原有的人工读取接口规格说明和手动匹配覆盖率的流程。脚本基于 Dart 正则解析，支持 export 链追踪、monorepo、实例变量追踪等复杂场景。
 
 #### 0.1 提取接口规格
 
 从仓库源码目录提取 Dart 公开接口规格，生成 `interface-spec.json`：
 
 ```bash
-node scripts/flutter-extract-interfaces.cjs \
+node "{{skillDir}}/../../../MCP/scripts/flutter-extract-interfaces.cjs" \
     --repoDir {outputDir}/source \
     --output {outputDir}/interface-spec.json
 ```
@@ -121,7 +125,7 @@ node scripts/flutter-extract-interfaces.cjs \
 使用 `interface-spec.json` 分析 test/ 目录的测试覆盖率：
 
 ```bash
-node scripts/flutter-analyze-xts-coverage.cjs \
+node "{{skillDir}}/../../../MCP/scripts/flutter-analyze-xts-coverage.cjs" \
     --spec {outputDir}/interface-spec.json \
     --libroot {outputDir}/source \
     --output {outputDir}/03-XTS覆盖率报告.md
@@ -141,7 +145,7 @@ node scripts/flutter-analyze-xts-coverage.cjs \
 使用 `interface-spec.json` 分析 example/lib 目录的 Demo 覆盖率：
 
 ```bash
-node scripts/flutter-analyze-demo-coverage.cjs \
+node "{{skillDir}}/../../../MCP/scripts/flutter-analyze-demo-coverage.cjs" \
     --spec {outputDir}/interface-spec.json \
     --libroot {outputDir}/source \
     --output {outputDir}/02-Demo覆盖率报告.md

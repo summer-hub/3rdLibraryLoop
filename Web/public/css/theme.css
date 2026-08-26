@@ -18,8 +18,8 @@
     --border:       #d2d2d7;
     --border-light: #e0e0e5;
     --text:         #1d1d1f;
-    --text2:        #86868b;
-    --text3:        #aeaeb2;
+    --text2:        #5d5d63;
+    --text3:        #82828a;
     --blue:         #0071e3;
     --blue-hover:   #0077ed;
     --blue-light:   #d4e5ff;
@@ -36,6 +36,12 @@
     --purple:       #af52de;
     --purple-light: #f0d4ff;
     --code-bg:      #f5f5f7;
+    --flutter:      #2563eb;
+    --flutter-bg:   rgba(37,99,235,0.10);
+    --flutter-border: rgba(37,99,235,0.35);
+    --rn:           #0e7490;
+    --rn-bg:        rgba(14,116,144,0.10);
+    --rn-border:    rgba(14,116,144,0.35);
     --shadow:       0 1px 8px rgba(0,0,0,0.06);
     --shadow-lg:    0 4px 20px rgba(0,0,0,0.12);
     --grid-dot:     #d2d2d7;
@@ -76,6 +82,12 @@
     --purple:       #7b5cf0;
     --purple-light: rgba(123,92,240,0.15);
     --code-bg:      #0d0f18;
+    --flutter:      #7cb1f9;
+    --flutter-bg:   rgba(59,130,246,0.15);
+    --flutter-border: rgba(59,130,246,0.40);
+    --rn:           #61dafb;
+    --rn-bg:        rgba(97,218,251,0.12);
+    --rn-border:    rgba(97,218,251,0.35);
     --shadow:       0 1px 8px rgba(0,0,0,0.3);
     --shadow-lg:    0 4px 20px rgba(0,0,0,0.5);
     --grid-dot:     #242738;

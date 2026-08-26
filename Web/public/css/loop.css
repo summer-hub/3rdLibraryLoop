@@ -56,6 +56,7 @@
     border: 1px solid transparent;
 }
 .task-item:hover { background: rgba(0,0,0,0.04); }
+[data-theme="dark"] .task-item:hover { background: rgba(255,255,255,0.06); }
 .task-item.active { background: var(--blue-light); border-color: var(--blue); }
 .task-id { font-size: 11px; font-weight: 600; font-family: "SF Mono", Monaco, monospace; color: var(--text); margin-bottom: 2px; }
 .task-desc { font-size: 11px; color: var(--text2); line-height: 1.4; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -304,7 +305,7 @@
 .node-id { font-size: 13px; font-weight: 700; fill: var(--text); }
 .node-status { font-size: 9px; fill: var(--text2); }
 .node-retry { font-size: 9px; fill: var(--text2); }
-.running-ring { animation: dash 1s linear infinite; }
+.running-ring { stroke: var(--orange); animation: dash 1s linear infinite; }
 @keyframes dash { to { stroke-dashoffset: -20; } }
 
 /* ─── 详情面板 ──────────────────────────────────────────────────────── */

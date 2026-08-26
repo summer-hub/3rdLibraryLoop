@@ -205,8 +205,6 @@ function initRNLibraryCheckPanel() {
     if (_rnInited) return;
     _rnInited = true;
 
-    _rnRenderSkillIntro();
-
     // 历史任务
     _rnInitHistoryPager().then(function (pg) { if (pg) pg.load(1); });
 
@@ -223,54 +221,6 @@ function initRNLibraryCheckPanel() {
             });
         }
     });
-
-    // 高级选项折叠
-    var advToggle = $('rn-advanced-toggle');
-    if (advToggle) {
-        advToggle.addEventListener('click', function () {
-            var section = $('rn-advanced-section');
-            if (section) {
-                section.classList.toggle('show');
-                advToggle.classList.toggle('open');
-            }
-        });
-    }
-}
-
-/* ── SKILL 流程介绍（静态渲染）─────────────────────────────────────── */
-
-function _rnRenderSkillIntro() {
-    var container = $('rn-skill-intro');
-    if (!container) return;
-
-    var stepsHtml = _RN_STEP_DEFS.map(function (s, i) {
-        var weight = s.scoreKey ? ' · 权重 ' + Math.round(_RN_WEIGHTS[s.key] * 100) + '%' : ' · 前置步骤';
-        var arrow = i < _RN_STEP_DEFS.length - 1 && i === 0 ? '<span class="rn-flow-arrow">→</span>' : '';
-        return '<div class="rn-flow-step">' +
-            '<span class="rn-flow-num">' + s.num + '</span>' +
-            '<div class="rn-flow-info"><div class="rn-flow-name">' + _rnEsc(s.name) + '</div>' +
-            '<div class="rn-flow-desc">' + _rnEsc(s.desc) + weight + '</div></div>' +
-            arrow + '</div>';
-    }).join('');
-
-    container.innerHTML =
-        '<div class="cc-skill-header">' +
-            '<span class="cc-skill-icon">⚛️</span>' +
-            '<span class="cc-skill-title">RN 仓库检视 — 6 步 SKILL 编排</span>' +
-        '</div>' +
-        '<div class="cc-skill-card">' +
-            '<div class="cc-skill-card-header">' +
-                '<div style="display:flex;align-items:center;gap:8px;flex:1">' +
-                    '<span class="cc-skill-badge" style="background:rgba(175,82,222,0.12);color:#af52d6;border:1px solid rgba(175,82,222,0.3)">REACT NATIVE</span>' +
-                    '<span class="cc-skill-name">双仓库接口分析 + 5 维并发检视（0-100 严苛评分）</span>' +
-                '</div>' +
-            '</div>' +
-            '<div class="cc-skill-card-desc">' +
-                '先克隆鸿蒙化仓库与上游原库并提取接口规格（rn-library-interface-analyzer），随后稳定性 / 一致性 / 内存泄露 / 文档质量 / 用例覆盖度 5 个检视 SKILL 并发执行，' +
-                '每个维度独立输出 0-100 评分与检视报告，综合评分 = 稳定性×20% + 一致性×20% + 内存泄露×20% + 文档质量×15% + 用例覆盖度×25%。' +
-            '</div>' +
-            '<div class="rn-flow">' + stepsHtml + '</div>' +
-        '</div>';
 }
 
 /* ════════════════════════════════════════════════════════════════════
@@ -283,7 +233,7 @@ async function doRNLibraryCheck() {
     var upstreamRepoUrl = $('rn-upstream-repo-url').value.trim();
     var rndocUrl = $('rn-rndoc-url') ? $('rn-rndoc-url').value.trim() : '';
     var rnRntUrl = $('rn-rnt-url') ? $('rn-rnt-url').value.trim() : '';
-    var skillDir = $('rn-skill-dir') ? $('rn-skill-dir').value.trim() : '';
+    var skillDir = '';
 
     if (!libraryName) { _rnShowErr('库名不能为空'); return; }
     if (!ohosRepoUrl) { _rnShowErr('鸿蒙化仓库地址不能为空'); return; }
@@ -458,7 +408,7 @@ function _rnCreateCard(idx, createdAt, isHistory) {
             '<span class="cc-chevron">▶</span>' +
             '<span class="cc-run-dot"></span>' +
             '<span class="cc-lib">' + _rnEsc(task.libraryName) + '</span>' +
-            '<span class="cc-type-badge" style="background:rgba(175,82,222,0.12);color:#af52d6">RN</span>' +
+            '<span class="cc-type-badge" style="background:rgba(175,82,222,0.12);color:var(--purple)">RN</span>' +
             '<span class="cc-spacer"></span>' +
             '<span class="cc-time" id="rn-' + idx + '-time">' + _rnEsc(timeLabel) + '</span>' +
             '<span class="cc-merge-badge" id="rn-' + idx + '-overall-badge" style="display:none"></span>' +
@@ -1275,7 +1225,7 @@ async function viewRNSession(idx, stepId, stepKey) {
                     var content = m.content != null ? m.content : ((m.parts && m.parts[0] && m.parts[0].text) || '');
                     if (!content || content.trim() === '') return;
                     html += '<div style="margin-bottom:16px;border-left:3px solid #ccc;padding-left:12px"><b style="color:' +
-                        (role === 'user' ? '#0066cc' : role === 'assistant' ? '#009933' : '#999') + '">' + _rnEsc(role) +
+                        (role === 'user' ? '#0066cc' : role === 'assistant' ? '#00772e' : '#767676') + '">' + _rnEsc(role) +
                         '</b><pre style="white-space:pre-wrap;margin-top:4px">' + _rnEsc(content) + '</pre></div>';
                 });
                 w.document.write(html);

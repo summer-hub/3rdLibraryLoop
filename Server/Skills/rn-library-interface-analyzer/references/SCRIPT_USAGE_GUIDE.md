@@ -2,6 +2,8 @@
 
 本文档说明 `rn-extract-interfaces.cjs` 和 `rn-render-spec-doc.cjs` 两个脚本的使用方法。
 
+> 📌 两个脚本统一存放于 `3rdLibraryLoop/MCP/scripts/` 目录（SKILL 目录内不保存副本）。下文命令中的 `{mcpScriptsDir}` 指该目录，可从 SKILL 目录通过 `../../../MCP/scripts` 相对定位。
+
 ## 脚本概览
 
 | 脚本 | 功能 | 输入 | 输出 |
@@ -31,7 +33,7 @@
 ### CLI 调用方式
 
 ```bash
-node scripts/rn-extract-interfaces.cjs \
+node "{mcpScriptsDir}/rn-extract-interfaces.cjs" \
   --repoDir "{ohosAnalysisRoot}" \
   --output "{outputDir}/interface-spec.json" \
   --version "2.2.0"
@@ -115,7 +117,7 @@ node scripts/rn-extract-interfaces.cjs \
 **方式一：从 JSON 中间件渲染（推荐）**
 
 ```bash
-node scripts/rn-render-spec-doc.cjs \
+node "{mcpScriptsDir}/rn-render-spec-doc.cjs" \
   --spec "{outputDir}/interface-spec.json" \
   --output "{outputDir}/接口规格说明.md"
 ```
@@ -123,7 +125,7 @@ node scripts/rn-render-spec-doc.cjs \
 **方式二：直接从源码提取并渲染（一步到位）**
 
 ```bash
-node scripts/rn-render-spec-doc.cjs \
+node "{mcpScriptsDir}/rn-render-spec-doc.cjs" \
   --libroot "{ohosAnalysisRoot}" \
   --output "{outputDir}/接口规格说明.md" \
   --version "2.2.0"
@@ -146,7 +148,7 @@ rn-render-spec-doc.cjs
     └── require('./rn-extract-interfaces.cjs')  (loadSpec / generateRNSpec)
 ```
 
-> ⚠️ 两个脚本必须在同一目录下。`rn-render-spec-doc.cjs` 通过相对路径 `require('./rn-extract-interfaces.cjs')` 依赖提取脚本。
+> ⚠️ 两个脚本同位于 `MCP/scripts/` 目录。`rn-render-spec-doc.cjs` 通过相对路径 `require('./rn-extract-interfaces.cjs')` 依赖提取脚本。
 
 ## 环境要求
 

@@ -1,6 +1,8 @@
 # 脚本使用参考
 
-本文档详细说明 `flutter-extract-interfaces.cjs` 和 `flutter-render-spec-doc.cjs` 两个脚本的参数、输出格式和故障排查。
+本文档详细说明 `flutter-extract-interfaces.cjs` 和 `flutter-render-spec-doc.cjs` 两个共享脚本（位于仓库 `MCP/scripts/` 目录，本 SKILL 通过相对路径 `{{skillDir}}/../../../MCP/scripts/` 引用，不保存副本）的参数、输出格式和故障排查。
+
+> `{{skillDir}}` = 本 SKILL 的 SKILL.md 所在目录（任务 prompt 中“SKILL 目录”下发的绝对路径）。
 
 ---
 
@@ -25,10 +27,10 @@
 
 ```bash
 # CLI 模式
-node flutter-extract-interfaces.cjs --repoDir <库源码目录> --output <interface-spec.json>
+node "{{skillDir}}/../../../MCP/scripts/flutter-extract-interfaces.cjs" --repoDir <库源码目录> --output <interface-spec.json>
 
 # 不指定 output 则输出 JSON 到 stdout
-node flutter-extract-interfaces.cjs --repoDir /path/to/flutter_lib
+node "{{skillDir}}/../../../MCP/scripts/flutter-extract-interfaces.cjs" --repoDir /path/to/flutter_lib
 ```
 
 ### 参数
@@ -152,10 +154,10 @@ node flutter-extract-interfaces.cjs --repoDir /path/to/flutter_lib
 
 ```bash
 # 方式一：读 JSON 中间件（推荐，可复用 JSON）
-node flutter-render-spec-doc.cjs --spec <interface-spec.json> --output <spec.md>
+node "{{skillDir}}/../../../MCP/scripts/flutter-render-spec-doc.cjs" --spec <interface-spec.json> --output <spec.md>
 
 # 方式二：直接从源码提取并渲染（一步到位）
-node flutter-render-spec-doc.cjs --libroot <库源码目录> --output <spec.md>
+node "{{skillDir}}/../../../MCP/scripts/flutter-render-spec-doc.cjs" --libroot <库源码目录> --output <spec.md>
 ```
 
 ### 参数
@@ -229,7 +231,7 @@ const spec = generateSpec('/path/to/flutter_lib');
 
 如果定位错误，可手动指定主包路径直接传入：
 ```bash
-node flutter-extract-interfaces.cjs --repoDir /path/to/monorepo/main_package
+node "{{skillDir}}/../../../MCP/scripts/flutter-extract-interfaces.cjs" --repoDir /path/to/monorepo/main_package
 ```
 
 ### export 链追踪不完整

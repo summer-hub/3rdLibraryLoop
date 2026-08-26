@@ -69,62 +69,6 @@
     border-top: 1px dashed var(--border-light);
 }
 
-/* ─── SKILL 流程介绍（6 步编排图）────────────────────────────────── */
-.flc-flow {
-    display: flex;
-    align-items: stretch;
-    gap: 8px;
-    padding: 12px 14px;
-    overflow-x: auto;
-    border-top: 1px solid var(--border-light);
-}
-
-.flc-flow-step {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    flex-shrink: 0;
-}
-
-.flc-flow-num {
-    width: 26px;
-    height: 26px;
-    font-size: 12px;
-    font-weight: 700;
-    border: 2px solid rgba(59,130,246,0.4);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #3b82f6;
-    background: rgba(59,130,246,0.08);
-    flex-shrink: 0;
-}
-
-.flc-flow-name {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text);
-    white-space: nowrap;
-}
-
-.flc-flow-desc {
-    font-size: 10px;
-    color: var(--text3);
-    white-space: nowrap;
-}
-
-.flc-flow-arrow {
-    color: var(--text3);
-    font-size: 14px;
-    flex-shrink: 0;
-    align-self: center;
-}
-
 /* ─── 评分概览面板 ─────────────────────────────────────────────────── */
 .flc-score-panel {
     background: var(--bg);

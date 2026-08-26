@@ -348,7 +348,7 @@ function renderGraph() {
         var rt=n.retryCount>0?'🔄 '+n.retryCount+'/'+n.maxRetries:'';
         c += '<g class="node-group '+(sel?'selected':'')+'" data-step-id="'+escapeHtml(n.id)+'" onclick="selectStep(\''+escapeHtml(n.id)+'\')">';
         c += '<rect class="node-rect '+st+'" x="'+p.x+'" y="'+p.y+'" width="'+p.w+'" height="'+p.h+'" rx="8" />';
-        if (st==='running') c += '<rect class="running-ring" x="'+p.x+'" y="'+p.y+'" width="'+p.w+'" height="'+p.h+'" rx="8" fill="none" stroke="#ff9500" stroke-width="2.5" stroke-dasharray="8,4" />';
+        if (st==='running') c += '<rect class="running-ring" x="'+p.x+'" y="'+p.y+'" width="'+p.w+'" height="'+p.h+'" rx="8" fill="none" stroke-width="2.5" stroke-dasharray="8,4" />';
         c += '<rect class="node-drag-handle" x="'+(p.x+p.w-18)+'" y="'+(p.y+6)+'" width="12" height="6" />';
         c += '<text class="node-text node-id" x="'+(p.x+10)+'" y="'+(p.y+22)+'">步骤 '+escapeHtml(n.stepId)+'</text>';
         c += '<text class="node-text node-status" x="'+(p.x+10)+'" y="'+(p.y+38)+'">'+statusLabel(n.status)+'</text>';

@@ -93,7 +93,7 @@ class AdvertisingId {
 #### Phase 2: 运行提取脚本
 
 ```bash
-node scripts/flutter-extract-interfaces.cjs \
+node "{{skillDir}}/../../../MCP/scripts/flutter-extract-interfaces.cjs" \
   --repoDir /path/to/advertising_id \
   --output /tmp/analysis/advertising_id/interface-spec.json
 ```
@@ -158,7 +158,7 @@ node scripts/flutter-extract-interfaces.cjs \
 #### Phase 3: 运行渲染脚本
 
 ```bash
-node scripts/flutter-render-spec-doc.cjs \
+node "{{skillDir}}/../../../MCP/scripts/flutter-render-spec-doc.cjs" \
   --spec /tmp/analysis/advertising_id/interface-spec.json \
   --output /tmp/analysis/advertising_id/接口规格说明.md
 ```
@@ -243,7 +243,7 @@ flutter_inappwebview/
 
 ```bash
 # 脚本自动检测 monorepo 主包
-node scripts/flutter-extract-interfaces.cjs \
+node "{{skillDir}}/../../../MCP/scripts/flutter-extract-interfaces.cjs" \
   --repoDir /path/to/flutter_inappwebview \
   --output /tmp/analysis/inappwebview/interface-spec.json
 ```
@@ -258,7 +258,7 @@ node scripts/flutter-extract-interfaces.cjs \
 
 ```bash
 # 直接从源码提取并渲染文档（不保留 JSON 中间件）
-node scripts/flutter-render-spec-doc.cjs \
+node "{{skillDir}}/../../../MCP/scripts/flutter-render-spec-doc.cjs" \
   --libroot /path/to/flutter_inappwebview \
   --output /tmp/analysis/inappwebview/接口规格说明.md
 ```
@@ -290,7 +290,7 @@ git checkout br_v6.1.5_ohos_dev
 ### Phase 2: 提取接口
 
 ```bash
-node scripts/flutter-extract-interfaces.cjs \
+node "{{skillDir}}/../../../MCP/scripts/flutter-extract-interfaces.cjs" \
   --repoDir /tmp/analysis/inappwebview/source \
   --output /tmp/analysis/inappwebview/interface-spec.json
 ```
@@ -298,7 +298,7 @@ node scripts/flutter-extract-interfaces.cjs \
 ### Phase 3: 渲染文档
 
 ```bash
-node scripts/flutter-render-spec-doc.cjs \
+node "{{skillDir}}/../../../MCP/scripts/flutter-render-spec-doc.cjs" \
   --spec /tmp/analysis/inappwebview/interface-spec.json \
   --output /tmp/analysis/inappwebview/接口规格说明.md
 ```

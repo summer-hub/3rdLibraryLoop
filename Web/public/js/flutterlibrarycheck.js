@@ -223,8 +223,6 @@ function initFlutterLibraryCheckPanel() {
     if (_flcInited) return;
     _flcInited = true;
 
-    _flcRenderSkillIntro();
-
     // 历史任务
     _flcInitHistoryPager().then(function (pg) { if (pg) pg.load(1); });
 
@@ -251,42 +249,6 @@ function initFlutterLibraryCheckPanel() {
             }
         });
     }
-}
-
-/* ── SKILL 流程介绍（静态渲染）─────────────────────────────────────── */
-
-function _flcRenderSkillIntro() {
-    var container = $('flc-skill-intro');
-    if (!container) return;
-
-    var stepsHtml = _FLC_STEP_DEFS.map(function (s, i) {
-        var weight = s.scoreKey ? ' · 权重 ' + Math.round(_FLC_WEIGHTS[s.key] * 100) + '%' : ' · 前置步骤';
-        var arrow = i < _FLC_STEP_DEFS.length - 1 && i === 0 ? '<span class="flc-flow-arrow">→</span>' : '';
-        return '<div class="flc-flow-step">' +
-            '<span class="flc-flow-num">' + s.num + '</span>' +
-            '<div class="flc-flow-info"><div class="flc-flow-name">' + _flcEsc(s.name) + '</div>' +
-            '<div class="flc-flow-desc">' + _flcEsc(s.desc) + weight + '</div></div>' +
-            arrow + '</div>';
-    }).join('');
-
-    container.innerHTML =
-        '<div class="cc-skill-header">' +
-            '<span class="cc-skill-icon">🦋</span>' +
-            '<span class="cc-skill-title">Flutter 仓库检视 — 6 步 SKILL 编排</span>' +
-        '</div>' +
-        '<div class="cc-skill-card">' +
-            '<div class="cc-skill-card-header">' +
-                '<div style="display:flex;align-items:center;gap:8px;flex:1">' +
-                    '<span class="cc-skill-badge" style="background:rgba(59,130,246,0.12);color:#3b82f6;border:1px solid rgba(59,130,246,0.3)">FLUTTER</span>' +
-                    '<span class="cc-skill-name">接口分析 + 5 维并发检视（0-100 严苛评分）</span>' +
-                '</div>' +
-            '</div>' +
-            '<div class="cc-skill-card-desc">' +
-                '先克隆仓库并提取接口规格（flutter-interface），随后稳定性 / 一致性 / 内存泄露 / 文档质量 / 用例覆盖度 5 个检视 SKILL 并发执行，' +
-                '每个维度独立输出 0-100 评分与检视报告，综合评分 = 稳定性×20% + 一致性×20% + 内存泄露×20% + 文档质量×15% + 用例覆盖度×25%。' +
-            '</div>' +
-            '<div class="flc-flow">' + stepsHtml + '</div>' +
-        '</div>';
 }
 
 /* ════════════════════════════════════════════════════════════════════
@@ -451,7 +413,7 @@ function _flcCreateCard(idx, createdAt, isHistory) {
             '<span class="cc-chevron">▶</span>' +
             '<span class="cc-run-dot"></span>' +
             '<span class="cc-lib">' + _flcEsc(task.repoName) + '</span>' +
-            '<span class="cc-type-badge" style="background:rgba(59,130,246,0.12);color:#3b82f6">Flutter</span>' +
+            '<span class="cc-type-badge" style="background:var(--flutter-bg);color:var(--flutter)">Flutter</span>' +
             '<span class="cc-spacer"></span>' +
             '<span class="cc-time" id="flc-' + idx + '-time">' + _flcEsc(timeLabel) + '</span>' +
             '<span class="cc-merge-badge" id="flc-' + idx + '-overall-badge" style="display:none"></span>' +
@@ -1264,7 +1226,7 @@ async function viewFLCSession(idx, stepId, stepKey) {
                     var content = m.content != null ? m.content : ((m.parts && m.parts[0] && m.parts[0].text) || '');
                     if (!content || content.trim() === '') return;
                     html += '<div style="margin-bottom:16px;border-left:3px solid #ccc;padding-left:12px"><b style="color:' +
-                        (role === 'user' ? '#0066cc' : role === 'assistant' ? '#009933' : '#999') + '">' + _flcEsc(role) +
+                        (role === 'user' ? '#0066cc' : role === 'assistant' ? '#00772e' : '#767676') + '">' + _flcEsc(role) +
                         '</b><pre style="white-space:pre-wrap;margin-top:4px">' + _flcEsc(content) + '</pre></div>';
                 });
                 w.document.write(html);
