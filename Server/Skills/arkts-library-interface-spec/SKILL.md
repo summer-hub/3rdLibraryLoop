@@ -25,19 +25,20 @@ metadata:
 | `outputDir` | string | ✅ | 工作目录（仓库源码克隆/复用位置，也是所有产物的输出根目录） |
 | `reportPath` | string | ✅ | 报告输出路径（必须位于 `outputDir` 下，禁止指向 `repoDir` 内部，避免污染源码） |
 | `repoUrl` | string | ✅ | 仓库 Git 地址 |
+| `repoDir` | string | ❌ | 仓库源码目录（**显式覆盖**）。前置源码下载步骤已将源码克隆到固定路径时传入（如 `outputDir/source`），此时跳过步骤 0 的克隆，直接复用 |
 
 **派生变量**：
-- `repoName`：从 `repoUrl` 提取仓库名（取 URL 最后一段，去掉 `.git`）
-- `repoDir`：仓库源码目录 = `outputDir/repoName`
+- `repoName`：从 `repoUrl` 提取仓库名（取 URL 最后一段，去掉 `.git` 后缀）
+- `repoDir`：仓库源码目录 = 任务参数显式指定的值（优先）；否则 = `outputDir/repoName`
 - `mcpScriptsDir`：MCP 脚本目录 = `3rdLibraryLoop/MCP/scripts`（相对于 workspace 根目录）
 
 ---
 
 ## 输入依赖
 
-- **前置 SKILL**：无
-- **输入文件**：无（通过 `repoUrl` 克隆源码）
-- **下游消费者**：`ArkTsLibraryDemoCoverageSkill`（`parse-spec.cjs` 解析本 Skill 生成的报告）、`ArkTsLibraryDemoScenarioSkill`、`ArkTsLibraryXTSDocSkill`
+- **前置 SKILL**：无（可独立执行；若编排中存在前置源码下载步骤，则通过 `repoDir` 参数复用已克隆源码，跳过克隆）
+- **输入文件**：无（通过 `repoUrl` 克隆源码，或复用 `repoDir` 指定的已有源码）
+- **下游消费者**：`ArkTsLibraryDemoCoverageSkill`（`parse-spec.cjs` 解析本 Skill 生成的报告）、`ArkTsLibraryDemoScenarioSkill`、`ArkTsLibraryXTSDocSkill`、ArkTS 仓库检视流程的各检视 SKILL（稳定性/内存泄露/文档质量/用例覆盖度）
 
 ---
 
@@ -45,7 +46,9 @@ metadata:
 
 ### 步骤 0：准备仓库源码（复用或克隆）
 
-**目标：** 确保 `repoDir`（`outputDir/repoName`）下存在仓库源码。优先复用工作目录下已存在的同名仓库，避免重复克隆。
+**目标：** 确保 `repoDir` 下存在仓库源码。优先复用已存在的仓库源码，避免重复克隆。
+
+> ⚠️ **前置源码已就位时直接复用**：若任务参数显式提供了 `repoDir`（如源码已由前置源码下载 SKILL 克隆到 `outputDir/source`），先用 `list_dir` 验证该目录下存在源码（`.git` 子目录、`library/Index.ets`、`oh-package.json5` 任一即可），验证通过后**跳过本步骤的全部克隆操作**，直接以该 `repoDir` 进入步骤 1。
 
 1. **提取仓库名**：从 `repoUrl` 末尾取仓库名，去掉 `.git` 后缀，确定 `repoDir = outputDir/repoName`
 
@@ -78,3 +81,15 @@ node "{{mcpScriptsDir}}/render-spec-doc.cjs" --libroot "{{repoDir}}" --output "{
 脚本自动输出包含基本信息、接口统计、按类/接口分节（方法/属性/字段/枚举值/函数/变量/类型别名/事件方法汇总）、源文件列表的完整 Markdown 报告。
 
 **验证**：确认脚本退出码为 0、报告文件已生成。若脚本报错（如无法定位 Index.ets），检查 `repoDir` 路径是否正确、仓库是否含 `library/Index.ets` 或 `library/src/main/ets/Index.ets`。
+
+---
+
+## 输出产物
+
+| 产物 | 文件名 | 说明 |
+|------|--------|------|
+| 接口规格说明文档 | `{reportPath}`（约定为 `{outputDir}/接口规格说明.md`） | 对外公开导出项的完整接口签名清单 |
+
+> ⚠️ **输出文件自检**：写入结果文件前，先确认 `reportPath` 指定的接口规格说明文档已存在且内容完整（**独立文件，禁止只写入 result 执行结果文件**）。若文档内容仅在草稿中，必须先将其保存为该独立文件。
+
+本 SKILL 无评分，无需输出结构化指标文件。
