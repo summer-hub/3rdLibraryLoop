@@ -567,6 +567,10 @@ class Orchestrator {
 
             this._log('info', `执行步骤 ${node.stepId}（第 ${node.retryCount} 次）`);
 
+            // 步骤开始：实时落 SQLite（db/TaskStep/store.db）。
+            // running 记录先行写入，进程崩溃/重启时 db 中保留崩溃前真实状态。
+            await this._persistStepDb(node);
+
             // ── 全局 Session 并发限制 ──
             // 进程级信号量：并行 fan-out 步骤 / 多任务同时提交时，
             // 活跃 opencode Session 总数不超过 MAX_CONCURRENT_SESSIONS（默认 5）
@@ -606,6 +610,9 @@ class Orchestrator {
         // 标记完成状态
         node.markFinished({ success, resultPath, sessionId, error: errorMsg, metrics });
         this._emitStepStatus(node);
+
+        // 步骤终态：实时落 SQLite（completed/error + 输出/metrics/耗时）
+        await this._persistStepDb(node);
 
         // 已被终止：整条链终止，不再激活后续步骤（nextStepId / failStepId 均不流转）
         if (this._aborted) {
@@ -1071,6 +1078,87 @@ class Orchestrator {
     // ─── 持久化 ──────────────────────────────────────────────────────
 
     /**
+     * 将单个步骤的执行状态实时写入 SQLite（TaskStepStore，db/TaskStep/store.db）。
+     *
+     * 记录粒度：每次执行尝试（attempt）一条记录，id = `{taskId}::L{loop}::S{stepId}::A{attempt}`。
+     *  - markRunning 后调用 → upsert running 记录（崩溃时 db 保留"执行中"真实状态）
+     *  - markFinished 后调用 → update 为终态（completed/error，自动维护 finished_at/duration_ms）
+     *
+     * 与 JSON 持久化（orchestration.json / stepid_*.json）互为双写：
+     * SQLite 是崩溃安全（WAL）的结构化历史，服务重启后可直接查询；
+     * 静默失败，不影响编排主流程。
+     *
+     * @param {StepNode} node
+     * @returns {Promise<void>}
+     * @private
+     */
+    async _persistStepDb(node) {
+        if (!this.storage || !this._taskId) return;
+        try {
+            const store = this.storage.taskStepStore();
+            const attempt = Math.max(1, node.retryCount);
+            const id = `${this._taskId}::L${this._loopCount}::S${node.stepId}::A${attempt}`;
+
+            const meta = {
+                taskType: 'orchestrator',
+                loopCount: this._loopCount,
+                stepId: node.stepId,
+                attempt,
+                retryCount: node.retryCount,
+                maxRetries: node.maxRetries,
+                dependId: node.dependId,
+                nextStepId: node.nextStepId,
+                failStepId: node.failStepId,
+                inputReport: node.inputReport || null,
+                specifiedSkill: node.specifiedSkill || null,
+                sessionId: node.sessionId || null,
+                resultPath: node.resultPath || null,
+                metrics: node.metrics || null
+            };
+
+            // NodeStatus → TaskStepStore status 映射
+            const status = node.status === NodeStatus.COMPLETED ? 'completed'
+                : node.status === NodeStatus.FAILED ? 'error'
+                : node.status === NodeStatus.RUNNING ? 'running'
+                : node.status === NodeStatus.SKIPPED ? 'skipped'
+                : node.status === NodeStatus.BLOCKED ? 'skipped'
+                : 'pending';
+
+            const finished = node.status === NodeStatus.COMPLETED || node.status === NodeStatus.FAILED;
+            const output = finished ? {
+                resultPath: node.resultPath,
+                sessionId: node.sessionId,
+                metrics: node.metrics,
+                history: node.history
+            } : null;
+
+            const existing = await store.get(id);
+            if (existing) {
+                await store.update(id, { status, output, error: node.error, meta });
+            } else {
+                await store.create({
+                    id,
+                    taskId: this._taskId,
+                    name: (node.taskDescription || '').slice(0, 200),
+                    type: 'cli',
+                    status,
+                    startedAt: node.startTime || undefined,
+                    input: {
+                        taskDescription: node.taskDescription,
+                        taskDir: node.taskDir,
+                        skillDirectory: node.skillDirectory
+                    },
+                    output,
+                    error: node.error,
+                    meta
+                });
+            }
+        } catch (err) {
+            this._log('warn', `_persistStepDb 失败: step=${node.stepId}, ${err.message}`);
+        }
+    }
+
+    /**
      * 获取可序列化的编排状态快照。
      * @returns {object}
      */
@@ -1195,13 +1283,21 @@ class Orchestrator {
             this._status = OrchestratorStatus.FAILED;
             this._error = '服务重启导致执行中断';
             this._endTime = nowCST();
-            // 将运行中的步骤标记为失败
+            // 将运行中的步骤标记为失败（内存态）
+            const interruptedNodes = [];
             for (const node of this._nodes.values()) {
                 if (node.isRunning) {
                     node.markFinished({ success: false, resultPath: '', error: '服务重启中断' });
+                    interruptedNodes.push(node);
                 }
             }
-            await this._persistState();
+            // 注意：不再调用 _persistState() 覆盖 orchestration.json / orchestration_loop{N}.json，
+            // 保留崩溃前的真实快照（running 状态、currentStepId 等）供历史追溯。
+            // 中断事实改记 SQLite（TaskStepStore）—— running 记录更新为 error 是真实发生的执行结果；
+            // 注册表终态由上层 restoreFromDisk 回写。
+            for (const node of interruptedNodes) {
+                await this._persistStepDb(node);
+            }
         } else {
             this._status = state.status || OrchestratorStatus.LOADED;
         }

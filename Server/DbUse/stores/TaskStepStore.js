@@ -73,10 +73,13 @@ class TaskStepStore {
      * 创建一个任务步骤。
      * @param {object} step
      * @param {string} step.taskId
+     * @param {string} [step.id] - 指定记录 ID（默认 randomUUID）。传入后幂等 upsert。
      * @param {string} [step.name]
      * @param {string} [step.type]
      * @param {string} [step.status='pending']
      * @param {object} [step.input]
+     * @param {object} [step.output] - 已知输出（如终态补录场景）
+     * @param {string} [step.startedAt] - 开始时间 ISO（如 running 落库场景）
      * @param {object} [step.meta]
      * @returns {Promise<object>} 创建后的步骤记录
      */
@@ -93,9 +96,9 @@ class TaskStepStore {
             type: step.type ?? null,
             status: step.status ?? 'pending',
             input: step.input != null ? JSON.stringify(step.input) : null,
-            output: null,
+            output: step.output != null ? JSON.stringify(step.output) : null,
             error: null,
-            started_at: null,
+            started_at: step.startedAt ?? null,
             finished_at: null,
             duration_ms: null,
             created_at: now,

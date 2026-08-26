@@ -750,6 +750,9 @@ class OrchestratorController {
      *   - 创建 Orchestrator 实例并 restoreState
      *   - RUNNING 状态会被标记为 FAILED（执行中断）
      *   - 其他状态原样恢复
+     *   - 恢复后回写注册表：进程死亡导致 start().finally() 中的终态回写未执行，
+     *     registry 停留在 loaded/running 的记录修正为恢复后的终态（含 metrics、
+     *     interrupted 标记）；未入库的老任务补录摘要。
      *
      * @returns {Promise<{restored: string[], failed: string[]}>}
      */
@@ -774,10 +777,14 @@ class OrchestratorController {
                     continue;
                 }
 
+                const wasRunning = state.status === 'running';
                 const orch = this._createOrchestrator();
                 await orch.restoreState(state);
                 this._orchestrators.set(taskId, orch);
                 restored.push(taskId);
+
+                // 恢复后修正注册表（非终态 → 终态；未入库 → 补录）
+                await this._patchRegistryAfterRestore(taskId, orch, state, { wasRunning });
             } catch (err) {
                 // JSON 损坏、字段缺失等情况下标记为 failed，不中断其他任务的恢复
                 const isJsonError = err instanceof SyntaxError;
@@ -790,6 +797,106 @@ class OrchestratorController {
         }
 
         return { restored, failed };
+    }
+
+    /**
+     * 服务重启恢复后，回写任务注册表。
+     *
+     * 仅修正"非终态"记录（running/loaded）——进程死亡导致 start().finally() 中
+     * 的 _patchRegistryFinalState 未执行，这些记录停留在启动时的状态。
+     * 已是终态（completed/failed/aborted/passed/...）的真实历史不覆盖。
+     *
+     * @param {string} taskId
+     * @param {Orchestrator} orch - 恢复后的编排器实例（RUNNING 已转 FAILED）
+     * @param {object} state - orchestration.json 原始快照（含 steps[].taskDescription/metrics）
+     * @param {object} [opts]
+     * @param {boolean} [opts.wasRunning] - 崩溃前是否处于 running 状态
+     * @returns {Promise<void>}
+     * @private
+     */
+    async _patchRegistryAfterRestore(taskId, orch, state, opts = {}) {
+        const registry = this._getRegistry();
+        if (!registry) return;
+
+        try {
+            const existing = await registry.get(taskId);
+            // 终态记录是真实历史，不覆盖
+            if (existing && !['running', 'loaded'].includes(existing.status)) return;
+
+            const progress = orch.getProgress();
+
+            // 合并各步骤 metrics（与 _patchRegistryFinalState 相同语义：后完成覆盖同名）
+            let metrics = null;
+            for (const s of (progress.steps || [])) {
+                if (s.metrics && typeof s.metrics === 'object') {
+                    metrics = { ...(metrics || {}), ...s.metrics };
+                }
+            }
+
+            const existingMeta = existing?.metadata && typeof existing.metadata === 'object'
+                ? existing.metadata
+                : {};
+            const metadata = { ...existingMeta, ...(metrics || {}) };
+            if (opts.wasRunning) {
+                metadata.interrupted = true;
+                metadata.interruptedReason = '服务重启导致执行中断';
+            }
+
+            const status = progress.status || 'failed';
+            const firstStep = (state.steps || [])[0] || {};
+
+            if (!existing) {
+                // 老任务未入库（TaskRegistryStore 上线前创建）：补录摘要，保留原始创建时间
+                await registry.upsert({
+                    taskId,
+                    taskType: 'orchestrator',
+                    status,
+                    title: (firstStep.taskDescription || taskId).slice(0, 200),
+                    description: firstStep.taskDescription || '',
+                    createdAt: state.startTime || new Date().toISOString(),
+                    metadata
+                });
+            } else {
+                await registry.patch(taskId, { status, metadata });
+            }
+            console.log(
+                `[OrchestratorController] 注册表已修正: taskId=${taskId}, ` +
+                `${existing ? existing.status : '(未入库)'} → ${status}`
+            );
+        } catch (err) {
+            console.warn(`[OrchestratorController] 恢复后回写注册表失败: taskId=${taskId}, ${err.message}`);
+        }
+    }
+
+    /**
+     * GET /api/orchestrator/step-history?taskId=xxx
+     * 查询任务的步骤执行历史（SQLite，db/TaskStep/store.db）。
+     *
+     * 数据来源为 TaskStepStore，每次执行尝试（attempt）一条记录：
+     * 含状态流转（running/completed/error）、起止时间、耗时、sessionId、
+     * resultPath、metrics 等。服务重启后依然完整可查。
+     */
+    async stepHistory(req, res) {
+        const { taskId } = req.query;
+        if (!taskId) {
+            return res.error(400, 'taskId 为必填项');
+        }
+        if (!this.storage) {
+            return res.error(500, 'storage 未初始化');
+        }
+
+        try {
+            const store = this.storage.taskStepStore();
+            const steps = await store.listByTask(taskId);
+            res.json({
+                status: 'ok',
+                taskId,
+                total: steps.length,
+                steps
+            });
+        } catch (err) {
+            res.error(500, `查询步骤历史失败: ${err.message}`);
+        }
     }
 }
 

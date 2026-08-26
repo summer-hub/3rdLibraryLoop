@@ -14,7 +14,7 @@ import OrchestratorController from '../controllers/OrchestratorController.js';
  *  POST   /abort         — 终止编排
  *  GET    /progress      — 查询编排进度
  *  GET    /step-detail   — 查询步骤执行细节
- *  POST   /update-step   — 修改未执行步骤配置
+ *  GET    /step-history  — 查询步骤执行历史（SQLite，重启后完整保留）
  *  GET    /tasks         — 列出所有编排任务
  *  DELETE /task          — 移除编排任务
  *
@@ -46,6 +46,7 @@ export function createOrchestratorRouter(dependencies) {
     // ── 查询 ──
     router.get('/progress',     controller.progress.bind(controller));
     router.get('/step-detail',  controller.stepDetail.bind(controller));
+    router.get('/step-history', controller.stepHistory.bind(controller));
     router.get('/tasks',        controller.tasks.bind(controller));
 
     // ── 步骤配置修改 ──
