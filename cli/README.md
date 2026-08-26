@@ -37,7 +37,7 @@ loop result <taskId> --json
 | `loop abort <taskId>` | 中止任务 |
 | `loop list [--status st] [--limit N] [--older-than 7d]` | 列出任务 |
 | `loop result <taskId> [--raw]` | 读取最终结果 |
-| `loop step run <desc> [--task-id id] [--step-id N] [--input-report p] [--max-retries N] [--loop N] [--task-dir p]` | 单步执行（FlexRunner 直连，不经拆解/编排/审核） |
+| `loop step run <desc> [--task-id id] [--step-id N] [--input-report p] [--max-retries N] [--loop N] [--task-dir p] [--specified-skill <SKILL name\|目录名>]` | 单步执行（FlexRunner 直连，不经拆解/编排/审核） |
 | `loop step status <taskId> [--step-id N]` | 查询单步状态/产物/会话 |
 | `loop step result <taskId> [--step-id N]` | 读取该步 result.md 内容 |
 | `loop orch run <task-def.json>` | 加载任务定义 + 启动编排，阻塞到终态 |
@@ -88,7 +88,7 @@ loop step run "根据检视报告修复 XTS 用例" \
 
 # 固定执行某个 SKILL（跳过 SkillSelector 匹配，直接使用该 SKILL）
 loop step run "为 FastBle 生成 XTS 代码" \
-  --task-id step_skill_001 --skill-path Server/Skills/arkts-library-xts-code
+  --task-id step_skill_001 --specified-skill arkts-library-xts-code
 
 # 查询步骤状态或读取最终产物
 loop step status step_demo_001
@@ -105,7 +105,7 @@ loop step result step_demo_001 --json
 | `--max-retries <N>` | 最多重试次数（默认 `3`） |
 | `--loop <N>` | 大循环轮次编号（默认 `0`） |
 | `--task-dir <p>` | 产物目录（默认 `<data-dir>/task/<taskId>`） |
-| `--skill-path <p>` | 固定执行的 SKILL 目录（绝对/相对路径，相对路径相对 skill 目录解析）；传入后跳过 SkillSelector 匹配直接执行该 SKILL |
+| `--specified-skill <name>` | 固定执行的 SKILL name 或目录名（在 skill 目录内解析）；传入后跳过 SkillSelector 匹配直接执行该 SKILL |
 
 ### 行为与差异
 
@@ -177,7 +177,7 @@ loop orch tasks
 | `steps[].nextStepId` | 成功后下一步（`0`=结束） |
 | `steps[].failStepId` | 失败后修复步骤（`0`=失败即终止） |
 | `steps[].maxRetries` | 最大重试次数（默认 `3`） |
-| `steps[].skillPath` | 固定执行的 SKILL 目录（可选，绝对/相对路径，相对路径相对 `skillDirectory` 解析）；传入后该步骤跳过 SkillSelector 匹配直接执行该 SKILL |
+| `steps[].specifiedSkill` | 固定执行的 SKILL name 或目录名（可选，在 `skillDirectory` 内解析）；传入后该步骤跳过 SkillSelector 匹配直接执行该 SKILL |
 
 ### 语义与限制
 

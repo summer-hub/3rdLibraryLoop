@@ -50,7 +50,7 @@ export async function cmdStep({ flags, rest, projectRoot, dataDir, skillDir, jso
  * 参数：
  *   loop step run "<任务描述>" [--task-id <id>] [--step-id N] [--input-report <path>]
  *                      [--max-retries N] [--loop N] [--task-dir <path>]
- *                      [--skill-path <skill目录>]   <!-- 固定执行指定 SKILL，跳过 SkillSelector 匹配 -->
+ *                      [--specified-skill <SKILL name|目录名>]   <!-- 固定执行指定 SKILL，跳过 SkillSelector 匹配 -->
  */
 async function cmdStepRun({ flags, rest, dataDir, skillDir, jsonMode, quiet, verbose, out, u, projectRoot }) {
     const positional = _positionalArgs(rest);
@@ -92,7 +92,7 @@ async function cmdStepRun({ flags, rest, dataDir, skillDir, jsonMode, quiet, ver
     if (taskDir) taskDir = path.resolve(dataDir, taskDir); // 相对路径基于 dataDir
     else taskDir = path.join(dataDir, 'task', taskId);      // 默认与 run 一致
 
-    const skillPath = _stringFlag(flags, 'skill-path');
+    const specifiedSkill = _stringFlag(flags, 'specified-skill');
 
     // 挂载 opencode 生命周期（复用 runner 语义）
     const r = await _runner();
@@ -133,7 +133,7 @@ async function cmdStepRun({ flags, rest, dataDir, skillDir, jsonMode, quiet, ver
             stepId,
             taskDescription: description,
             skillDirectory: skillDir,
-            skillPath,
+            specifiedSkill,
             taskDir,
             inputReport: inputReport || '',
             maxRetries,
@@ -299,7 +299,7 @@ function _stringFlag(flags, name) {
 }
 
 /** step 子命令专用 flags（带值）。用于从参数列表剔除 flag 与值，提取位置参数。 */
-const STEP_FLAG_NAMES = ['task-id', 'step-id', 'input-report', 'max-retries', 'loop', 'task-dir'];
+const STEP_FLAG_NAMES = ['task-id', 'step-id', 'input-report', 'max-retries', 'loop', 'task-dir', 'specified-skill'];
 
 /**
  * 从参数数组提取位置参数（描述 / taskId）。

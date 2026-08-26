@@ -1,6 +1,6 @@
 ---
 name: arkts-library-xts-coverage
-description: 分析鸿蒙ArkTs原生库现有 XTS 测试用例对接口的覆盖情况。通过 analyze-xts-coverage.cjs 脚一步完成接口提取、覆盖率匹配和 Markdown 报告生成。当需要对鸿蒙ArkTs原生库的 XTS 测试用例进行接口覆盖率分析时调用。
+description: 分析鸿蒙ArkTs原生库现有 XTS 测试用例对接口的覆盖情况。通过 analyze-xts-coverage.cjs 脚本一步完成接口提取、覆盖率匹配和 Markdown 报告生成。当需要对鸿蒙ArkTs原生库的 XTS 测试用例进行接口覆盖率分析时调用。
 license: Apache-2.0
 compatibility: 需要Node.js运行环境
 metadata:
