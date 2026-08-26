@@ -45,15 +45,33 @@ metadata:
 
 鸿蒙原生库源码多为历史工程，`build-profile.json5` 的 SDK 版本配置、hvigor 文件、oh-package.json5 等经常不兼容当前构建环境。使用 `migrate.cjs` 脚本一次性完成华为官方 Manual Migration 全流程迁移。
 
+0. **预迁移设备探测**：
+
+   ```powershell
+   cmd /c "hdc list targets"
+   ```
+   - 若有设备输出，探测设备 API 版本：
+     ```powershell
+     cmd /c "hdc shell param get const.ohos.apiversion"
+     ```
+     记录设备 API 版本（如 `23`），作为 `--compatible-api` 参数传入迁移脚本。
+   - 若无设备，跳过此步（迁移脚本将自动探测已安装 SDK API 版本）。
+
 1. 执行迁移脚本：
 
-```powershell
-node {{skillDir}}/scripts/migrate.cjs --source {{sourcePath}}
-```
+   ```powershell
+   # 有设备时（deviceApi 从步骤 0 获取）
+   node {{skillDir}}/scripts/migrate.cjs --source {{sourcePath}} --compatible-api {deviceApi}
+
+   # 无设备时
+   node {{skillDir}}/scripts/migrate.cjs --source {{sourcePath}}
+   ```
 
 2. **执行后强制校验（未通过不得进入阶段二）**：
-   - 迁移脚本必须正常执行完成，输出以 `[migrate] 迁移完成。` 结尾，且包含 `强制 N 个 product compatibleSdkVersion/targetSdkVersion=6.1.1(24) + runtimeOS=HarmonyOS` 日志（N≥1）
-   - 校验 `{{sourcePath}}/build-profile.json5`：每个 product 的 `runtimeOS` 已为 `HarmonyOS`、`compatibleSdkVersion` 已为 `6.1.1(24)`
+   - 迁移脚本必须正常执行完成，输出以 `[migrate] 迁移完成。` 结尾
+   - 迁移日志包含 `[migrate] SDK版本: compatibleSdkVersion=..., targetSdkVersion=...` 行
+   - 校验 `{{sourcePath}}/build-profile.json5`：每个 product 的 `runtimeOS` 已为 `HarmonyOS`
+   - `compatibleSdkVersion` 的 API 版本 ≤ 设备 API 版本（有设备时）或 = 已安装 SDK API 版本（无设备时）
    - 任一项不满足 → 重新执行迁移脚本，直至校验通过后方可进入阶段二
 
 ---

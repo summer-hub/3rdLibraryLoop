@@ -5,14 +5,20 @@
  *   1. 删除工程级 build-profile.json5 的 compileSdkVersion（OpenHarmony 工程跳过）
  *   2. [API 9] 迁移 compatibleSdkVersion/targetSdkVersion 到 product，强制 runtimeOS=HarmonyOS
  *   3. [API 9] 清理各模块级 build-profile.json5 中 targets[].runtimeOS
- *   4. 强制所有 product compatibleSdkVersion/targetSdkVersion=5.0.4(16) + runtimeOS=HarmonyOS
+ *   4. 强制所有 product compatibleSdkVersion/targetSdkVersion（由参数指定）+ runtimeOS=HarmonyOS
  *   5. 删除 hvigorw / hvigorw.bat / hvigor/hvigor-wrapper.js
- *   6. hvigor/hvigor-config.json5：新增 modelVersion="5.0.4"，删除 hvigorVersion + dependencies 中 @ohos/hvigor-ohos-plugin/rollup
- *   7. 工程级 oh-package.json5：新增 modelVersion="5.0.4"
+ *   6. hvigor/hvigor-config.json5：新增 modelVersion（由参数指定），删除 hvigorVersion + dependencies 中 @ohos/hvigor-ohos-plugin/rollup
+ *   7. 工程级 oh-package.json5：新增 modelVersion（由参数指定）
  *   8. local.properties：删除 HarmonyOS SDK 配置（OpenHarmony 工程跳过）
  *
  * 用法:
- *   node migrate.cjs --source <工程根路径> [--openharmony]
+ *   node migrate.cjs --source <工程根路径> [--compatible-api <N>] [--target-api <N>] [--openharmony]
+ *
+ * 参数说明:
+ *   --compatible-api <N>  设备 API 版本（如 23），用于 compatibleSdkVersion。
+ *                         不传则 = target-api（向后兼容）。
+ *   --target-api <N>      已安装 SDK API 版本（如 24），用于 targetSdkVersion 和 modelVersion。
+ *                         不传则自动探测已安装 SDK（探测失败默认 24）。
  *
  * 参考:
  *   https://developer.huawei.com/consumer/en/doc/harmonyos-guides-V13/ide-integrated-project-migration-V13
@@ -20,12 +26,46 @@
 
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 
 // ── 常量 ────────────────────────────────────────────────────
-const MODEL_VERSION = '5.0.4';
 const RUNTIME_OS = 'HarmonyOS';
-const COMPATIBLE_SDK_VERSION = '5.0.4(16)'; // 满足 M.S.F(X) 规则，API 9 迁移用
-const TARGET_SDK_VERSION = '5.0.4(16)';
+
+// API → 平台版本映射表（来源：HarmonyOS 版本说明 overview-allversion）
+const API_VERSION_MAP = {
+  12: '5.0.0', 13: '5.0.1', 14: '5.0.2', 15: '5.0.3',
+  16: '5.0.4', 17: '5.0.5', 18: '5.1.0', 19: '5.1.1',
+  20: '6.0.0', 21: '6.0.1', 22: '6.0.2', 23: '6.1.0', 24: '6.1.1',
+};
+
+// 默认值，在 parseArgs() 后由 --compatible-api / --target-api 参数覆盖
+let MODEL_VERSION = '6.1.1';
+let COMPATIBLE_SDK_VERSION = '6.1.1(24)';
+let TARGET_SDK_VERSION = '6.1.1(24)';
+
+// ── SDK 版本自动探测 ────────────────────────────────────────
+
+/**
+ * 自动探测已安装 SDK 的 API 版本。
+ * 通过 where.exe hdc 反推 DevEco 目录，读取 oh-uni-package.json。
+ * @returns {{api: number, version: string}|null}
+ */
+function detectInstalledSdkApi() {
+  try {
+    const hdcPath = execSync('where.exe hdc', { encoding: 'utf-8' })
+      .trim().split(/\r?\n/)[0].trim();
+    const idx = hdcPath.indexOf('\\sdk');
+    if (idx <= 0) return null;
+    const devEcoDir = hdcPath.substring(0, idx);
+    const ohUniPath = path.join(devEcoDir, 'sdk', 'default',
+      'openharmony', 'ets', 'oh-uni-package.json');
+    if (!fs.existsSync(ohUniPath)) return null;
+    const content = JSON.parse(fs.readFileSync(ohUniPath, 'utf-8'));
+    return { api: parseInt(content.apiVersion), version: content.version };
+  } catch {
+    return null;
+  }
+}
 
 // ── 参数解析 ────────────────────────────────────────────────
 
@@ -220,22 +260,17 @@ function getFieldValue(content, field) {
  */
 function setFieldValue(content, field, valueText, parentAnchor, indent) {
   const escaped = field.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  // 先尝试原地替换
-  const replacePatterns = [
-    // 带引号键
-    new RegExp(`(^[ \\t]*"${escaped}"\\s*:\\s*)[^,}\\n]+`, 'gm'),
-    // 不带引号键
-    new RegExp(`(^[ \\t]*${escaped}\\s*:\\s*)[^,}\\n]+`, 'gm'),
-  ];
-  let result = content;
-  let replaced = false;
-  for (const p of replacePatterns) {
-    const before = result;
-    result = result.replace(p, `$1${valueText}`);
-    if (result !== before) replaced = true;
+  // 检测字段键是否已存在（带引号或不带引号）。依据存在性决定替换或插入，
+  // 而非"替换后文本是否变化"——因为值恰好与目标值相同时替换无变化，
+  // 若据此误判为不存在会重复插入同一字段。
+  const existsRe = new RegExp(`^[ \\t]*("?${escaped}"?\\s*:)`, 'gm');
+  const existsMatch = existsRe.exec(content);
+  if (existsMatch) {
+    // 已存在：仅替换该行值（保留引号键/无引号键原样）
+    const replaceRe = new RegExp(`(^[ \\t]*"?${escaped}"?\\s*:\\s*)[^,}\\n]+`, 'gm');
+    return content.replace(replaceRe, `$1${valueText}`);
   }
-  if (replaced) return result;
-  // 不存在则插入
+  // 不存在 → 插入到指定父对象闭合前
   return insertFieldBeforeClose(content, parentAnchor, `${indent}"${field}": ${valueText},`);
 }
 
@@ -327,7 +362,7 @@ function findModuleBuildProfiles(projectRoot) {
 
 /**
  * 步骤：[API 9] 迁移 app 顶层 compatibleSdkVersion/targetSdkVersion 到每个 product，
- * 值改为 "5.0.4(16)"，并强制 runtimeOS="HarmonyOS"。
+ * 值改为参数指定的版本，并强制 runtimeOS="HarmonyOS"。
  * @param {string} bpPath
  * @returns {string[]} 操作日志列表
  */
@@ -425,6 +460,9 @@ function migrateApi9BuildProfile(bpPath) {
     const { start, end } = productObjs[idx];
     const objText = newProducts.slice(start, end + 1);
     let newObj = objText;
+    // 清理 product 内残留的 compileSdkVersion（HarmonyOS 新 SDK 中该字段非必须，
+    // 旧工程/AI 可能预置数字或字符串，导致同一对象出现重复键）
+    newObj = removeField(newObj, 'compileSdkVersion');
     // 强制 compatibleSdkVersion
     newObj = setFieldValue(newObj, 'compatibleSdkVersion', `"${COMPATIBLE_SDK_VERSION}"`, '^\\{', '  ');
     // 强制 targetSdkVersion
@@ -434,7 +472,7 @@ function migrateApi9BuildProfile(bpPath) {
     newProducts = newProducts.slice(0, start) + newObj + newProducts.slice(end + 1);
     productCount++;
   }
-  logs.push(`  ✅ ${rel}/build-profile.json5: ${productCount} 个 product 迁移 compatibleSdkVersion=5.0.4(16) + runtimeOS=HarmonyOS`);
+  logs.push(`  ✅ ${rel}/build-profile.json5: ${productCount} 个 product 迁移 compatibleSdkVersion=${COMPATIBLE_SDK_VERSION} + runtimeOS=HarmonyOS`);
 
   content = beforeProducts + newProducts + afterProducts;
   return { content, logs };
@@ -485,8 +523,8 @@ function removeCompileSdkVersion(bpPath) {
 
 /**
  * 步骤：强制所有 product 的 compatibleSdkVersion/targetSdkVersion/runtimeOS。
- *   - compatibleSdkVersion = "5.0.4(16)"（满足 M.S.F(X) 规则的字符串）
- *   - targetSdkVersion = "5.0.4(16)"
+ *   - compatibleSdkVersion = 参数指定的版本（满足 M.S.F(X) 规则的字符串）
+ *   - targetSdkVersion = 参数指定的版本
  *   - runtimeOS = "HarmonyOS"
  * 不论原值是数字、字符串、缺失还是其他，统一覆盖。
  * @param {string} bpPath
@@ -565,6 +603,8 @@ function forceProductSdkConfig(bpPath) {
     const { start, end } = productObjs[idx];
     const objText = productsText.slice(start, end + 1);
     let newObj = objText;
+    // 清理 product 内残留的 compileSdkVersion，避免同一对象出现数字+字符串重复键
+    newObj = removeField(newObj, 'compileSdkVersion');
     newObj = setFieldValue(newObj, 'compatibleSdkVersion', `"${COMPATIBLE_SDK_VERSION}"`, '^\\{', '  ');
     newObj = setFieldValue(newObj, 'targetSdkVersion', `"${TARGET_SDK_VERSION}"`, '^\\{', '  ');
     newObj = setFieldValue(newObj, 'runtimeOS', `"${RUNTIME_OS}"`, '^\\{', '  ');
@@ -573,7 +613,7 @@ function forceProductSdkConfig(bpPath) {
   }
   content = beforeProducts + productsText + afterProducts;
   fs.writeFileSync(bpPath, content, 'utf-8');
-  logs.push(`  ✅ ${rel}: 强制 ${count} 个 product compatibleSdkVersion/targetSdkVersion=5.0.4(16) + runtimeOS=${RUNTIME_OS}`);
+  logs.push(`  ✅ ${rel}: 强制 ${count} 个 product compatibleSdkVersion=${COMPATIBLE_SDK_VERSION}/targetSdkVersion=${TARGET_SDK_VERSION} + runtimeOS=${RUNTIME_OS}`);
   return logs;
 }
 
@@ -603,7 +643,7 @@ function removeHvigorFiles(projectRoot) {
 
 /**
  * 步骤：修改 hvigor/hvigor-config.json5。
- * 新增 modelVersion="5.0.4"；删除 hvigorVersion；删除 dependencies 中 @ohos/hvigor-ohos-plugin 与 rollup。
+ * 新增 modelVersion（由参数指定）；删除 hvigorVersion；删除 dependencies 中 @ohos/hvigor-ohos-plugin 与 rollup。
  * @param {string} projectRoot
  * @returns {string[]} 操作日志
  */
@@ -649,7 +689,7 @@ function patchHvigorConfig(projectRoot) {
 }
 
 /**
- * 步骤：工程级 oh-package.json5 新增 modelVersion="5.0.4"。
+ * 步骤：工程级 oh-package.json5 新增 modelVersion（由参数指定）。
  * @param {string} projectRoot
  * @returns {string[]}
  */
@@ -735,7 +775,7 @@ function runMigration(projectRoot, isOpenHarmony, apiLevel) {
     allLogs.push(`  ⏭️ build-profile.json5: OpenHarmony 工程，跳过 compileSdkVersion 删除`);
   }
 
-  // 强制所有 product compatibleSdkVersion/targetSdkVersion=5.0.4(16) + runtimeOS=HarmonyOS
+  // 强制所有 product 的 compatibleSdkVersion/targetSdkVersion + runtimeOS=HarmonyOS
   allLogs.push(...forceProductSdkConfig(bpPath));
 
   // 删除 hvigor 文件
@@ -754,6 +794,7 @@ function runMigration(projectRoot, isOpenHarmony, apiLevel) {
     allLogs.push(`  ⏭️ local.properties: OpenHarmony 工程，跳过 HarmonyOS SDK 清理`);
   }
 
+  allLogs.push(`[migrate] SDK版本: compatibleSdkVersion=${COMPATIBLE_SDK_VERSION}, targetSdkVersion=${TARGET_SDK_VERSION}, runtimeOS=${RUNTIME_OS}`);
   allLogs.push(`[migrate] 迁移完成。请在 DevEco Studio 中执行 Sync now 验证。`);
   return allLogs;
 }
@@ -762,8 +803,30 @@ function runMigration(projectRoot, isOpenHarmony, apiLevel) {
 
 const args = parseArgs();
 
+// --- SDK 版本参数化 ---
+// target-api: 优先用参数，否则自动探测已安装 SDK，探测失败默认 24
+const sdkInfo = detectInstalledSdkApi();
+const targetApi = args['target-api'] ? parseInt(String(args['target-api'])) : (sdkInfo ? sdkInfo.api : 24);
+// compatible-api: 优先用参数，否则 = target-api（向后兼容）
+const compatibleApi = args['compatible-api'] ? parseInt(String(args['compatible-api'])) : targetApi;
+
+const _targetVer = API_VERSION_MAP[targetApi];
+const _compatibleVer = API_VERSION_MAP[compatibleApi];
+if (!_targetVer) {
+  console.error(`错误: 未知 target-api 版本 ${targetApi}，API_VERSION_MAP 中无对应平台版本`);
+  process.exit(1);
+}
+if (!_compatibleVer) {
+  console.error(`错误: 未知 compatible-api 版本 ${compatibleApi}，API_VERSION_MAP 中无对应平台版本`);
+  process.exit(1);
+}
+MODEL_VERSION = _targetVer;
+COMPATIBLE_SDK_VERSION = `${_compatibleVer}(${compatibleApi})`;
+TARGET_SDK_VERSION = `${_targetVer}(${targetApi})`;
+// --- SDK 版本参数化结束 ---
+
 if (!args.source || args.source === true) {
-  console.error('用法: node migrate.cjs --source <工程根路径> [--openharmony]');
+  console.error('用法: node migrate.cjs --source <工程根路径> [--compatible-api <N>] [--target-api <N>] [--openharmony]');
   process.exit(1);
 }
 
