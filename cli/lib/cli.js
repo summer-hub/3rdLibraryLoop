@@ -585,13 +585,16 @@ step run 专用选项:
   --max-retries <N>  最多重试次数（默认 3）
   --loop <N>         大循环轮次编号（默认 0）
   --task-dir <p>     产物目录（默认 <data-dir>/task/<taskId>）
+  --specified-skill <SKILL name|目录名>  固定执行指定 SKILL（跳过 SkillSelector 匹配）
 
 orch 专有说明:
   task-def.json 格式（与 Orchestrator.loadTask 对齐）:
     { "taskId": "task_xxx", "taskDir": "", "skillDirectory": "",
       "loopCount": 0,
       "steps": [ { "stepId": 1, "taskDescription": "...",
-                   "dependId": 0, "nextStepId": 2, "failStepId": 0, "maxRetries": 3 } ] }
+                   "dependId": 0, "nextStepId": 2, "failStepId": 0, "maxRetries": 3,
+                   "specifiedSkill": "arkts-library-xts-code" } ] }
+  steps[].specifiedSkill 可选：固定执行指定 SKILL（name 或目录名，跳过 SkillSelector 匹配）
   orch progress 可选 --loop <N> 读取历史轮次 orchestration_loop{N}.json
 
 退出码:
