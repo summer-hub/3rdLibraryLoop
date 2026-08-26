@@ -68,6 +68,9 @@ function renderLoopList() {
 /* ─── 任务选择 & 数据加载 ────────────────────────────────────────────── */
 async function selectLoop(taskId) {
     State.selectedTaskId = taskId; State.selectedStepId = null; State.selectedLoop = null; State._convRenderedStep=null;
+    // 从列表数据缓存该任务的初始描述（用户最初输入的内容）
+    var item = State.loops.filter(function(l){ return l.taskId === taskId; })[0];
+    State.selectedTaskDesc = item && item.taskDescription || '';
     stopPolling(); renderLoopList();
     await loadAllData(taskId); connectSSE(taskId);
 }
@@ -130,6 +133,7 @@ function renderLoopOverview() {
     var p = State.currentProgress; if (!p) return;
     $('loopOverview').style.display = 'block';
     $('ovTaskId').textContent = p.taskId;
+    $('ovDesc').textContent = State.selectedTaskDesc || p.taskDescription || '—';
     $('ovStatus').className = 'status-badge ' + (p.status||'idle');
     $('ovStatus').textContent = statusLabel(p.status);
     var rounds = p.rounds || [];
@@ -214,6 +218,9 @@ function renderRoundCard(r) {
     else h += '<span class="status-badge failed">❌ 未通过</span>';
     h += '<span class="round-time">' + t + '</span><span class="round-expand-icon">▶</span></div>';
     h += '<div class="round-body">';
+    var initDesc = State.selectedTaskDesc || (State.currentProgress && State.currentProgress.taskDescription);
+    if (initDesc) h += '<div class="phase-block"><div class="phase-header"><span class="phase-icon">📝</span> 初始任务描述</div>' +
+        '<div class="phase-content" style="font-size:12px;line-height:1.6;background:var(--code-bg);padding:10px;border-radius:6px;white-space:pre-wrap;word-break:break-all;">' + escapeHtml(initDesc) + '</div></div>';
     h += renderBrainPhase(r); h += renderOrchestratorPhase(r); h += renderCheckPhase(r);
     if (r.error) h += '<div class="phase-block"><div class="phase-header"><span class="phase-icon">⚠️</span> 异常</div><div class="phase-content" style="color:var(--red);">' + escapeHtml(r.error) + '</div></div>';
     h += '</div></div>';
