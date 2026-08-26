@@ -434,6 +434,18 @@
 .step-flow-item .step-info { flex: 1; line-height: 1.5; }
 .step-flow-item .step-info .step-desc { color: var(--text); word-break: break-word; }
 .step-flow-item .step-info .step-meta { font-size: 10px; color: var(--text3); margin-top: 2px; }
+.step-flow-item .step-skill-row { margin-top: 4px; }
+.skill-badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.6;
+    word-break: break-all;
+}
+.skill-badge.matched { background: var(--green-light); color: var(--badge-green-text); }
+.skill-badge.unmatched { background: var(--code-bg); color: var(--text3); border: 1px dashed var(--border); }
 
 /* ─── 表单元素 ──────────────────────────────────────────────────────── */
 .form-group { margin-bottom: 10px; }

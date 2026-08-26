@@ -127,8 +127,10 @@ Phase 4: 结果输出（纯 JSON 写入 resultFilePath）
 步骤与执行 SKILL 的绑定依赖**实时扫描**的可用 SKILL 列表（单一事实源：SKILL 根目录下各 SKILL.md 的 frontmatter，由本 SKILL 内的脚本提供，系统侧不硬编码、不预置）。**拆解时必须先运行以下脚本获取列表**：
 
 ```bash
-node {SKILL目录}/scripts/list-available-skills.cjs
+node {SKILL目录}/scripts/list-available-skills.cjs --format compact
 ```
+
+> `compact` 格式每 SKILL 一行（description 压缩为单行并截断 60 字符），输出体积小、可直接内联读取，足以完成步骤与 SKILL 的匹配；仅当某 SKILL 的职责边界无法从截断描述判断时，再运行 `--format list` 查看完整描述。
 
 脚本行为：
 - 扫描 SKILL 根目录（默认脚本所在目录的上上级，即 Skills 根目录）下所有含 SKILL.md 的一级子目录
@@ -230,7 +232,7 @@ node {SKILL目录}/scripts/list-available-skills.cjs
 
 当任务描述的 `domain` 或 `keywords` 命中已知领域模板时（如 `harmonyos-porting` + `framework-upgrade` 命中「RN 三方库框架升级适配」模板），**优先使用模板的步骤图骨架**，结合当前任务的版本号/分支名/验收标准进行适配，而非从零设计步骤。领域模板已沉淀了该类任务的最佳实践步骤划分、AC 覆盖模式和参数提取规则。
 
-> 通用颗粒度拆分规则与更多常见任务拆解模板（含 RN 三方库框架升级适配 6 步模板）参见 [常见任务拆解模板](references/TASK_DECOMPOSITION_TEMPLATES.md)
+> 通用颗粒度拆分规则与更多常见任务拆解模板（含 RN 三方库框架升级适配 6 步模板）参见 [常见任务拆解模板](references/TASK_DECOMPOSITION_TEMPLATES.md)。**匹配模板时先读该文件顶部的「模板索引」表**，命中后仅按起始行小范围读取对应模板段落，禁止通读全文。
 
 ### 2.2 依赖图字段
 
@@ -442,6 +444,8 @@ specifiedSkill: rnoh-lib-version-diff
 ---
 
 ## 自检
+
+> ⚠️ **效率纪律（硬性）**：校验规则以下文「参数一致性校验规则」「specifiedSkill 校验规则」「死锁校验规则」三节的文字规则为准，**禁止通读 scripts/ 下校验脚本源码**——脚本仅用于执行，规则语义已完整沉淀于本文件。仅当某项校验失败且下文规则无法定位原因时，才 grep 对应脚本的规则段落定位实现细节。
 
 输出完成后，**必须**运行以下三套校验脚本，全部通过后方可提交：
 

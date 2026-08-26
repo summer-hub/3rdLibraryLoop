@@ -3,13 +3,14 @@
  * @tool list-available-skills
  * @description 扫描 SKILL 根目录，读取各 SKILL.md frontmatter 的 name/description，按黑名单过滤后输出可用执行 SKILL 列表。供 task-decomposition 拆解时进行步骤与 SKILL 的匹配（specifiedSkill 标注），是可用 SKILL 清单的唯一事实源。
  * @param root: string - SKILL 根目录路径（可选，默认为脚本所在 SKILL 的上级目录）
- * @param format: string - 输出格式：list | names | json（可选，默认 list）
+ * @param format: string - 输出格式：compact | list | names | json（可选，默认 list）
  * @param exclude: string - 额外黑名单，逗号分隔的 SKILL name/目录名（可选，与 skill-blacklist.json 合并）
  *
  * list-available-skills.cjs
  *
  * 用法（两种调用方式兼容）:
  *   node list-available-skills.cjs                              # 默认根目录，list 格式
+ *   node list-available-skills.cjs --format compact             # 紧凑格式（description 截断 60 字符单行）
  *   node list-available-skills.cjs --root /path/to/Skills       # 指定 SKILL 根目录
  *   node list-available-skills.cjs --format json                # JSON 格式输出
  *   node list-available-skills.cjs --exclude a,b,c              # 追加黑名单
@@ -21,7 +22,8 @@
  *   3. 环境变量 SKILL_BLACKLIST（逗号分隔）
  *
  * 输出格式:
- *   list  （默认）每行: - {name}（{目录名}）: {description}    —— 适合注入 prompt
+ *   compact 每行: - {name}（{目录名}）: {description 截断 60 字符} —— 体积最小，适合 LLM 拆解时内联读取
+ *   list  （默认）每行: - {name}（{目录名}）: {description}    —— 完整描述
  *   names 每行一个 name                                     —— 适合快速检索
  *   json  [{name, dir, description}]（pretty JSON）          —— 适合程序消费
  *
@@ -167,10 +169,22 @@ function scanSkills(root, extraExclude = []) {
 // ── 输出格式化 ────────────────────────────────────────────────
 
 /**
+ * 压缩为单行并截断到指定长度（超长以 … 结尾），用于 compact 输出。
+ *
+ * @param {string} text - 原始文本（可能含换行/连续空白）
+ * @param {number} maxLen - 最大字符数
+ * @returns {string}
+ */
+function truncateText(text, maxLen) {
+    const oneLine = String(text || '').replace(/\s+/g, ' ').trim();
+    return oneLine.length > maxLen ? oneLine.slice(0, maxLen) + '…' : oneLine;
+}
+
+/**
  * 按指定格式输出 SKILL 列表文本。
  *
  * @param {{name: string, dir: string, description: string}[]} skills
- * @param {string} format - list | names | json
+ * @param {string} format - compact | list | names | json
  * @returns {string}
  */
 function formatSkills(skills, format) {
@@ -179,6 +193,8 @@ function formatSkills(skills, format) {
             return JSON.stringify(skills, null, 2);
         case 'names':
             return skills.map(s => s.name).join('\n');
+        case 'compact':
+            return skills.map(s => `- ${s.name}（${s.dir}）: ${truncateText(s.description, 60)}`).join('\n');
         case 'list':
         default:
             return skills.map(s => `- ${s.name}（${s.dir}）: ${s.description}`).join('\n');
@@ -209,7 +225,7 @@ function parseArgs(argv) {
         }
     }
 
-    // flag 形式：--root <path> | --format <list|names|json> | --exclude a,b,c
+    // flag 形式：--root <path> | --format <compact|list|names|json> | --exclude a,b,c
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i];
         if (arg === '--root' && argv[i + 1]) {
@@ -229,8 +245,8 @@ function parseArgs(argv) {
 function main() {
     const { root, format, exclude } = parseArgs(process.argv.slice(2));
 
-    if (!['list', 'names', 'json'].includes(format)) {
-        console.error(`Error: 未知 format "${format}"（支持: list | names | json）`);
+    if (!['compact', 'list', 'names', 'json'].includes(format)) {
+        console.error(`Error: 未知 format "${format}"（支持: compact | list | names | json）`);
         process.exit(1);
     }
 

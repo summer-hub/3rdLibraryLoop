@@ -742,6 +742,8 @@ function renderBrainSection() {
     if (!plan) { $('brainSection').innerHTML='<div class="rounds-empty">暂无 Brain 拆解数据</div>'; return; }
     var td=plan.taskDef||{}, steps=td.steps||[], an=plan.analysis||{}, valid=plan.validation&&plan.validation.valid;
     var ac=td.acceptanceCriteria||an.acceptanceCriteria||[];
+    // 拆解时绑定 SKILL 的步骤（specifiedSkill 非空 → 执行时直接使用该 SKILL，跳过自动匹配）
+    var skillMatched = steps.filter(function(s){ return s.specifiedSkill && String(s.specifiedSkill).trim()!==''; });
     var h='';
     h+='<div class="brain-card"><h3>📊 任务分析</h3><div class="kv-grid">';
     h+='<div class="k">Plan ID</div><div class="v">'+escapeHtml(plan.planId||'—')+'</div>';
@@ -757,6 +759,7 @@ function renderBrainSection() {
     if(an.domain) h+='<span class="stat-item">领域: <strong>'+escapeHtml(an.domain)+'</strong></span>';
     if(an.complexity) h+='<span class="stat-item">复杂度: <strong>'+escapeHtml(an.complexity)+'</strong></span>';
     if(an.estimatedSteps) h+='<span class="stat-item">预计步骤: <strong>'+an.estimatedSteps+'</strong></span>';
+    h+='<span class="stat-item">SKILL 匹配: <strong style="color:'+(skillMatched.length>0?'var(--green)':'var(--text2)')+';">'+skillMatched.length+'/'+steps.length+'</strong></span>';
     h+='</div>';
     if(an.keywords&&an.keywords.length>0) h+='<div style="margin-top:8px;font-size:11px;color:var(--text2);">关键词: '+escapeHtml(an.keywords.join(', '))+'</div>';
     if(an.techStack&&an.techStack.length>0) h+='<div style="margin-top:4px;font-size:11px;color:var(--text2);">技术栈: '+escapeHtml(an.techStack.join(', '))+'</div>';
@@ -766,12 +769,16 @@ function renderBrainSection() {
         ac.forEach(function(c){ h+='<div class="criteria-item satisfied"><span class="criteria-icon">📋</span><div class="criteria-text"><div class="criterion">'+escapeHtml(c.criterion||'')+'</div><div class="reason">类型: '+escapeHtml(c.type||'—')+' | 验证: '+escapeHtml(c.verification||'—')+'</div></div></div>'; });
         h+='</div></div>';
     }
-    h+='<div class="brain-card"><h3>📋 拆解步骤 ('+steps.length+' 步)</h3><div class="step-flow">';
+    h+='<div class="brain-card"><h3>📋 拆解步骤 ('+steps.length+' 步 · SKILL 匹配 '+skillMatched.length+'/'+steps.length+')</h3><div class="step-flow">';
     steps.forEach(function(s,idx){
         var dep=getDepIds(s.dependId).length>0?'依赖步骤 '+getDepIds(s.dependId).join(', '):'入口步骤';
         var nxt=s.nextStepId&&s.nextStepId!=='0'?'→ 步骤 '+s.nextStepId:'→ 结束';
         var fail=s.failStepId&&s.failStepId!=='0'?' | 失败→步骤 '+s.failStepId:'';
-        h+='<div class="step-flow-item"><div class="step-num">'+(idx+1)+'</div><div class="step-info"><div class="step-desc">'+escapeHtml(s.taskDescription||'')+'</div><div class="step-meta">'+dep+' · '+nxt+fail+' · 重试'+(s.maxRetries||3)+'次</div></div></div>';
+        var skName = s.specifiedSkill ? String(s.specifiedSkill).trim() : '';
+        var skillBadge = skName
+            ? '<span class="skill-badge matched" title="拆解时已匹配 SKILL，执行时直接使用（跳过自动匹配）">🎯 SKILL: '+escapeHtml(skName)+'</span>'
+            : '<span class="skill-badge unmatched" title="拆解时未匹配 SKILL，执行时由 SkillSelector 自动匹配">未匹配 SKILL（执行时自动匹配）</span>';
+        h+='<div class="step-flow-item"><div class="step-num">'+(idx+1)+'</div><div class="step-info"><div class="step-desc">'+escapeHtml(s.taskDescription||'')+'</div><div class="step-skill-row">'+skillBadge+'</div><div class="step-meta">'+dep+' · '+nxt+fail+' · 重试'+(s.maxRetries||3)+'次</div></div></div>';
     });
     h+='</div></div>';
     if (!valid&&plan.validation&&plan.validation.issues&&plan.validation.issues.length>0) {
