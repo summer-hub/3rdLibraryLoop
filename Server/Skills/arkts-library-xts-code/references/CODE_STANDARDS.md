@@ -453,11 +453,12 @@ export default function testsuite() {
 
 ### 7.8 访问修饰符预检检查
 
-- ✅ Phase 1.5 预检已执行：`precheck-access-modifiers.cjs` 脚本已运行，`precheck-access-modifiers.json` 已生成
+- ✅ Phase 1.5 预检已执行（条件性）：`precheck-access-modifiers.cjs` 脚本已运行（当输入含旧格式规格文档时），`precheck-access-modifiers.json` 已生成
 - ✅ private/protected 成员排除清单已建立：所有 `private`/`protected` 属性和方法已记录
-- ✅ 桩断言已生成：对 private/protected 成员的测试用例，使用 `expect(true).assertTrue()` + 注释说明间接覆盖路径
+- ✅ private/protected 成员已跳过：未为 private/protected 成员生成任何用例
 - ✅ 并行 Agent 预检规则已注入：每个 Agent 的 prompt 包含排除清单
 - ✅ 无 `Property 'X' is private` 编译错误残留
+- ✅ 输入经标准链路生成（xts-doc 已过滤 private/protected）时，可跳过此预检并说明依据
 
 ---
 
@@ -465,7 +466,7 @@ export default function testsuite() {
 
 | 错误 | 常见原因 | 修复方法 |
 |------|---------|---------|
-| private/protected 访问 | 接口规格未标注访问修饰符，测试代码直接调用 | Phase 1.5 预检排除；残留的替换为桩断言 `expect(true).assertTrue()` |
+| private/protected 访问 | 接口规格未标注访问修饰符，测试代码直接调用 | Phase 1.5 预检排除（已执行时）；残留的删除直接访问或跳过该用例 |
 | arkts-no-any | 使用了 any 类型 | 定义具体类型 `interface ResultType { ... }` |
 | arkts-no-any-unknown | 使用了 `unknown` 关键字或 `null as unknown as Type` 双重转换 | `unknown` 被完全禁止。改用空但合法的对象（如 `new BleDevice('', '')`）、构造最小字段对象字面量 `as Type`、或 `{} as Type`（不需实际功能的参数） |
 | arkts-no-types-in-catch | catch 子句带类型注解 `catch (e: Object)` | `catch (e)` 不带类型注解，e 默认为 Object 类型 |
@@ -526,3 +527,53 @@ export default function testsuite() {
 
 4. 确保所有测试用例在目标设备上成功运行
 ```
+
+---
+
+## 十、Subagent 注入用规则速查
+
+> 以下为 condensed 通用版，用于注入 subagent prompt（见 [SUBAGENT_PROMPT_TEMPLATE.md](SUBAGENT_PROMPT_TEMPLATE.md)）。
+> 仅保留最高频违反的规则，完整规则见本文档第一至九节。
+
+### 10.1 断言 API（最高频违反项）
+
+| 场景 | hypium 正确写法 | Jest 错误写法（编译失败） |
+|------|----------------|-------------------------|
+| 严格相等 | `expect(x).assertEqual(y)` | `toBe`、`toEqual` |
+| null 判断 | `expect(x).assertNull()` | `toBeNull`、`assertNotNull` |
+| 布尔真 | `expect(x).assertTrue()` | `toBeTruthy` |
+| 布尔假 | `expect(x).assertFalse()` | `toBeFalsy` |
+| 大于 | `expect(x).assertLarger(y)` | `toBeGreaterThan` |
+| 小于（反转方向） | `expect(y).assertLarger(x)` | `toBeLessThan` |
+| 包含 | `expect(x).assertContain(y)` | `toContain` |
+| undefined | `expect(x).assertUndefined()` | — |
+| 非 null | `expect(x !== null).assertTrue()` | `not.toBeNull` |
+| 不等于 | `expect(x === y).assertFalse()` | `not.toBe` |
+| 抛异常 | `try-catch` + 布尔标记 | `toThrow` |
+
+> ⚠️ `expect()` 对象上**不存在** Jest 风格方法。`assertNotNull` **不存在**于 hypium，用 `expect(x !== null).assertTrue()` 替代。
+
+### 10.2 类型禁止速查
+
+| 禁止 | 原因标识 | 替代方案 |
+|------|---------|---------|
+| `any` | `arkts-no-any` | 具体类型或泛型 `T` |
+| `Object` | `arkts-no-esobj` | 定义 `interface` 或使用具体类型 |
+| `unknown`（含 `as unknown as T`） | `arkts-no-any-unknown` | 禁止，改用空但合法的对象或系统 API 创建 |
+| `ESObject` 作变量声明 | `arkts-limited-esobj` | 仅用于 `null as ESObject as SomeType` 转型 |
+| `{ } as Type` 无类型字面量 | `arkts-no-untyped-obj-literals` | `new Class()` 或系统 API 创建 |
+| `catch(e: Type)` 类型注解 | `arkts-no-types-in-catch` | `catch(e)` 无注解 |
+| `throw e`（e 非 Error 类型） | `arkts-limited-throw` | 仅设标记变量，不 throw |
+| `null as SomeType` 直接强转 | 类型不兼容 | 系统 API 创建 或 `null as ESObject as SomeType` |
+
+### 10.3 测试函数格式速查
+
+| 规则 | 正确 | 错误 |
+|------|------|------|
+| `it()` 参数 | 三参数 `it('name', 0, () => {})` | 省略 `0`（部分设备崩溃） |
+| 文件扩展名 | `.test.ets` | `.ts` 或 `.ets` |
+| hilog 导入 | `import { hilog } from '@kit.PerformanceAnalysisKit'` | `import hilog from '@ohos.hilog'` |
+| 日志格式 | 公开数据 `%{public}s`，敏感数据 `%{private}s` | 禁止敏感信息用 `%{public}s` |
+| 文件路径 | `abilityDelegatorRegistry` 获取沙箱 `tempDir` | 硬编码 `/data/local/tmp/` |
+| 返回值含 `\| undefined` | `if (result) { ... }` 判空后访问属性 | 直接访问属性 |
+| 枚举比较 | `(Enum.A as number) !== (Enum.B as number)` | `Enum.A === Enum.B`（报 overlap） |

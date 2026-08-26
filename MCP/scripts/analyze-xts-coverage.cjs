@@ -808,6 +808,11 @@ function renderHeader(result, title) {
   lines.push(`| 库名 | \`${result.libraryName}\` |`);
   lines.push(`| 源文件数 | ${result.demoFileCount || '-'} |`);
   lines.push(`| 生成时间 | ${new Date(Date.now() + 8 * 3600 * 1000).toISOString().replace('T', ' ').replace('Z', '+08:00')} |`);
+  if ((result.filteredLowValueCount || 0) > 0 || (result.filteredTypeCount || 0) > 0) {
+    lines.push(`| 过滤低价值常量 | ${result.filteredLowValueCount || 0} |`);
+    lines.push(`| 过滤类型声明 | ${result.filteredTypeCount || 0} |`);
+    lines.push(`| 实际统计接口 | ${result.totalInterfacesMethodLevel} |`);
+  }
   lines.push('');
   return lines.join('\n');
 }
@@ -1038,7 +1043,12 @@ const libName = args.lib || '';
 // 输出路径默认取 spec 同目录下的 03-xxx-XTS覆盖率报告.md
 const outputPath = args.output || path.join(path.dirname(specPath || __dirname), `03-${specBasename}-XTS覆盖率报告.md`);
 
-const interfaces = specData.interfaces || [];
+let filteredLowValueCount = 0, filteredTypeCount = 0;
+const interfaces = (specData.interfaces || []).filter(i => {
+  if (i.lowValue === true) { filteredLowValueCount++; return false; }
+  if (i.kind === 'type') { filteredTypeCount++; return false; }
+  return true;
+});
 const resolvedLibName = libName || specData.libraryName || specBasename;
 
 console.log(`库名: ${resolvedLibName}`);
@@ -1070,6 +1080,8 @@ if (!result) {
 }
 
 result.specSummary = specData.summary;
+result.filteredLowValueCount = filteredLowValueCount;
+result.filteredTypeCount = filteredTypeCount;
 
 console.log(`XTS 匹配完成: ${result.coveredMethodCount}/${result.totalInterfacesMethodLevel} (${result.coverageRateMethodLevel}%)`);
 

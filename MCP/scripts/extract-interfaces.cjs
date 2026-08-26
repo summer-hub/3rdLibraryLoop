@@ -521,6 +521,9 @@ function classifyMember(node, isStruct) {
     if (isStruct) {
       return { memberName: node.name.text, kind: 'method', skip: true };
     }
+    if (isPrivateMember(node)) {
+      return { memberName: node.name.text, kind: 'method', skip: true };
+    }
     return { memberName: node.name.text, kind: 'method', skip: false };
   }
   if (ts.isPropertyDeclaration(node) || ts.isPropertySignature(node) ||
@@ -534,6 +537,9 @@ function classifyMember(node, isStruct) {
       }
       // struct 公有属性: 函数类型也跳过（struct 的 build 方法不导出）
       return { memberName: node.name.text, kind: 'property', skip: false };
+    }
+    if (isPrivateMember(node)) {
+      return { memberName: node.name.text, kind: isFuncTyped ? 'method' : 'property', skip: true };
     }
     if (isFuncTyped) {
       return { memberName: node.name.text, kind: 'method', skip: false };
@@ -579,6 +585,17 @@ function extractReturnType(checker, node) {
   return 'void';
 }
 
+/**
+ * 统一生成方法/函数类成员的签名，保证 signature 与 params/returnType 字段自洽。
+ * 形态: name: (p1?: T1, p2: T2) => ReturnType (returnType 取自 extractReturnType，保留 | null 等联合细节)
+ */
+function buildMethodSignature(name, params, returnType, optional) {
+  const paramStr = (params || [])
+    .map(p => `${p.name}${p.optional ? '?' : ''}: ${p.type === '-' ? 'any' : p.type}`)
+    .join(', ');
+  return `${name}${optional ? '?' : ''}: (${paramStr}) => ${returnType}`;
+}
+
 // ── 类成员提取 ──────────────────────────────────────────────
 
 function extractClassMembers(node, checker, className, isStruct, sourceFile, realPath, repoDir) {
@@ -591,18 +608,23 @@ function extractClassMembers(node, checker, className, isStruct, sourceFile, rea
     const isStatic = isStaticMember(member);
     const isReadonly = isReadonlyMember(member);
     const isEvent = /^on\w+/.test(memberName);
+    const access = isPrivateMember(member) ? 'private' : 'public';
+    const lowValue = !!(isStatic && isReadonly && kind === 'property');
 
     // 对于函数类型属性（被重分类为 method），从函数类型节点提取参数和返回值
     let params = [];
     let returnType = '-';
+    let methodSignature = null;
     if (kind === 'method') {
       if (ts.isMethodDeclaration(member) || ts.isMethodSignature(member)) {
         params = extractParams(checker, member);
         returnType = extractReturnType(checker, member);
+        methodSignature = buildMethodSignature(memberName, params, returnType, false);
       } else if (ts.isPropertyDeclaration(member) || ts.isPropertySignature(member)) {
         const funcInfo = extractFuncTypeInfoFromProperty(member);
         params = funcInfo.params;
         returnType = funcInfo.returnType;
+        methodSignature = buildMethodSignature(memberName, params, returnType, false);
       }
     }
 
@@ -615,8 +637,10 @@ function extractClassMembers(node, checker, className, isStruct, sourceFile, rea
       isReadonly,
       isOptional: false,
       isEvent,
+      access,
+      lowValue,
       type: isStruct ? 'struct' : 'class',
-      signature: getMemberSignature(checker, member),
+      signature: methodSignature || getMemberSignature(checker, member),
       params,
       returnType,
       description: getJsDocDescription(checker, member.name || member),
@@ -670,11 +694,13 @@ function extractInterfaceFields(node, checker, interfaceName, sourceFile, realPa
       let params = [];
       let returnType = fieldType;
       let kind = 'field';
+      let sigStr = `${name}${optional ? '?' : ''}: ${fieldType}`;
       if (isFuncTyped) {
         const funcInfo = extractFuncTypeInfoFromProperty(member);
         params = funcInfo.params;
         returnType = funcInfo.returnType;
         kind = 'method';
+        sigStr = buildMethodSignature(name, funcInfo.params, funcInfo.returnType, optional);
       }
 
       fields.push({
@@ -687,7 +713,7 @@ function extractInterfaceFields(node, checker, interfaceName, sourceFile, realPa
         isOptional: optional,
         isEvent,
         type: 'interface',
-        signature: `${name}${optional ? '?' : ''}: ${fieldType}`,
+        signature: sigStr,
         params,
         returnType,
         description: getJsDocDescription(checker, member.name),
@@ -696,16 +722,25 @@ function extractInterfaceFields(node, checker, interfaceName, sourceFile, realPa
       });
     } else if (ts.isMethodSignature(member) && member.name) {
       const name = member.name.text;
-      let methodSig = '-';
-      try {
-        const symbol = checker.getSymbolAtLocation(member.name);
-        if (symbol) {
-          const type = checker.getTypeOfSymbolAtLocation(symbol, member);
-          methodSig = checker.typeToString(type);
+      let methodSig = null;
+      if (name === 'new') { /* 构造签名：保留原生形态 */ } else {
+        const params = extractParams(checker, member);
+        const returnType = extractReturnType(checker, member);
+        methodSig = buildMethodSignature(name, params, returnType, !!member.questionToken);
+      }
+      if (!methodSig) {
+        let rawSig = '-';
+        try {
+          const symbol = checker.getSymbolAtLocation(member.name);
+          if (symbol) {
+            const type = checker.getTypeOfSymbolAtLocation(symbol, member);
+            rawSig = checker.typeToString(type);
+          }
+        } catch (e) { /* use text */ }
+        if (rawSig === 'any' || rawSig === '-') {
+          rawSig = member.getText().trim().split('\n')[0];
         }
-      } catch (e) { /* use text */ }
-      if (methodSig === 'any' || methodSig === '-') {
-        methodSig = member.getText().trim().split('\n')[0];
+        methodSig = rawSig;
       }
 
       fields.push({
@@ -753,6 +788,7 @@ function extractTopLevelExports(node, checker, realPath, repoDir, sourceFile) {
       let kind = 'variable';
       let params = [];
       let returnType = typeStr;
+      let sigStr = `${name}: ${typeStr}`;
       if (isFuncTyped) {
         kind = 'function';
         let funcType = decl.type;
@@ -766,6 +802,7 @@ function extractTopLevelExports(node, checker, realPath, repoDir, sourceFile) {
           }
           returnType = funcType.type ? funcType.type.getText() : 'void';
         }
+        sigStr = buildMethodSignature(name, params, returnType, false);
       }
 
       exports.push({
@@ -778,7 +815,7 @@ function extractTopLevelExports(node, checker, realPath, repoDir, sourceFile) {
         isOptional: false,
         isEvent: false,
         type: kind === 'function' ? 'function' : 'variable',
-        signature: `${name}: ${typeStr}`,
+        signature: sigStr,
         params,
         returnType,
         description: getJsDocDescription(checker, decl.name),
@@ -788,11 +825,9 @@ function extractTopLevelExports(node, checker, realPath, repoDir, sourceFile) {
     }
   } else if (ts.isFunctionDeclaration(node) && node.name) {
     const name = node.name.text;
-    let sig = '-';
-    try {
-      sig = checker.typeToString(checker.getTypeAtLocation(node));
-    } catch (e) { /* use node text */ }
-    if (sig === 'any') sig = node.getText().trim().split('\n')[0];
+    const params = extractParams(checker, node);
+    const returnType = extractReturnType(checker, node);
+    const sigStr = buildMethodSignature(name, params, returnType, false);
 
     exports.push({
       className: null,
@@ -804,9 +839,9 @@ function extractTopLevelExports(node, checker, realPath, repoDir, sourceFile) {
       isOptional: false,
       isEvent: false,
       type: 'function',
-      signature: sig,
-      params: extractParams(checker, node),
-      returnType: extractReturnType(checker, node),
+      signature: sigStr,
+      params,
+      returnType,
       description: getJsDocDescription(checker, node.name),
       source: rel(realPath, repoDir),
       startLine: 0,
@@ -887,11 +922,13 @@ function extractDeclareVarStatics(node, checker, varName, sourceFile, realPath, 
       let params = [];
       let returnType = fieldType;
       let kind = 'property';
+      let sigStr = `${name}${member.questionToken ? '?' : ''}: ${fieldType}`;
       if (isFuncTyped) {
         const funcInfo = extractFuncTypeInfoFromProperty(member);
         params = funcInfo.params;
         returnType = funcInfo.returnType;
         kind = 'method';
+        sigStr = buildMethodSignature(name, funcInfo.params, funcInfo.returnType, !!member.questionToken);
       }
 
       members.push({
@@ -904,7 +941,7 @@ function extractDeclareVarStatics(node, checker, varName, sourceFile, realPath, 
         isOptional: !!member.questionToken,
         isEvent: /^on\w+/.test(name),
         type: 'dts-class',
-        signature: `${name}${member.questionToken ? '?' : ''}: ${fieldType}`,
+        signature: sigStr,
         params,
         returnType,
         description: getJsDocDescription(checker, member.name),
@@ -914,16 +951,20 @@ function extractDeclareVarStatics(node, checker, varName, sourceFile, realPath, 
     } else if (ts.isMethodSignature(member) && member.name) {
       const name = member.name.text;
       if (name === 'new') continue; // 跳过构造签名
-      let sig = '-';
-      try {
-        const symbol = checker.getSymbolAtLocation(member.name);
-        if (symbol) {
-          const type = checker.getTypeOfSymbolAtLocation(symbol, member);
-          sig = checker.typeToString(type);
+      const params = extractParams(checker, member);
+      const returnType = extractReturnType(checker, member);
+      let sig = buildMethodSignature(name, params, returnType, !!member.questionToken);
+      if (!sig || sig === `(${name}) => any`) {
+        try {
+          const symbol = checker.getSymbolAtLocation(member.name);
+          if (symbol) {
+            const type = checker.getTypeOfSymbolAtLocation(symbol, member);
+            sig = checker.typeToString(type);
+          }
+        } catch (e) { /* use text */ }
+        if (sig === 'any' || sig === '-') {
+          sig = member.getText().trim().split('\n')[0];
         }
-      } catch (e) { /* use text */ }
-      if (sig === 'any' || sig === '-') {
-        sig = member.getText().trim().split('\n')[0];
       }
 
       members.push({
@@ -933,12 +974,12 @@ function extractDeclareVarStatics(node, checker, varName, sourceFile, realPath, 
         kind: 'method',
         isStatic: false,
         isReadonly: false,
-        isOptional: false,
+        isOptional: !!member.questionToken,
         isEvent: /^on\w+/.test(name),
         type: 'dts-class',
         signature: sig,
-        params: extractParams(checker, member),
-        returnType: extractReturnType(checker, member),
+        params,
+        returnType,
         description: getJsDocDescription(checker, member.name),
         source: rel(realPath, repoDir),
         startLine: sourceFile ? sourceFile.getLineAndCharacterOfPosition(member.getStart ? member.getStart() : member.pos).line + 1 : 0,
@@ -1325,11 +1366,9 @@ function parseLibraryWithTS(repoDir, entryFile, nativeSoInfo, libraryName) {
         if (!exportedNames.has(name)) return;
         // 避免重复
         if (interfaces.some(i => i.fullName === name)) return;
-        let sig = '-';
-        try {
-          sig = checker.typeToString(checker.getTypeAtLocation(node));
-        } catch (e) { /* use node text */ }
-        if (sig === 'any') sig = node.getText().trim().split('\n')[0];
+        const params = extractParams(checker, node);
+        const returnType = extractReturnType(checker, node);
+        const sig = buildMethodSignature(name, params, returnType, false);
 
         interfaces.push({
           className: null,
@@ -1342,8 +1381,8 @@ function parseLibraryWithTS(repoDir, entryFile, nativeSoInfo, libraryName) {
           isEvent: false,
           type: 'function',
           signature: sig,
-          params: extractParams(checker, node),
-          returnType: extractReturnType(checker, node),
+          params,
+          returnType,
           description: getJsDocDescription(checker, node.name),
           source: rel(realPath, repoDir),
           startLine: sourceFile ? sourceFile.getLineAndCharacterOfPosition(node.getStart ? node.getStart() : node.pos).line + 1 : 0,

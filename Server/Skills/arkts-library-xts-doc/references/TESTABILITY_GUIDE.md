@@ -120,10 +120,14 @@
 |----------|----------|------|
 | `@Component struct` | ❌ 不可测 | UI 组件，不生成 XTS 用例 |
 | `interface` / `type` | ❌ 不可测 | 仅类型声明，无可执行逻辑 |
+| `private` / `protected` 成员 | ❌ 不可测 | 非对外 API，黑盒测试语法不可引用，不生成用例 |
+| `public static readonly` 常量 | ❌ 不可测 | 编译期固定、无行为回归，不生成用例 |
 | `lib*.so` Native 导出 | ⚠️ 慎重 | 需要 ArkTS 层的 wrapper 才能测试 |
 | 枚举（enum） | ✅ 可测 | 可通过 `import { EnumName } from 'library'` 后验证值 |
 | `setXxx()` + `getXxx()` 配对 | ✅ 可测 | setter/getter 合并为一个用例，`setConfig` → `getConfig` 验证 |
 | 纯函数 | ✅ 可测 | 输入固定 → 输出可预测 |
+| 回调派发型 | ✅ 可测 | 注入 Mock 实现验证回调透传，不再归类为「回调依赖外部事件不可测」（如 `onLeScan` / `notifyScanStarted`） |
+| 硬件依赖 void 型 | ⚠️ 可测 | 常态不抛异常 + 状态机/后续行为间接受影响；需 Mock 或真机（如 `enableBluetooth` / `scan` / `*MsgInit`） |
 | 依赖外部资源 | ⚠️ 需条件 | 在用例描述中标注 Mock 要求 |
 
 ---
