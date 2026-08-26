@@ -1,0 +1,232 @@
+{
+  "pr": {
+    "id": 8971817,
+    "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-webview/merge_requests/121",
+    "number": 121,
+    "state": "merged",
+    "title": "feat:增加video横竖屏切换功能",
+    "url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-webview/pulls/121",
+    "issue_url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-webview/pulls/121/issues",
+    "body": "## 一、变更类型（单选，仅勾选一项）\n- [x] feat（新增功能，对应 Changelog Added）\n- [ ] fix（修复 Bug，对应 Changelog Fixed）\n- [ ] docs（文档变更，对应 Changelog Documentation）\n- [ ] refactor（代码重构，对应 Changelog Changed）\n- [ ] perf（性能优化，对应 Changelog Performance）\n- [ ] test（测试相关，不进入 Changelog）\n- [ ] chore（构建/工具链/依赖，不进入 Changelog）\n- [ ] deprecated（标记弃用，对应 Changelog Deprecated）\n- [ ] removed（移除功能，对应 Changelog Removed）\n- [ ] security（安全修复，对应 Changelog Security）\n\n## 二、变更内容\n### 简要描述\n增加video横竖屏切换功能\n\n### 破坏性变更说明\n无破坏性变更\n\n\n## 三、测试步骤\n1.连接网络，使用demo测试\n2.demo加载成功以后，点击全屏\n3.然后旋转手机，video会自动横竖屏切换\n\ndemo:\n```\n/**\n * @format\n */\n\n/**\n * @format\n */\n\nimport { AppRegistry } from 'react-native';\nimport React, { useEffect } from 'react';\nimport { name as appName } from './app.json';\nimport Orientation from 'react-native-orientation';\n\nimport { WebView } from \"react-native-webview\";\n\nexport default function WebViewDemo() {\n    const handleWebMessage = (e) => {\n        try {\n            const data = JSON.parse(e.nativeEvent.data);\n            if (data.type === 'WEB_FULLSCREEN') {\n                if (data.isFullScreen) {\n                    // 进入视频全屏：解锁，允许自动横竖屏\n                    // Orientation.unlockAllOrientations();\n                } else {\n                    // 退出全屏：重新锁定竖屏\n                    // Orientation.lockToPortrait();\n                }\n            }\n        } catch (err) { }\n    };\n\n\n    return (\n        <WebView\n            source={{ uri: \"https://reyee.ruijie.com.cn/s2b2c/#/casePush/newVideoCommonPlay?userFlag=5d55e70ee071a533b06770291f388eb0_33187&accessKey=mini_profile__native_app_c0db3bad-5c06-4788-8e9e-8df39fc404ea&appVersion=9.4.0&hideShareAndSwiper=false&canShare=false&isTabWebView=false&accountId=18959589245&mId=350845&publisherId=266440&visitorId=18959589245&type=video&route=videoCommonPlay&isHideDescription=true&objClass=video&continent=&tz=-480&imControl=true&lang=zh&barHeight=37.84615384615385&platform=harmony\" }}\n            domStorageEnabled={true}\n            javaScriptEnabled={true}\n            allowFileAccess={false}\n            allowsFullscreenVideo={true}\n            // injectedJavaScript={injectFullScreenScript}\n            onMessage={handleWebMessage}\n        />\n    );\n}\n\n\nexport const Root = () => {\n    // 空依赖数组 = 组件初始化挂载后执行一次，完全等价 componentDidMount\n    useEffect(() => {\n        Orientation.lockToPortrait();\n        // SplashScreen.hide();\n    }, []);\n    return <WebViewDemo />;\n};\n\nAppRegistry.registerComponent(appName, () => Root);\n\n```\n\n## 四、测试情况\n横屏状态UI显示正常\n不涉及\n\n## 五、合入前自检\n- [x] 不涉及非兼容性变更；若涉及，已通过相应评审。\n- [x] 不涉及性能或已进行性能测试且无性能劣化。\n- [x] 符合对应的编码规范。\n- [x] 无敏感信息泄露，如密码、密钥等。\n- [x] 不涉及文档更新，或已更新了文档。\n- [x] 针对可测试性要求，已增加必要的自测用例、合理的日志记录或Trace信息。\n- [x] 不存在非法的文件引入，包括图片和代码等",
+    "assignees_number": 3,
+    "assignees": [
+      {
+        "id": "6731c8f2fbbddc0c200a6019",
+        "login": "zhu_chengcheng",
+        "name": "zhu_chengcheng",
+        "avatar_url": "https://cdn-img.gitcode.com/fe/bd/f406eb600317d9bbb6a5c23042b49e5193dfbb7a63ee407f5bbfcbabcd177af1.jpg",
+        "html_url": "https://gitcode.com/zhu_chengcheng",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      },
+      {
+        "id": "67316e3733741160e6751351",
+        "login": "dingchengjie",
+        "name": "dingchengjie",
+        "avatar_url": "https://cdn-img.gitcode.com/fa/ed/6fa18810e4276d04d77bccf2f37c2287b44631cdcae7587fc4446f0bd79c2ed3.png",
+        "html_url": "https://gitcode.com/dingchengjie",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      },
+      {
+        "id": "67fdb69df01e3c566929edd4",
+        "login": "gcw_N7oHqLFR",
+        "name": "huang_jy",
+        "avatar_url": "",
+        "html_url": "https://gitcode.com/gcw_N7oHqLFR",
+        "assignee": true,
+        "code_owner": false,
+        "accept": true
+      }
+    ],
+    "testers": [
+      {
+        "id": "6541ccea82d8f837210e92c3",
+        "login": "openharmony_ci",
+        "name": "openharmony_ci",
+        "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+        "html_url": "https://gitcode.com/openharmony_ci",
+        "assignee": false,
+        "code_owner": false,
+        "accept": true
+      }
+    ],
+    "approval_reviewers": [],
+    "labels": [
+      {
+        "id": 13242051,
+        "color": "#428BCA",
+        "name": "dco检查成功",
+        "repository_id": 4369253,
+        "created_at": "2026-06-09T18:18:04+08:00",
+        "updated_at": "2026-08-02T16:52:19+08:00"
+      },
+      {
+        "id": 13240384,
+        "color": "#428BCA",
+        "name": "编译成功",
+        "repository_id": 4369253,
+        "created_at": "2026-06-01T09:28:47+08:00",
+        "updated_at": "2026-08-03T10:39:39+08:00"
+      },
+      {
+        "id": 13240385,
+        "color": "#428BCA",
+        "name": "静态检查成功",
+        "repository_id": 4369253,
+        "created_at": "2026-06-01T09:28:52+08:00",
+        "updated_at": "2026-08-03T10:40:57+08:00"
+      }
+    ],
+    "created_at": "2026-08-02T16:51:36+08:00",
+    "updated_at": "2026-08-03T17:39:20+08:00",
+    "closed_at": "2026-08-03T17:39:19+08:00",
+    "merged_at": "2026-08-03T17:39:19+08:00",
+    "merged_by": {
+      "id": "6541ccea82d8f837210e92c3",
+      "login": "openharmony_ci",
+      "name": "openharmony_ci",
+      "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+      "html_url": "https://gitcode.com/openharmony_ci"
+    },
+    "draft": false,
+    "can_merge_check": true,
+    "prune_branch": false,
+    "mergeable": true,
+    "user": {
+      "id": "67fe10947795fd623e1a1214",
+      "login": "chenbaodi123",
+      "name": "chenbaodi123",
+      "avatar_url": "",
+      "html_url": "https://gitcode.com/chenbaodi123"
+    },
+    "head": {
+      "ref": "master",
+      "sha": "d53e5959375dc87cd6c99fe4f9646a45a1172ff3",
+      "label": "master",
+      "repo": {
+        "path": "rntpc_react-native-webview",
+        "name": "rntpc_react-native-webview",
+        "namespace": {
+          "path": "chenbaodi123"
+        },
+        "full_name": "chenbaodi123/rntpc_react-native-webview",
+        "html_url": "https://gitcode.com/chenbaodi123/rntpc_react-native-webview.git"
+      },
+      "user": {
+        "id": "67fe10947795fd623e1a1214",
+        "login": "chenbaodi123",
+        "name": "chenbaodi123",
+        "avatar_url": "",
+        "html_url": "https://gitcode.com/chenbaodi123"
+      }
+    },
+    "base": {
+      "ref": "master",
+      "sha": "ed2ba098c5ae14a2712e5b5f5356a9b8da9cc853",
+      "label": "master",
+      "repo": {
+        "path": "rntpc_react-native-webview",
+        "name": "rntpc_react-native-webview",
+        "namespace": {
+          "path": "CPF-RN"
+        },
+        "full_name": "CPF-RN/rntpc_react-native-webview",
+        "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-webview.git"
+      }
+    },
+    "mergeable_state": {
+      "merge_request_id": 8971817,
+      "state": true,
+      "status_without_user_auth": true,
+      "conflict_passed": true,
+      "branch_missing_passed": true,
+      "non_ff_passed": true,
+      "mr_state_passed": true,
+      "merged_by_user_passed": true,
+      "work_in_progress_passed": true,
+      "resolve_discussion_passed": true,
+      "ci_state_passed": true,
+      "merge_by_self_passed": true,
+      "can_force_merge": true,
+      "approval_reviewers_required_passed": true,
+      "approval_approvers_required_passed": true,
+      "approval_testers_required_passed": true,
+      "merge_request_switch": {
+        "review_mode": "approval",
+        "merge_method": "merge",
+        "only_allow_merge_if_all_discussions_are_resolved": true,
+        "disable_merge_by_self": true,
+        "only_allow_merge_if_pipeline_succeeds": false,
+        "disable_squash_merge": false,
+        "squash_merge_with_no_merge_commit": false,
+        "approval_required_reviewers_count": 0,
+        "approval_required_reviewers_branch": "*",
+        "add_notes_after_merged": true,
+        "mark_auto_merged_mr_as_closed": true,
+        "can_force_merge": true,
+        "can_reopen": true
+      },
+      "reason": {},
+      "check_tasks_num": 2,
+      "all_depend_merge_request_merged_passed": true,
+      "approval_approvers_result": 2,
+      "approval_testers_result": 2
+    },
+    "visibility_reason": "public",
+    "close_related_issue": true,
+    "squash_merge": false
+  },
+  "files": [
+    {
+      "sha": "d53e5959375dc87cd6c99fe4f9646a45a1172ff3",
+      "filename": "harmony/rn_webview/src/main/ets/Magic.ets",
+      "additions": 1,
+      "deletions": 0,
+      "blob_id": "9c227f582423c070d1a77cbc15d5481e6ef8f795",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-webview/blob/d53e5959375dc87cd6c99fe4f9646a45a1172ff3/harmony/rn_webview/src/main/ets/Magic.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-webview/raw/d53e5959375dc87cd6c99fe4f9646a45a1172ff3/harmony/rn_webview/src/main/ets/Magic.ets",
+      "patch": "@@ -89,6 +89,7 @@ export interface WebViewProps extends ViewRawProps {\n   renderMode: \"SYNC_RENDER\" | \"ASYNC_RENDER\",\n   mediaCapturePermissionGrantType?: 'prompt' | 'grant' | 'deny' | 'grantIfSameHostElsePrompt' | 'grantIfSameHostElseDeny'\n   menuItems?: Array<MenuItem> | undefined;\n+  allowsFullscreenVideo?: boolean;\n }\n \n export interface MenuItem {\n",
+      "target_branch": "master",
+      "source_branch": "master",
+      "source_project": {
+        "id": 10012759,
+        "full_name": "chenbaodi123/rntpc_react-native-webview",
+        "human_name": "chenbaodi123 / rntpc_react-native-webview",
+        "path": "rntpc_react-native-webview"
+      },
+      "target_project": {
+        "id": 4369253,
+        "full_name": "CPF-RN/rntpc_react-native-webview",
+        "human_name": "CPF-RN / rntpc_react-native-webview",
+        "path": "rntpc_react-native-webview"
+      }
+    },
+    {
+      "sha": "d53e5959375dc87cd6c99fe4f9646a45a1172ff3",
+      "filename": "harmony/rn_webview/src/main/ets/RNCWebView.ets",
+      "additions": 198,
+      "deletions": 7,
+      "blob_id": "6bfb7706ff2ba96edbadc89cafe07ad678dc2fbf",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-webview/blob/d53e5959375dc87cd6c99fe4f9646a45a1172ff3/harmony/rn_webview/src/main/ets/RNCWebView.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-webview/raw/d53e5959375dc87cd6c99fe4f9646a45a1172ff3/harmony/rn_webview/src/main/ets/RNCWebView.ets",
+      "patch": "@@ -53,6 +53,7 @@ import { abilityAccessCtrl, bundleManager, Permissions } from '@kit.AbilityKit';\n import { WebViewTurboModule, ShouldStartParams, ShouldOverrideCallbackState } from './WebViewTurboModule';\n import { AnyThreadRNInstance, WorkerTaskRunnable } from '@rnoh/react-native-openharmony/src/main/ets/RNOH';\n import buffer from '@ohos.buffer';\n+import { window } from '@kit.ArkUI';\n \n export const TAG = \"WebView\"\n \n@@ -106,6 +107,7 @@ export struct RNCWebView {\n   @State webviewWidth: number = ZERO\n   @State webviewHeight: number = ZERO\n   @State isRefreshing: boolean = false\n+  @State isFullScreen: boolean = false\n   @State mode: MixedMode = MixedMode.All;\n   private unregisterDescriptorChangesListener?: () => void = undefined\n   private cleanupCommandCallback?: () => void = undefined\n@@ -119,10 +121,15 @@ export struct RNCWebView {\n   private debounceTimer: number = -1\n   static readonly DEBOUNCE_TIME: number = 100\n   private isFirstDebounce: boolean = true\n+  private initialOrientation: window.Orientation = window.Orientation.PORTRAIT\n+  private isOrientationSaved: boolean = false\n+  private cachedWindow: window.Window | null = null\n+  private allowsFullscreenVideo: boolean = false\n \n   aboutToAppear() {\n     try {\n       this.initVariable()\n+      this.saveInitialOrientation()\n       this.getBundleName()\n       this.url = this.source.uri as string;\n       this.onDescriptorWrapperChange(this.descriptorWrapper)\n@@ -159,6 +166,20 @@ export struct RNCWebView {\n   }\n \n   aboutToDisappear() {\n+    // 恢复初始屏幕方向和沉浸式状态，防止全屏状态下组件销毁后状态残留\n+    // 无论是否在全屏状态，都尝试恢复窗口状态（handleFullScreenEnter 异步操作可能在组件销毁后才完成）\n+    if (this.cachedWindow) {\n+      try {\n+        this.cachedWindow.setPreferredOrientation(this.initialOrientation);\n+        this.cachedWindow.setWindowLayoutFullScreen(false);\n+        this.cachedWindow.setWindowSystemBarEnable(['status', 'navigation']);\n+        Logger.debug(TAG, '[WebViewFullScreen] Restored window state in aboutToDisappear');\n+      } catch (error) {\n+        Logger.error(TAG, `[WebViewFullScreen] Failed to restore in aboutToDisappear: ${error.code}`);\n+      }\n+    }\n+    this.isFullScreen = false;\n+    this.cachedWindow = null;\n     this.getUIContext().getFocusController().clearFocus()\n     this.cleanupCommandCallback?.()\n     this.unregisterDescriptorChangesListener?.()\n@@ -532,6 +553,151 @@ export struct RNCWebView {\n     await atManager.requestPermissionsFromUser(this.ctx.uiAbilityContext, permissionList);\n   }\n \n+  private async getWindow(): Promise<window.Window | null> {\n+    try {\n+      const win = await window.getLastWindow(getContext(this));\n+      if (win) {\n+        this.cachedWindow = win;\n+      }\n+      return win;\n+    } catch (error) {\n+      console.error(TAG, `[WebViewFullScreenTest] getWindow Errorcode: ${error.code}`);\n+      return null;\n+    }\n+  }\n+\n+  private async saveInitialOrientation() {\n+    const win = await this.getWindow();\n+    if (win) {\n+      try {\n+        const orientation = win.getPreferredOrientation();\n+        this.initialOrientation = orientation;\n+        this.isOrientationSaved = true;\n+        console.debug(TAG, `[WebViewFullScreenTest] Saved initial orientation: ${orientation}`);\n+      } catch (error) {\n+        console.error(TAG, `[WebViewFullScreenTest] saveInitialOrientation Errorcode: ${error.code}`);\n+      }\n+    }\n+  }\n+\n+  private async setOrientation(orientation: window.Orientation): Promise<boolean> {\n+    const win = await this.getWindow();\n+    if (win) {\n+      try {\n+        await win.setPreferredOrientation(orientation);\n+        console.debug(TAG, `[WebViewFullScreenTest] Set orientation to: ${orientation}`);\n+        return true;\n+      } catch (error) {\n+        console.error(TAG, `[WebViewFullScreenTest] setOrientation Errorcode: ${error.code}`);\n+        return false;\n+      }\n+    }\n+    return false;\n+  }\n+\n+  // 处理全屏进入（带状态保护和异步串行）\n+  private async handleFullScreenEnter() {\n+    if (this.isFullScreen) {\n+      Logger.debug(TAG, '[WebViewFullScreen] Already in full screen, skipping');\n+      return;\n+    }\n+    if (!this.isOrientationSaved) {\n+      Logger.warn(TAG, '[WebViewFullScreen] Initial orientation not saved yet, skipping full screen enter');\n+      return;\n+    }\n+    try {\n+      // 阶段1：设置方向\n+      const orientationResult = await this.setOrientation(window.Orientation.AUTO_ROTATION);\n+      if (!orientationResult) {\n+        Logger.error(TAG, '[WebViewFullScreen] Failed to set orientation, aborting full screen enter');\n+        return;\n+      }\n+      // 阶段2：设置沉浸式模式\n+      const immersiveResult = await this.enterImmersiveMode();\n+      if (!immersiveResult) {\n+        Logger.error(TAG, '[WebViewFullScreen] Failed to enter immersive mode, rolling back');\n+        // 回滚沉浸式模式（即使部分失败也要尝试恢复）\n+        await this.exitImmersiveMode();\n+        // 回滚方向设置\n+        await this.setOrientation(this.initialOrientation);\n+        return;\n+      }\n+      // 阶段3：所有操作成功，设置状态\n+      this.isFullScreen = true;\n+    } catch (error) {\n+      Logger.error(TAG, `[WebViewFullScreen] Enter full screen failed: ${error}`);\n+      // 异常时回滚所有操作\n+      await this.exitImmersiveMode();\n+      await this.setOrientation(this.initialOrientation);\n+    }\n+  }\n+\n+  // 处理全屏退出（带状态保护和异步串行）\n+  private async handleFullScreenExit() {\n+    if (!this.isFullScreen) {\n+      Logger.debug(TAG, '[WebViewFullScreen] Not in full screen, skipping');\n+      return;\n+    }\n+    try {\n+      // 阶段1：恢复方向\n+      const orientationResult = await this.setOrientation(this.initialOrientation);\n+      if (!orientationResult) {\n+        Logger.error(TAG, '[WebViewFullScreen] Failed to restore orientation, keeping full screen state');\n+        return;\n+      }\n+      // 方向已恢复，清除 isFullScreen 让 UI 恢复原始布局\n+      this.isFullScreen = false;\n+      // 阶段2：退出沉浸式模式\n+      const immersiveResult = await this.exitImmersiveMode();\n+      if (!immersiveResult) {\n+        Logger.error(TAG, '[WebViewFullScreen] Failed to exit immersive mode after restoring orientation');\n+        // 沉浸式模式退出失败，但方向已恢复，isFullScreen 已清除，避免重复触发循环\n+      }\n+    } catch (error) {\n+      Logger.error(TAG, `[WebViewFullScreen] Exit full screen failed: ${error}`);\n+      // 异常时也应清除状态，避免卡死\n+      this.isFullScreen = false;\n+    }\n+  }\n+\n+  // 进入沉浸式全屏模式（隐藏系统栏）\n+  private async enterImmersiveMode(): Promise<boolean> {\n+    const win = await this.getWindow();\n+    if (win) {\n+      try {\n+        // 设置窗口为全屏布局模式，内容延伸到系统栏下方\n+        await win.setWindowLayoutFullScreen(true);\n+        // 隐藏系统导航栏和状态栏\n+        await win.setWindowSystemBarEnable([]);\n+        Logger.debug(TAG, '[WebViewFullScreen] Entered immersive mode');\n+        return true;\n+      } catch (error) {\n+        console.error(TAG, `[WebViewFullScreen] enterImmersiveMode Errorcode: ${error.code}`);\n+        return false;\n+      }\n+    }\n+    return false;\n+  }\n+\n+  // 退出沉浸式全屏模式（恢复系统栏）\n+  private async exitImmersiveMode(): Promise<boolean> {\n+    const win = await this.getWindow();\n+    if (win) {\n+      try {\n+        // 关闭全屏布局模式\n+        await win.setWindowLayoutFullScreen(false);\n+        // 恢复显示系统导航栏和状态栏（默认显示所有系统栏）\n+        await win.setWindowSystemBarEnable(['status', 'navigation']);\n+        Logger.debug(TAG, '[WebViewFullScreen] Exited immersive mode');\n+        return true;\n+      } catch (error) {\n+        console.error(TAG, `[WebViewFullScreen] exitImmersiveMode Errorcode: ${error.code}`);\n+        return false;\n+      }\n+    }\n+    return false;\n+  }\n+\n   build() {\n     Stack() {\n         if ( deviceInfo.sdkApiVersion >= 20) {\n@@ -584,8 +750,8 @@ export struct RNCWebView {\n                 }\n               }\n             })\n-            .width(this.webviewWidth)\n-            .height(this.webviewHeight)\n+            .width(this.isFullScreen ? \"100%\" : this.webviewWidth)\n+            .height(this.isFullScreen ? \"100%\" : this.webviewHeight)\n             .fileAccess(this.allowFileAccess)\n             .constraintSize({ minHeight: MINHEIGHT })\n             .overScrollMode(this.overScrollMode)\n@@ -629,6 +795,18 @@ export struct RNCWebView {\n             .onRenderExited((event: OnRenderExitedEvent) => this.webViewBaseOperate?.onRenderExited(event))\n             .onLoadIntercept((event: OnLoadInterceptEvent) => this.onLoadIntercept(event))\n             .onTitleReceive((event: OnTitleReceiveEvent) => this.webViewBaseOperate?.onTitleReceive(event))\n+            .onFullScreenEnter(async () => {\n+              Logger.debug(TAG, '[WebViewFullScreen] onFullScreenEnter called');\n+              if (this.allowsFullscreenVideo) {\n+                await this.handleFullScreenEnter();\n+              } else {\n+                Logger.debug(TAG, '[WebViewFullScreen] Fullscreen video disabled by allowsFullscreenVideo');\n+              }\n+            })\n+            .onFullScreenExit(async () => {\n+              Logger.debug(TAG, '[WebViewFullScreen] onFullScreenExit called');\n+              await this.handleFullScreenExit();\n+            })\n             .editMenuOptions({\n               onCreateMenu: this.onCreateMenu.bind(this),\n               onMenuItemClick: this.onMenuItemClick.bind(this),\n@@ -684,8 +862,8 @@ export struct RNCWebView {\n               }\n             })\n \n-            .width(this.webviewWidth)\n-            .height(this.webviewHeight)\n+            .width(this.isFullScreen ? \"100%\" : this.webviewWidth)\n+            .height(this.isFullScreen ? \"100%\" : this.webviewHeight)\n             .fileAccess(this.allowFileAccess)\n             .constraintSize({ minHeight: MINHEIGHT })\n             .overScrollMode(this.overScrollMode)\n@@ -728,15 +906,27 @@ export struct RNCWebView {\n             .onRenderExited((event: OnRenderExitedEvent) => this.webViewBaseOperate?.onRenderExited(event))\n             .onLoadIntercept((event: OnLoadInterceptEvent) => this.onLoadIntercept(event))\n             .onTitleReceive((event: OnTitleReceiveEvent) => this.webViewBaseOperate?.onTitleReceive(event))\n+            .onFullScreenEnter(async () => {\n+              Logger.debug(TAG, '[WebViewFullScreen] onFullScreenEnter called');\n+              if (this.allowsFullscreenVideo) {\n+                await this.handleFullScreenEnter();\n+              } else {\n+                Logger.debug(TAG, '[WebViewFullScreen] Fullscreen video disabled by allowsFullscreenVideo');\n+              }\n+            })\n+            .onFullScreenExit(async () => {\n+              Logger.debug(TAG, '[WebViewFullScreen] onFullScreenExit called');\n+              await this.handleFullScreenExit();\n+            })\n             .editMenuOptions({\n               onCreateMenu: this.onCreateMenu.bind(this),\n               onMenuItemClick: this.onMenuItemClick.bind(this),\n             })\n           }\n       }\n-    .width(this.webviewWidth)\n-    .height(this.webviewHeight)\n-    .position({\n+    .width(this.isFullScreen ? \"100%\" : this.webviewWidth)\n+    .height(this.isFullScreen ? \"100%\" : this.webviewHeight)\n+    .position(this.isFullScreen ? undefined : {\n       x: this.descriptorWrapper.layoutMetrics.frame.origin.x,\n       y: this.descriptorWrapper.layoutMetrics.frame.origin.y\n     })\n@@ -843,6 +1033,7 @@ export struct RNCWebView {\n     \n     const renderModeStr = this.descriptorWrapper.rawProps.renderMode || \"SYNC_RENDER\"\n     this.renderMode = (renderModeStr === \"ASYNC_RENDER\") ? RenderMode.ASYNC_RENDER : RenderMode.SYNC_RENDER\n+    this.allowsFullscreenVideo = this.descriptorWrapper.rawProps.allowsFullscreenVideo ?? false;\n \n   }\n \n",
+      "target_branch": "master",
+      "source_branch": "master",
+      "source_project": {
+        "id": 10012759,
+        "full_name": "chenbaodi123/rntpc_react-native-webview",
+        "human_name": "chenbaodi123 / rntpc_react-native-webview",
+        "path": "rntpc_react-native-webview"
+      },
+      "target_project": {
+        "id": 4369253,
+        "full_name": "CPF-RN/rntpc_react-native-webview",
+        "human_name": "CPF-RN / rntpc_react-native-webview",
+        "path": "rntpc_react-native-webview"
+      }
+    }
+  ]
+}

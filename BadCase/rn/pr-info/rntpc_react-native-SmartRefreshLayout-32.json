@@ -1,0 +1,328 @@
+{
+  "pr": {
+    "id": 9004982,
+    "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-SmartRefreshLayout/merge_requests/32",
+    "number": 32,
+    "state": "merged",
+    "title": "fix:修复77分支中bad_weak_ptr问题，导致的崩溃",
+    "url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-SmartRefreshLayout/pulls/32",
+    "issue_url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-SmartRefreshLayout/pulls/32/issues",
+    "body": "- fix:修复77分支中bad_weak_ptr问题，导致的崩溃\n- Closed: [#27](https://gitcode.com/CPF-RN/rntpc_react-native-SmartRefreshLayout/issues/27) ",
+    "assignees_number": 3,
+    "assignees": [
+      {
+        "id": "6731c8f2fbbddc0c200a6019",
+        "login": "zhu_chengcheng",
+        "name": "zhu_chengcheng",
+        "avatar_url": "https://cdn-img.gitcode.com/fe/bd/f406eb600317d9bbb6a5c23042b49e5193dfbb7a63ee407f5bbfcbabcd177af1.jpg",
+        "html_url": "https://gitcode.com/zhu_chengcheng",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      },
+      {
+        "id": "67fdb69df01e3c566929edd4",
+        "login": "gcw_N7oHqLFR",
+        "name": "huang_jy",
+        "avatar_url": "",
+        "html_url": "https://gitcode.com/gcw_N7oHqLFR",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      },
+      {
+        "id": "67316e3733741160e6751351",
+        "login": "dingchengjie",
+        "name": "dingchengjie",
+        "avatar_url": "https://cdn-img.gitcode.com/fa/ed/6fa18810e4276d04d77bccf2f37c2287b44631cdcae7587fc4446f0bd79c2ed3.png",
+        "html_url": "https://gitcode.com/dingchengjie",
+        "assignee": true,
+        "code_owner": false,
+        "accept": true
+      }
+    ],
+    "testers": [
+      {
+        "id": "6541ccea82d8f837210e92c3",
+        "login": "openharmony_ci",
+        "name": "openharmony_ci",
+        "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+        "html_url": "https://gitcode.com/openharmony_ci",
+        "assignee": false,
+        "code_owner": false,
+        "accept": true
+      }
+    ],
+    "approval_reviewers": [],
+    "labels": [
+      {
+        "id": 13244559,
+        "color": "#428BCA",
+        "name": "dco检查成功",
+        "repository_id": 4369237,
+        "created_at": "2026-06-30T15:50:00+08:00",
+        "updated_at": "2026-08-08T17:17:10+08:00"
+      },
+      {
+        "id": 13247621,
+        "color": "#428BCA",
+        "name": "编译成功",
+        "repository_id": 4369237,
+        "created_at": "2026-07-17T20:51:24+08:00",
+        "updated_at": "2026-08-08T17:54:08+08:00"
+      },
+      {
+        "id": 13247556,
+        "color": "#428BCA",
+        "name": "静态检查成功",
+        "repository_id": 4369237,
+        "created_at": "2026-07-17T00:04:25+08:00",
+        "updated_at": "2026-08-08T17:54:34+08:00"
+      }
+    ],
+    "created_at": "2026-08-08T17:16:30+08:00",
+    "updated_at": "2026-08-08T18:13:02+08:00",
+    "closed_at": "2026-08-08T18:13:01+08:00",
+    "merged_at": "2026-08-08T18:13:01+08:00",
+    "merged_by": {
+      "id": "6541ccea82d8f837210e92c3",
+      "login": "openharmony_ci",
+      "name": "openharmony_ci",
+      "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+      "html_url": "https://gitcode.com/openharmony_ci"
+    },
+    "draft": false,
+    "can_merge_check": true,
+    "prune_branch": false,
+    "mergeable": true,
+    "user": {
+      "id": "670a1fb90c1e065f07df63aa",
+      "login": "tyBrave_g",
+      "name": "tianyong",
+      "avatar_url": "https://cdn-img.gitcode.com/aa/fb/aaf89547be6c0ff62c24ad79d65921f8fcfc2fa84378ac4bde52c2d010fdcc00.png",
+      "html_url": "https://gitcode.com/tyBrave_g"
+    },
+    "head": {
+      "ref": "br_rnoh0.77",
+      "sha": "1fc307647a3c9e41673f8703942e11c1c0f58982",
+      "label": "br_rnoh0.77",
+      "repo": {
+        "path": "rntpc_react-native-SmartRefreshLayout",
+        "name": "rntpc_react-native-SmartRefreshLayout",
+        "namespace": {
+          "path": "tyBrave_g"
+        },
+        "full_name": "tyBrave_g/rntpc_react-native-SmartRefreshLayout",
+        "html_url": "https://gitcode.com/tyBrave_g/rntpc_react-native-SmartRefreshLayout.git"
+      },
+      "user": {
+        "id": "670a1fb90c1e065f07df63aa",
+        "login": "tyBrave_g",
+        "name": "tianyong",
+        "avatar_url": "https://cdn-img.gitcode.com/aa/fb/aaf89547be6c0ff62c24ad79d65921f8fcfc2fa84378ac4bde52c2d010fdcc00.png",
+        "html_url": "https://gitcode.com/tyBrave_g"
+      }
+    },
+    "base": {
+      "ref": "br_rnoh0.77",
+      "sha": "5ef9bed2a90e0460577f1dde115ecf52d6ce65b4",
+      "label": "br_rnoh0.77",
+      "repo": {
+        "path": "rntpc_react-native-SmartRefreshLayout",
+        "name": "rntpc_react-native-SmartRefreshLayout",
+        "namespace": {
+          "path": "CPF-RN"
+        },
+        "full_name": "CPF-RN/rntpc_react-native-SmartRefreshLayout",
+        "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-SmartRefreshLayout.git"
+      }
+    },
+    "mergeable_state": {
+      "merge_request_id": 9004982,
+      "state": true,
+      "status_without_user_auth": true,
+      "conflict_passed": true,
+      "branch_missing_passed": true,
+      "non_ff_passed": true,
+      "mr_state_passed": true,
+      "merged_by_user_passed": true,
+      "work_in_progress_passed": true,
+      "resolve_discussion_passed": true,
+      "ci_state_passed": true,
+      "merge_by_self_passed": true,
+      "can_force_merge": true,
+      "approval_reviewers_required_passed": true,
+      "approval_approvers_required_passed": true,
+      "approval_testers_required_passed": true,
+      "merge_request_switch": {
+        "review_mode": "approval",
+        "merge_method": "merge",
+        "only_allow_merge_if_all_discussions_are_resolved": true,
+        "disable_merge_by_self": true,
+        "only_allow_merge_if_pipeline_succeeds": false,
+        "disable_squash_merge": false,
+        "squash_merge_with_no_merge_commit": false,
+        "approval_required_reviewers_count": 0,
+        "approval_required_reviewers_branch": "*",
+        "add_notes_after_merged": true,
+        "mark_auto_merged_mr_as_closed": false,
+        "can_force_merge": true,
+        "can_reopen": true
+      },
+      "reason": {},
+      "check_tasks_num": 2,
+      "all_depend_merge_request_merged_passed": true,
+      "approval_approvers_result": 2,
+      "approval_testers_result": 2
+    },
+    "visibility_reason": "public",
+    "close_related_issue": true,
+    "squash_merge": false
+  },
+  "files": [
+    {
+      "sha": "1fc307647a3c9e41673f8703942e11c1c0f58982",
+      "filename": "harmony/smart_refresh_layout/src/main/cpp/PullToRefreshNode.cpp",
+      "additions": 1,
+      "deletions": 0,
+      "blob_id": "a825be2ce37006e4a8d221df70eee70360b8cdbd",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-SmartRefreshLayout/blob/1fc307647a3c9e41673f8703942e11c1c0f58982/harmony/smart_refresh_layout/src/main/cpp/PullToRefreshNode.cpp",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-SmartRefreshLayout/raw/1fc307647a3c9e41673f8703942e11c1c0f58982/harmony/smart_refresh_layout/src/main/cpp/PullToRefreshNode.cpp",
+      "patch": "@@ -26,6 +26,7 @@ namespace rnoh {\n           refreshConfigurator{std::make_shared<PullToRefreshConfigurator>()}{}\n \n     PullToRefreshNode::~PullToRefreshNode() {\n+        std::unique_lock<std::shared_mutex> lock(config_mutex_);\n         refreshConfigurator = nullptr;\n     }\n     void PullToRefreshNode::setPullToRefreshNodeDelegate(PullToRefreshNodeDelegate *pullToRefreshNodeDelegate) {\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 10538787,
+        "full_name": "tyBrave_g/rntpc_react-native-SmartRefreshLayout",
+        "human_name": "tyBrave_g / rntpc_react-native-SmartRefreshLayout",
+        "path": "rntpc_react-native-SmartRefreshLayout"
+      },
+      "target_project": {
+        "id": 4369237,
+        "full_name": "CPF-RN/rntpc_react-native-SmartRefreshLayout",
+        "human_name": "CPF-RN / rntpc_react-native-SmartRefreshLayout",
+        "path": "rntpc_react-native-SmartRefreshLayout"
+      }
+    },
+    {
+      "sha": "1fc307647a3c9e41673f8703942e11c1c0f58982",
+      "filename": "harmony/smart_refresh_layout/src/main/cpp/PullToRefreshNode.h",
+      "additions": 7,
+      "deletions": 4,
+      "blob_id": "091bffd31f763aae96611923c81e8c052e75ab17",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-SmartRefreshLayout/blob/1fc307647a3c9e41673f8703942e11c1c0f58982/harmony/smart_refresh_layout/src/main/cpp/PullToRefreshNode.h",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-SmartRefreshLayout/raw/1fc307647a3c9e41673f8703942e11c1c0f58982/harmony/smart_refresh_layout/src/main/cpp/PullToRefreshNode.h",
+      "patch": "@@ -43,7 +43,8 @@ protected:\n     ArkUI_NodeHandle m_listArkUINodeHandle;\n     PullToRefreshNodeDelegate *m_pullToRefreshNodeDelegate;\n     std::shared_ptr<PullToRefreshConfigurator> refreshConfigurator;\n-\n+    std::shared_mutex config_mutex_;\n+    \n public:\n     PullToRefreshNode();\n     ~PullToRefreshNode() override;\n@@ -59,9 +60,11 @@ public:\n     void setMaxTranslate(float maxHeight);\n     void setHeaderBackgroundColor(facebook::react::SharedColor const &color);\n \n-    std::shared_ptr<PullToRefreshConfigurator> getPullToRefreshConfigurator() {\n-        CHECK(refreshConfigurator != nullptr) \n-            << \"[PullToRefreshNode] refreshConfigurator is null!\";\n+   std::shared_ptr<PullToRefreshConfigurator> getPullToRefreshConfigurator() {\n+        std::shared_lock<std::shared_mutex> lock(config_mutex_);\n+        if (!refreshConfigurator) {\n+            LOG(ERROR)<<\"[PullToRefreshNode] getPullToRefreshConfigurator refreshConfigurator is null!\";\n+        }\n         return refreshConfigurator;\n     }\n     void onNodeEvent(ArkUI_NodeEventType eventType, EventArgs &eventArgs) override;\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 10538787,
+        "full_name": "tyBrave_g/rntpc_react-native-SmartRefreshLayout",
+        "human_name": "tyBrave_g / rntpc_react-native-SmartRefreshLayout",
+        "path": "rntpc_react-native-SmartRefreshLayout"
+      },
+      "target_project": {
+        "id": 4369237,
+        "full_name": "CPF-RN/rntpc_react-native-SmartRefreshLayout",
+        "human_name": "CPF-RN / rntpc_react-native-SmartRefreshLayout",
+        "path": "rntpc_react-native-SmartRefreshLayout"
+      }
+    },
+    {
+      "sha": "1fc307647a3c9e41673f8703942e11c1c0f58982",
+      "filename": "harmony/smart_refresh_layout/src/main/cpp/RNCMaterialHeaderComponentInstance.cpp",
+      "additions": 11,
+      "deletions": 6,
+      "blob_id": "33198b9ff388654009abdcafb82e92d336968344",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-SmartRefreshLayout/blob/1fc307647a3c9e41673f8703942e11c1c0f58982/harmony/smart_refresh_layout/src/main/cpp/RNCMaterialHeaderComponentInstance.cpp",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-SmartRefreshLayout/raw/1fc307647a3c9e41673f8703942e11c1c0f58982/harmony/smart_refresh_layout/src/main/cpp/RNCMaterialHeaderComponentInstance.cpp",
+      "patch": "@@ -88,22 +88,27 @@ namespace rnoh {\n     void RNCMaterialHeaderComponentInstance::setScaleAnimate(int32_t dur) {\n \n         TaskCommonThread *task = new TaskCommonThread();\n-        task->setTaskParams(static_cast<std::chrono::milliseconds>(dur), [this](double v) {\n-            scaleSize = 1.0 - static_cast<float>(v);\n-            auto instance = std::static_pointer_cast<RNInstanceInternal>(m_deps->rnInstance.lock());\n+        auto self = shared_from_this(); \n+        task->setTaskParams(static_cast<std::chrono::milliseconds>(dur), [self](double v) {\n+            if (!self) return;\n+            auto ptrValue = std::static_pointer_cast<RNCMaterialHeaderComponentInstance>(self);\n+            if (!ptrValue) return;\n+            ptrValue->scaleSize = 1.0 - static_cast<float>(v);\n+            auto instance = std::static_pointer_cast<RNInstanceInternal>(ptrValue->m_deps->rnInstance.lock());\n             if (!instance) {\n                 return;\n             }\n             instance->getTaskExecutor()->runTask(\n-                TaskThread::MAIN, [wptr = this->weak_from_this(), wInstance = instance->weak_from_this()] {\n-                    auto ptr = std::static_pointer_cast<RNCMaterialHeaderComponentInstance>(wptr.lock());\n+                TaskThread::MAIN, [wptr = ptrValue] {\n+                    auto ptr = std::static_pointer_cast<RNCMaterialHeaderComponentInstance>(wptr);\n                     if (ptr) {\n+                        double count_001 = 0.01;\n                         float value = ptr->scaleSize;\n                         ArkUI_NumberValue scaleArray[] = {{.f32 = value}, {.f32 = value}};\n                         ArkUI_AttributeItem scaleValue[] = {scaleArray, 2};\n                         NativeNodeApi::getInstance()->setAttribute(ptr->imageStack.getArkUINodeHandle(), NODE_SCALE,\n                                                                    scaleValue);\n-                        if (std::abs(value - 0.01) < 1e-6) {\n+                        if (std::abs(value - count_001) < 1e-6) {\n                             ArkUI_NumberValue scaleArray[] = {{.f32 = 1.0}, {.f32 = 1.0}};\n                             ArkUI_AttributeItem scaleValue[] = {scaleArray, 2};\n                             NativeNodeApi::getInstance()->setAttribute(ptr->imageStack.getArkUINodeHandle(), NODE_SCALE,\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 10538787,
+        "full_name": "tyBrave_g/rntpc_react-native-SmartRefreshLayout",
+        "human_name": "tyBrave_g / rntpc_react-native-SmartRefreshLayout",
+        "path": "rntpc_react-native-SmartRefreshLayout"
+      },
+      "target_project": {
+        "id": 4369237,
+        "full_name": "CPF-RN/rntpc_react-native-SmartRefreshLayout",
+        "human_name": "CPF-RN / rntpc_react-native-SmartRefreshLayout",
+        "path": "rntpc_react-native-SmartRefreshLayout"
+      }
+    },
+    {
+      "sha": "1fc307647a3c9e41673f8703942e11c1c0f58982",
+      "filename": "harmony/smart_refresh_layout/src/main/cpp/RNCStoreHouseHeaderNode.cpp",
+      "additions": 1,
+      "deletions": 1,
+      "blob_id": "c4fd68b09a2623f7bce3da320b6ec3a622b7d885",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-SmartRefreshLayout/blob/1fc307647a3c9e41673f8703942e11c1c0f58982/harmony/smart_refresh_layout/src/main/cpp/RNCStoreHouseHeaderNode.cpp",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-SmartRefreshLayout/raw/1fc307647a3c9e41673f8703942e11c1c0f58982/harmony/smart_refresh_layout/src/main/cpp/RNCStoreHouseHeaderNode.cpp",
+      "patch": "@@ -165,7 +165,7 @@ void RNCStoreHouseHeaderNode::OnDraw(ArkUI_NodeCustomEvent *event) {\n                 if (progress <= startPadding) {\n                     realProgress = 0;\n                 } else {\n-                    realProgress = std::min(1, (int)((progress - startPadding) / mInternalAnimationFactor));\n+                    realProgress = std::min(1, static_cast<int>((progress - startPadding) / mInternalAnimationFactor));\n                 }\n                 offsetX += storeHouseBarItem->translationX * (1 - realProgress);\n                 offsetY += -mDropHeight * (1 - realProgress);\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 10538787,
+        "full_name": "tyBrave_g/rntpc_react-native-SmartRefreshLayout",
+        "human_name": "tyBrave_g / rntpc_react-native-SmartRefreshLayout",
+        "path": "rntpc_react-native-SmartRefreshLayout"
+      },
+      "target_project": {
+        "id": 4369237,
+        "full_name": "CPF-RN/rntpc_react-native-SmartRefreshLayout",
+        "human_name": "CPF-RN / rntpc_react-native-SmartRefreshLayout",
+        "path": "rntpc_react-native-SmartRefreshLayout"
+      }
+    },
+    {
+      "sha": "1fc307647a3c9e41673f8703942e11c1c0f58982",
+      "filename": "harmony/smart_refresh_layout/src/main/cpp/SmartRefreshLayoutComponentInstance.cpp",
+      "additions": 27,
+      "deletions": 18,
+      "blob_id": "22f64bceff0d163b8edf8a2a5dfcdc25c25a4b06",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-SmartRefreshLayout/blob/1fc307647a3c9e41673f8703942e11c1c0f58982/harmony/smart_refresh_layout/src/main/cpp/SmartRefreshLayoutComponentInstance.cpp",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-SmartRefreshLayout/raw/1fc307647a3c9e41673f8703942e11c1c0f58982/harmony/smart_refresh_layout/src/main/cpp/SmartRefreshLayoutComponentInstance.cpp",
+      "patch": "@@ -73,24 +73,29 @@ void SmartRefreshLayoutComponentInstance::onAppArea() {\n     panGesture(m_pullToRefreshNode.getArkUINodeHandle());\n     if (this->autoRefresh.refresh) {\n         int32_t delayTime = (int32_t)autoRefresh.time;\n+        const int count_2 = 2;\n         if (delayTime > 0) {\n             TaskProcessor *taskProcessor = new TaskProcessor();\n-            taskProcessor->startDelayTask(static_cast<std::chrono::milliseconds>(delayTime), [this]() {\n-                auto instance = std::static_pointer_cast<RNInstanceInternal>(m_deps->rnInstance.lock());\n+            auto self = shared_from_this(); \n+            taskProcessor->startDelayTask(static_cast<std::chrono::milliseconds>(delayTime), [self]() {\n+                if (!self) return;\n+                auto ptrValue = std::static_pointer_cast<SmartRefreshLayoutComponentInstance>(self);\n+                if (!ptrValue) return;\n+                auto instance = std::static_pointer_cast<RNInstanceInternal>(ptrValue->m_deps->rnInstance.lock());\n                 if (!instance) {\n                     return;\n                 }\n                 instance->getTaskExecutor()->runTask(\n-                    TaskThread::MAIN, [wptr = this->shared_from_this(), wInstance = instance->weak_from_this()] {\n+                        TaskThread::MAIN, [wptr = ptrValue, wInstance = instance->weak_from_this()] {\n                         auto ptr = std::static_pointer_cast<SmartRefreshLayoutComponentInstance>(wptr);\n                         if (ptr) {\n-                            ptr->trYTop = ptr->headerHeight * 2;\n+                            ptr->trYTop = ptr->headerHeight * count_2;\n                             ptr->onActionEnd();\n                         }\n                     });\n             });\n         } else {\n-            this->trYTop = this->headerHeight * 2;\n+            this->trYTop = this->headerHeight * count_2;\n             this->onActionEnd();\n         }\n     }\n@@ -279,15 +284,19 @@ void SmartRefreshLayoutComponentInstance::closeRefresh(float start, float target\n     if (animation == nullptr) {\n         animation = std::make_shared<Animation>();\n     }\n+    auto self = shared_from_this(); \n     animation->SetAnimationParams(\n-        static_cast<std::chrono::milliseconds>(duration), start, target, [this, &target](double value) {\n-            trYTop = value < 0 ? 0 : value;\n-            auto instance = std::static_pointer_cast<RNInstanceInternal>(m_deps->rnInstance.lock());\n+        static_cast<std::chrono::milliseconds>(duration), start, target, [self, target](double value) {\n+            if (!self) return;\n+            auto ptrValue = std::static_pointer_cast<SmartRefreshLayoutComponentInstance>(self);\n+            if (!ptrValue) return;\n+            ptrValue->trYTop = value < 0 ? 0 : value;\n+            auto instance = std::static_pointer_cast<RNInstanceInternal>(ptrValue->m_deps->rnInstance.lock());\n             if (!instance) {\n                 return;\n             }\n             instance->getTaskExecutor()->runTask(\n-                TaskThread::MAIN, [wptr = this->shared_from_this(), wInstance = instance->weak_from_this()] {\n+                TaskThread::MAIN, [wptr = ptrValue] {\n                     auto ptr = std::static_pointer_cast<SmartRefreshLayoutComponentInstance>(wptr);\n                     if (ptr) {\n                         ptr->setPullHeaderHeight(ptr->trYTop);\n@@ -310,7 +319,12 @@ void SmartRefreshLayoutComponentInstance::closeRefresh(float start, float target\n void SmartRefreshLayoutComponentInstance::finishRefresh() {\n     state = IS_REFRESHED;\n     changeStatus();\n-    closeRefresh(trYTop, 0, m_pullToRefreshNode.getPullToRefreshConfigurator()->getAnimDuration());\n+    uint32_t duration = 150;\n+    auto config = m_pullToRefreshNode.getPullToRefreshConfigurator();\n+    if (config){\n+        duration = config->getAnimDuration();\n+    }\n+    closeRefresh(trYTop, 0, duration);\n }\n \n bool SmartRefreshLayoutComponentInstance::isComponentTop() {\n@@ -469,14 +483,9 @@ void SmartRefreshLayoutComponentInstance::handleCommand(std::string const &comma\n     if (commandName == \"finishRefresh\" && args.isArray() && args.size() == 2) {\n         auto delayed = args[0];\n         auto success = args[1];\n-        if (delayed != INFINITY) {\n-            if (delayed >= 0) {\n-                m_pullToRefreshNode.getPullToRefreshConfigurator()->setFinishDelay(delayed.asInt());\n-            } else {\n-                m_pullToRefreshNode.getPullToRefreshConfigurator()->setFinishDelay(0);\n-            }\n-        } else {\n-            m_pullToRefreshNode.getPullToRefreshConfigurator()->setFinishDelay(500);\n+        auto config = m_pullToRefreshNode.getPullToRefreshConfigurator();\n+        if (config) {\n+            config->setFinishDelay(delayed != INFINITY ? delayed >= 0 ? delayed.asInt() : 0 : 500);\n         }\n         finishRefresh();\n     }\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 10538787,
+        "full_name": "tyBrave_g/rntpc_react-native-SmartRefreshLayout",
+        "human_name": "tyBrave_g / rntpc_react-native-SmartRefreshLayout",
+        "path": "rntpc_react-native-SmartRefreshLayout"
+      },
+      "target_project": {
+        "id": 4369237,
+        "full_name": "CPF-RN/rntpc_react-native-SmartRefreshLayout",
+        "human_name": "CPF-RN / rntpc_react-native-SmartRefreshLayout",
+        "path": "rntpc_react-native-SmartRefreshLayout"
+      }
+    },
+    {
+      "sha": "1fc307647a3c9e41673f8703942e11c1c0f58982",
+      "filename": "harmony/smart_refresh_layout/src/main/cpp/conversions.h",
+      "additions": 68,
+      "deletions": 64,
+      "blob_id": "506cd3cddf2a541cbf192e01cb474142ea0e9dde",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-SmartRefreshLayout/blob/1fc307647a3c9e41673f8703942e11c1c0f58982/harmony/smart_refresh_layout/src/main/cpp/conversions.h",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-SmartRefreshLayout/raw/1fc307647a3c9e41673f8703942e11c1c0f58982/harmony/smart_refresh_layout/src/main/cpp/conversions.h",
+      "patch": "@@ -28,85 +28,89 @@ namespace react {\n inline void fromRawValue(\n     const PropsParserContext &context,\n     const RawValue &value,\n-    ScrollViewSnapToAlignment &result) {\n-  auto string = (std::string)value;\n-  if (string == \"start\") {\n-    result = ScrollViewSnapToAlignment::Start;\n-    return;\n-  }\n-  if (string == \"center\") {\n-    result = ScrollViewSnapToAlignment::Center;\n-    return;\n-  }\n-  if (string == \"end\") {\n-    result = ScrollViewSnapToAlignment::End;\n-    return;\n-  }\n-  abort();\n+    ScrollViewSnapToAlignment &result)\n+{\n+    auto string = (std::string)value;\n+    if (string == \"start\") {\n+        result = ScrollViewSnapToAlignment::Start;\n+        return;\n+    }\n+    if (string == \"center\") {\n+        result = ScrollViewSnapToAlignment::Center;\n+        return;\n+    }\n+    if (string == \"end\") {\n+        result = ScrollViewSnapToAlignment::End;\n+        return;\n+    }\n+    throw std::runtime_error(\"Invalid value\");\n }\n \n inline void fromRawValue(\n     const PropsParserContext &context,\n     const RawValue &value,\n-    ScrollViewIndicatorStyle &result) {\n-  auto string = (std::string)value;\n-  if (string == \"default\") {\n-    result = ScrollViewIndicatorStyle::Default;\n-    return;\n-  }\n-  if (string == \"black\") {\n-    result = ScrollViewIndicatorStyle::Black;\n-    return;\n-  }\n-  if (string == \"white\") {\n-    result = ScrollViewIndicatorStyle::White;\n-    return;\n-  }\n-  abort();\n+    ScrollViewIndicatorStyle &result)\n+{\n+    auto string = (std::string)value;\n+    if (string == \"default\") {\n+        result = ScrollViewIndicatorStyle::Default;\n+        return;\n+    }\n+    if (string == \"black\") {\n+        result = ScrollViewIndicatorStyle::Black;\n+        return;\n+    }\n+    if (string == \"white\") {\n+        result = ScrollViewIndicatorStyle::White;\n+        return;\n+    }\n+    throw std::runtime_error(\"Invalid value\");\n }\n \n inline void fromRawValue(\n     const PropsParserContext &context,\n     const RawValue &value,\n-    ScrollViewKeyboardDismissMode &result) {\n-  auto string = (std::string)value;\n-  if (string == \"none\") {\n-    result = ScrollViewKeyboardDismissMode::None;\n-    return;\n-  }\n-  if (string == \"on-drag\") {\n-    result = ScrollViewKeyboardDismissMode::OnDrag;\n-    return;\n-  }\n-  if (string == \"interactive\") {\n-    result = ScrollViewKeyboardDismissMode::Interactive;\n-    return;\n-  }\n-  abort();\n+    ScrollViewKeyboardDismissMode &result)\n+{\n+    auto string = (std::string)value;\n+    if (string == \"none\") {\n+        result = ScrollViewKeyboardDismissMode::None;\n+        return;\n+    }\n+    if (string == \"on-drag\") {\n+        result = ScrollViewKeyboardDismissMode::OnDrag;\n+        return;\n+    }\n+    if (string == \"interactive\") {\n+        result = ScrollViewKeyboardDismissMode::Interactive;\n+        return;\n+    }\n+    throw std::runtime_error(\"Invalid value\");\n }\n \n inline void fromRawValue(\n     const PropsParserContext &context,\n     const RawValue &value,\n-    ContentInsetAdjustmentBehavior &result) {\n-  auto string = (std::string)value;\n-  if (string == \"never\") {\n-    result = ContentInsetAdjustmentBehavior::Never;\n-    return;\n-  }\n-  if (string == \"automatic\") {\n-    result = ContentInsetAdjustmentBehavior::Automatic;\n-    return;\n-  }\n-  if (string == \"scrollableAxes\") {\n-    result = ContentInsetAdjustmentBehavior::ScrollableAxes;\n-    return;\n-  }\n-  if (string == \"always\") {\n-    result = ContentInsetAdjustmentBehavior::Always;\n-    return;\n-  }\n-  abort();\n+    ContentInsetAdjustmentBehavior &result)\n+{\n+    auto string = (std::string)value;\n+    if (string == \"never\") {\n+        result = ContentInsetAdjustmentBehavior::Never;\n+        return;\n+    }\n+    if (string == \"automatic\") {\n+        result = ContentInsetAdjustmentBehavior::Automatic;\n+        return;\n+    }\n+    if (string == \"scrollableAxes\") {\n+        result = ContentInsetAdjustmentBehavior::ScrollableAxes;\n+        return;\n+    }\n+    if (string == \"always\") {\n+        result = ContentInsetAdjustmentBehavior::Always;\n+        return;\n+    }\n+    throw std::runtime_error(\"Invalid value\");\n }\n \n inline void fromRawValue(\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 10538787,
+        "full_name": "tyBrave_g/rntpc_react-native-SmartRefreshLayout",
+        "human_name": "tyBrave_g / rntpc_react-native-SmartRefreshLayout",
+        "path": "rntpc_react-native-SmartRefreshLayout"
+      },
+      "target_project": {
+        "id": 4369237,
+        "full_name": "CPF-RN/rntpc_react-native-SmartRefreshLayout",
+        "human_name": "CPF-RN / rntpc_react-native-SmartRefreshLayout",
+        "path": "rntpc_react-native-SmartRefreshLayout"
+      }
+    }
+  ]
+}

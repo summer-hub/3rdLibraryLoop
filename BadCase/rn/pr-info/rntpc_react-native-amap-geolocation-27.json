@@ -1,0 +1,1351 @@
+{
+  "pr": {
+    "id": 8828972,
+    "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/merge_requests/27",
+    "number": 27,
+    "state": "merged",
+    "title": "feat(77):实现onLocationError功能",
+    "url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-amap-geolocation/pulls/27",
+    "issue_url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-amap-geolocation/pulls/27/issues",
+    "body": "feat(77):实现onLocationError功能",
+    "assignees_number": 2,
+    "assignees": [
+      {
+        "id": "6731c8f2fbbddc0c200a6019",
+        "login": "zhu_chengcheng",
+        "name": "zhu_chengcheng",
+        "avatar_url": "https://cdn-img.gitcode.com/fe/bd/f406eb600317d9bbb6a5c23042b49e5193dfbb7a63ee407f5bbfcbabcd177af1.jpg",
+        "html_url": "https://gitcode.com/zhu_chengcheng",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      },
+      {
+        "id": "67fdb69df01e3c566929edd4",
+        "login": "gcw_N7oHqLFR",
+        "name": "huang_jy",
+        "avatar_url": "",
+        "html_url": "https://gitcode.com/gcw_N7oHqLFR",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      }
+    ],
+    "testers": [
+      {
+        "id": "6541ccea82d8f837210e92c3",
+        "login": "openharmony_ci",
+        "name": "openharmony_ci",
+        "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+        "html_url": "https://gitcode.com/openharmony_ci",
+        "assignee": false,
+        "code_owner": false,
+        "accept": false
+      }
+    ],
+    "approval_reviewers": [],
+    "labels": [
+      {
+        "id": 13245237,
+        "color": "#428BCA",
+        "name": "dco检查成功",
+        "repository_id": 4368964,
+        "created_at": "2026-07-04T09:26:41+08:00",
+        "updated_at": "2026-07-04T09:26:41+08:00"
+      }
+    ],
+    "created_at": "2026-07-04T09:26:06+08:00",
+    "updated_at": "2026-07-04T15:53:42+08:00",
+    "closed_at": "2026-07-04T15:53:42+08:00",
+    "merged_at": "2026-07-04T15:53:42+08:00",
+    "merged_by": {
+      "id": "67fdb69df01e3c566929edd4",
+      "login": "gcw_N7oHqLFR",
+      "name": "huang_jy",
+      "avatar_url": "",
+      "html_url": "https://gitcode.com/gcw_N7oHqLFR"
+    },
+    "draft": false,
+    "can_merge_check": false,
+    "prune_branch": false,
+    "mergeable": true,
+    "user": {
+      "id": "672d6a09fbbddc0c2008a7e2",
+      "login": "a1461848339",
+      "name": "zeming",
+      "avatar_url": "https://cdn-img.gitcode.com/ab/dc/abdcdcafbd23a9e56c109f0dae4cc4a297703fd55236c2ab6354770ed17b8ef2.jpg",
+      "html_url": "https://gitcode.com/a1461848339"
+    },
+    "head": {
+      "ref": "77code",
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "label": "77code",
+      "repo": {
+        "path": "rntpc_react-native-amap-geolocation",
+        "name": "rntpc_react-native-amap-geolocation",
+        "namespace": {
+          "path": "a1461848339"
+        },
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "html_url": "https://gitcode.com/a1461848339/rntpc_react-native-amap-geolocation.git"
+      },
+      "user": {
+        "id": "672d6a09fbbddc0c2008a7e2",
+        "login": "a1461848339",
+        "name": "zeming",
+        "avatar_url": "https://cdn-img.gitcode.com/ab/dc/abdcdcafbd23a9e56c109f0dae4cc4a297703fd55236c2ab6354770ed17b8ef2.jpg",
+        "html_url": "https://gitcode.com/a1461848339"
+      }
+    },
+    "base": {
+      "ref": "br_rnoh0.77",
+      "sha": "7d754e65450002cf58f02c5d0090de8371fa8fa0",
+      "label": "br_rnoh0.77",
+      "repo": {
+        "path": "rntpc_react-native-amap-geolocation",
+        "name": "rntpc_react-native-amap-geolocation",
+        "namespace": {
+          "path": "CPF-RN"
+        },
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation.git"
+      }
+    },
+    "mergeable_state": {
+      "merge_request_id": 8828972,
+      "state": false,
+      "status_without_user_auth": false,
+      "conflict_passed": true,
+      "branch_missing_passed": true,
+      "non_ff_passed": true,
+      "mr_state_passed": true,
+      "merged_by_user_passed": true,
+      "work_in_progress_passed": true,
+      "resolve_discussion_passed": false,
+      "ci_state_passed": true,
+      "merge_by_self_passed": true,
+      "can_force_merge": true,
+      "approval_reviewers_required_passed": true,
+      "approval_approvers_required_passed": false,
+      "approval_testers_required_passed": false,
+      "merge_request_switch": {
+        "review_mode": "approval",
+        "merge_method": "merge",
+        "only_allow_merge_if_all_discussions_are_resolved": true,
+        "disable_merge_by_self": true,
+        "only_allow_merge_if_pipeline_succeeds": false,
+        "disable_squash_merge": false,
+        "squash_merge_with_no_merge_commit": false,
+        "approval_required_reviewers_count": 0,
+        "approval_required_reviewers_branch": "*",
+        "add_notes_after_merged": true,
+        "mark_auto_merged_mr_as_closed": false,
+        "can_force_merge": true,
+        "can_reopen": true
+      },
+      "reason": {},
+      "check_tasks_num": 2,
+      "all_depend_merge_request_merged_passed": true,
+      "approval_approvers_result": 1,
+      "approval_testers_result": 1
+    },
+    "visibility_reason": "public",
+    "close_related_issue": true,
+    "squash_merge": false
+  },
+  "files": [
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "CHANGELOG.md",
+      "additions": 4,
+      "deletions": 1,
+      "blob_id": "eace9aa611bd2aa2a4597e286cdf731a5ccb3f4c",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/CHANGELOG.md",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/CHANGELOG.md",
+      "patch": "@@ -1,5 +1,8 @@\n-# v1.2.4-rc.1\n+\n+\n ## ReleaseLog\n+### v1.3.1-rc.1\n+- feat: 实现onLocationError功能\n ### v1.3.0\n - release version 1.3.0\n \n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "OAT.xml",
+      "additions": 6,
+      "deletions": 1,
+      "blob_id": "8ba1001740032b3e9be961b3e34f6a9d2e7cb119",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/OAT.xml",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/OAT.xml",
+      "patch": "@@ -4,6 +4,8 @@\n         <licensefile>LICENSE</licensefile>\n         <filefilterlist>\n             <filefilter name=\"copyrightPolicyFilter\" desc=\"Filters for compatibility，license header policies\">\n+                <filteritem type=\"filepath\" name=\"example/.*\" desc=\"generated example project, no copyright header required\"/>\n+                <filteritem type=\"filepath\" name=\"buildEnv.sh\" desc=\"generated example build environment script, no copyright header required\"/>\n                 <filteritem type=\"filename\" name=\"hvigorfile.ts\" desc=\"hvigor构建脚本，DevEco Studio自动生成，不需要添加版权头\"/>\n                 <filteritem type=\"filename\" name=\"*.json5\" desc=\"hvigor工程配置文件，DevEco Studio自动生成，不需要添加版权头\"/>\n                 <filteritem type=\"filename\" name=\"*.proto\" desc=\"资源文件，不需要添加版权头\"/>\n@@ -14,6 +16,8 @@\n                 <filteritem type=\"filename\" name=\"LICENSE\" desc=\"工程文件，不修改版权头\"/>\n             </filefilter>\n             <filefilter name=\"defaultPolicyFilter\" desc=\"Filters for compatibility，license header policies\">\n+                <filteritem type=\"filepath\" name=\"example/.*\" desc=\"generated example project, no license header required\"/>\n+                <filteritem type=\"filepath\" name=\"buildEnv.sh\" desc=\"generated example build environment script, no license header required\"/>\n                 <filteritem type=\"filename\" name=\"hvigorfile.ts\" desc=\"hvigor构建脚本，DevEco Studio自动生成，不需要添加许可证头\"/>\n                 <filteritem type=\"filename\" name=\"*.json5\" desc=\"hvigor工程配置文件，DevEco Studio自动生成，不需要添加许可证头\"/>\n                 <filteritem type=\"filename\" name=\"LICENSE\" desc=\"原三方库证书文件无需更改，因此添加过滤\"/>\n@@ -24,6 +28,7 @@\n                 <filteritem type=\"filepath\" name=\"hvigor/hvigor-wrapper.js\" desc=\"工程模板，不修改版权头，以防有修改版权风险\"/>\n             </filefilter>\n             <filefilter name=\"binaryFileTypePolicyFilter\" desc=\"Filters for resources files policies\">\n+                <filteritem type=\"filepath\" name=\"example/.*\" desc=\"generated example project resources\"/>\n                 <filteritem type=\"filename\" name=\"icon.png\" desc=\"应用图标\"/>\n                 <filteritem type=\"filename\" name=\"app_icon.png\" desc=\"应用图标\"/>\n             </filefilter>\n@@ -34,4 +39,4 @@\n             </policy>\n         </policylist>\n     </oatconfig>\n-</configuration>\n\\ No newline at end of file\n+</configuration>\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/.eslintrc",
+      "status": "added",
+      "additions": 13,
+      "deletions": 0,
+      "blob_id": "f66f0badf79a3bf439968dbf2fcac3977918883d",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/.eslintrc",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/.eslintrc",
+      "patch": "@@ -0,0 +1,13 @@\n+{\n+  \"extends\": \"@react-native\",\n+  \"rules\": {\n+    \"react-native/no-inline-styles\": \"off\",\n+    \"react/no-unstable-nested-components\": \"off\",\n+    \"react/react-in-jsx-scope\": \"off\",\n+    \"@typescript-eslint/no-unused-vars\": \"warn\",\n+    \"react-hooks/exhaustive-deps\": \"off\",\n+    \"radix\": \"off\",\n+    \"prettier/prettier\": \"warn\",\n+    \"max-lines\": \"off\"\n+  }\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/.gitignore",
+      "status": "added",
+      "additions": 43,
+      "deletions": 0,
+      "blob_id": "d21cbdbc990762db1057404234301d314065b16e",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/.gitignore",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/.gitignore",
+      "patch": "@@ -0,0 +1,43 @@\n+.husky\n+bundle.harmony.js\n+package-lock.json\n+*.hbc\n+lintCppResult.txt\n+\n+# OSX\n+.DS_Store\n+\n+# Xcode\n+build/\n+*.pbxuser\n+!default.pbxuser\n+*.mode1v3\n+!default.mode1v3\n+*.mode2v3\n+!default.mode2v3\n+*.perspectivev3\n+!default.perspectivev3\n+xcuserdata\n+*.xccheckout\n+*.moved-aside\n+DerivedData\n+*.hmap\n+*.ipa\n+*.xcuserstate\n+\n+# Android/IntelliJ\n+build/\n+.idea\n+.gradle\n+local.properties\n+*.iml\n+*.hprof\n+.cxx/\n+*.keystore\n+!debug.keystore\n+BuildProfile.ets\n+\n+# node.js\n+node_modules/\n+npm-debug.log\n+yarn-error.log\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/.node-version",
+      "status": "added",
+      "additions": 1,
+      "deletions": 0,
+      "blob_id": "3c032078a4a21c5c51d3c93d91717c1dabbb8cd0",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/.node-version",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/.node-version",
+      "patch": "@@ -0,0 +1 @@\n+18\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/.prettierrc.js",
+      "status": "added",
+      "additions": 7,
+      "deletions": 0,
+      "blob_id": "2ae7b381ed9590ddf3ba512a496dc8d53dadeea0",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/.prettierrc.js",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/.prettierrc.js",
+      "patch": "@@ -0,0 +1,7 @@\n+module.exports = {\n+  arrowParens: 'avoid',\n+  bracketSameLine: true,\n+  bracketSpacing: true,\n+  singleQuote: true,\n+  trailingComma: 'all',\n+};\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/.watchmanconfig",
+      "status": "added",
+      "additions": 1,
+      "deletions": 0,
+      "blob_id": "0967ef424bce6791893e9a57bb952f80fd536e93",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/.watchmanconfig",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/.watchmanconfig",
+      "patch": "@@ -0,0 +1 @@\n+{}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/app.json",
+      "status": "added",
+      "additions": 4,
+      "deletions": 0,
+      "blob_id": "fca72ae57ac061d7cb91cf81d05477199ff03d57",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/app.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/app.json",
+      "patch": "@@ -0,0 +1,4 @@\n+{\n+  \"name\": \"app_name\",\n+  \"displayName\": \"tester\"\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/babel.config.js",
+      "status": "added",
+      "additions": 5,
+      "deletions": 0,
+      "blob_id": "5b1f856cf9500e80cde00a5addb155612341fbd1",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/babel.config.js",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/babel.config.js",
+      "patch": "@@ -0,0 +1,5 @@\n+module.exports = {\n+  presets: ['module:@react-native/babel-preset'],\n+  plugins: [\n+  ],\n+};\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/contexts.ts",
+      "status": "added",
+      "additions": 3,
+      "deletions": 0,
+      "blob_id": "9437598452691ccc56d19f5532607475aa5d33b4",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/contexts.ts",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/contexts.ts",
+      "patch": "@@ -0,0 +1,3 @@\n+import React from 'react';\n+\n+export const AppParamsContext = React.createContext(undefined);\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/harmony/.gitignore",
+      "status": "added",
+      "additions": 17,
+      "deletions": 0,
+      "blob_id": "f0517cd5ca1c01e7eb76d9a79df3712b7e05dd7d",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/.gitignore",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/.gitignore",
+      "patch": "@@ -0,0 +1,17 @@\n+package-lock.json\n+/build-profile.json5\n+\n+rnoh_modules\n+\n+**/oh-package-lock.json5\n+\n+/node_modules\n+/local.properties\n+/.idea\n+**/build\n+/.hvigor\n+.cxx\n+/.clangd\n+/.clang-format\n+/.clang-tidy\n+/oh_modules\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/harmony/AppScope/app.json5",
+      "status": "added",
+      "additions": 10,
+      "deletions": 0,
+      "blob_id": "aeefa99e4d2ef4be0c4fcdf5b9071f051c5ce92b",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/AppScope/app.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/AppScope/app.json5",
+      "patch": "@@ -0,0 +1,10 @@\n+{\n+  \"app\": {\n+    \"bundleName\": \"com.rntpc.amapgeolocation.demo\",\n+    \"vendor\": \"example\",\n+    \"versionCode\": 1000000,\n+    \"versionName\": \"1.0.0\",\n+    \"icon\": \"$media:app_icon\",\n+    \"label\": \"$string:app_name\"\n+  }\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/harmony/AppScope/resources/base/element/string.json",
+      "status": "added",
+      "additions": 8,
+      "deletions": 0,
+      "blob_id": "698a720065342ae0dadad63eb87d45fec8725f36",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/AppScope/resources/base/element/string.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/AppScope/resources/base/element/string.json",
+      "patch": "@@ -0,0 +1,8 @@\n+{\n+  \"string\": [\n+    {\n+      \"name\": \"app_name\",\n+      \"value\": \"RN Tester\"\n+    }\n+  ]\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/harmony/build-profile.template.json5",
+      "status": "added",
+      "additions": 45,
+      "deletions": 0,
+      "blob_id": "9ef6c16de6d2c10b35bcaa344199734a5a431669",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/build-profile.template.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/build-profile.template.json5",
+      "patch": "@@ -0,0 +1,45 @@\n+{\n+  \"app\": {\n+    \"products\": [\n+      {\n+        \"name\": 'default',\n+        \"signingConfig\": 'default',\n+        \"compatibleSdkVersion\": '5.0.0(12)',\n+        \"runtimeOS\": 'HarmonyOS',\n+          \"buildOption\": {\n+          \"strictMode\": {\n+            \"caseSensitiveCheck\": true,\n+            \"useNormalizedOHMUrl\": false\n+          }\n+        }\n+      },\n+    ],\n+    \"buildModeSet\": [\n+      {\n+        \"name\": 'debug',\n+      },\n+      {\n+        \"name\": 'release',\n+      },\n+    ],\n+    \"signingConfigs\": []\n+  },\n+  \"modules\": [\n+    {\n+      \"name\": 'entry',\n+      \"srcPath\": './entry',\n+      \"targets\": [\n+        {\n+          \"name\": 'default',\n+          \"applyToProducts\": [\n+            'default'\n+          ],\n+        },\n+      ],\n+    },\n+    {\n+      \"name\": 'amap_geolocation',\n+      \"srcPath\": '../../harmony/amap_geolocation'\n+    }\n+  ],\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/harmony/codelinter.json",
+      "status": "added",
+      "additions": 1,
+      "deletions": 0,
+      "blob_id": "0967ef424bce6791893e9a57bb952f80fd536e93",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/codelinter.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/codelinter.json",
+      "patch": "@@ -0,0 +1 @@\n+{}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/harmony/entry/.gitignore",
+      "status": "added",
+      "additions": 7,
+      "deletions": 0,
+      "blob_id": "bbc049cfeb689c61d6c2922810f652cbb19aad21",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/.gitignore",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/.gitignore",
+      "patch": "@@ -0,0 +1,7 @@\n+/node_modules\n+/.preview\n+/build\n+/.cxx\n+package-lock.json\n+/oh_modules\n+/assets\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/harmony/entry/build-profile.json5",
+      "status": "added",
+      "additions": 22,
+      "deletions": 0,
+      "blob_id": "3aece2468be44758ce364d009d2e8a07dcf8ba7b",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/build-profile.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/build-profile.json5",
+      "patch": "@@ -0,0 +1,22 @@\n+{\n+  \"apiType\": 'stageMode',\n+  \"buildOption\": {\n+    \"externalNativeOptions\": {\n+      \"path\": \"./src/main/cpp/CMakeLists.txt\",\n+      \"arguments\": \"\",\n+      \"cppFlags\": \"-s\",\n+      \"abiFilters\": [\n+        \"arm64-v8a\",\n+        \"x86_64\"\n+      ]\n+    },\n+  },\n+  \"targets\": [\n+    {\n+      \"name\": \"default\",\n+    },\n+    {\n+      \"name\": \"ohosTest\",\n+    }\n+  ]\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/harmony/entry/hvigorfile.ts",
+      "status": "added",
+      "additions": 1,
+      "deletions": 0,
+      "blob_id": "dcb7475839707ffb18ebbbd4c2dd0fc048f30309",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/hvigorfile.ts",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/hvigorfile.ts",
+      "patch": "@@ -0,0 +1 @@\n+export { hapTasks } from '@ohos/hvigor-ohos-plugin';\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/harmony/entry/oh-package.json5",
+      "status": "added",
+      "additions": 11,
+      "deletions": 0,
+      "blob_id": "733be6a3d24b14ef4ddc565924538a76da09ec9c",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/oh-package.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/oh-package.json5",
+      "patch": "@@ -0,0 +1,11 @@\n+{\n+  \"license\": \"ISC\",\n+  \"devDependencies\": {},\n+  \"name\": \"entry\",\n+  \"description\": \"example description\",\n+  \"version\": \"1.0.0\",\n+  \"dependencies\": {\n+    \"@rnoh/react-native-openharmony\": \"file:../../node_modules/react-native-harmony/react_native_openharmony.har\",\n+    \"@react-native-ohos/react-native-amap-geolocation\": \"file:../../node_modules/@react-native-ohos/react-native-amap-geolocation/harmony/amap_geolocation.har\"\n+  }\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/harmony/entry/src/main/cpp/.gitignore",
+      "status": "added",
+      "additions": 2,
+      "deletions": 0,
+      "blob_id": "881dde5479f322de9db2b2bb98fd94a95f73715e",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/src/main/cpp/.gitignore",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/src/main/cpp/.gitignore",
+      "patch": "@@ -0,0 +1,2 @@\n+jsbundle.h\n+generated/\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/harmony/entry/src/main/cpp/CMakeLists.txt",
+      "status": "added",
+      "additions": 35,
+      "deletions": 0,
+      "blob_id": "53666e1a2a71ad8d45999e036c75d15ac9eebc04",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/src/main/cpp/CMakeLists.txt",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/src/main/cpp/CMakeLists.txt",
+      "patch": "@@ -0,0 +1,35 @@\n+project(rnapp)\n+cmake_minimum_required(VERSION 3.4.1)\n+set(CMAKE_SKIP_BUILD_RPATH TRUE)\n+set(RNOH_APP_DIR \"${CMAKE_CURRENT_SOURCE_DIR}\")\n+set(NODE_MODULES \"${CMAKE_CURRENT_SOURCE_DIR}/../../../../../node_modules\")\n+set(OH_MODULE_DIR \"${CMAKE_CURRENT_SOURCE_DIR}/../../../oh_modules\")\n+set(RNOH_CPP_DIR \"${CMAKE_CURRENT_SOURCE_DIR}/../../../oh_modules/@rnoh/react-native-openharmony/src/main/cpp\")\n+set(LOG_VERBOSITY_LEVEL 1)\n+set(CMAKE_ASM_FLAGS \"-Wno-error=unused-command-line-argument -Qunused-arguments\")\n+set(CMAKE_CXX_FLAGS \"-fstack-protector-strong -Wl,-z,relro,-z,now,-z,noexecstack -s -fPIE -pie\")\n+set(OH_MODULES \"${CMAKE_CURRENT_SOURCE_DIR}/../../../oh_modules\")\n+\n+set(WITH_HITRACE_SYSTRACE 1)\n+add_compile_definitions(WITH_HITRACE_SYSTRACE)\n+\n+set(NATIVERENDER_ROOT_PATH ${CMAKE_CURRENT_SOURCE_DIR})\n+\n+include_directories(${NATIVERENDER_ROOT_PATH}\n+                    ${NATIVERENDER_ROOT_PATH}/include)\n+\n+add_subdirectory(\"${RNOH_CPP_DIR}\" ./rn)\n+\n+# RNOH_BEGIN: manual_package_linking_1\n+add_subdirectory(\"${OH_MODULE_DIR}/@react-native-ohos/react-native-amap-geolocation/src/main/cpp\" ./amap_geolocation)\n+# RNOH_END: manual_package_linking_1\n+\n+add_library(rnoh_app SHARED\n+    \"./PackageProvider.cpp\"\n+    \"${RNOH_CPP_DIR}/RNOHAppNapiBridge.cpp\"\n+)\n+target_link_libraries(rnoh_app PUBLIC rnoh)\n+\n+# RNOH_BEGIN: manual_package_linking_2\n+target_link_libraries(rnoh_app PUBLIC rnoh_amap_geolocation)\n+# RNOH_END: manual_package_linking_2\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/harmony/entry/src/main/cpp/PackageProvider.cpp",
+      "status": "added",
+      "additions": 11,
+      "deletions": 0,
+      "blob_id": "30b6041215140bae399bdcc2d0438a2d5407f368",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/src/main/cpp/PackageProvider.cpp",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/src/main/cpp/PackageProvider.cpp",
+      "patch": "@@ -0,0 +1,11 @@\n+#include \"RNOH/PackageProvider.h\"\n+#include \"AMapGeolocationPackage.h\"\n+\n+using namespace rnoh;\n+\n+std::vector<std::shared_ptr<Package>> PackageProvider::getPackages(Package::Context ctx)\n+{\n+    return {\n+        std::make_shared<AMapGeolocationPackage>(ctx),\n+    };\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/harmony/entry/src/main/ets/RNPackagesFactory.ets",
+      "status": "added",
+      "additions": 8,
+      "deletions": 0,
+      "blob_id": "6297e49c42ae87b16b1c4d796c2d90375391d09e",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/src/main/ets/RNPackagesFactory.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/src/main/ets/RNPackagesFactory.ets",
+      "patch": "@@ -0,0 +1,8 @@\n+import type {RNPackageContext, RNPackage} from '@rnoh/react-native-openharmony/ts';\n+import { AMapGeolocationPackage } from '@react-native-ohos/react-native-amap-geolocation/ts';\n+\n+export function createRNPackages(ctx: RNPackageContext): RNPackage[] {\n+  return [\n+    new AMapGeolocationPackage(ctx),\n+  ];\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/harmony/entry/src/main/ets/entryability/EntryAbility.ets",
+      "status": "added",
+      "additions": 8,
+      "deletions": 0,
+      "blob_id": "5a0074221f74c4c9929378a68209eb6351c3cb49",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/src/main/ets/entryability/EntryAbility.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/src/main/ets/entryability/EntryAbility.ets",
+      "patch": "@@ -0,0 +1,8 @@\n+import {RNAbility} from '@rnoh/react-native-openharmony';\n+import { AbilityConstant, Want } from '@kit.AbilityKit';\n+\n+export default class EntryAbility extends RNAbility {\n+  getPagePath() {\n+    return 'pages/Index';\n+  }\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/harmony/entry/src/main/ets/pages/Index.ets",
+      "status": "added",
+      "additions": 67,
+      "deletions": 0,
+      "blob_id": "db9e7aca4214bdc2509d5c7dfa0ff65c095d3130",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/src/main/ets/pages/Index.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/src/main/ets/pages/Index.ets",
+      "patch": "@@ -0,0 +1,67 @@\n+import {\n+  AnyJSBundleProvider,\n+  FileJSBundleProvider,\n+  MetroJSBundleProvider,\n+  ResourceJSBundleProvider,\n+  RNApp,\n+  RNOHErrorDialog,\n+  RNOHLogger,\n+  TraceJSBundleProviderDecorator,\n+  RNOHCoreContext\n+} from '@rnoh/react-native-openharmony';\n+import { createRNPackages } from '../RNPackagesFactory';\n+\n+@Entry\n+@Component\n+struct Index {\n+  @StorageLink('RNOHCoreContext') private rnohCoreContext: RNOHCoreContext | undefined = undefined\n+  @State shouldShow: boolean = false\n+  private logger!: RNOHLogger\n+  bundlePath: string = 'bunlde.harmony.js'\n+  @State hasBundle: boolean = false\n+\n+  aboutToAppear() {\n+    this.logger = this.rnohCoreContext!.logger.clone(\"Index\")\n+    const stopTracing = this.logger.clone(\"aboutToAppear\").startTracing()\n+    this.shouldShow = true\n+    stopTracing()\n+  }\n+\n+  onBackPress(): boolean | undefined {\n+    this.rnohCoreContext!.dispatchBackPress()\n+    return true\n+  }\n+\n+  build() {\n+    Column() {\n+      if (this.rnohCoreContext && this.shouldShow) {\n+        if (this.rnohCoreContext?.isDebugModeEnabled) {\n+          RNOHErrorDialog({ ctx: this.rnohCoreContext })\n+        }\n+        RNApp({\n+          rnInstanceConfig: {\n+            createRNPackages,\n+            enableNDKTextMeasuring: true,\n+            enableBackgroundExecutor: false,\n+            enableCAPIArchitecture: true,\n+          },\n+          initialProps: { \"foo\": \"bar\" } as Record<string, string>,\n+          appKey: \"app_name\",\n+          onSetUp: (rnInstance) => {\n+            rnInstance.enableFeatureFlag(\"ENABLE_RN_INSTANCE_CLEAN_UP\")\n+          },\n+          jsBundleProvider: new TraceJSBundleProviderDecorator(\n+            new AnyJSBundleProvider([\n+              new MetroJSBundleProvider(),\n+              new FileJSBundleProvider('/data/storage/el2/base/files/bundle.harmony.js'),\n+              new ResourceJSBundleProvider(this.rnohCoreContext.uiAbilityContext.resourceManager, 'hermes_bundle.hbc'),\n+              new ResourceJSBundleProvider(this.rnohCoreContext.uiAbilityContext.resourceManager, 'bundle.harmony.js')\n+            ]),\n+            this.rnohCoreContext.logger),\n+        })\n+      }\n+    }\n+    .height('100%')\n+    .width('100%')\n+  }\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/harmony/entry/src/main/ets/pages/TouchDisplayer.ets",
+      "status": "added",
+      "additions": 37,
+      "deletions": 0,
+      "blob_id": "fec37e80cbc6a795c51952067c18223088201483",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/src/main/ets/pages/TouchDisplayer.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/src/main/ets/pages/TouchDisplayer.ets",
+      "patch": "@@ -0,0 +1,37 @@\n+@Component\n+export struct TouchDisplayer {\n+  @State currentTouches: TouchObject[] = []\n+  @State touchIndicatorOpacity: number = 0\n+  @BuilderParam buildChildren: () => void\n+  build() {\n+    Stack() {\n+      this.buildChildren()\n+      ForEach(this.currentTouches, (activeTouch: TouchObject) => {\n+        Stack() {\n+        }\n+        .width(64)\n+        .height(64)\n+        .backgroundColor(\"blue\")\n+        .borderWidth(2)\n+        .borderColor(\"white\")\n+        .opacity(this.touchIndicatorOpacity)\n+        .position({ x: activeTouch.x - 32, y: activeTouch.y - 32 })\n+        .borderRadius(1000)\n+        .hitTestBehavior(HitTestMode.Transparent)\n+      })\n+    }\n+    .width(\"100%\")\n+    .height(\"100%\")\n+    .hitTestBehavior(HitTestMode.Transparent)\n+    .onTouch(e => {\n+      this.currentTouches = e.touches\n+      this.touchIndicatorOpacity = 0.5\n+      animateTo({\n+        duration: 500,\n+        curve: Curve.Linear,\n+      }, () => {\n+        this.touchIndicatorOpacity = 0\n+      })\n+    })\n+  }\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/harmony/entry/src/main/module.json5",
+      "status": "added",
+      "additions": 67,
+      "deletions": 0,
+      "blob_id": "ec785e4e92fd4568c3fda7a69bc28b28536b1da1",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/src/main/module.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/src/main/module.json5",
+      "patch": "@@ -0,0 +1,67 @@\n+{\n+  \"module\": {\n+    \"name\": \"entry\",\n+    \"type\": \"entry\",\n+    \"description\": \"$string:module_desc\",\n+    \"mainElement\": \"EntryAbility\",\n+    \"deviceTypes\": [\n+      \"default\"\n+    ],\n+    \"deliveryWithInstall\": true,\n+    \"installationFree\": false,\n+    \"pages\": \"$profile:main_pages\",\n+    \"requestPermissions\": [\n+      {\n+        \"name\": \"ohos.permission.INTERNET\"\n+      },\n+      {\n+        \"name\": \"ohos.permission.LOCATION\",\n+        \"reason\": \"$string:location_permission_reason\",\n+        \"usedScene\": {\n+          \"abilities\": [\n+            \"EntryAbility\"\n+          ],\n+          \"when\": \"inuse\"\n+        }\n+      },\n+      {\n+        \"name\": \"ohos.permission.APPROXIMATELY_LOCATION\",\n+        \"reason\": \"$string:location_permission_reason\",\n+        \"usedScene\": {\n+          \"abilities\": [\n+            \"EntryAbility\"\n+          ],\n+          \"when\": \"inuse\"\n+        }\n+      },\n+    ],\n+    \"metadata\": [\n+      {\n+        \"name\": \"OPTLazyForEach\",\n+        \"value\": \"true\",\n+      }\n+    ],\n+    \"abilities\": [\n+      {\n+        \"name\": \"EntryAbility\",\n+        \"srcEntry\": \"./ets/entryability/EntryAbility.ets\",\n+        \"description\": \"$string:EntryAbility_desc\",\n+        \"icon\": \"$media:icon\",\n+        \"label\": \"$string:EntryAbility_label\",\n+        \"startWindowIcon\": \"$media:icon\",\n+        \"startWindowBackground\": \"$color:start_window_background\",\n+        \"visible\": true,\n+        \"skills\": [\n+          {\n+            \"entities\": [\n+              \"entity.system.home\"\n+            ],\n+            \"actions\": [\n+              \"action.system.home\"\n+            ]\n+          }\n+        ]\n+      }\n+    ]\n+  }\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/harmony/entry/src/main/resources/base/element/color.json",
+      "status": "added",
+      "additions": 8,
+      "deletions": 0,
+      "blob_id": "162a7b6f4af5d7d48a35aeed67e3eadf3a019853",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/src/main/resources/base/element/color.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/src/main/resources/base/element/color.json",
+      "patch": "@@ -0,0 +1,8 @@\n+{\n+  \"color\": [\n+    {\n+      \"name\": \"start_window_background\",\n+      \"value\": \"#FFFFFF\"\n+    }\n+  ]\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/harmony/entry/src/main/resources/base/element/string.json",
+      "status": "added",
+      "additions": 20,
+      "deletions": 0,
+      "blob_id": "02a0c9e8e80d12b5c44d548d7bde78f10520bbd9",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/src/main/resources/base/element/string.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/src/main/resources/base/element/string.json",
+      "patch": "@@ -0,0 +1,20 @@\n+{\n+  \"string\": [\n+    {\n+      \"name\": \"module_desc\",\n+      \"value\": \"module description\"\n+    },\n+    {\n+      \"name\": \"EntryAbility_desc\",\n+      \"value\": \"description\"\n+    },\n+    {\n+      \"name\": \"EntryAbility_label\",\n+      \"value\": \"RN Tester\"\n+    },\n+    {\n+      \"name\": \"location_permission_reason\",\n+      \"value\": \"Required to demonstrate location features.\"\n+    }\n+  ]\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/harmony/entry/src/main/resources/base/profile/main_pages.json",
+      "status": "added",
+      "additions": 5,
+      "deletions": 0,
+      "blob_id": "1898d94f58d6128ab712be2c68acc7c98e9ab9ce",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/src/main/resources/base/profile/main_pages.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/src/main/resources/base/profile/main_pages.json",
+      "patch": "@@ -0,0 +1,5 @@\n+{\n+  \"src\": [\n+    \"pages/Index\"\n+  ]\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/harmony/entry/src/main/resources/rawfile/1.txt",
+      "status": "added",
+      "additions": 0,
+      "deletions": 0,
+      "blob_id": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/src/main/resources/rawfile/1.txt",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/entry/src/main/resources/rawfile/1.txt",
+      "patch": "The file is empty",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/harmony/hvigor/.gitignore",
+      "status": "added",
+      "additions": 1,
+      "deletions": 0,
+      "blob_id": "aa1ec1ea0618124672d14a63d00d943240f2db2a",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/hvigor/.gitignore",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/hvigor/.gitignore",
+      "patch": "@@ -0,0 +1 @@\n+*.tgz\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/harmony/hvigor/hvigor-config.json5",
+      "status": "added",
+      "additions": 14,
+      "deletions": 0,
+      "blob_id": "9c2d60edd74bd2d945a465b3317b5e80382323ac",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/hvigor/hvigor-config.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/hvigor/hvigor-config.json5",
+      "patch": "@@ -0,0 +1,14 @@\n+{\n+  \"modelVersion\": \"5.0.0\",\n+  \"dependencies\": {\n+  },\n+  \"execution\": {\n+  },\n+  \"logging\": {\n+  },\n+  \"debugging\": {\n+     \"stacktrace\": false\n+  },\n+  \"nodeOptions\": {\n+  }\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/harmony/hvigorfile.ts",
+      "status": "added",
+      "additions": 1,
+      "deletions": 0,
+      "blob_id": "985a82685fbf0b5c4565441c105c5d1ea77147c1",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/hvigorfile.ts",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/hvigorfile.ts",
+      "patch": "@@ -0,0 +1 @@\n+export { appTasks } from '@ohos/hvigor-ohos-plugin';\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/harmony/oh-package.json5",
+      "status": "added",
+      "additions": 12,
+      "deletions": 0,
+      "blob_id": "c117020cfde550b5d6ce211199fe43a965ecd6a0",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/oh-package.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/harmony/oh-package.json5",
+      "patch": "@@ -0,0 +1,12 @@\n+{\n+  \"modelVersion\": \"5.0.0\",\n+  \"license\": \"ISC\",\n+  \"name\": \"rnoh\",\n+  \"description\": \"example description\",\n+  \"repository\": {},\n+  \"version\": \"1.0.0\",\n+  \"overrides\": {\n+    \"@rnoh/react-native-openharmony\": \"file:../node_modules/react-native-harmony/react_native_openharmony.har\"\n+  },\n+  \"dynamicDependencies\": {}\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/index.js",
+      "status": "added",
+      "additions": 5,
+      "deletions": 0,
+      "blob_id": "44330505e4fdbafd06cb6092c8edf9a3702d38e8",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/index.js",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/index.js",
+      "patch": "@@ -0,0 +1,5 @@\n+import {AppRegistry} from 'react-native';\n+import {name as appName} from './app.json';\n+import AMapGeolocationDemo from './src/index';\n+\n+AppRegistry.registerComponent(appName, () => AMapGeolocationDemo);\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/jest.config.js",
+      "status": "added",
+      "additions": 5,
+      "deletions": 0,
+      "blob_id": "3745fc223702d5de74319e30d185b1dd5960d87b",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/jest.config.js",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/jest.config.js",
+      "patch": "@@ -0,0 +1,5 @@\n+/** @type {import('ts-jest').JestConfigWithTsJest} */\n+module.exports = {\n+  preset: 'ts-jest',\n+  testEnvironment: 'node',\n+};\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/metro.config.js",
+      "status": "added",
+      "additions": 21,
+      "deletions": 0,
+      "blob_id": "c2f4736083173b7393530663764a8dce5de8a579",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/metro.config.js",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/metro.config.js",
+      "patch": "@@ -0,0 +1,21 @@\n+const {mergeConfig, getDefaultConfig} = require('@react-native/metro-config');\n+const {createHarmonyMetroConfig} = require('react-native-harmony/metro.config');\n+\n+const config = {\n+  transformer: {\n+    getTransformOptions: async () => ({\n+      transform: {\n+        experimentalImportSupport: false,\n+        inlineRequires: true,\n+      },\n+    }),\n+  },\n+};\n+\n+module.exports = mergeConfig(\n+  getDefaultConfig(__dirname),\n+  createHarmonyMetroConfig({\n+    reactNativeHarmonyPackageName: 'react-native-harmony',\n+  }),\n+  config,\n+);\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/package.json",
+      "status": "added",
+      "additions": 59,
+      "deletions": 0,
+      "blob_id": "b945ca8bd4eaea2396da9b86a5f54ef656ace702",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/package.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/package.json",
+      "patch": "@@ -0,0 +1,59 @@\n+{\n+  \"name\": \"react-native-harmony-tester\",\n+  \"version\": \"1.0.0\",\n+  \"private\": true,\n+  \"scripts\": {\n+    \"i\": \"cd ../ && npm i --legacy-peer-deps && npm pack && cd ./example && npm i\",\n+    \"reStart\": \"npm run install:pkg && npm run codegen && hdc rport tcp:8081 tcp:8081 && react-native start\",\n+    \"start\": \"hdc rport tcp:8081 tcp:8081 && react-native start\",\n+    \"codegen\": \"react-native codegen-harmony --rnoh-module-path ./harmony/entry/oh_modules/@rnoh/react-native-openharmony\",\n+    \"pack:pkg\": \"cd ../ && npm pack && cd ./example\",\n+    \"install:pkg\": \"npm uninstall @react-native-ohos/react-native-amap-geolocation && npm run pack:pkg && npm i @react-native-ohos/react-native-amap-geolocation@file:../react-native-ohos-react-native-amap-geolocation-1.3.1-rc.1.tgz\",\n+    \"dev\": \"npm run codegen && react-native bundle-harmony --dev --minify=false\",\n+    \"prod\": \"npm run codegen && react-native bundle-harmony --dev=false --minify=true\",\n+    \"postinstall\": \"node ./scripts/create-build-profile\",\n+    \"fast:pkg\": \"cd ../ && npm i --legacy-peer-deps && npm pack && cd ./example && npm i --force && npm run dev\"\n+  },\n+  \"dependencies\": {\n+    \"@react-native-ohos/react-native-amap-geolocation\": \"file:../react-native-ohos-react-native-amap-geolocation-1.3.1-rc.1.tgz\",\n+    \"react\": \"18.2.0\",\n+    \"react-native\": \"0.77.1\",\n+    \"react-native-harmony\": \"npm:@react-native-oh/react-native-harmony@0.77.72\"\n+  },\n+  \"devDependencies\": {\n+    \"@babel/core\": \"^7.25.2\",\n+    \"@babel/preset-env\": \"^7.25.3\",\n+    \"@babel/runtime\": \"^7.25.0\",\n+    \"@react-native-oh/react-native-harmony-cli\": \"0.77.72\",\n+    \"@react-native/babel-preset\": \"0.77.1\",\n+    \"@react-native-community/cli\": \"15.0.1\",\n+    \"@react-native-community/cli-platform-android\": \"15.0.1\",\n+    \"@react-native-community/cli-platform-ios\": \"15.0.1\",\n+    \"@react-native-community/eslint-config\": \"^3.2.0\",\n+    \"@react-native/eslint-config\": \"0.77.1\",\n+    \"@react-native/metro-config\": \"0.77.1\",\n+    \"@react-native/typescript-config\": \"0.77.1\",\n+    \"@tsconfig/react-native\": \"^3.0.0\",\n+    \"@types/d3-scale-chromatic\": \"^3.0.0\",\n+    \"@types/jest\": \"^29.5.13\",\n+    \"@types/react\": \"^18.2.6\",\n+    \"@types/react-test-renderer\": \"^18.0.0\",\n+    \"babel-jest\": \"^29.6.3\",\n+    \"eslint\": \"^8.19.0\",\n+    \"jest\": \"^29.7.0\",\n+    \"json5\": \"^2.2.3\",\n+    \"metro-react-native-babel-preset\": \"0.76.8\",\n+    \"prettier\": \"2.8.8\",\n+    \"react-test-renderer\": \"18.2.0\",\n+    \"typescript\": \"5.5.4\"\n+  },\n+  \"overrides\": {\n+    \"@react-native-community/cli\": \"15.0.1\"\n+  },\n+  \"resolutions\": {\n+    \"@react-native-community/cli\": \"15.0.1\"\n+  },\n+  \"engines\": {\n+    \"node\": \">=18\"\n+  }\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/react-native.config.js",
+      "status": "added",
+      "additions": 3,
+      "deletions": 0,
+      "blob_id": "327ab197a76149e0dd3635b54a1ce1450b2ae693",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/react-native.config.js",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/react-native.config.js",
+      "patch": "@@ -0,0 +1,3 @@\n+module.exports = {\n+  project: {},\n+};\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/scripts/create-build-profile.js",
+      "status": "added",
+      "additions": 38,
+      "deletions": 0,
+      "blob_id": "092128940adba1e12dc34f1d0541eccc32ddd168",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/scripts/create-build-profile.js",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/scripts/create-build-profile.js",
+      "patch": "@@ -0,0 +1,38 @@\n+const fs = require('fs');\n+const JSON5 = require('json5');\n+const path = require('path');\n+\n+const templatePath = path.join(\n+  __dirname,\n+  '..',\n+  'harmony',\n+  'build-profile.template.json5',\n+);\n+const existingProfilePath = path.join(\n+  __dirname,\n+  '..',\n+  'harmony',\n+  'build-profile.json5',\n+);\n+\n+if (fs.existsSync(existingProfilePath)) {\n+  let existingProfile = JSON5.parse(\n+    fs.readFileSync(existingProfilePath, 'utf-8'),\n+  );\n+  let template = JSON5.parse(fs.readFileSync(templatePath, 'utf-8'));\n+  let signingConfigs =\n+    existingProfile.app && existingProfile.app.signingConfigs;\n+\n+  existingProfile = {...template};\n+\n+  if (signingConfigs) {\n+    existingProfile.app.signingConfigs = signingConfigs;\n+  }\n+\n+  fs.writeFileSync(\n+    existingProfilePath,\n+    JSON5.stringify(existingProfile, null, 2),\n+  );\n+} else {\n+  fs.copyFileSync(templatePath, existingProfilePath);\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/src/index.tsx",
+      "status": "added",
+      "additions": 59,
+      "deletions": 0,
+      "blob_id": "e3e61d33669e72da891eee376d0fdb5d74b192be",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/src/index.tsx",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/src/index.tsx",
+      "patch": "@@ -0,0 +1,59 @@\n+import React, {useState} from 'react';\n+import {Button, SafeAreaView, StyleSheet, Text, View} from 'react-native';\n+import {\n+  Geolocation,\n+  setNeedAddress,\n+  setOnceLocation,\n+} from '@react-native-ohos/react-native-amap-geolocation';\n+\n+export default function AMapGeolocationDemo(): React.JSX.Element {\n+  const [message, setMessage] = useState('Ready');\n+\n+  const requestLocation = () => {\n+    setNeedAddress(true);\n+    setOnceLocation(true);\n+    setMessage('Locating...');\n+\n+    Geolocation.getCurrentPosition(\n+      position => {\n+        const {latitude, longitude} = position.coords;\n+        setMessage(`lat: ${latitude}, lng: ${longitude}`);\n+      },\n+      error => {\n+        setMessage(error.message || `Location error: ${error.code}`);\n+      },\n+    );\n+  };\n+\n+  return (\n+    <SafeAreaView style={styles.container}>\n+      <View style={styles.panel}>\n+        <Text style={styles.title}>AMap Geolocation</Text>\n+        <Text style={styles.message}>{message}</Text>\n+        <Button title=\"Get Current Location\" onPress={requestLocation} />\n+      </View>\n+    </SafeAreaView>\n+  );\n+}\n+\n+const styles = StyleSheet.create({\n+  container: {\n+    flex: 1,\n+    backgroundColor: '#f5f5f5',\n+  },\n+  panel: {\n+    flex: 1,\n+    justifyContent: 'center',\n+    padding: 24,\n+    gap: 16,\n+  },\n+  title: {\n+    color: '#111111',\n+    fontSize: 22,\n+    fontWeight: '600',\n+  },\n+  message: {\n+    color: '#333333',\n+    fontSize: 16,\n+  },\n+});\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "example/tsconfig.json",
+      "status": "added",
+      "additions": 14,
+      "deletions": 0,
+      "blob_id": "7d8103e9a3fc88a813670a77c63686d69bb852d1",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/example/tsconfig.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/example/tsconfig.json",
+      "patch": "@@ -0,0 +1,14 @@\n+{\n+  \"extends\": \"@react-native/typescript-config/tsconfig.json\",\n+  \"compilerOptions\": {\n+    \"jsx\": \"react-native\",\n+    \"paths\": {\n+      \"react-native\": [\n+        \"./node_modules/react-native-harmony\"\n+      ],\n+    },\n+  },\n+  \"exclude\": [\n+    \"harmony\"\n+  ]\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "harmony/amap_geolocation.har",
+      "additions": 0,
+      "deletions": 0,
+      "blob_id": "0998ee463cc0ffe77f99bf1600a3a142e01fcc66",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/harmony/amap_geolocation.har",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/harmony/amap_geolocation.har",
+      "patch": "Binary files no preview for this file type",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "harmony/amap_geolocation/oh-package.json5",
+      "additions": 1,
+      "deletions": 1,
+      "blob_id": "ea1f1fd12debc3cbdb8848b98b523cf325b4d892",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/harmony/amap_geolocation/oh-package.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/harmony/amap_geolocation/oh-package.json5",
+      "patch": "@@ -1,6 +1,6 @@\n {\n   \"name\": \"@react-native-ohos/react-native-amap-geolocation\",\n-  \"version\": \"1.3.0\",\n+  \"version\": \"1.3.1-rc.1\",\n   \"description\": \"ReactNative geolocation module for Harmony\",\n   \"main\": \"Index.ets\",\n   \"author\": \"\",\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "harmony/amap_geolocation/src/main/ets/AMapGeolocationModule.ts",
+      "additions": 4,
+      "deletions": 0,
+      "blob_id": "e64977f766ed31c1899ac61fbfad144225677b60",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/harmony/amap_geolocation/src/main/ets/AMapGeolocationModule.ts",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/harmony/amap_geolocation/src/main/ets/AMapGeolocationModule.ts",
+      "patch": "@@ -95,6 +95,10 @@ export class AMapGeolocationModule extends TurboModule implements IAMapLocationL\n   };\n \n   onLocationError(locationErrorInfo: e45): void {\n+    this.ctx.rnInstance.emitDeviceEvent(\"AMapGeolocation\", {\n+      errorCode: locationErrorInfo.errorCode,\n+      errorInfo: locationErrorInfo.errorMsg\n+    })\n   };\n \n   requestPermissions(): void {\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "package.json",
+      "additions": 1,
+      "deletions": 1,
+      "blob_id": "a3926e02d7fc435f5202e4a6ee939d9cacf8f07c",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/package.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/package.json",
+      "patch": "@@ -7,7 +7,7 @@\n     \"location\",\n     \"geolocation\"\n   ],\n-  \"version\": \"1.3.0\",\n+  \"version\": \"1.3.1-rc.1\",\n   \"author\": \"7c00 <i@7c00.cc>\",\n   \"repository\": {\n     \"type\": \"git\",\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    },
+    {
+      "sha": "81053a12bb059ef39989c988093cb9519cf1d27a",
+      "filename": "readme.md",
+      "additions": 2,
+      "deletions": 2,
+      "blob_id": "b8891842fc873cd2a03a3dc227f1aeef7c89236a",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/blob/81053a12bb059ef39989c988093cb9519cf1d27a/readme.md",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-amap-geolocation/raw/81053a12bb059ef39989c988093cb9519cf1d27a/readme.md",
+      "patch": "@@ -4,9 +4,9 @@ This project is based on   [react-native-amap-geolocation@1.2.3](http://github.c\n \n ## Documentation\n \n-[中文](https://gitcode.com/OpenHarmony-RN/usage-docs/blob/master/zh-cn/react-native-amap-geolocation.md)\n+[中文](https://gitcode.com/CPF-RN/usage-docs/blob/master/zh-cn/react-native-amap-geolocation.md)\n \n-[English](https://gitcode.com/OpenHarmony-RN/usage-docs/blob/master/en/react-native-amap-geolocation.md)\n+[English](https://gitcode.com/CPF-RN/usage-docs/blob/master/en/react-native-amap-geolocation.md)\n \n ## License\n \n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77code",
+      "source_project": {
+        "id": 9487170,
+        "full_name": "a1461848339/rntpc_react-native-amap-geolocation",
+        "human_name": "a1461848339 / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      },
+      "target_project": {
+        "id": 4368964,
+        "full_name": "CPF-RN/rntpc_react-native-amap-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-amap-geolocation",
+        "path": "rntpc_react-native-amap-geolocation"
+      }
+    }
+  ]
+}

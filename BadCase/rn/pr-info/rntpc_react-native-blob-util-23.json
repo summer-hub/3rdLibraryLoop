@@ -1,0 +1,211 @@
+{
+  "pr": {
+    "id": 8647461,
+    "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-blob-util/merge_requests/23",
+    "number": 23,
+    "state": "merged",
+    "title": "fix:解决getABData返回数据乱码问题",
+    "url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-blob-util/pulls/23",
+    "issue_url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-blob-util/pulls/23/issues",
+    "body": "问题：ReactNativeBlobUtilReq.ts的startHttp方法中，组装http请求数据格式时（getABData）当data为非path路径后，会通过buffer.alloc(data.length, data, 'base64').buffer，将其转化为二进制数据，导致后端服务器接收到的数据不正确。\n修改方案：跟上流保持一致，使用utf-8的格式返回数据",
+    "assignees_number": 5,
+    "assignees": [
+      {
+        "id": "6502aad8179ac45d21eae407",
+        "login": "landwind",
+        "name": "mingshuai.ma",
+        "html_url": "https://gitcode.com/landwind",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      },
+      {
+        "id": "66f217bb07ddfc0488c0449f",
+        "login": "xiafeng_xf_admin",
+        "name": "xiafeng_xf",
+        "avatar_url": "https://cdn-img.gitcode.com/bb/ed/29b96b16571ed191a0c34f22d6fdb4ee8dd7cf9b2092cf472f0dace7c719bbf1.jpg",
+        "html_url": "https://gitcode.com/xiafeng_xf_admin",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      },
+      {
+        "id": "6731c8f2fbbddc0c200a6019",
+        "login": "zhu_chengcheng",
+        "name": "zhu_chengcheng",
+        "avatar_url": "https://cdn-img.gitcode.com/fe/bd/f406eb600317d9bbb6a5c23042b49e5193dfbb7a63ee407f5bbfcbabcd177af1.jpg",
+        "html_url": "https://gitcode.com/zhu_chengcheng",
+        "assignee": true,
+        "code_owner": false,
+        "accept": true
+      },
+      {
+        "id": "6732105dfbbddc0c200a87ab",
+        "login": "quwyts",
+        "name": "quwyts",
+        "avatar_url": "https://cdn-img.gitcode.com/ed/ed/646e92de059dc72be57110473939763c7c162e07365890ef042a7d87e1689b99.jpg",
+        "html_url": "https://gitcode.com/quwyts",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      },
+      {
+        "id": "678a25a0eb3f4263c2865357",
+        "login": "LouisC7",
+        "name": "Louis Chan",
+        "avatar_url": "https://cdn-img.gitcode.com/dc/ef/3d2ce5f716cd5266e2023a5e11cbcd63a94908971992891fa78db8f8bba748cd.png",
+        "html_url": "https://gitcode.com/LouisC7",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      }
+    ],
+    "testers": [
+      {
+        "id": "6541ccea82d8f837210e92c3",
+        "login": "openharmony_ci",
+        "name": "openharmony_ci",
+        "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+        "html_url": "https://gitcode.com/openharmony_ci",
+        "assignee": false,
+        "code_owner": false,
+        "accept": true
+      }
+    ],
+    "approval_reviewers": [],
+    "labels": [
+      {
+        "id": 87,
+        "color": "#20c22e",
+        "name": "dco检查成功",
+        "repository_id": 4369096,
+        "created_at": "2025-04-22T20:33:58+08:00",
+        "updated_at": "2026-05-25T16:44:06+08:00"
+      }
+    ],
+    "created_at": "2026-05-25T16:42:51+08:00",
+    "updated_at": "2026-05-25T19:58:58+08:00",
+    "closed_at": "2026-05-25T19:58:58+08:00",
+    "merged_at": "2026-05-25T19:58:58+08:00",
+    "merged_by": {
+      "id": "6541ccea82d8f837210e92c3",
+      "login": "openharmony_ci",
+      "name": "openharmony_ci",
+      "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+      "html_url": "https://gitcode.com/openharmony_ci"
+    },
+    "draft": false,
+    "can_merge_check": true,
+    "prune_branch": false,
+    "mergeable": true,
+    "user": {
+      "id": "67fe10947795fd623e1a1214",
+      "login": "chenbaodi123",
+      "name": "chenbaodi123",
+      "avatar_url": "",
+      "html_url": "https://gitcode.com/chenbaodi123"
+    },
+    "head": {
+      "ref": "72bugfix",
+      "sha": "994a95428dd231ebca48c0029bfde084dae5044f",
+      "label": "72bugfix",
+      "repo": {
+        "path": "rntpc_react-native-blob-util",
+        "name": "rntpc_react-native-blob-util",
+        "namespace": {
+          "path": "chenbaodi123"
+        },
+        "full_name": "chenbaodi123/rntpc_react-native-blob-util",
+        "html_url": "https://gitcode.com/chenbaodi123/rntpc_react-native-blob-util.git"
+      },
+      "user": {
+        "id": "67fe10947795fd623e1a1214",
+        "login": "chenbaodi123",
+        "name": "chenbaodi123",
+        "avatar_url": "",
+        "html_url": "https://gitcode.com/chenbaodi123"
+      }
+    },
+    "base": {
+      "ref": "br_rnoh0.72",
+      "sha": "4cbdf1e352164a78d1196cca09c821a878738ddb",
+      "label": "br_rnoh0.72",
+      "repo": {
+        "path": "rntpc_react-native-blob-util",
+        "name": "rntpc_react-native-blob-util",
+        "namespace": {
+          "path": "CPF-RN"
+        },
+        "full_name": "CPF-RN/rntpc_react-native-blob-util",
+        "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-blob-util.git"
+      }
+    },
+    "mergeable_state": {
+      "merge_request_id": 8647461,
+      "state": true,
+      "status_without_user_auth": true,
+      "conflict_passed": true,
+      "branch_missing_passed": true,
+      "non_ff_passed": true,
+      "mr_state_passed": true,
+      "merged_by_user_passed": true,
+      "work_in_progress_passed": true,
+      "resolve_discussion_passed": true,
+      "ci_state_passed": true,
+      "merge_by_self_passed": true,
+      "can_force_merge": true,
+      "approval_reviewers_required_passed": true,
+      "approval_approvers_required_passed": true,
+      "approval_testers_required_passed": true,
+      "merge_request_switch": {
+        "review_mode": "approval",
+        "merge_method": "merge",
+        "only_allow_merge_if_all_discussions_are_resolved": false,
+        "disable_merge_by_self": true,
+        "only_allow_merge_if_pipeline_succeeds": false,
+        "disable_squash_merge": false,
+        "squash_merge_with_no_merge_commit": false,
+        "approval_required_reviewers_count": 0,
+        "approval_required_reviewers_branch": "*",
+        "add_notes_after_merged": true,
+        "mark_auto_merged_mr_as_closed": true,
+        "can_force_merge": true,
+        "can_reopen": true
+      },
+      "reason": {},
+      "check_tasks_num": 2,
+      "all_depend_merge_request_merged_passed": true,
+      "approval_approvers_result": 2,
+      "approval_testers_result": 2
+    },
+    "visibility_reason": "public",
+    "close_related_issue": true,
+    "squash_merge": false
+  },
+  "files": [
+    {
+      "sha": "994a95428dd231ebca48c0029bfde084dae5044f",
+      "filename": "harmony/blobUtil/src/main/ets/ReactNativeBlobUtil/ReactNativeBlobUtilReq.ts",
+      "additions": 1,
+      "deletions": 1,
+      "blob_id": "533436a3e77e2dfe5750af59ae32789a1133a597",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-blob-util/blob/994a95428dd231ebca48c0029bfde084dae5044f/harmony/blobUtil/src/main/ets/ReactNativeBlobUtil/ReactNativeBlobUtilReq.ts",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-blob-util/raw/994a95428dd231ebca48c0029bfde084dae5044f/harmony/blobUtil/src/main/ets/ReactNativeBlobUtil/ReactNativeBlobUtilReq.ts",
+      "patch": "@@ -314,7 +314,7 @@ export default class ReactNativeBlobUtilReq {\n         fs.readSync(file.fd, buf);\n         fs.closeSync(file);\n       } else {\n-        buf = buffer.alloc(data.length, data, 'base64').buffer;\n+        buf = buffer.from(data, 'utf-8').buffer;\n       }\n       return buf;\n     } catch(err) {\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "72bugfix",
+      "source_project": {
+        "id": 9948796,
+        "full_name": "chenbaodi123/rntpc_react-native-blob-util",
+        "human_name": "chenbaodi123 / rntpc_react-native-blob-util",
+        "path": "rntpc_react-native-blob-util"
+      },
+      "target_project": {
+        "id": 4369096,
+        "full_name": "CPF-RN/rntpc_react-native-blob-util",
+        "human_name": "CPF-RN / rntpc_react-native-blob-util",
+        "path": "rntpc_react-native-blob-util"
+      }
+    }
+  ]
+}

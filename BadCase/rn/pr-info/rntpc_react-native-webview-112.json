@@ -1,0 +1,198 @@
+{
+  "pr": {
+    "id": 8944260,
+    "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-webview/merge_requests/112",
+    "number": 112,
+    "state": "merged",
+    "title": "fix(harmony): 解决通过forceDarkOn为true设置深色模式，背景色错误的问题",
+    "url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-webview/pulls/112",
+    "issue_url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-webview/pulls/112/issues",
+    "body": "fix(harmony): 解决通过forceDarkOn为true设置深色模式，背景色错误的问题\n\n源代码中forceDarkOn为true时，取值Color.White，取值错误\n\nClose: [#102](https://gitcode.com/CPF-RN/rntpc_react-native-webview/issues/102) ",
+    "assignees_number": 2,
+    "assignees": [
+      {
+        "id": "6731c8f2fbbddc0c200a6019",
+        "login": "zhu_chengcheng",
+        "name": "zhu_chengcheng",
+        "avatar_url": "https://cdn-img.gitcode.com/fe/bd/f406eb600317d9bbb6a5c23042b49e5193dfbb7a63ee407f5bbfcbabcd177af1.jpg",
+        "html_url": "https://gitcode.com/zhu_chengcheng",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      },
+      {
+        "id": "67fdb69df01e3c566929edd4",
+        "login": "gcw_N7oHqLFR",
+        "name": "huang_jy",
+        "avatar_url": "",
+        "html_url": "https://gitcode.com/gcw_N7oHqLFR",
+        "assignee": true,
+        "code_owner": false,
+        "accept": true
+      }
+    ],
+    "testers": [
+      {
+        "id": "6541ccea82d8f837210e92c3",
+        "login": "openharmony_ci",
+        "name": "openharmony_ci",
+        "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+        "html_url": "https://gitcode.com/openharmony_ci",
+        "assignee": false,
+        "code_owner": false,
+        "accept": true
+      }
+    ],
+    "approval_reviewers": [],
+    "labels": [
+      {
+        "id": 13242051,
+        "color": "#428BCA",
+        "name": "dco检查成功",
+        "repository_id": 4369253,
+        "created_at": "2026-06-09T18:18:04+08:00",
+        "updated_at": "2026-07-28T10:47:41+08:00"
+      },
+      {
+        "id": 13240384,
+        "color": "#428BCA",
+        "name": "编译成功",
+        "repository_id": 4369253,
+        "created_at": "2026-06-01T09:28:47+08:00",
+        "updated_at": "2026-07-31T10:44:40+08:00"
+      },
+      {
+        "id": 13240385,
+        "color": "#428BCA",
+        "name": "静态检查成功",
+        "repository_id": 4369253,
+        "created_at": "2026-06-01T09:28:52+08:00",
+        "updated_at": "2026-07-31T10:47:26+08:00"
+      }
+    ],
+    "created_at": "2026-07-28T10:46:55+08:00",
+    "updated_at": "2026-07-31T11:07:35+08:00",
+    "closed_at": "2026-07-31T11:07:34+08:00",
+    "merged_at": "2026-07-31T11:07:34+08:00",
+    "merged_by": {
+      "id": "6541ccea82d8f837210e92c3",
+      "login": "openharmony_ci",
+      "name": "openharmony_ci",
+      "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+      "html_url": "https://gitcode.com/openharmony_ci"
+    },
+    "draft": false,
+    "can_merge_check": true,
+    "prune_branch": false,
+    "mergeable": true,
+    "user": {
+      "id": "66d26efad5084c7852c9cc0a",
+      "login": "chenhaoyue1",
+      "name": "chenhaoyue",
+      "avatar_url": "https://cdn-img.gitcode.com/db/cb/82d7644b39c2b5811c56273ec35606a8d270bf3795a60915c77cda9c33b9656f.png",
+      "html_url": "https://gitcode.com/chenhaoyue1"
+    },
+    "head": {
+      "ref": "77-0728",
+      "sha": "65cf844831e92d3de5a7cac82935edfabc5136e0",
+      "label": "77-0728",
+      "repo": {
+        "path": "rntpc_react-native-webview",
+        "name": "rntpc_react-native-webview",
+        "namespace": {
+          "path": "chenhaoyue1"
+        },
+        "full_name": "chenhaoyue1/rntpc_react-native-webview",
+        "html_url": "https://gitcode.com/chenhaoyue1/rntpc_react-native-webview.git"
+      },
+      "user": {
+        "id": "66d26efad5084c7852c9cc0a",
+        "login": "chenhaoyue1",
+        "name": "chenhaoyue",
+        "avatar_url": "https://cdn-img.gitcode.com/db/cb/82d7644b39c2b5811c56273ec35606a8d270bf3795a60915c77cda9c33b9656f.png",
+        "html_url": "https://gitcode.com/chenhaoyue1"
+      }
+    },
+    "base": {
+      "ref": "br_rnoh0.77",
+      "sha": "14963b631b1521553842b68675cdfc994ed03409",
+      "label": "br_rnoh0.77",
+      "repo": {
+        "path": "rntpc_react-native-webview",
+        "name": "rntpc_react-native-webview",
+        "namespace": {
+          "path": "CPF-RN"
+        },
+        "full_name": "CPF-RN/rntpc_react-native-webview",
+        "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-webview.git"
+      }
+    },
+    "mergeable_state": {
+      "merge_request_id": 8944260,
+      "state": true,
+      "status_without_user_auth": true,
+      "conflict_passed": true,
+      "branch_missing_passed": true,
+      "non_ff_passed": true,
+      "mr_state_passed": true,
+      "merged_by_user_passed": true,
+      "work_in_progress_passed": true,
+      "resolve_discussion_passed": true,
+      "ci_state_passed": true,
+      "merge_by_self_passed": true,
+      "can_force_merge": true,
+      "approval_reviewers_required_passed": true,
+      "approval_approvers_required_passed": true,
+      "approval_testers_required_passed": true,
+      "merge_request_switch": {
+        "review_mode": "approval",
+        "merge_method": "merge",
+        "only_allow_merge_if_all_discussions_are_resolved": true,
+        "disable_merge_by_self": true,
+        "only_allow_merge_if_pipeline_succeeds": false,
+        "disable_squash_merge": false,
+        "squash_merge_with_no_merge_commit": false,
+        "approval_required_reviewers_count": 0,
+        "approval_required_reviewers_branch": "*",
+        "add_notes_after_merged": true,
+        "mark_auto_merged_mr_as_closed": true,
+        "can_force_merge": true,
+        "can_reopen": true
+      },
+      "reason": {},
+      "check_tasks_num": 2,
+      "all_depend_merge_request_merged_passed": true,
+      "approval_approvers_result": 2,
+      "approval_testers_result": 2
+    },
+    "visibility_reason": "public",
+    "close_related_issue": true,
+    "squash_merge": false
+  },
+  "files": [
+    {
+      "sha": "65cf844831e92d3de5a7cac82935edfabc5136e0",
+      "filename": "harmony/rn_webview/src/main/ets/RNCWebView.ets",
+      "additions": 2,
+      "deletions": 2,
+      "blob_id": "04a9ed24f5aee845e380e57de19e997e52347875",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-webview/blob/65cf844831e92d3de5a7cac82935edfabc5136e0/harmony/rn_webview/src/main/ets/RNCWebView.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-webview/raw/65cf844831e92d3de5a7cac82935edfabc5136e0/harmony/rn_webview/src/main/ets/RNCWebView.ets",
+      "patch": "@@ -732,7 +732,7 @@ export struct RNCWebView {\n           .overviewModeAccess(this.descriptorWrapper.rawProps.scalesPageToFit)\n           .textZoomRatio(this.descriptorWrapper.rawProps.textZoom)\n           .backgroundColor(BaseOperate.getColorMode(this.ctx.uiAbilityContext,\n-            this.descriptorWrapper.rawProps.forceDarkOn) === WebDarkMode.On ? Color.White : Color.Transparent)\n+            this.descriptorWrapper.rawProps.forceDarkOn) === WebDarkMode.On ? Color.Black : Color.Transparent)\n           .darkMode(BaseOperate.getColorMode(this.ctx.uiAbilityContext, this.descriptorWrapper.rawProps.forceDarkOn))\n           .forceDarkAccess(this.forceDark)\n           .cacheMode(this.cacheMode)\n@@ -843,7 +843,7 @@ export struct RNCWebView {\n           .overviewModeAccess(this.descriptorWrapper.rawProps.scalesPageToFit)\n           .textZoomRatio(this.descriptorWrapper.rawProps.textZoom)\n           .backgroundColor(BaseOperate.getColorMode(this.ctx.uiAbilityContext,\n-            this.descriptorWrapper.rawProps.forceDarkOn) === WebDarkMode.On ? Color.White : Color.Transparent)\n+            this.descriptorWrapper.rawProps.forceDarkOn) === WebDarkMode.On ? Color.Black : Color.Transparent)\n           .darkMode(BaseOperate.getColorMode(this.ctx.uiAbilityContext, this.descriptorWrapper.rawProps.forceDarkOn))\n           .forceDarkAccess(this.forceDark)\n           .cacheMode(this.cacheMode)\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77-0728",
+      "source_project": {
+        "id": 8844410,
+        "full_name": "chenhaoyue1/rntpc_react-native-webview",
+        "human_name": "chenhaoyue1 / rntpc_react-native-webview",
+        "path": "rntpc_react-native-webview"
+      },
+      "target_project": {
+        "id": 4369253,
+        "full_name": "CPF-RN/rntpc_react-native-webview",
+        "human_name": "CPF-RN / rntpc_react-native-webview",
+        "path": "rntpc_react-native-webview"
+      }
+    }
+  ]
+}

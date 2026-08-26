@@ -1,0 +1,1544 @@
+{
+  "pr": {
+    "id": 8840815,
+    "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/merge_requests/24",
+    "number": 24,
+    "state": "merged",
+    "title": "fix:去除index.ets,ts.ets中导包带入的.ets",
+    "url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-geolocation/pulls/24",
+    "issue_url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-geolocation/pulls/24/issues",
+    "body": "问题原因：index.ets,ts.ets的导包带了.ets的后缀，导致ide显示爆红，但是不影响使用，影响开发者使用体验，以为是三方库有问题\n解决方案：去除index.ets,ts.ets中导包带入的.ets后缀",
+    "assignees_number": 2,
+    "assignees": [
+      {
+        "id": "67fdb69df01e3c566929edd4",
+        "login": "gcw_N7oHqLFR",
+        "name": "huang_jy",
+        "avatar_url": "",
+        "html_url": "https://gitcode.com/gcw_N7oHqLFR",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      },
+      {
+        "id": "6731c8f2fbbddc0c200a6019",
+        "login": "zhu_chengcheng",
+        "name": "zhu_chengcheng",
+        "avatar_url": "https://cdn-img.gitcode.com/fe/bd/f406eb600317d9bbb6a5c23042b49e5193dfbb7a63ee407f5bbfcbabcd177af1.jpg",
+        "html_url": "https://gitcode.com/zhu_chengcheng",
+        "assignee": true,
+        "code_owner": false,
+        "accept": true
+      }
+    ],
+    "testers": [
+      {
+        "id": "6541ccea82d8f837210e92c3",
+        "login": "openharmony_ci",
+        "name": "openharmony_ci",
+        "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+        "html_url": "https://gitcode.com/openharmony_ci",
+        "assignee": false,
+        "code_owner": false,
+        "accept": true
+      }
+    ],
+    "approval_reviewers": [],
+    "labels": [
+      {
+        "id": 13244230,
+        "color": "#428BCA",
+        "name": "dco检查成功",
+        "repository_id": 4369198,
+        "created_at": "2026-06-26T17:43:24+08:00",
+        "updated_at": "2026-07-07T11:02:39+08:00"
+      },
+      {
+        "id": 13244294,
+        "color": "#428BCA",
+        "name": "编译成功",
+        "repository_id": 4369198,
+        "created_at": "2026-06-27T11:59:41+08:00",
+        "updated_at": "2026-07-08T19:59:00+08:00"
+      },
+      {
+        "id": 13244241,
+        "color": "#428BCA",
+        "name": "静态检查成功",
+        "repository_id": 4369198,
+        "created_at": "2026-06-26T18:25:32+08:00",
+        "updated_at": "2026-07-08T19:59:12+08:00"
+      }
+    ],
+    "created_at": "2026-07-07T11:02:00+08:00",
+    "updated_at": "2026-07-08T20:00:00+08:00",
+    "closed_at": "2026-07-08T19:59:59+08:00",
+    "merged_at": "2026-07-08T19:59:59+08:00",
+    "merged_by": {
+      "id": "6541ccea82d8f837210e92c3",
+      "login": "openharmony_ci",
+      "name": "openharmony_ci",
+      "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+      "html_url": "https://gitcode.com/openharmony_ci"
+    },
+    "draft": false,
+    "can_merge_check": true,
+    "prune_branch": false,
+    "mergeable": true,
+    "user": {
+      "id": "67fe10947795fd623e1a1214",
+      "login": "chenbaodi123",
+      "name": "chenbaodi123",
+      "avatar_url": "",
+      "html_url": "https://gitcode.com/chenbaodi123"
+    },
+    "head": {
+      "ref": "br_rnoh0.72",
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "label": "br_rnoh0.72",
+      "repo": {
+        "path": "rntpc_react-native-geolocation",
+        "name": "rntpc_react-native-geolocation",
+        "namespace": {
+          "path": "chenbaodi123"
+        },
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "html_url": "https://gitcode.com/chenbaodi123/rntpc_react-native-geolocation.git"
+      },
+      "user": {
+        "id": "67fe10947795fd623e1a1214",
+        "login": "chenbaodi123",
+        "name": "chenbaodi123",
+        "avatar_url": "",
+        "html_url": "https://gitcode.com/chenbaodi123"
+      }
+    },
+    "base": {
+      "ref": "br_rnoh0.72",
+      "sha": "aa3537ba97ef57484305ceae4726a4294b962ae6",
+      "label": "br_rnoh0.72",
+      "repo": {
+        "path": "rntpc_react-native-geolocation",
+        "name": "rntpc_react-native-geolocation",
+        "namespace": {
+          "path": "CPF-RN"
+        },
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation.git"
+      }
+    },
+    "mergeable_state": {
+      "merge_request_id": 8840815,
+      "state": true,
+      "status_without_user_auth": true,
+      "conflict_passed": true,
+      "branch_missing_passed": true,
+      "non_ff_passed": true,
+      "mr_state_passed": true,
+      "merged_by_user_passed": true,
+      "work_in_progress_passed": true,
+      "resolve_discussion_passed": true,
+      "ci_state_passed": true,
+      "merge_by_self_passed": true,
+      "can_force_merge": true,
+      "approval_reviewers_required_passed": true,
+      "approval_approvers_required_passed": true,
+      "approval_testers_required_passed": true,
+      "merge_request_switch": {
+        "review_mode": "approval",
+        "merge_method": "merge",
+        "only_allow_merge_if_all_discussions_are_resolved": true,
+        "disable_merge_by_self": true,
+        "only_allow_merge_if_pipeline_succeeds": false,
+        "disable_squash_merge": false,
+        "squash_merge_with_no_merge_commit": false,
+        "approval_required_reviewers_count": 0,
+        "approval_required_reviewers_branch": "*",
+        "add_notes_after_merged": true,
+        "mark_auto_merged_mr_as_closed": false,
+        "can_force_merge": true,
+        "can_reopen": true
+      },
+      "reason": {},
+      "check_tasks_num": 2,
+      "all_depend_merge_request_merged_passed": true,
+      "approval_approvers_result": 2,
+      "approval_testers_result": 2
+    },
+    "visibility_reason": "public",
+    "close_related_issue": true,
+    "squash_merge": false
+  },
+  "files": [
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "OAT.xml",
+      "additions": 46,
+      "deletions": 1,
+      "blob_id": "fbab023f269872574eea699f8404c1debf412eba",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/OAT.xml",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/OAT.xml",
+      "patch": "@@ -2,6 +2,18 @@\n <configuration>\n \t<oatconfig>\n \t<licensefile>LICENSE</licensefile>\n+    <policylist>\n+        <policy name=\"projectPolicy\" desc=\"\">\n+            <policyitem type=\"license\" name=\"MIT\" path=\".*\" desc=\"license under the MIT\"/>\n+        </policy>\n+        <policy name=\"projectPolicy\" desc=\"\">\n+            <policyitem type=\"compatibility\" name=\"GPL-2.0+\" path=\".*\" desc=\"Process that runs independently, invoked by the X process.\"/>\n+            <policyitem type=\"compatibility\" name=\"Apache-2.0\" path=\".*\" desc=\"不影响兼容性\"/>\n+            <policyitem type=\"compatibility\" name=\"BSDStyleLicense\" path=\".*\" desc=\"不影响兼容性\" />\n+            <policyitem type=\"compatibility\" name=\"MIT\" path=\".*\" desc=\"不影响兼容性\" />\n+            <policyitem type=\"compatibility\" name=\"GPLStyleLicense\" path=\".*\" desc=\"不影响兼容性\" />\n+        </policy>\n+    </policylist>\t\n \t\t<filefilterlist>\n \t\t\t<filefilter name=\"copyrightPolicyFilter\" desc=\"Filters for compatibility，license header policies\">\n \t\t\t\t<filteritem type=\"filename\" name=\"hvigorfile.ts\" desc=\"hvigor构建脚本，DevEco Studio自动生成，不需要添加版权头\"/>\n@@ -14,7 +26,23 @@\n \t\t\t\t<filteritem type=\"filepath\" name=\"hvigorw\" desc=\"工程模板，不修改版权头，以防有修改版权风险\"/>\n \t\t\t\t<filteritem type=\"filepath\" name=\"hvigorw.bat\" desc=\"工程模板，不修改版权头，以防有修改版权风险\"/>\n \t\t\t\t<filteritem type=\"filepath\" name=\"hvigor/hvigor-wrapper.js\" desc=\"工程模板，不修改版权头，以防有修改版权风险\"/>\n-                <filteritem type=\"filename\" name=\"LICENSE\" desc=\"原三方库证书文件无需更改，因此添加过滤\"/>\n+                <filteritem type=\"filename\" name=\"LICENSE\" desc=\"disan原三方库证书文件无需更改，因此添加过滤\"/>\n+\t\t\t\t<filteritem type=\"filepath\" name=\"example/harmony/entry/src/main/cpp/generated/.*\" desc=\"Codegen生成文件，不手动修改\"/>\n+                <filteritem type=\"filepath\" name=\"example/.prettierrc.js\" desc=\"工程模板，不添加许可证头\"/>\n+                <filteritem type=\"filepath\" name=\"example/.watchmanconfig\" desc=\"工程模板，不添加许可证头\"/>\n+                <filteritem type=\"filepath\" name=\"example/babel.config.js\" desc=\"工程模板，不添加许可证头\"/>\n+                <filteritem type=\"filepath\" name=\"example/harmony/.clang-tidy\" desc=\"工程模板，不添加许可证头\"/>\n+                <filteritem type=\"filepath\" name=\"example/harmony/.clangd\" desc=\"工程模板，不添加许可证头\"/>  \n+\t\t\t\t<filteritem type=\"filepath\" name=\".releaserc\" desc=\"工程模板，不添加许可证头\"/> \n+\t\t\t\t<filteritem type=\"filepath\" name=\"babel.config.js\" desc=\"工程模板，不添加许可证头\"/>\n+\t\t\t\t<filteritem type=\"filepath\" name=\"yarn.lock\" desc=\"工程模板，不添加许可证头\"/>\n+                <filteritem type=\"filepath\" name=\"example/harmony/entry/src/main/resources/rawfile/bundle.harmony.js\" desc=\"编译生成文件\"/>\t\t\t\n+                <filteritem type=\"filepath\" name=\"js/index.ts\" desc=\"原三方库源码，不修改版权头，以防有修改版权风险\"/>\n+\t\t\t\t<filteritem type=\"filepath\" name=\"example/harmony/format.ps1\" desc=\"工程模板，不添加许可证头\"/> \n+\t\t\t\t<filteritem type=\"filepath\" name=\"example/.eslintrc\" desc=\"工程模板，不添加许可证头\"/> \t\n+\t\t\t\t<filteritem type=\"filepath\" name=\"example/.node-version\" desc=\"工程模板，不添加许可证头\"/> \n+\t\t\t\t<filteritem type=\"filepath\" name=\"example/.eslintrc\" desc=\"工程模板，不添加许可证头\"/> \n+\t\t\t\t<filteritem type=\"filepath\" name=\"example/scripts/create-build-profile.js\" desc=\"工程模板，不添加许可证头\"/> \t\t\t\t\t\t\t\t\t\t\t\t\t\t\n \t\t\t</filefilter>\n \t\t\t<filefilter name=\"defaultPolicyFilter\" desc=\"Filters for compatibility，license header policies\">\n \t\t\t\t<filteritem type=\"filename\" name=\"hvigorfile.ts\" desc=\"hvigor构建脚本，DevEco Studio自动生成，不需要添加许可证头\"/>\n@@ -28,6 +56,22 @@\n \t\t\t\t<filteritem type=\"filepath\" name=\"hvigorw\" desc=\"工程模板，不修改版权头，以防有修改版权风险\"/>\n \t\t\t\t<filteritem type=\"filepath\" name=\"hvigorw.bat\" desc=\"工程模板，不修改版权头，以防有修改版权风险\"/>\n \t\t\t\t<filteritem type=\"filepath\" name=\"hvigor/hvigor-wrapper.js\" desc=\"工程模板，不修改版权头，以防有修改版权风险\"/>\n+\t\t\t\t<filteritem type=\"filepath\" name=\"example/harmony/entry/src/main/cpp/generated/.*\" desc=\"Codegen生成文件，不手动修改\"/>\n+                <filteritem type=\"filepath\" name=\"example/.prettierrc.js\" desc=\"工程模板，不添加许可证头\"/>\n+                <filteritem type=\"filepath\" name=\"example/.watchmanconfig\" desc=\"工程模板，不添加许可证头\"/>\n+                <filteritem type=\"filepath\" name=\"example/babel.config.js\" desc=\"工程模板，不添加许可证头\"/>\n+                <filteritem type=\"filepath\" name=\"example/harmony/.clang-tidy\" desc=\"工程模板，不添加许可证头\"/>\n+                <filteritem type=\"filepath\" name=\"example/harmony/.clangd\" desc=\"工程模板，不添加许可证头\"/>\n+\t\t\t\t<filteritem type=\"filepath\" name=\".releaserc\" desc=\"工程模板，不添加许可证头\"/>  \n+\t\t\t\t<filteritem type=\"filepath\" name=\"babel.config.js\" desc=\"工程模板，不添加许可证头\"/>\n+\t\t\t\t<filteritem type=\"filepath\" name=\"yarn.lock\" desc=\"工程模板，不添加许可证头\"/>\n+                <filteritem type=\"filepath\" name=\"example/harmony/entry/src/main/resources/rawfile/bundle.harmony.js\" desc=\"编译生成文件\"/>\n+                <filteritem type=\"filepath\" name=\"js/index.ts\" desc=\"原三方库源码，不修改版权头，以防有修改版权风险\"/>\n+\t\t\t\t<filteritem type=\"filepath\" name=\"example/harmony/format.ps1\" desc=\"工程模板，不添加许可证头\"/> \n+\t\t\t\t<filteritem type=\"filepath\" name=\"example/.eslintrc\" desc=\"工程模板，不添加许可证头\"/> \t\n+\t\t\t\t<filteritem type=\"filepath\" name=\"example/.node-version\" desc=\"工程模板，不添加许可证头\"/> \n+\t\t\t\t<filteritem type=\"filepath\" name=\"example/.eslintrc\" desc=\"工程模板，不添加许可证头\"/> \n+\t\t\t\t<filteritem type=\"filepath\" name=\"example/scripts/create-build-profile.js\" desc=\"工程模板，不添加许可证头\"/> \t\t\t\n \t\t\t</filefilter>\n \t\t\t<filefilter name=\"binaryFileTypePolicyFilter\" desc=\"Filters for resources files policies\">\n \t\t\t    <filteritem type=\"filepath\" name=\"harmony/geolocation.har\" desc=\"项目打包文件\" />\n@@ -35,6 +79,7 @@\n \t\t\t\t<filteritem type=\"filename\" name=\"app_icon.png\" desc=\"应用图标\"/>\n \t\t\t\t<filteritem type=\"filename\" name=\"warn.png\" desc=\"页面展示图标\"/>\n \t\t\t\t<filteritem type=\"filename\" name=\"*.png\" desc=\"展示图标\"/>\n+\t\t\t\t<filteritem type=\"filepath\" name=\"example/harmony/entry/src/main/ets/assets/fonts/.*\" desc=\"字体资源文件\"/>\n \t\t\t</filefilter>\n \t\t</filefilterlist>\n \t</oatconfig>\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "README.md",
+      "additions": 296,
+      "deletions": 7,
+      "blob_id": "8d899581841957eca57f5606f96872d1a6d9ae4d",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/README.md",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/README.md",
+      "patch": "@@ -1,13 +1,302 @@\n-# @react-native-ohos/react-native-geolocation\n+> 模板版本：v0.4.0\n \n-This project is based on [@react-native-community/geolocation](https://github.com/michalchudziak/react-native-geolocation)@3.4.0\n+<p align=\"center\">\n+  <h1 align=\"center\"> @react-native-community/geolocation</code> </h1>\n+</p>\n \n-## Documentation\n+本项目基于 [@react-native-community/geolocation](https://github.com/michalchudziak/react-native-geolocation) 开发。\n \n-- [中文](https://gitcode.com/OpenHarmony-RN/usage-docs/blob/master/zh-cn/react-native-community-geolocation.md)\n+该第三方库的仓库已迁移至 Gitcode，且支持直接从 npm 下载，新的包名为：`@react-native-ohos/geolocation` 版本所属关系如下：\n+| 三方库名称    | 三方库版本    | 发布信息     | 支持RN版本    | Autolink     | 编译API版本     | 社区基线版本    | npm地址                |\n+| ------------ | ------------ | ------------------------------ | ------------- | ------------- |------------------------ | ------------- | ------------- |\n+| @react-native-ohos/geolocation | ~ 3.5.0    | [Gitcode Releases](https://gitcode.com/openharmony-sig/rntpc_react-native-geolocation/releases) | 0.82.* | 是 | API12+ | 3.4.0 | [Npm Address](https://www.npmjs.com/package/@react-native-ohos/geolocation) | \n+| @react-native-ohos/geolocation | ~ 3.4.1    | [Gitcode Releases](https://gitcode.com/openharmony-sig/rntpc_react-native-geolocation/releases) | 0.77.* | 否 | API12+ | 3.4.0 | [Npm Address](https://www.npmjs.com/package/@react-native-ohos/geolocation) |\n+| @react-native-ohos/geolocation | ~ 3.1.1    | [Gitcode Releases](https://gitcode.com/openharmony-sig/rntpc_react-native-geolocation/releases) | 0.72.* | 是 | API12+ | 3.1.0 | [Npm Address](https://www.npmjs.com/package/@react-native-ohos/geolocation) |\n+| @react-native-oh-tpl/react-native-geolocation | <= 3.1.0-0.0.7@deprecated    | [Github Releases](https://github.com/react-native-oh-library/react-native-geolocation/releases) | 0.72.* | 否 | API12+ | 3.1.0 | [Npm Address](https://www.npmjs.com/package/@react-native-oh-tpl/react-native-geolocation) |\n \n-- [English](https://gitcode.com/OpenHarmony-RN/usage-docs/blob/master/en/react-native-community-geolocation.md)\n+## 安装与使用\n \n-## License\n+进入到工程目录并输入以下命令：\n+\n+<!-- tabs:start -->\n+\n+#### **npm**\n+\n+```bash\n+npm install @react-native-ohos/geolocation\n+```\n+\n+#### **yarn**\n+\n+```bash\n+yarn add @react-native-ohos/geolocation\n+```\n+\n+<!-- tabs:end -->\n+\n+下面的代码展示了这个库的基本使用场景：\n+\n+> [!WARNING] 使用时 import 的库名不变。\n+\n+```js\n+import Geolocation from \"@react-native-community/geolocation\";\n+import { Button } from \"react-native\";\n+import React from 'react';\n+\n+export function GeolocationDemo(): JSX.Element {\n+  const tap = () => {\n+    Geolocation.setRNConfiguration({\n+      skipPermissionRequests: true,\n+      authorizationLevel: \"auto\",\n+      enableBackgroundLocationUpdates: true,\n+      locationProvider: \"auto\",\n+    });\n+    console.log(\"tap\");\n+  };\n+\n+  return <Button title='test' onPress={tap} />;\n+}\n+```\n+\n+## Link\n+\n+|                                      | 是否支持autolink | RN框架版本 |\n+|--------------------------------------|-----------------|------------|\n+| ~3.5.0                              |  Yes              |  0.82     |\n+| ~3.4.1                              |  No              |  0.77     |\n+| ~3.1.1                              |  Yes             |  0.72     |\n+| <= 3.1.0-0.0.7@deprecated            |  No              |  0.72     |\n+\n+使用AutoLink的工程需要根据该文档配置，Autolink框架指导文档：https://gitcode.com/openharmony-sig/ohos_react_native/blob/master/docs/zh-cn/Autolinking.md\n+\n+如您使用的版本支持 Autolink，并且工程已接入 Autolink，可跳过ManualLink配置。\n+<details>\n+  <summary>ManualLink: 此步骤为手动配置原生依赖项的指导</summary>\n+\n+首先需要使用 DevEco Studio 打开项目里的 HarmonyOS 工程 `harmony`\n+\n+### 1.在工程根目录的 `oh-package.json5` 添加 overrides 字段\n+\n+```json\n+{\n+   ...\n+   \"overrides\": {\n+    \"@rnoh/react-native-openharmony\" : \"./react_native_openharmony\"\n+  }\n+}\n+```\n+\n+### 2.引入原生端代码\n+\n+目前有两种方法：\n+\n+1. 通过 har 包引入（在 IDE 完善相关功能后该方法会被遗弃，目前首选此方法）；\n+2. 直接链接源码。\n+\n+方法一：通过 har 包引入（推荐）\n+\n+> [!TIP] har 包位于三方库安装路径的 `harmony` 文件夹下。\n+\n+打开 `entry/oh-package.json5`，添加以下依赖\n+\n+```json\n+\"dependencies\": {\n+    \"@rnoh/react-native-openharmony\": \"file:../react_native_openharmony\",\n+    \"@react-native-ohos/geolocation\": \"file:../../node_modules/@react-native-ohos/geolocation/harmony/geolocation.har\"\n+  }\n+```\n+\n+点击右上角的 `sync` 按钮\n+\n+或者在终端执行：\n+\n+```bash\n+cd entry\n+ohpm install\n+```\n+\n+方法二：直接链接源码\n+\n+> [!TIP] 如需使用直接链接源码，请参考[直接链接源码说明](./link-source-code.md)\n+\n+### 3.配置 CMakeLists 和引入 geolocation\n+\n+> 若使用的是 <= 3.1.0-0.0.7 版本，请跳过本章。\n+\n+打开 `entry/src/main/cpp/CMakeLists.txt`，添加：\n+\n+```diff\n+project(rnapp)\n+cmake_minimum_required(VERSION 3.4.1)\n+set(CMAKE_SKIP_BUILD_RPATH TRUE)\n+set(RNOH_APP_DIR \"${CMAKE_CURRENT_SOURCE_DIR}\")\n+set(NODE_MODULES \"${CMAKE_CURRENT_SOURCE_DIR}/../../../../../node_modules\")\n++ set(OH_MODULES \"${CMAKE_CURRENT_SOURCE_DIR}/../../../oh_modules\")\n+set(RNOH_CPP_DIR \"${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../react-native-harmony/harmony/cpp\")\n+set(LOG_VERBOSITY_LEVEL 1)\n+set(CMAKE_ASM_FLAGS \"-Wno-error=unused-command-line-argument -Qunused-arguments\")\n+set(CMAKE_CXX_FLAGS \"-fstack-protector-strong -Wl,-z,relro,-z,now,-z,noexecstack -s -fPIE -pie\")\n+set(WITH_HITRACE_SYSTRACE 1) # for other CMakeLists.txt files to use\n+add_compile_definitions(WITH_HITRACE_SYSTRACE)\n+\n+add_subdirectory(\"${RNOH_CPP_DIR}\" ./rn)\n+\n+# RNOH_BEGIN: manual_package_linking_1\n+add_subdirectory(\"../../../../sample_package/src/main/cpp\" ./sample-package)\n++ add_subdirectory(\"${OH_MODULES}/@react-native-ohos/geolocation/src/main/cpp\" ./geolocation)\n+# RNOH_END: manual_package_linking_1\n+\n+file(GLOB GENERATED_CPP_FILES \"./generated/*.cpp\")\n+\n+add_library(rnoh_app SHARED\n+    ${GENERATED_CPP_FILES}\n+    \"./PackageProvider.cpp\"\n+    \"${RNOH_CPP_DIR}/RNOHAppNapiBridge.cpp\"\n+)\n+\n+target_link_libraries(rnoh_app PUBLIC rnoh)\n+\n+# RNOH_BEGIN: manual_package_linking_2\n+target_link_libraries(rnoh_app PUBLIC rnoh_sample_package)\n++ target_link_libraries(rnoh_app PUBLIC rnoh_geolocation)\n+# RNOH_END: manual_package_linking_2\n+```\n+\n+打开 `entry/src/main/cpp/PackageProvider.cpp`，添加：\n+\n+```diff\n+#include \"RNOH/PackageProvider.h\"\n+#include \"SamplePackage.h\"\n++ #include \"GeoLocationPackage.h\"\n+\n+using namespace rnoh;\n+\n+std::vector<std::shared_ptr<Package>> PackageProvider::getPackages(Package::Context ctx) {\n+    return {\n+      std::make_shared<SamplePackage>(ctx),\n++     std::make_shared<GeoLocationPackage>(ctx)\n+    };\n+}\n+```\n+\n+### 4.在 ArkTs 侧引入 GeolocationPackage\n+\n+打开 `entry/src/main/ets/RNPackagesFactory.ts`，添加：\n+\n+```diff\n+  ...\n++ import {GeoLocationPackage} from '@react-native-ohos/geolocation/ts';\n+\n+export function createRNPackages(ctx: RNPackageContext): RNPackage[] {\n+  return [\n+    new SamplePackage(ctx),\n++   new GeoLocationPackage(ctx)\n+  ];\n+}\n+```\n+</details>\n+\n+## 运行\n+\n+点击右上角的 `sync` 按钮\n+\n+或者在终端执行：\n+\n+```bash\n+cd entry\n+ohpm install\n+```\n+\n+然后编译、运行即可。\n+\n+## 约束与限制\n+\n+### 兼容性\n+\n+要使用此库，需要使用正确的 React-Native 和 RNOH 版本。另外，还需要使用配套的 DevEco Studio 和 手机 ROM。\n+\n+在以下版本验证通过：\n+\n+1. RNOH: 0.72.96; SDK: HarmonyOS 6.0.0 Release SDK; IDE: DevEco Studio 6.0.0.858; ROM: 6.0.0.112;\n+2. RNOH: 0.72.33; SDK: HarmonyOS NEXT B1; IDE: DevEco Studio: 5.0.3.900; ROM: Next.0.0.71;\n+3. RNOH: 0.77.18; SDK: HarmonyOS 6.0.0 Release SDK; IDE: DevEco Studio 6.0.0.858; ROM: 6.0.0.112;\n+4. RNOH: 0.82.1; SDK: HarmonyOS 6.0.1 Release SDK; IDE: DevEco Studio 6.0.1 Release; ROM:6.0.0.120 SP7;\n+\n+\n+### 权限要求\n+\n+1.打开 `entry/src/main/module.json5`,添加相关配置\n+\n+```diff\n+...\n+{\n+  \"module\": {\n+      \"requestPermissions\": [\n++      {\n++        \"name\": \"ohos.permission.APPROXIMATELY_LOCATION\",\n++        \"reason\": \"$string:Access_location\",\n++        \"usedScene\": {\n++          \"abilities\": [\n++            \"EntryAbility\"\n++          ],\n++          \"when\": \"always\"\n++        }\n++      },\n++      {\n++        \"name\": \"ohos.permission.LOCATION\",\n++        \"reason\": \"$string:Access_location\",\n++        \"usedScene\": {\n++          \"abilities\": [\n++            \"EntryAbility\"\n++          ],\n++          \"when\": \"always\"\n++       }\n++      },\n++     {\n++        \"name\": \"ohos.permission.INTERNET\"\n++      }\n+    ]\n+  }\n+}\n+```\n+\n+2.在 entry 目录下添加申请权限的原因\n+\n+打开 `entry/src/main/resources/base/element/string.json`，添加：\n+\n+```diff\n+...\n+{\n+  \"string\": [\n++    {\n++      \"name\": \"Access_location\",\n++      \"value\": \"access location\"\n++    }\n+  ]\n+}\n+```\n+\n+## 属性\n+\n+> [!TIP] \"Platform\"列表示该属性在原三方库上支持的平台。\n+\n+> [!TIP] \"HarmonyOS Support\"列为 yes 表示 HarmonyOS 平台支持该属性；no 则表示不支持；partially 表示部分支持。使用方法跨平台一致，效果对标 iOS 或 Android 的效果。\n+\n+| Name                 | Description                                                        | Type                                            | Required | Platform    | HarmonyOS Support | Notes                                                                                                                                                          |\n+| -------------------- | ------------------------------------------------------------------ | ----------------------------------------------- | -------- | ----------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |\n+| setRNConfiguration   | 设置将在所有位置请求中使用的配置选项                              | function(config)                                | NO       | iOS Android | partially         | config only supports skipPermissionRequests                                                                                                                    |\n+| requestAuthorization | 请求合适的位置权限                                                | function(success,error)                         | YES      | iOS Android | partially         | error: Only code and message are supported.                                                                                                                    |\n+| getCurrentPosition   | 使用最新位置信息调用成功回调一次                                  | function(success(position),error(error),option) | NO       | iOS Android | partially         | In position, only altitudeAccuracy is not supported. In option, only timeout and maximumAge are supported. In error, only code and message are supported.      |\n+| watchPosition        | 每当位置发生变化时调用成功回调。返回一个 watchId (数字)            | function(success(postion),error(error),option)  | NO       | iOS Android | partially         | In position, only altitudeAccuracy is not supported. In error, only code and message are supported. In option, only interval and distanceFilter are supported. |\n+| clearWatch           | 通过 watchPosition() 返回的 ID 清除观察者                         | function(watchID)                               | NO       | iOS Android | yes               | watchID supports only the default value 0.                                                                                                                     |\n+\n+## 遗留问题\n+\n+- [ ] @react-native-oh-tpl/geolocation 部分属性未完全实现 HarmonyOS 化，maximumAge 延时问题: [issue#6](https://github.com/react-native-oh-library/react-native-geolocation/issues/6)\n+\n+## 其他\n+\n+## 开源协议\n+\n+本项目基于 [The MIT License(MIT)](https://github.com/michalchudziak/react-native-geolocation/blob/master/LICENSE) ，请自由地享受和参与开源。\n \n-This library is licensed under [The MIT License (MIT)](https://github.com/michalchudziak/react-native-geolocation/blob/master/LICENSE)\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "README_en.md",
+      "status": "added",
+      "additions": 301,
+      "deletions": 0,
+      "blob_id": "d0a73a75d1fc2975c5790eebabeed0452c9a76fc",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/README_en.md",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/README_en.md",
+      "patch": "@@ -0,0 +1,301 @@\n+> Template version: v0.4.0\n+\n+<p align=\"center\">\n+  <h1 align=\"center\"> @react-native-community/geolocation</code> </h1>\n+</p>\n+\n+This project is based on [@react-native-community/geolocation](https://github.com/michalchudziak/react-native-geolocation).\n+\n+This third-party library has been migrated to Gitcode and is now available for direct download from npm, the new package name is: `@react-native-ohos/geolocation`, The version correspondence details are as follows:\n+\n+| Name | Version | Release Information | Supported RN Version | Supported Autolink | Compile API Version | Community Baseline Version | npm Address     |\n+| --------------| -------------- | ------------------------------ | ------------- | ------------- |------------------------ | ------------- | ------------- |\n+| @react-native-ohos/geolocation | ~ 3.5.0    | [Gitcode Releases](https://gitcode.com/openharmony-sig/rntpc_react-native-geolocation/releases) | 0.82.* | Yes | API12+ | 3.4.0 | [Npm Address](https://www.npmjs.com/package/@react-native-ohos/geolocation) | \n+| @react-native-ohos/geolocation | ~ 3.4.1    | [Gitcode Releases](https://gitcode.com/openharmony-sig/rntpc_react-native-geolocation/releases) | 0.77.* | NO | API12+ | 3.4.0 | [Npm Address](https://www.npmjs.com/package/@react-native-ohos/geolocation) |\n+| @react-native-ohos/geolocation | ~ 3.1.1    | [Gitcode Releases](https://gitcode.com/openharmony-sig/rntpc_react-native-geolocation/releases) | 0.72.* | Yes | API12+ | 3.1.0 | [Npm Address](https://www.npmjs.com/package/@react-native-ohos/geolocation) |\n+| @react-native-oh-tpl/react-native-geolocation | <= 3.1.0-0.0.7@deprecated    | [Github Releases](https://github.com/react-native-oh-library/react-native-geolocation/releases) | 0.72.* | NO | API12+ | 3.1.0 | [Npm Address](https://www.npmjs.com/package/@react-native-oh-tpl/react-native-geolocation) |\n+\n+## Installation and Usage\n+\n+Go to the project directory and execute the following instruction:\n+\n+\n+\n+<!-- tabs:start -->\n+\n+#### **npm**\n+\n+```bash\n+npm install @react-native-ohos/geolocation\n+```\n+\n+#### **yarn**\n+\n+```bash\n+yarn add @react-native-ohos/geolocation\n+```\n+\n+<!-- tabs:end -->\n+\n+The following code shows the basic use scenario of the repository:\n+\n+> [!WARNING] The name of the imported repository remains unchanged.\n+\n+```js\n+import Geolocation from \"@react-native-community/geolocation\";\n+import { Button } from \"react-native\";\n+import React from 'react';\n+\n+export function GeolocationDemo(): JSX.Element {\n+  const tap = () => {\n+    Geolocation.setRNConfiguration({\n+      skipPermissionRequests: true,\n+      authorizationLevel: \"auto\",\n+      enableBackgroundLocationUpdates: true,\n+      locationProvider: \"auto\",\n+    });\n+    console.log(\"tap\");\n+  };\n+\n+  return <Button title='test' onPress={tap} />;\n+}\n+```\n+\n+## Link\n+\n+|                                      | Is supported autolink  | Supported RN Version |\n+|--------------------------------------|-----------------------|----------------------|\n+| ~3.5.0                              |  Yes              |  0.82     |\n+| ~3.4.1                              |  No              |  0.77     |\n+| ~3.1.1                              |  Yes             |  0.72     |\n+| <= 3.1.0-0.0.7@deprecated            |  No              |  0.72     |\n+\n+Using AutoLink need to be configured according to this document, Autolink Framework Guide Documentation: https://gitcode.com/openharmony-sig/ohos_react_native/blob/master/docs/zh-cn/Autolinking.md\n+\n+If the version you use supports Autolink and the project has been connected to Autolink, skip the ManualLink configuration.\n+<details>\n+  <summary>ManualLink: this step is a guide to manually configure native dependencies.</summary>\n+\n+Open the `harmony` directory of the HarmonyOS project in DevEco Studio.\n+\n+### 1. Adding the overrides Field to oh-package.json5 File in the Root Directory of the Project\n+\n+```json\n+{\n+   ...\n+   \"overrides\": {\n+    \"@rnoh/react-native-openharmony\" : \"./react_native_openharmony\"\n+  }\n+}\n+```\n+\n+### 2. Introducing Native Code\n+\n+Currently, two methods are available:\n+\n+Method 1 (recommended): Use the HAR file.\n+\n+> [!TIP] The HAR file is stored in the `harmony` directory in the installation path of the third-party library.\n+\n+Open `entry/oh-package.json5` file and add the following dependencies:\n+\n+```json\n+\"dependencies\": {\n+    \"@rnoh/react-native-openharmony\": \"file:../react_native_openharmony\",\n+    \"@react-native-ohos/geolocation\": \"file:../../node_modules/@react-native-ohos/geolocation/harmony/geolocation.har\"\n+  }\n+```\n+\n+Click the `sync` button in the upper right corner.\n+\n+Alternatively, run the following instruction on the terminal:\n+\n+```bash\n+cd entry\n+ohpm install\n+```\n+\n+Method 2: Directly link to the source code.\n+\n+> [!TIP] For details, see [Directly Linking Source Code](./link-source-code.md).\n+\n+### 3. Configuring CMakeLists and Introducing geolocation\n+\n+> If you are using version <= 3.1.0-0.0.7, please skip this chapter.\n+\n+Open `entry/src/main/cpp/CMakeLists.txt` and add the following code:\n+\n+```diff\n+project(rnapp)\n+cmake_minimum_required(VERSION 3.4.1)\n+set(CMAKE_SKIP_BUILD_RPATH TRUE)\n+set(RNOH_APP_DIR \"${CMAKE_CURRENT_SOURCE_DIR}\")\n+set(NODE_MODULES \"${CMAKE_CURRENT_SOURCE_DIR}/../../../../../node_modules\")\n++ set(OH_MODULES \"${CMAKE_CURRENT_SOURCE_DIR}/../../../oh_modules\")\n+set(RNOH_CPP_DIR \"${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../react-native-harmony/harmony/cpp\")\n+set(LOG_VERBOSITY_LEVEL 1)\n+set(CMAKE_ASM_FLAGS \"-Wno-error=unused-command-line-argument -Qunused-arguments\")\n+set(CMAKE_CXX_FLAGS \"-fstack-protector-strong -Wl,-z,relro,-z,now,-z,noexecstack -s -fPIE -pie\")\n+set(WITH_HITRACE_SYSTRACE 1) # for other CMakeLists.txt files to use\n+add_compile_definitions(WITH_HITRACE_SYSTRACE)\n+\n+add_subdirectory(\"${RNOH_CPP_DIR}\" ./rn)\n+\n+# RNOH_BEGIN: manual_package_linking_1\n+add_subdirectory(\"../../../../sample_package/src/main/cpp\" ./sample-package)\n++ add_subdirectory(\"${OH_MODULES}/@react-native-ohos/geolocation/src/main/cpp\" ./geolocation)\n+# RNOH_END: manual_package_linking_1\n+\n+file(GLOB GENERATED_CPP_FILES \"./generated/*.cpp\")\n+\n+add_library(rnoh_app SHARED\n+    ${GENERATED_CPP_FILES}\n+    \"./PackageProvider.cpp\"\n+    \"${RNOH_CPP_DIR}/RNOHAppNapiBridge.cpp\"\n+)\n+\n+target_link_libraries(rnoh_app PUBLIC rnoh)\n+\n+# RNOH_BEGIN: manual_package_linking_2\n+target_link_libraries(rnoh_app PUBLIC rnoh_sample_package)\n++ target_link_libraries(rnoh_app PUBLIC rnoh_geolocation)\n+# RNOH_END: manual_package_linking_2\n+```\n+\n+Open `entry/src/main/cpp/PackageProvider.cpp` and add the following code:\n+\n+```diff\n+#include \"RNOH/PackageProvider.h\"\n+#include \"SamplePackage.h\"\n++ #include \"GeoLocationPackage.h\"\n+\n+using namespace rnoh;\n+\n+std::vector<std::shared_ptr<Package>> PackageProvider::getPackages(Package::Context ctx) {\n+    return {\n+      std::make_shared<SamplePackage>(ctx),\n++     std::make_shared<GeoLocationPackage>(ctx)\n+    };\n+}\n+```\n+\n+### 4. Introducing GeolocationPackage to ArkTS\n+\n+Open the `entry/src/main/ets/RNPackagesFactory.ts` file and add the following code:\n+\n+```diff\n+  ...\n++ import {GeoLocationPackage} from '@react-native-ohos/geolocation/ts';\n+\n+export function createRNPackages(ctx: RNPackageContext): RNPackage[] {\n+  return [\n+    new SamplePackage(ctx),\n++   new GeoLocationPackage(ctx)\n+  ];\n+}\n+```\n+</details>\n+\n+## Running\n+\n+Click the `sync` button in the upper right corner.\n+\n+Alternatively, run the following instruction on the terminal:\n+\n+```bash\n+cd entry\n+ohpm install\n+```\n+\n+Then build and run the code.\n+\n+## Constraints\n+\n+### Compatibility\n+\n+To use this repository, you need to use the correct React-Native and RNOH versions. In addition, you need to use DevEco Studio and the ROM on your phone.\n+\n+Verified in the following versions.\n+\n+1. RNOH: 0.72.96; SDK: HarmonyOS 6.0.0 Release SDK; IDE: DevEco Studio 6.0.0.858; ROM: 6.0.0.112;\n+2. RNOH: 0.72.33; SDK: HarmonyOS NEXT B1; IDE: DevEco Studio: 5.0.3.900; ROM: Next.0.0.71;\n+3. RNOH: 0.77.18; SDK: HarmonyOS 6.0.0 Release SDK; IDE: DevEco Studio 6.0.0.858; ROM: 6.0.0.112;\n+4. RNOH: 0.82.1; SDK: HarmonyOS 6.0.1 Release SDK; IDE: DevEco Studio 6.0.1 Release; ROM:6.0.0.120 SP7;\n+\n+\n+### Permission Requirements\n+\n+1. Include applicable permissions in the module.json5 file within the entry directory.\n+\n+```diff\n+...\n+{\n+  \"module\": {\n+      \"requestPermissions\": [\n++      {\n++        \"name\": \"ohos.permission.APPROXIMATELY_LOCATION\",\n++        \"reason\": \"$string:Access_location\",\n++        \"usedScene\": {\n++          \"abilities\": [\n++            \"EntryAbility\"\n++          ],\n++          \"when\": \"always\"\n++        }\n++      },\n++      {\n++        \"name\": \"ohos.permission.LOCATION\",\n++        \"reason\": \"$string:Access_location\",\n++        \"usedScene\": {\n++          \"abilities\": [\n++            \"EntryAbility\"\n++          ],\n++          \"when\": \"always\"\n++       }\n++      },\n++     {\n++        \"name\": \"ohos.permission.INTERNET\"\n++      }\n+    ]\n+  }\n+}\n+```\n+\n+2. Apply the reasons for applicable permission in the entry directory.\n+\n+Open the `entry/src/main/resources/base/element/string.json` file and add the following code:\n+\n+```diff\n+...\n+{\n+  \"string\": [\n++    {\n++      \"name\": \"Access_location\",\n++      \"value\": \"access location\"\n++    }\n+  ]\n+}\n+```\n+\n+## Properties\n+\n+> [!TIP] The **Platform** column indicates the platform where the properties are supported in the original third-party library.\n+\n+> [!TIP] If the value of **HarmonyOS Support** is **yes**, it means that the HarmonyOS platform supports this property; **no** means the opposite; **partially** means some capabilities of this property are supported. The usage method is the same on different platforms and the effect is the same as that of iOS or Android.\n+\n+| Name                 | Description                                                                            | Type                                            | Required | Platform    | HarmonyOS Support | Notes                                                                                                                                                          |\n+| -------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------- | -------- | ----------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |\n+| setRNConfiguration   | Sets configuration options that will be used in all location requests                  | function(config)                                | NO       | iOS Android | partially         | config only supports skipPermissionRequests                                                                                                                    |\n+| requestAuthorization | Request suitable Location permission                                                   | function(success,error)                         | YES      | iOS Android | partially         | error: Only code and message are supported.                                                                                                                    |\n+| getCurrentPosition   | Invokes the success callback once with the latest location info                        | function(success(position),error(error),option) | NO       | iOS Android | partially         | In position, only altitudeAccuracy is not supported. In option, only timeout and maximumAge are supported. In error, only code and message are supported.      |\n+| watchPosition        | Invokes the success callback whenever the location changes. Returns a watchId (number) | function(success(postion),error(error),option)  | NO       | iOS Android | partially         | In position, only altitudeAccuracy is not supported. In error, only code and message are supported. In option, only interval and distanceFilter are supported. |\n+| clearWatch           | Clears watch observer by id returned by watchPosition()                                | function(watchID)                               | NO       | iOS Android | yes               | watchID supports only the default value 0.                                                                                                                     |\n+\n+## Known Issues\n+\n+ [ ] Some attributes of @react-native-oh-tpl/geolocation have not been fully implemented for HarmonyOS, and there is a delay issue with maximumAge: [issue#6](https://github.com/react-native-oh-library/react-native-geolocation/issues/6).\n+\n+## Others\n+\n+## License\n+\n+This project is licensed under [The MIT License(MIT)](https://github.com/michalchudziak/react-native-geolocation/blob/master/LICENSE).\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/.eslintrc",
+      "status": "added",
+      "additions": 37,
+      "deletions": 0,
+      "blob_id": "68220ff93e1accc0f0a1c8ac0490bab9c09235e5",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/.eslintrc",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/.eslintrc",
+      "patch": "@@ -0,0 +1,37 @@\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2023 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n+ */\n+\n+{\n+  \"extends\": \"@react-native\",\n+  \"rules\": {\n+    \"react-native/no-inline-styles\": \"off\",\n+    \"react/no-unstable-nested-components\": \"off\",\n+    \"react/react-in-jsx-scope\": \"off\",\n+    \"@typescript-eslint/no-unused-vars\": \"warn\",\n+    \"react-hooks/exhaustive-deps\": \"off\",\n+    \"radix\": \"off\",\n+    \"prettier/prettier\": \"warn\",\n+    \"max-lines\": \"off\"\n+  }\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/.gitignore",
+      "status": "added",
+      "additions": 71,
+      "deletions": 0,
+      "blob_id": "7613cdedd309866629ce9ae75eb3855ea0849f0a",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/.gitignore",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/.gitignore",
+      "patch": "@@ -0,0 +1,71 @@\n+.husky\n+bundle.harmony.js\n+package-lock.json\n+*.hbc\n+lintCppResult.txt\n+\n+# ---\n+\n+# OSX\n+#\n+.DS_Store\n+\n+# Xcode\n+#\n+build/\n+*.pbxuser\n+!default.pbxuser\n+*.mode1v3\n+!default.mode1v3\n+*.mode2v3\n+!default.mode2v3\n+*.perspectivev3\n+!default.perspectivev3\n+xcuserdata\n+*.xccheckout\n+*.moved-aside\n+DerivedData\n+*.hmap\n+*.ipa\n+*.xcuserstate\n+\n+# Android/IntelliJ\n+#\n+build/\n+.idea\n+.gradle\n+local.properties\n+*.iml\n+*.hprof\n+.cxx/\n+*.keystore\n+!debug.keystore\n+BuildProfile.ets\n+\n+# node.js\n+#\n+node_modules/\n+npm-debug.log\n+yarn-error.log\n+\n+# fastlane\n+#\n+# It is recommended to not store the screenshots in the git repo. Instead, use fastlane to re-generate the\n+# screenshots whenever they are needed.\n+# For more information about the recommended setup visit:\n+# https://docs.fastlane.tools/best-practices/source-control/\n+\n+**/fastlane/report.xml\n+**/fastlane/Preview.html\n+**/fastlane/screenshots\n+**/fastlane/test_output\n+\n+# Bundle artifact\n+*.jsbundle\n+\n+# Ruby / CocoaPods\n+/vendor/bundle/\n+\n+# Temporary files created by Metro to check the health of the file watcher\n+.metro-health-check*\n+*.htrace\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/.node-version",
+      "status": "added",
+      "additions": 24,
+      "deletions": 0,
+      "blob_id": "d617b67285f4fef13cb98f298981b0118218d4f8",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/.node-version",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/.node-version",
+      "patch": "@@ -0,0 +1,24 @@\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2023 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n+ */\n+18\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/.prettierrc.js",
+      "status": "added",
+      "additions": 7,
+      "deletions": 0,
+      "blob_id": "2ae7b381ed9590ddf3ba512a496dc8d53dadeea0",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/.prettierrc.js",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/.prettierrc.js",
+      "patch": "@@ -0,0 +1,7 @@\n+module.exports = {\n+  arrowParens: 'avoid',\n+  bracketSameLine: true,\n+  bracketSpacing: true,\n+  singleQuote: true,\n+  trailingComma: 'all',\n+};\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/.watchmanconfig",
+      "status": "added",
+      "additions": 1,
+      "deletions": 0,
+      "blob_id": "9e26dfeeb6e641a33dae4961196235bdb965b21b",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/.watchmanconfig",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/.watchmanconfig",
+      "patch": "@@ -0,0 +1 @@\n+{}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/app.json",
+      "status": "added",
+      "additions": 4,
+      "deletions": 0,
+      "blob_id": "7586f6fa99a6680a35a27fac7255ba721880d461",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/app.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/app.json",
+      "patch": "@@ -0,0 +1,4 @@\n+{\n+  \"name\": \"app_name\",\n+  \"displayName\": \"tester\"\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/babel.config.js",
+      "status": "added",
+      "additions": 6,
+      "deletions": 0,
+      "blob_id": "0f949a1078e3be59a12aba2f23bb75503a39235e",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/babel.config.js",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/babel.config.js",
+      "patch": "@@ -0,0 +1,6 @@\n+module.exports = {\n+  presets: ['module:@react-native/babel-preset'],\n+  plugins: [\n+    'react-native-reanimated/plugin',\n+  ],\n+};\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/contexts.ts",
+      "status": "added",
+      "additions": 27,
+      "deletions": 0,
+      "blob_id": "b1dbda2fd5c760a32ca42a468ace05813db326e5",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/contexts.ts",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/contexts.ts",
+      "patch": "@@ -0,0 +1,27 @@\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2023 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n+ */\n+\n+import React from 'react';\n+\n+export const AppParamsContext = React.createContext(undefined);\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/.gitignore",
+      "status": "added",
+      "additions": 24,
+      "deletions": 0,
+      "blob_id": "72d73fb4b6240ccd907882c931ce08ee45ca62ba",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/.gitignore",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/.gitignore",
+      "patch": "@@ -0,0 +1,24 @@\n+# it may cause some issues when building the project when switching branches\n+package-lock.json\n+# we add this because we want to keep the signing configs out of git\n+/build-profile.json5\n+\n+rnoh_modules\n+\n+**/oh-package-lock.json5\n+# ---\n+\n+/node_modules\n+/local.properties\n+/.idea\n+**/build\n+/.hvigor\n+.cxx\n+/.clangd\n+/.clang-format\n+/.clang-tidy\n+/oh_modules\n+hvigorw\n+hvigorw.bat\n+hvigor/hvigor-wrapper.js\n+\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/AppScope/app.json5",
+      "status": "added",
+      "additions": 10,
+      "deletions": 0,
+      "blob_id": "058bd391dac60928a1857aa31e4b0f712a7bc743",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/AppScope/app.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/AppScope/app.json5",
+      "patch": "@@ -0,0 +1,10 @@\n+{\n+  \"app\": {\n+    \"bundleName\": \"com.harmony.wechat.lib.demo\",\n+    \"vendor\": \"example\",\n+    \"versionCode\": 1000000,\n+    \"versionName\": \"1.0.0\",\n+    \"icon\": \"$media:app_icon\",\n+    \"label\": \"$string:app_name\"\n+  }\n+}\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/AppScope/resources/base/element/string.json",
+      "status": "added",
+      "additions": 8,
+      "deletions": 0,
+      "blob_id": "698a720065342ae0dadad63eb87d45fec8725f36",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/AppScope/resources/base/element/string.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/AppScope/resources/base/element/string.json",
+      "patch": "@@ -0,0 +1,8 @@\n+{\n+  \"string\": [\n+    {\n+      \"name\": \"app_name\",\n+      \"value\": \"RN Tester\"\n+    }\n+  ]\n+}\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/AppScope/resources/base/media/app_icon.png",
+      "status": "added",
+      "additions": 0,
+      "deletions": 0,
+      "blob_id": "ce307a8827bd75456441ceb57d530e4c8d45d36c",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/AppScope/resources/base/media/app_icon.png",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/AppScope/resources/base/media/app_icon.png",
+      "patch": "Binary files no preview for this file type",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/build-profile.template.json5",
+      "status": "added",
+      "additions": 44,
+      "deletions": 0,
+      "blob_id": "7ad83b98880d60b71b56c38e9008f90f1ee7d84d",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/build-profile.template.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/build-profile.template.json5",
+      "patch": "@@ -0,0 +1,44 @@\n+{\n+  \"app\": {\n+    \"products\": [\n+      {\n+        \"name\": 'default',\n+        \"signingConfig\": 'default',\n+        \"compatibleSdkVersion\": '5.0.0(12)',\n+        \"runtimeOS\": 'HarmonyOS',\n+        \"buildOption\": {\n+          \"strictMode\": {\n+            \"useNormalizedOHMUrl\": true\n+          }\n+        }\n+      },\n+    ],\n+    \"buildModeSet\": [\n+      {\n+        \"name\": 'debug',\n+      },\n+      {\n+        \"name\": 'release',\n+      },\n+    ],\n+    \"signingConfigs\": []\n+  },\n+  \"modules\": [\n+    {\n+      \"name\": 'entry',\n+      \"srcPath\": './entry',\n+      \"targets\": [\n+        {\n+          \"name\": 'default',\n+          \"applyToProducts\": [\n+            'default'\n+          ],\n+        },\n+      ],\n+    },\n+    {\n+      \"name\": 'geolocation',\n+      \"srcPath\": '../../harmony/geolocation'\n+    }\n+  ],\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/codelinter.json",
+      "status": "added",
+      "additions": 32,
+      "deletions": 0,
+      "blob_id": "e7f91acb037aeda939967a042f16033f4c6e21b9",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/codelinter.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/codelinter.json",
+      "patch": "@@ -0,0 +1,32 @@\n+{\n+  \"files\": [\"**/*.ts\", \"**/*.ets\"],\n+  \"ignore\": [\n+    \"**/ohosTest/**/*\",\n+    \"**/node_modules/**/*\",\n+    \"**/hvigorfile.ts\",\n+    \"**/node_modules/**/*\",\n+    \"**/oh_modules/**/*\",\n+    \"**/build/**/*\",\n+    \"**/.preview/**/*\"\n+  ],\n+  \"plugins\": [\"@typescript-eslint\"],\n+  \"ruleSet\": [],\n+  \"rules\": {\n+    \"@typescript-eslint/await-thenable\": \"warn\",\n+    \"@typescript-eslint/consistent-type-imports\": \"warn\",\n+    \"@typescript-eslint/explicit-function-return-type\": \"warn\",\n+    \"@typescript-eslint/explicit-module-boundary-types\": \"warn\",\n+    \"@typescript-eslint/no-dynamic-delete\": \"warn\",\n+    \"@typescript-eslint/no-explicit-any\": \"warn\",\n+    \"@typescript-eslint/no-for-in-array\": \"warn\",\n+    \"@typescript-eslint/no-this-alias\": \"warn\",\n+    \"@typescript-eslint/no-unnecessary-type-constraint\": \"warn\",\n+    \"@typescript-eslint/no-unsafe-argument\": \"warn\",\n+    \"@typescript-eslint/no-unsafe-assignment\": \"warn\",\n+    \"@typescript-eslint/no-unsafe-call\": \"warn\",\n+    \"@typescript-eslint/no-unsafe-member-access\": \"warn\",\n+    \"@typescript-eslint/no-unsafe-return\": \"warn\",\n+    \"@typescript-eslint/prefer-literal-enum-member\": \"warn\"\n+  },\n+  \"overrides\": []\n+}\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/entry/.gitignore",
+      "status": "added",
+      "additions": 7,
+      "deletions": 0,
+      "blob_id": "bbc049cfeb689c61d6c2922810f652cbb19aad21",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/.gitignore",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/.gitignore",
+      "patch": "@@ -0,0 +1,7 @@\n+/node_modules\n+/.preview\n+/build\n+/.cxx\n+package-lock.json\n+/oh_modules\n+/assets\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/entry/build-profile.json5",
+      "status": "added",
+      "additions": 22,
+      "deletions": 0,
+      "blob_id": "576c1fedcbf11b8a730dafbb834c659fe80e7501",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/build-profile.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/build-profile.json5",
+      "patch": "@@ -0,0 +1,22 @@\n+{\n+  \"apiType\": 'stageMode',\n+  \"buildOption\": {\n+    \"externalNativeOptions\": {\n+      \"path\": \"./src/main/cpp/CMakeLists.txt\",\n+      \"arguments\": \"\",\n+      \"cppFlags\": \"-s\",\n+      \"abiFilters\": [\n+        \"arm64-v8a\",\n+        \"x86_64\"\n+      ]\n+    },\n+  },\n+  \"targets\": [\n+    {\n+      \"name\": \"default\",\n+    },\n+    {\n+      \"name\": \"ohosTest\",\n+    }\n+  ]\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/entry/hvigorfile.ts",
+      "status": "added",
+      "additions": 26,
+      "deletions": 0,
+      "blob_id": "9a984f896731d956e2dec9a4c2bbfd0a2bbb9bff",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/hvigorfile.ts",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/hvigorfile.ts",
+      "patch": "@@ -0,0 +1,26 @@\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2023 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n+ */\n+\n+// Script for compiling build behavior. It is built in the build plug-in and cannot be modified currently.\n+export { hapTasks } from '@ohos/hvigor-ohos-plugin';\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/entry/oh-package.json5",
+      "status": "added",
+      "additions": 11,
+      "deletions": 0,
+      "blob_id": "7cddd42bc31f3fd78cebed2546009fbd14a862b4",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/oh-package.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/oh-package.json5",
+      "patch": "@@ -0,0 +1,11 @@\n+{\n+  \"license\": \"ISC\",\n+  \"devDependencies\": {},\n+  \"name\": \"entry\",\n+  \"description\": \"example description\",\n+  \"version\": \"1.0.0\",\n+  \"dependencies\": {\n+    \"@rnoh/react-native-openharmony\": \"file:../../node_modules/react-native-harmony/react_native_openharmony.har\",\n+    \"@react-native-ohos/geolocation\": \"file:../../node_modules/@react-native-ohos/geolocation/harmony/geolocation.har\"\n+  }\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/entry/src/main/cpp/.gitignore",
+      "status": "added",
+      "additions": 2,
+      "deletions": 0,
+      "blob_id": "881dde5479f322de9db2b2bb98fd94a95f73715e",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/cpp/.gitignore",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/cpp/.gitignore",
+      "patch": "@@ -0,0 +1,2 @@\n+jsbundle.h\n+generated/\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/entry/src/main/cpp/CMakeLists.txt",
+      "status": "added",
+      "additions": 41,
+      "deletions": 0,
+      "blob_id": "e812bd848e81aeadbfe7ec47d78d7068114ec06c",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/cpp/CMakeLists.txt",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/cpp/CMakeLists.txt",
+      "patch": "@@ -0,0 +1,41 @@\n+project(rnapp)\n+cmake_minimum_required(VERSION 3.4.1)\n+set(CMAKE_SKIP_BUILD_RPATH TRUE)\n+set(RNOH_APP_DIR \"${CMAKE_CURRENT_SOURCE_DIR}\")\n+set(NODE_MODULES \"${CMAKE_CURRENT_SOURCE_DIR}/../../../../../node_modules\")\n+set(OH_MODULE_DIR \"${CMAKE_CURRENT_SOURCE_DIR}/../../../oh_modules\")\n+set(RNOH_CPP_DIR \"${CMAKE_CURRENT_SOURCE_DIR}/../../../oh_modules/@rnoh/react-native-openharmony/src/main/cpp\")\n+set(RNOH_GENERATED_DIR \"${CMAKE_CURRENT_SOURCE_DIR}/generated\")\n+set(LOG_VERBOSITY_LEVEL 1)\n+set(CMAKE_ASM_FLAGS \"-Wno-error=unused-command-line-argument -Qunused-arguments\")\n+set(CMAKE_CXX_FLAGS \"-fstack-protector-strong -Wl,-z,relro,-z,now,-z,noexecstack -s -fPIE -pie\")\n+set(OH_MODULES \"${CMAKE_CURRENT_SOURCE_DIR}/../../../oh_modules\")\n+\n+set(WITH_HITRACE_SYSTRACE 1) # for other CMakeLists.txt files to use\n+add_compile_definitions(WITH_HITRACE_SYSTRACE)\n+\n+# (VM) Define a variable and assign it to the current module's cpp directory\n+set(NATIVERENDER_ROOT_PATH ${CMAKE_CURRENT_SOURCE_DIR})\n+\n+# Add the Header File directory, including cpp, cpp/include, and tell cmake to find the Header Files introduced by the code here\n+include_directories(${NATIVERENDER_ROOT_PATH}\n+                    ${NATIVERENDER_ROOT_PATH}/include)\n+\n+add_subdirectory(\"${RNOH_CPP_DIR}\" ./rn)\n+\n+# RNOH_BEGIN: manual_package_linking_1\n+add_subdirectory(\"${OH_MODULES}/@react-native-ohos/geolocation/src/main/cpp\" ./geolocation)\n+# RNOH_END: manual_package_linking_1\n+\n+file(GLOB GENERATED_CPP_FILES \"${CMAKE_CURRENT_SOURCE_DIR}/generated/*.cpp\") # this line is needed by codegen v1\n+\n+add_library(rnoh_app SHARED\n+    ${GENERATED_CPP_FILES}\n+    \"./PackageProvider.cpp\"\n+    \"${RNOH_CPP_DIR}/RNOHAppNapiBridge.cpp\"\n+)\n+target_link_libraries(rnoh_app PUBLIC rnoh)\n+\n+# RNOH_BEGIN: manual_package_linking_2\n+target_link_libraries(rnoh_app PUBLIC rnoh_geolocation)\n+# RNOH_END: manual_package_linking_2\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/entry/src/main/cpp/PackageProvider.cpp",
+      "status": "added",
+      "additions": 37,
+      "deletions": 0,
+      "blob_id": "0e5a6c079b996139dd2b18ec5f86c93bbb058937",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/cpp/PackageProvider.cpp",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/cpp/PackageProvider.cpp",
+      "patch": "@@ -0,0 +1,37 @@\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2023 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n+ */\n+\n+#include \"RNOH/PackageProvider.h\"\n+#include \"generated/RNOHGeneratedPackage.h\"\n+#include \"GeoLocationPackage.h\"\n+\n+using namespace rnoh;\n+\n+std::vector<std::shared_ptr<Package>> PackageProvider::getPackages(Package::Context ctx)\n+{\n+    return {\n+        std::make_shared<RNOHGeneratedPackage>(ctx), // generated by codegen v1\n+        std::make_shared<GeoLocationPackage>(ctx),\n+    };\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/entry/src/main/ets/RNPackagesFactory.ets",
+      "status": "added",
+      "additions": 32,
+      "deletions": 0,
+      "blob_id": "4cb82422e498bc89df7f7111434bf4f1bd8c6613",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/ets/RNPackagesFactory.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/ets/RNPackagesFactory.ets",
+      "patch": "@@ -0,0 +1,32 @@\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2023 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n+ */\n+\n+import type {RNPackageContext, RNPackage} from '@rnoh/react-native-openharmony/ts';\n+import {GeoLocationPackage} from '@react-native-ohos/geolocation/ts';\n+\n+export function createRNPackages(ctx: RNPackageContext): RNPackage[] {\n+  return [\n+    new GeoLocationPackage(ctx),\n+  ];\n+}\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/entry/src/main/ets/assets/fonts/Pacifico-Regular.ttf",
+      "status": "added",
+      "additions": 0,
+      "deletions": 0,
+      "blob_id": "e7def95d3f44c82086f6e74d93fc0aadac7c454a",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/ets/assets/fonts/Pacifico-Regular.ttf",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/ets/assets/fonts/Pacifico-Regular.ttf",
+      "patch": "Binary files no preview for this file type",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/entry/src/main/ets/assets/fonts/StintUltraCondensed-Regular.ttf",
+      "status": "added",
+      "additions": 0,
+      "deletions": 0,
+      "blob_id": "25c749e167bd5beef18360b13ae660f1c10ebc62",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/ets/assets/fonts/StintUltraCondensed-Regular.ttf",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/ets/assets/fonts/StintUltraCondensed-Regular.ttf",
+      "patch": "Binary files no preview for this file type",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/entry/src/main/ets/entryability/EntryAbility.ets",
+      "status": "added",
+      "additions": 40,
+      "deletions": 0,
+      "blob_id": "e05a95e480185eb7e14f28574fac8be072ac05ad",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/ets/entryability/EntryAbility.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/ets/entryability/EntryAbility.ets",
+      "patch": "@@ -0,0 +1,40 @@\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2023 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n+ */\n+\n+import { RNAbility } from '@rnoh/react-native-openharmony';\n+import { AbilityConstant, Want } from '@kit.AbilityKit';\n+\n+export default class EntryAbility extends RNAbility {\n+  onCreate(want: Want) {\n+    super.onCreate(want)\n+  }\n+\n+  getPagePath() {\n+    return 'pages/Index';\n+  }\n+\n+  onNewWant(want: Want, _launchParam: AbilityConstant.LaunchParam): void {\n+\n+  }\n+}\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/entry/src/main/ets/pages/Index.ets",
+      "status": "added",
+      "additions": 136,
+      "deletions": 0,
+      "blob_id": "53a12164cb0b6c618fe82ea5908287dc276f5edb",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/ets/pages/Index.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/ets/pages/Index.ets",
+      "patch": "@@ -0,0 +1,136 @@\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2023 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n+ */\n+\n+import {\n+  AnyJSBundleProvider,\n+  ComponentBuilderContext,\n+  FileJSBundleProvider,\n+  MetroJSBundleProvider,\n+  ResourceJSBundleProvider,\n+  RNApp,\n+  RNOHErrorDialog,\n+  RNOHLogger,\n+  TraceJSBundleProviderDecorator,\n+  RNOHCoreContext\n+} from '@rnoh/react-native-openharmony';\n+import font from '@ohos.font';\n+import { createRNPackages } from '../RNPackagesFactory';\n+\n+const arkTsComponentNames: Array<string> = [\n+];\n+\n+@Builder\n+export function buildCustomRNComponent(ctx: ComponentBuilderContext) {\n+  // There seems to be a problem with the placement of ArkTS components in mixed mode. Nested Stack temporarily avoided.\n+  Stack() {\n+  }\n+  .position({ x: 0, y: 0 })\n+\n+}\n+\n+const wrappedCustomRNComponentBuilder = wrapBuilder(buildCustomRNComponent)\n+\n+/**\n+ * If you want to use custom fonts, you need to register them here.\n+ * We should support react-native-asset to handle registering fonts automatically.\n+ */\n+const fonts: font.FontOptions[] = [\n+  {\n+    familyName: 'Pacifico-Regular',\n+    familySrc: '/assets/fonts/Pacifico-Regular.ttf'\n+  },\n+  {\n+    familyName: 'StintUltraCondensed-Regular',\n+    familySrc: '/assets/fonts/StintUltraCondensed-Regular.ttf'\n+  }\n+]\n+\n+@Entry\n+@Component\n+struct Index {\n+  @StorageLink('RNOHCoreContext') private rnohCoreContext: RNOHCoreContext | undefined = undefined\n+  @State shouldShow: boolean = false\n+  private logger!: RNOHLogger\n+  bundlePath: string = 'bunlde.harmony.js'\n+  @State hasBundle: boolean = false\n+\n+  aboutToAppear() {\n+    this.logger = this.rnohCoreContext!.logger.clone(\"Index\")\n+    const stopTracing = this.logger.clone(\"aboutToAppear\").startTracing()\n+    for (const customFont of fonts) {\n+      font.registerFont(customFont)\n+    }\n+\n+    this.shouldShow = true\n+    stopTracing()\n+  }\n+\n+  onBackPress(): boolean | undefined {\n+    // NOTE: this is required since `Ability`'s `onBackPressed` function always\n+    // terminates or puts the app in the background, but we want Ark to ignore it completely\n+    // when handled by RN\n+    this.rnohCoreContext!.dispatchBackPress()\n+    return true\n+  }\n+\n+  build() {\n+    Column() {\n+      if (this.rnohCoreContext && this.shouldShow) {\n+        if (this.rnohCoreContext?.isDebugModeEnabled) {\n+          RNOHErrorDialog({ ctx: this.rnohCoreContext })\n+        }\n+        RNApp({\n+          rnInstanceConfig: {\n+            createRNPackages,\n+            enableNDKTextMeasuring: true,\n+            enableBackgroundExecutor: false,\n+            enableCAPIArchitecture: true,\n+            arkTsComponentNames: arkTsComponentNames,\n+          },\n+          initialProps: { \"foo\": \"bar\" } as Record<string, string>,\n+          appKey: \"app_name\",\n+          wrappedCustomRNComponentBuilder: wrappedCustomRNComponentBuilder,\n+          onSetUp: (rnInstance) => {\n+            rnInstance.enableFeatureFlag(\"ENABLE_RN_INSTANCE_CLEAN_UP\")\n+          },\n+          jsBundleProvider: new TraceJSBundleProviderDecorator(\n+            new AnyJSBundleProvider([\n+              new MetroJSBundleProvider(),\n+              // NOTE: to load the bundle from file, place it in\n+              // `/data/app/el2/100/base/com.rnoh.tester/files/bundle.harmony.js`\n+              // on your device. The path mismatch is due to app sandboxing on HarmonyOS\n+              new FileJSBundleProvider('/data/storage/el2/base/files/bundle.harmony.js'),\n+              // new FileJSBundleProvider(context.filesDir + '/' + this.bundlePath),\n+              new ResourceJSBundleProvider(this.rnohCoreContext.uiAbilityContext.resourceManager, 'hermes_bundle.hbc'),\n+              new ResourceJSBundleProvider(this.rnohCoreContext.uiAbilityContext.resourceManager, 'bundle.harmony.js')\n+            ]),\n+            this.rnohCoreContext.logger),\n+        })\n+      }\n+      Text(\"1233333333122 1212323\")\n+    }\n+    .height('100%')\n+    .width('100%')\n+  }\n+}\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/entry/src/main/ets/pages/SurfaceDeadlockTest.ets",
+      "status": "added",
+      "additions": 153,
+      "deletions": 0,
+      "blob_id": "2a7544cfdb08a8c6123dc3c3d541623fe39b2944",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/ets/pages/SurfaceDeadlockTest.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/ets/pages/SurfaceDeadlockTest.ets",
+      "patch": "@@ -0,0 +1,153 @@\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2023 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n+ */\n+import { RNInstance, JSBundleProvider, RNAbility, RNSurface } from '@rnoh/react-native-openharmony'\n+import { CustomComponentBuilder } from \"@rnoh/react-native-openharmony/src/main/ets/RNOHCorePackage\"\n+import { SurfaceConfig2 } from '@rnoh/react-native-openharmony/src/main/ets/RNSurface'\n+\n+\n+@Component\n+export struct SurfaceDeadlockTest {\n+  public jsBundleProvider: JSBundleProvider | undefined = undefined\n+  public appKeys: string[] = []\n+  public numberOfIterations: number = 1\n+  @BuilderParam public buildCustomComponent!: CustomComponentBuilder\n+  // -------------------------------------------------------------------------------------------------------------------\n+  @StorageLink('RNAbility') private rnAbility: RNAbility = {} as RNAbility\n+  private rnInstance!: RNInstance\n+  @State private shouldShow: boolean = false\n+  private shouldDestroyRNInstance: boolean = false\n+  private cleanUpCallbacks: (() => void)[] = []\n+\n+  aboutToAppear() {\n+    this.getOrCreateRNInstance().then(rnInstance => {\n+      this.rnInstance = rnInstance\n+      const jsBundleExecutionStatus = this.rnInstance.getBundleExecutionStatus(this.jsBundleProvider?.getURL())\n+      if (this.jsBundleProvider && jsBundleExecutionStatus === undefined) {\n+        this.rnInstance.runJSBundle(this.jsBundleProvider).then(() => {\n+          this.shouldShow = true\n+        })\n+        return;\n+      }\n+    }).catch((reason: string | Error) => {\n+      if (typeof reason === \"string\")\n+        this.rnAbility.getLogger().error(reason)\n+      else if (reason instanceof Error) {\n+        this.rnAbility.getLogger().error(reason.message)\n+      } else {\n+        this.rnAbility.getLogger().error(\"Fatal exception\")\n+      }\n+    })\n+  }\n+\n+  aboutToDisappear() {\n+    if (this.shouldDestroyRNInstance)\n+      this.rnAbility.destroyAndUnregisterRNInstance(this.rnInstance)\n+    this.cleanUpCallbacks.forEach(cleanUp => cleanUp())\n+  }\n+\n+  private getOrCreateRNInstance(): Promise<RNInstance> {\n+    return this.rnAbility.createAndRegisterRNInstance({ createRNPackages: () => [] })\n+  }\n+\n+  build() {\n+    Stack() {\n+      if (this.shouldShow) {\n+        ForEach(this.appKeys, (appKey: string, idx) => {\n+          Stack() {\n+            Blinker({\n+              minDelayInMs: 1000,\n+              maxDelayInMs: 2000,\n+              blinksCount: this.numberOfIterations,\n+              randomnessPrecisionInMs: 500\n+            }) {\n+              RNSurface({\n+                ctx: this.rnAbility.createRNOHContext({ rnInstance: this.rnInstance }),\n+                surfaceConfig: {\n+                  initialProps: {},\n+                  appKey: appKey,\n+                } as SurfaceConfig2,\n+                buildCustomComponent: this.buildCustomComponent,\n+              })\n+            }\n+          }.height(`${100 / this.appKeys.length}%`)\n+          .position({ x: 0, y: `${(idx / this.appKeys.length) * 100}%` })\n+        })\n+      }\n+    }.width(\"100%\")\n+    .height(\"100%\")\n+  }\n+}\n+\n+\n+@Component\n+struct Blinker {\n+  public minDelayInMs: number = 0\n+  public maxDelayInMs: number = 1000\n+  public blinksCount: number = 0\n+  public randomnessPrecisionInMs: number = 250\n+  @BuilderParam public renderChildren: () => void\n+  private currentBlinksCount = 0\n+  @State private isVisible: boolean = false\n+  private timeout: number = 0\n+\n+  aboutToAppear() {\n+    this.blink(this.minDelayInMs)\n+  }\n+\n+  aboutToDisappear() {\n+    clearTimeout(this.timeout)\n+  }\n+\n+  private blink(ms: number) {\n+    this.isVisible = !this.isVisible\n+    this.currentBlinksCount += 1\n+    if (this.currentBlinksCount >= this.blinksCount) {\n+      if (this.timeout) {\n+        clearTimeout(this.timeout)\n+      }\n+      this.isVisible = true\n+      return;\n+    }\n+    this.timeout = setTimeout(() => {\n+      this.blink(this.getNextDelay())\n+    }, ms)\n+  }\n+\n+  private getNextDelay(): number {\n+    return ((Math.floor(Math.random() * (Number.MAX_VALUE / this.randomnessPrecisionInMs)) * this.randomnessPrecisionInMs) % this.maxDelayInMs) + this.minDelayInMs\n+  }\n+\n+  build() {\n+    Stack() {\n+      if (this.isVisible) {\n+        this.renderChildren()\n+      }\n+    }\n+  }\n+}\n+\n+\n+\n+\n+\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/entry/src/main/ets/pages/TouchDisplayer.ets",
+      "status": "added",
+      "additions": 62,
+      "deletions": 0,
+      "blob_id": "bb003c157f18e43d975ba3fa0c597c74ad4ad4af",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/ets/pages/TouchDisplayer.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/ets/pages/TouchDisplayer.ets",
+      "patch": "@@ -0,0 +1,62 @@\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2023 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n+ */\n+\n+\n+@Component\n+export struct TouchDisplayer {\n+  @State currentTouches: TouchObject[] = []\n+  @State touchIndicatorOpacity: number = 0\n+  @BuilderParam buildChildren: () => void\n+  build() {\n+    Stack() {\n+      this.buildChildren()\n+      ForEach(this.currentTouches, (activeTouch: TouchObject) => {\n+        Stack() {\n+        }\n+        .width(64)\n+        .height(64)\n+        .backgroundColor(\"blue\")\n+        .borderWidth(2)\n+        .borderColor(\"white\")\n+        .opacity(this.touchIndicatorOpacity)\n+        .position({ x: activeTouch.x - 32, y: activeTouch.y - 32 })\n+        .borderRadius(1000)\n+        .hitTestBehavior(HitTestMode.Transparent)\n+      })\n+    }\n+    .width(\"100%\")\n+    .height(\"100%\")\n+    .hitTestBehavior(HitTestMode.Transparent)\n+    .onTouch(e => {\n+      this.currentTouches = e.touches\n+      this.touchIndicatorOpacity = 0.5\n+      animateTo({\n+        duration: 500,\n+        curve: Curve.Linear,\n+      }, () => {\n+        this.touchIndicatorOpacity = 0\n+      })\n+    })\n+  }\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/entry/src/main/module.json5",
+      "status": "added",
+      "additions": 62,
+      "deletions": 0,
+      "blob_id": "b0acc0b454e56a9a3ceee8f02a140cf354d4af30",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/module.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/module.json5",
+      "patch": "@@ -0,0 +1,62 @@\n+{\n+  \"module\": {\n+    \"name\": \"entry\",\n+    \"type\": \"entry\",\n+    \"description\": \"$string:module_desc\",\n+    \"mainElement\": \"EntryAbility\",\n+    \"deviceTypes\": [\n+      \"default\"\n+    ],\n+    \"querySchemes\": [\n+      \"weixin\",\n+    ],\n+    \"deliveryWithInstall\": true,\n+    \"installationFree\": false,\n+    \"pages\": \"$profile:main_pages\",\n+    // below property is supported from 5.0.0 - it is needed by bundleManager.canOpenLink to check if the app can open some url\n+    // \"querySchemes\": [\"maps\", \"http\", \"https\", \"customDomain\"],\n+    \"requestPermissions\": [\n+      {\n+        \"name\": \"ohos.permission.INTERNET\"\n+      },\n+      {\n+        \"name\": \"ohos.permission.MICROPHONE\",\n+        \"reason\": \"$string:Access_Create_Audio\",\n+        \"usedScene\": {\n+          \"abilities\": [\n+            \"EntryAbility\"\n+          ],\n+          \"when\": \"always\"\n+        }\n+      }\n+    ],\n+    \"metadata\": [\n+      {\n+        \"name\": \"OPTLazyForEach\",\n+        \"value\": \"true\",\n+      }\n+    ],\n+    \"abilities\": [\n+      {\n+        \"name\": \"EntryAbility\",\n+        \"srcEntry\": \"./ets/entryability/EntryAbility.ets\",\n+        \"description\": \"$string:EntryAbility_desc\",\n+        \"icon\": \"$media:icon\",\n+        \"label\": \"$string:EntryAbility_label\",\n+        \"startWindowIcon\": \"$media:icon\",\n+        \"startWindowBackground\": \"$color:start_window_background\",\n+        \"visible\": true,\n+        \"skills\": [\n+          {\n+            \"entities\": [\n+              \"entity.system.home\"\n+            ],\n+            \"actions\": [\n+              \"action.system.home\"\n+            ]\n+          }\n+        ]\n+      }\n+    ]\n+  }\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/entry/src/main/resources/.gitignore",
+      "status": "added",
+      "additions": 1,
+      "deletions": 0,
+      "blob_id": "037cea9e70bef8c906560a871a394f748ec2325d",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/resources/.gitignore",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/resources/.gitignore",
+      "patch": "@@ -0,0 +1 @@\n+rawfile/assets\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/entry/src/main/resources/base/element/color.json",
+      "status": "added",
+      "additions": 8,
+      "deletions": 0,
+      "blob_id": "3c712962da3c2751c2b9ddb53559afcbd2b54a02",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/resources/base/element/color.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/resources/base/element/color.json",
+      "patch": "@@ -0,0 +1,8 @@\n+{\n+  \"color\": [\n+    {\n+      \"name\": \"start_window_background\",\n+      \"value\": \"#FFFFFF\"\n+    }\n+  ]\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/entry/src/main/resources/base/element/string.json",
+      "status": "added",
+      "additions": 20,
+      "deletions": 0,
+      "blob_id": "96d88ca95881aaf316cbf0a08ae71b2c13b82c66",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/resources/base/element/string.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/resources/base/element/string.json",
+      "patch": "@@ -0,0 +1,20 @@\n+{\n+  \"string\": [\n+    {\n+      \"name\": \"module_desc\",\n+      \"value\": \"module description\"\n+    },\n+    {\n+      \"name\": \"EntryAbility_desc\",\n+      \"value\": \"description\"\n+    },\n+    {\n+      \"name\": \"EntryAbility_label\",\n+      \"value\": \"RN Tester\"\n+    },\n+    {\n+      \"name\": \"Access_Create_Audio\",\n+      \"value\": \"access create Audio\"\n+    }\n+  ]\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/entry/src/main/resources/base/media/icon.png",
+      "status": "added",
+      "additions": 0,
+      "deletions": 0,
+      "blob_id": "c0f05abe7eb110a3c4958a48f71ea15b28bae5d3",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/resources/base/media/icon.png",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/resources/base/media/icon.png",
+      "patch": "Binary files no preview for this file type",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/entry/src/main/resources/base/profile/main_pages.json",
+      "status": "added",
+      "additions": 5,
+      "deletions": 0,
+      "blob_id": "1898d94f58d6128ab712be2c68acc7c98e9ab9ce",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/resources/base/profile/main_pages.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/resources/base/profile/main_pages.json",
+      "patch": "@@ -0,0 +1,5 @@\n+{\n+  \"src\": [\n+    \"pages/Index\"\n+  ]\n+}\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/entry/src/main/resources/rawfile/1.txt",
+      "status": "added",
+      "additions": 1,
+      "deletions": 0,
+      "blob_id": "71f6ee3dfcd13fad21fc73e697c7c5a3c31ec039",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/resources/rawfile/1.txt",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/entry/src/main/resources/rawfile/1.txt",
+      "patch": "@@ -0,0 +1 @@\n+text test\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/format.ps1",
+      "status": "added",
+      "additions": 36,
+      "deletions": 0,
+      "blob_id": "3aa98a1a934b06821d21b9fc65a13f091a5ba167",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/format.ps1",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/format.ps1",
+      "patch": "@@ -0,0 +1,36 @@\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2023 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n+ */\n+\n+$directoryPath = Split-Path -Parent $MyInvocation.MyCommand.Path\n+$filePaths = Get-ChildItem $directoryPath -Recurse -Include *.h, *.cpp |\n+Where-Object {\n+  $_.DirectoryName -notmatch 'third-party' -and\n+  $_.DirectoryName -notmatch 'patches' -and\n+  $_.DirectoryName -notmatch 'node_modules' -and\n+  $_.DirectoryName -notmatch '.cxx' -and\n+  $_.DirectoryName -notmatch 'build'\n+}\n+foreach ($filePath in $filePaths) {\n+  & \"clang-format.exe\" -style=file -i $filePath.FullName\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/hvigor/.gitignore",
+      "status": "added",
+      "additions": 1,
+      "deletions": 0,
+      "blob_id": "aa1ec1ea0618124672d14a63d00d943240f2db2a",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/hvigor/.gitignore",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/hvigor/.gitignore",
+      "patch": "@@ -0,0 +1 @@\n+*.tgz\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/hvigor/hvigor-config.json5",
+      "status": "added",
+      "additions": 21,
+      "deletions": 0,
+      "blob_id": "c8ba182673e80fbc3da9e614580e9453b718cd3b",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/hvigor/hvigor-config.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/hvigor/hvigor-config.json5",
+      "patch": "@@ -0,0 +1,21 @@\n+{\n+  \"modelVersion\": \"5.0.0\",\n+  \"dependencies\": {\n+  },\n+  \"execution\": {\n+    // \"analyze\": \"default\",                    /* Define the build analyze mode. Value: [ \"default\" | \"verbose\" | false ]. Default: \"default\" */\n+    // \"daemon\": true,                          /* Enable daemon compilation. Value: [ true | false ]. Default: true */\n+    // \"incremental\": true,                     /* Enable incremental compilation. Value: [ true | false ]. Default: true */\n+    // \"parallel\": true,                        /* Enable parallel compilation. Value: [ true | false ]. Default: true */\n+    // \"typeCheck\": false,                      /* Enable typeCheck. Value: [ true | false ]. Default: false */\n+  },\n+  \"logging\": {\n+    // \"level\": \"info\"                          /* Define the log level. Value: [ \"debug\" | \"info\" | \"warn\" | \"error\" ]. Default: \"info\" */\n+  },\n+  \"debugging\": {\n+     \"stacktrace\": false                      /* Disable stacktrace compilation. Value: [ true | false ]. Default: false */\n+  },\n+  \"nodeOptions\": {\n+    // \"maxOldSpaceSize\": 4096                  /* Enable nodeOptions maxOldSpaceSize compilation. Unit M. Used for the daemon process */\n+  }\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/hvigorfile.ts",
+      "status": "added",
+      "additions": 27,
+      "deletions": 0,
+      "blob_id": "1154219d0d1239467659913f49adba577ca92b29",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/hvigorfile.ts",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/hvigorfile.ts",
+      "patch": "@@ -0,0 +1,27 @@\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2023 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n+ */\n+\n+\n+// Script for compiling build behavior. It is built in the build plug-in and cannot be modified currently.\n+export { appTasks } from '@ohos/hvigor-ohos-plugin';\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/harmony/oh-package.json5",
+      "status": "added",
+      "additions": 12,
+      "deletions": 0,
+      "blob_id": "bfb3ae4dd4b6e2320d02a1f02e404e1b75c47a0d",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/oh-package.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/harmony/oh-package.json5",
+      "patch": "@@ -0,0 +1,12 @@\n+{\n+  \"modelVersion\": \"5.0.0\",\n+  \"license\": \"ISC\",\n+  \"name\": \"rnoh\",\n+  \"description\": \"example description\",\n+  \"repository\": {},\n+  \"version\": \"1.0.0\",\n+  \"overrides\": {\n+    \"@rnoh/react-native-openharmony\": \"file:./../node_modules/react-native-harmony/react_native_openharmony.har\"\n+  },\n+  \"dynamicDependencies\": {}\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/index.js",
+      "status": "added",
+      "additions": 29,
+      "deletions": 0,
+      "blob_id": "00c121b7ce1a0421522fbaf98a4c7ebaa55f5cca",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/index.js",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/index.js",
+      "patch": "@@ -0,0 +1,29 @@\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2023 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n+ */\n+\n+import {AppRegistry, View, Text} from 'react-native';\n+import {name as appName} from './app.json';\n+import App from './src/index';\n+\n+AppRegistry.registerComponent(appName, () => App);\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/jest.config.js",
+      "status": "added",
+      "additions": 29,
+      "deletions": 0,
+      "blob_id": "ed85d4f86f59e7b7f34f0377f31f6cf8eaf54e22",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/jest.config.js",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/jest.config.js",
+      "patch": "@@ -0,0 +1,29 @@\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2023 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n+ */\n+\n+/** @type {import('ts-jest').JestConfigWithTsJest} */\n+module.exports = {\n+  preset: 'ts-jest',\n+  testEnvironment: 'node',\n+};\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/metro.config.js",
+      "status": "added",
+      "additions": 48,
+      "deletions": 0,
+      "blob_id": "09a4d87aa11fc8c99cd45e858a1cc54c68d49a02",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/metro.config.js",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/metro.config.js",
+      "patch": "@@ -0,0 +1,48 @@\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2023 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n+ */\n+\n+const {mergeConfig, getDefaultConfig} = require('@react-native/metro-config');\n+const {createHarmonyMetroConfig} = require('react-native-harmony/metro.config');\n+\n+/**\n+ * @type {import(\"metro-config\").ConfigT}\n+ */\n+const config = {\n+  transformer: {\n+    getTransformOptions: async () => ({\n+      transform: {\n+        experimentalImportSupport: false,\n+        inlineRequires: true,\n+      },\n+    }),\n+  },\n+};\n+\n+module.exports = mergeConfig(\n+  getDefaultConfig(__dirname),\n+  createHarmonyMetroConfig({\n+    reactNativeHarmonyPackageName: 'react-native-harmony',\n+  }),\n+  config,\n+);\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/package.json",
+      "status": "added",
+      "additions": 61,
+      "deletions": 0,
+      "blob_id": "6ed9ee605511b132c65327ee3cf54c00a4b8816f",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/package.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/package.json",
+      "patch": "@@ -0,0 +1,61 @@\n+{\n+  \"name\": \"react-native-harmony-tester\",\n+  \"version\": \"1.0.0\",\n+  \"private\": true,\n+  \"scripts\": {\n+    \"i\": \"cd ../ && npm i && npm run pack && cd ./example && npm i\",\n+    \"reStart\": \"npm run install:pkg && npm run codegen && hdc rport tcp:8081 tcp:8081 && react-native start\",\n+    \"start\": \"hdc rport tcp:8081 tcp:8081 && react-native start\",\n+    \"codegen\": \"react-native codegen-harmony --rnoh-module-path ./harmony/entry/oh_modules/@rnoh/react-native-openharmony\",\n+    \"pack:pkg\": \"cd ../ && npm pack && cd ./example\",\n+    \"install:pkg\": \"npm uninstall @react-native-ohos/geolocation && npm run pack:pkg && npm i @react-native-ohos/geolocation@file:../react-native-ohos-geolocation-3.1.1.tgz\",\n+    \"dev\": \"npm run codegen && react-native bundle-harmony --dev --minify=false\",\n+    \"prod\": \"npm run codegen && react-native bundle-harmony --dev=false --minify=true\",\n+    \"postinstall\": \"node ./scripts/create-build-profile\",\n+    \"fast-install-project\": \"cd ../ && npm i --force && npm run pack && rm -r node_modules && cd ./example && npm i --force\",\n+    \"fast:pkg\": \"npm run fast-install-project && npm run dev\"\n+  },\n+  \"dependencies\": {\n+    \"@gorhom/portal\": \"^1.0.14\",\n+    \"@react-native-ohos/geolocation\": \"file:../react-native-ohos-geolocation-3.1.1.tgz\",\n+    \"react\": \"18.3.1\",\n+    \"react-native\": \"0.77.1\",\n+    \"react-native-harmony\": \"npm:@react-native-oh/react-native-harmony@0.77.18-1\",\n+    \"react-native-reanimated\": \"^3.6.0\"\n+  },\n+  \"devDependencies\": {\n+    \"@babel/core\": \"^7.25.2\",\n+    \"@babel/preset-env\": \"^7.25.3\",\n+    \"@babel/runtime\": \"^7.25.0\",\n+    \"@react-native-community/cli\": \"15.0.1\",\n+    \"@react-native-community/cli-platform-android\": \"15.0.1\",\n+    \"@react-native-community/cli-platform-ios\": \"15.0.1\",\n+    \"@react-native-community/eslint-config\": \"^3.2.0\",\n+    \"@react-native/babel-preset\": \"0.77.1\",\n+    \"@react-native/eslint-config\": \"0.77.1\",\n+    \"@react-native/metro-config\": \"^0.77.1\",\n+    \"@react-native/typescript-config\": \"0.77.1\",\n+    \"@rnoh/react-native-harmony-cli\": \"npm:@react-native-oh/react-native-harmony-cli@0.77.18-1\",\n+    \"@tsconfig/react-native\": \"^3.0.0\",\n+    \"@types/d3-scale-chromatic\": \"^3.0.0\",\n+    \"@types/jest\": \"^29.5.13\",\n+    \"@types/react\": \"^18.2.6\",\n+    \"@types/react-test-renderer\": \"^18.0.0\",\n+    \"babel-jest\": \"^29.6.3\",\n+    \"eslint\": \"^8.19.0\",\n+    \"jest\": \"^29.7.0\",\n+    \"metro-react-native-babel-preset\": \"0.76.8\",\n+    \"prettier\": \"2.8.8\",\n+    \"react-test-renderer\": \"18.3.1\",\n+    \"typescript\": \"5.5.4\"\n+  },\n+  \"overrides\": {\n+    \"@react-native-community/cli\": \"15.0.1\"\n+  },\n+ \"resolutions\": {\n+    \"@react-native-community/cli\": \"15.0.1\"\n+ },\n+ \"engines\": {\n+    \"node\": \">=18\"\n+ }\n+}\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/react-native.config.js",
+      "status": "added",
+      "additions": 29,
+      "deletions": 0,
+      "blob_id": "94d5dc9d37e31b0a59b81c90bdcacd4b778209db",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/react-native.config.js",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/react-native.config.js",
+      "patch": "@@ -0,0 +1,29 @@\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2023 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n+ */\n+\n+module.exports = {\n+  project: {\n+  },\n+  assets: ['./assets/fonts/'],\n+};\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/scripts/create-build-profile.js",
+      "status": "added",
+      "additions": 64,
+      "deletions": 0,
+      "blob_id": "ddaeccabc2aea02596076ad50e538f6f53300c01",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/scripts/create-build-profile.js",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/scripts/create-build-profile.js",
+      "patch": "@@ -0,0 +1,64 @@\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2023 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n+ */\n+\n+\n+const fs = require('fs');\n+const JSON5 = require('json5');\n+const path = require('path');\n+\n+const templatePath = path.join(\n+  __dirname,\n+  '..',\n+  'harmony',\n+  'build-profile.template.json5',\n+);\n+const existingProfilePath = path.join(\n+  __dirname,\n+  '..',\n+  'harmony',\n+  'build-profile.json5',\n+);\n+\n+if (fs.existsSync(existingProfilePath)) {\n+  let existingProfile = JSON5.parse(\n+    fs.readFileSync(existingProfilePath, 'utf-8'),\n+  );\n+  let template = JSON5.parse(fs.readFileSync(templatePath, 'utf-8'));\n+  let signingConfigs =\n+    existingProfile.app && existingProfile.app.signingConfigs;\n+\n+  existingProfile = {...template};\n+\n+  if (signingConfigs) {\n+    existingProfile.app.signingConfigs = signingConfigs;\n+  }\n+\n+  fs.writeFileSync(\n+    existingProfilePath,\n+    JSON5.stringify(existingProfile, null, 2),\n+  );\n+} else {\n+  // File doesn't exist, create a copy from the template\n+  fs.copyFileSync(templatePath, existingProfilePath);\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/src/index.tsx",
+      "status": "added",
+      "additions": 40,
+      "deletions": 0,
+      "blob_id": "ab2cd23ec133ce5306861eb4423444029cfaa47c",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/src/index.tsx",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/src/index.tsx",
+      "patch": "@@ -0,0 +1,40 @@\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2023 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n+ */\n+import Geolocation from \"@react-native-community/geolocation\";\n+import { Button } from \"react-native\";\n+import React from 'react';\n+\n+export function GeolocationDemo(): JSX.Element {\n+  const tap = () => {\n+    Geolocation.setRNConfiguration({\n+      skipPermissionRequests: true,\n+      authorizationLevel: \"auto\",\n+      enableBackgroundLocationUpdates: true,\n+      locationProvider: \"auto\",\n+    });\n+    console.log(\"tap\");\n+  };\n+\n+  return <Button title='test' onPress={tap} />;\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "example/tsconfig.json",
+      "status": "added",
+      "additions": 14,
+      "deletions": 0,
+      "blob_id": "f224f67deed574dd019f1e6c17e38055adf63f38",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/tsconfig.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/example/tsconfig.json",
+      "patch": "@@ -0,0 +1,14 @@\n+{\n+  \"extends\": \"@react-native/typescript-config/tsconfig.json\",\n+  \"compilerOptions\": {\n+    \"jsx\": \"react-native\",\n+    \"paths\": {\n+      \"react-native\": [\n+        \"./node_modules/react-native-harmony\"\n+      ],\n+    },\n+  },\n+  \"exclude\": [\n+    \"harmony\"\n+  ]\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "harmony/geolocation/index.ets",
+      "additions": 2,
+      "deletions": 2,
+      "blob_id": "11990c5a91b50f28039f1dd15046b12e4411218d",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/harmony/geolocation/index.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/harmony/geolocation/index.ets",
+      "patch": "@@ -21,6 +21,6 @@\n  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n  * SOFTWARE.\n  */\n-import { GeoLocationPackage } from './src/main/ets/GeoLocationPackage.ets';\n-export * from './ts.ets';\n+import { GeoLocationPackage } from './src/main/ets/GeoLocationPackage';\n+export * from './ts';\n export default GeoLocationPackage;\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "harmony/geolocation/ts.ets",
+      "additions": 2,
+      "deletions": 2,
+      "blob_id": "568a100db8aa12f3abbfe96dd802320f586c7d94",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/harmony/geolocation/ts.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/harmony/geolocation/ts.ets",
+      "patch": "@@ -13,7 +13,7 @@\n  * The above copyright notice and this permission notice shall be included in all\n  * copies or substantial portions of the Software.\n  *\n- * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANT KIND, EXPRESS OR\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n@@ -22,5 +22,5 @@\n  * SOFTWARE.\n  */\n \n-export * from './src/main/ets/GeoLocationPackage.ets'\n+export * from './src/main/ets/GeoLocationPackage'\n export * from './src/main/ets/RNCGeolocationTurboModule'\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "b82058d18d8dfc2ce0f271a7626c52f550795aab",
+      "filename": "package.json",
+      "additions": 1,
+      "deletions": 0,
+      "blob_id": "b819015523e34378d418232c8a00fe49b2be2c88",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/b82058d18d8dfc2ce0f271a7626c52f550795aab/package.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/b82058d18d8dfc2ce0f271a7626c52f550795aab/package.json",
+      "patch": "@@ -33,6 +33,7 @@\n   \"homepage\": \"https://gitcode.com/michalchudziak/react-native-geolocation#README.md\",\n   \"license\": \"MIT\",\n   \"scripts\": {\n+    \"pack\": \"npm pack --ignore-scripts\",\n     \"start\": \"react-native start\",\n     \"test\": \"yarn validate:eslint && yarn validate:typescript && yarn test:jest\",\n     \"validate:eslint\": \"eslint \\\"**/*.{js,ts,tsx}\\\"\",\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    },
+    {
+      "sha": "8480701cca479f184167b1feb86d433196fc3c0a",
+      "filename": "react-native-geolocation.podspec",
+      "status": "deleted",
+      "additions": 0,
+      "deletions": 35,
+      "blob_id": "0000000000000000000000000000000000000000",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-geolocation/blob/8480701cca479f184167b1feb86d433196fc3c0a/react-native-geolocation.podspec",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-geolocation/raw/8480701cca479f184167b1feb86d433196fc3c0a/react-native-geolocation.podspec",
+      "patch": "@@ -1,35 +0,0 @@\n-require 'json'\n-\n-package = JSON.parse(File.read(File.join(__dir__, 'package.json')))\n-folly_compiler_flags = '-DFOLLY_NO_CONFIG -DFOLLY_MOBILE=1 -DFOLLY_USE_LIBCPP=1 -Wno-comma -Wno-shorten-64-to-32'\n-\n-Pod::Spec.new do |s|\n-  s.name         = \"react-native-geolocation\"\n-  s.version      = package['version']\n-  s.summary      = package['description']\n-  s.license      = package['license']\n-\n-  s.authors      = package['author']\n-  s.homepage     = package['homepage']\n-  s.platform     = :ios, \"9.0\"\n-\n-  s.source       = { :git => \"https://github.com/react-native-community/react-native-geolocation.git\", :tag => \"v#{s.version}\" }\n-  s.source_files  = \"ios/**/*.{h,m,mm}\"\n-\n-  s.dependency 'React-Core'\n-  s.frameworks = 'CoreLocation'\n-\n-  if ENV['RCT_NEW_ARCH_ENABLED'] == '1' then\n-    s.compiler_flags = folly_compiler_flags + \" -DRCT_NEW_ARCH_ENABLED=1\"\n-    s.pod_target_xcconfig    = {\n-        \"HEADER_SEARCH_PATHS\" => \"\\\"$(PODS_ROOT)/boost\\\"\",\n-        \"CLANG_CXX_LANGUAGE_STANDARD\" => \"c++17\"\n-    }\n-\n-    s.dependency \"React-Codegen\"\n-    s.dependency \"RCT-Folly\"\n-    s.dependency \"RCTRequired\"\n-    s.dependency \"RCTTypeSafety\"\n-    s.dependency \"ReactCommon/turbomodule/core\"\n-  end\n-end\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10300112,
+        "full_name": "chenbaodi123/rntpc_react-native-geolocation",
+        "human_name": "chenbaodi123 / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      },
+      "target_project": {
+        "id": 4369198,
+        "full_name": "CPF-RN/rntpc_react-native-geolocation",
+        "human_name": "CPF-RN / rntpc_react-native-geolocation",
+        "path": "rntpc_react-native-geolocation"
+      }
+    }
+  ]
+}

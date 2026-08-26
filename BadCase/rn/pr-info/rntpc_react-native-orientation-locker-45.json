@@ -1,0 +1,1626 @@
+{
+  "pr": {
+    "id": 8991788,
+    "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/merge_requests/45",
+    "number": 45,
+    "state": "merged",
+    "title": "fix:加速度传感器需要在使用的时候再打开，而不是初始化的时候打开",
+    "url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-orientation-locker/pulls/45",
+    "issue_url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-orientation-locker/pulls/45/issues",
+    "body": "fix:加速度传感器需要在使用的时候再打开，而不是初始化的时候打开",
+    "assignees_number": 3,
+    "assignees": [
+      {
+        "id": "6731c8f2fbbddc0c200a6019",
+        "login": "zhu_chengcheng",
+        "name": "zhu_chengcheng",
+        "avatar_url": "https://cdn-img.gitcode.com/fe/bd/f406eb600317d9bbb6a5c23042b49e5193dfbb7a63ee407f5bbfcbabcd177af1.jpg",
+        "html_url": "https://gitcode.com/zhu_chengcheng",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      },
+      {
+        "id": "67fdb69df01e3c566929edd4",
+        "login": "gcw_N7oHqLFR",
+        "name": "huang_jy",
+        "avatar_url": "",
+        "html_url": "https://gitcode.com/gcw_N7oHqLFR",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      },
+      {
+        "id": "67316e3733741160e6751351",
+        "login": "dingchengjie",
+        "name": "dingchengjie",
+        "avatar_url": "https://cdn-img.gitcode.com/fa/ed/6fa18810e4276d04d77bccf2f37c2287b44631cdcae7587fc4446f0bd79c2ed3.png",
+        "html_url": "https://gitcode.com/dingchengjie",
+        "assignee": true,
+        "code_owner": false,
+        "accept": true
+      }
+    ],
+    "testers": [
+      {
+        "id": "6541ccea82d8f837210e92c3",
+        "login": "openharmony_ci",
+        "name": "openharmony_ci",
+        "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+        "html_url": "https://gitcode.com/openharmony_ci",
+        "assignee": false,
+        "code_owner": false,
+        "accept": true
+      }
+    ],
+    "approval_reviewers": [],
+    "labels": [
+      {
+        "id": 13245693,
+        "color": "#428BCA",
+        "name": "dco检查成功",
+        "repository_id": 4368861,
+        "created_at": "2026-07-07T17:22:19+08:00",
+        "updated_at": "2026-08-06T11:30:12+08:00"
+      },
+      {
+        "id": 13246086,
+        "color": "#428BCA",
+        "name": "编译成功",
+        "repository_id": 4368861,
+        "created_at": "2026-07-09T10:15:31+08:00",
+        "updated_at": "2026-08-06T19:29:26+08:00"
+      },
+      {
+        "id": 13245696,
+        "color": "#428BCA",
+        "name": "静态检查成功",
+        "repository_id": 4368861,
+        "created_at": "2026-07-07T17:33:39+08:00",
+        "updated_at": "2026-08-06T19:29:34+08:00"
+      }
+    ],
+    "created_at": "2026-08-06T11:29:27+08:00",
+    "updated_at": "2026-08-06T21:41:30+08:00",
+    "closed_at": "2026-08-06T21:41:29+08:00",
+    "merged_at": "2026-08-06T21:41:29+08:00",
+    "merged_by": {
+      "id": "6541ccea82d8f837210e92c3",
+      "login": "openharmony_ci",
+      "name": "openharmony_ci",
+      "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+      "html_url": "https://gitcode.com/openharmony_ci"
+    },
+    "draft": false,
+    "can_merge_check": true,
+    "prune_branch": false,
+    "mergeable": true,
+    "user": {
+      "id": "66f4e6edca8388106d213150",
+      "login": "qq_434633291111",
+      "name": "wupingyuan",
+      "avatar_url": "https://cdn-img.gitcode.com/db/bc/dbbc52140cd3dd95d893359fd9341924a707304a0b81ab802ff56cf008923f45.png",
+      "html_url": "https://gitcode.com/qq_434633291111"
+    },
+    "head": {
+      "ref": "br_rnoh0.77",
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "label": "br_rnoh0.77",
+      "repo": {
+        "path": "rntpc_react-native-orientation-locker",
+        "name": "rntpc_react-native-orientation-locker",
+        "namespace": {
+          "path": "qq_434633291111"
+        },
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "html_url": "https://gitcode.com/qq_434633291111/rntpc_react-native-orientation-locker.git"
+      },
+      "user": {
+        "id": "66f4e6edca8388106d213150",
+        "login": "qq_434633291111",
+        "name": "wupingyuan",
+        "avatar_url": "https://cdn-img.gitcode.com/db/bc/dbbc52140cd3dd95d893359fd9341924a707304a0b81ab802ff56cf008923f45.png",
+        "html_url": "https://gitcode.com/qq_434633291111"
+      }
+    },
+    "base": {
+      "ref": "br_rnoh0.77",
+      "sha": "27a6f2f6d8a554ad24f2c9139971ed72c39ed720",
+      "label": "br_rnoh0.77",
+      "repo": {
+        "path": "rntpc_react-native-orientation-locker",
+        "name": "rntpc_react-native-orientation-locker",
+        "namespace": {
+          "path": "CPF-RN"
+        },
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker.git"
+      }
+    },
+    "mergeable_state": {
+      "merge_request_id": 8991788,
+      "state": true,
+      "status_without_user_auth": true,
+      "conflict_passed": true,
+      "branch_missing_passed": true,
+      "non_ff_passed": true,
+      "mr_state_passed": true,
+      "merged_by_user_passed": true,
+      "work_in_progress_passed": true,
+      "resolve_discussion_passed": true,
+      "ci_state_passed": true,
+      "merge_by_self_passed": true,
+      "can_force_merge": true,
+      "approval_reviewers_required_passed": true,
+      "approval_approvers_required_passed": true,
+      "approval_testers_required_passed": true,
+      "merge_request_switch": {
+        "review_mode": "approval",
+        "merge_method": "merge",
+        "only_allow_merge_if_all_discussions_are_resolved": true,
+        "disable_merge_by_self": true,
+        "only_allow_merge_if_pipeline_succeeds": false,
+        "disable_squash_merge": false,
+        "squash_merge_with_no_merge_commit": false,
+        "approval_required_reviewers_count": 0,
+        "approval_required_reviewers_branch": "*",
+        "add_notes_after_merged": true,
+        "mark_auto_merged_mr_as_closed": false,
+        "can_force_merge": true,
+        "can_reopen": true
+      },
+      "reason": {},
+      "check_tasks_num": 2,
+      "all_depend_merge_request_merged_passed": true,
+      "approval_approvers_result": 2,
+      "approval_testers_result": 2
+    },
+    "visibility_reason": "public",
+    "close_related_issue": true,
+    "squash_merge": false
+  },
+  "files": [
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": ".npmignore",
+      "additions": 3,
+      "deletions": 0,
+      "blob_id": "38f460342dbb25f5d54db8c2c7e29273573cf375",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/.npmignore",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/.npmignore",
+      "patch": "@@ -49,3 +49,6 @@ yarn-error.log\n .git\n .watchmanconfig\n .history\n+*.tgz\n+example\n+build\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/.eslintrc",
+      "status": "added",
+      "additions": 19,
+      "deletions": 0,
+      "blob_id": "53b521e59795fa578228fcfdee48af6501ed352f",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/.eslintrc",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/.eslintrc",
+      "patch": "@@ -0,0 +1,19 @@\n+/*\n+ * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n+ * Use of this source code is governed by a MIT license that can be\n+ * found in the LICENSE file.\n+ */\n+\n+{\n+  \"extends\": \"@react-native\",\n+  \"rules\": {\n+    \"react-native/no-inline-styles\": \"off\",\n+    \"react/no-unstable-nested-components\": \"off\",\n+    \"react/react-in-jsx-scope\": \"off\",\n+    \"@typescript-eslint/no-unused-vars\": \"warn\",\n+    \"react-hooks/exhaustive-deps\": \"off\",\n+    \"radix\": \"off\",\n+    \"prettier/prettier\": \"warn\",\n+    \"max-lines\": \"off\"\n+  }\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/.gitignore",
+      "status": "added",
+      "additions": 71,
+      "deletions": 0,
+      "blob_id": "7613cdedd309866629ce9ae75eb3855ea0849f0a",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/.gitignore",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/.gitignore",
+      "patch": "@@ -0,0 +1,71 @@\n+.husky\n+bundle.harmony.js\n+package-lock.json\n+*.hbc\n+lintCppResult.txt\n+\n+# ---\n+\n+# OSX\n+#\n+.DS_Store\n+\n+# Xcode\n+#\n+build/\n+*.pbxuser\n+!default.pbxuser\n+*.mode1v3\n+!default.mode1v3\n+*.mode2v3\n+!default.mode2v3\n+*.perspectivev3\n+!default.perspectivev3\n+xcuserdata\n+*.xccheckout\n+*.moved-aside\n+DerivedData\n+*.hmap\n+*.ipa\n+*.xcuserstate\n+\n+# Android/IntelliJ\n+#\n+build/\n+.idea\n+.gradle\n+local.properties\n+*.iml\n+*.hprof\n+.cxx/\n+*.keystore\n+!debug.keystore\n+BuildProfile.ets\n+\n+# node.js\n+#\n+node_modules/\n+npm-debug.log\n+yarn-error.log\n+\n+# fastlane\n+#\n+# It is recommended to not store the screenshots in the git repo. Instead, use fastlane to re-generate the\n+# screenshots whenever they are needed.\n+# For more information about the recommended setup visit:\n+# https://docs.fastlane.tools/best-practices/source-control/\n+\n+**/fastlane/report.xml\n+**/fastlane/Preview.html\n+**/fastlane/screenshots\n+**/fastlane/test_output\n+\n+# Bundle artifact\n+*.jsbundle\n+\n+# Ruby / CocoaPods\n+/vendor/bundle/\n+\n+# Temporary files created by Metro to check the health of the file watcher\n+.metro-health-check*\n+*.htrace\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/.node-version",
+      "status": "added",
+      "additions": 6,
+      "deletions": 0,
+      "blob_id": "0b340785231a7dd0a43f008cbcf785d91d33b253",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/.node-version",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/.node-version",
+      "patch": "@@ -0,0 +1,6 @@\n+/*\n+ * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n+ * Use of this source code is governed by a MIT license that can be\n+ * found in the LICENSE file.\n+ */\n+18\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/.prettierrc.js",
+      "status": "added",
+      "additions": 7,
+      "deletions": 0,
+      "blob_id": "2ae7b381ed9590ddf3ba512a496dc8d53dadeea0",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/.prettierrc.js",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/.prettierrc.js",
+      "patch": "@@ -0,0 +1,7 @@\n+module.exports = {\n+  arrowParens: 'avoid',\n+  bracketSameLine: true,\n+  bracketSpacing: true,\n+  singleQuote: true,\n+  trailingComma: 'all',\n+};\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/.watchmanconfig",
+      "status": "added",
+      "additions": 6,
+      "deletions": 0,
+      "blob_id": "c8817eae530b549f6ec94218880ce380e5e766ac",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/.watchmanconfig",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/.watchmanconfig",
+      "patch": "@@ -0,0 +1,6 @@\n+/*\n+ * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n+ * Use of this source code is governed by a MIT license that can be\n+ * found in the LICENSE file.\n+ */\n+{}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/app.json",
+      "status": "added",
+      "additions": 4,
+      "deletions": 0,
+      "blob_id": "7586f6fa99a6680a35a27fac7255ba721880d461",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/app.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/app.json",
+      "patch": "@@ -0,0 +1,4 @@\n+{\n+  \"name\": \"app_name\",\n+  \"displayName\": \"tester\"\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/babel.config.js",
+      "status": "added",
+      "additions": 6,
+      "deletions": 0,
+      "blob_id": "0f949a1078e3be59a12aba2f23bb75503a39235e",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/babel.config.js",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/babel.config.js",
+      "patch": "@@ -0,0 +1,6 @@\n+module.exports = {\n+  presets: ['module:@react-native/babel-preset'],\n+  plugins: [\n+    'react-native-reanimated/plugin',\n+  ],\n+};\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/contexts.ts",
+      "status": "added",
+      "additions": 9,
+      "deletions": 0,
+      "blob_id": "9e6e247f88330a6d5140eeed49768d7081a2944f",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/contexts.ts",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/contexts.ts",
+      "patch": "@@ -0,0 +1,9 @@\n+/*\n+ * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n+ * Use of this source code is governed by a MIT license that can be\n+ * found in the LICENSE file.\n+ */\n+\n+import React from 'react';\n+\n+export const AppParamsContext = React.createContext(undefined);\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/.gitignore",
+      "status": "added",
+      "additions": 22,
+      "deletions": 0,
+      "blob_id": "4b0cf5631be8eb7e5477eebbf2f86e103efdcbeb",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/.gitignore",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/.gitignore",
+      "patch": "@@ -0,0 +1,22 @@\n+# it may cause some issues when building the project when switching branches\n+package-lock.json\n+# we add this because we want to keep the signing configs out of git\n+rnoh_modules\n+\n+**/oh-package-lock.json5\n+# ---\n+\n+/node_modules\n+/local.properties\n+/.idea\n+**/build\n+/.hvigor\n+.cxx\n+/.clangd\n+/.clang-format\n+/.clang-tidy\n+/oh_modules\n+hvigorw\n+hvigorw.bat\n+hvigor/hvigor-wrapper.js\n+\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/AppScope/app.json5",
+      "status": "added",
+      "additions": 10,
+      "deletions": 0,
+      "blob_id": "058bd391dac60928a1857aa31e4b0f712a7bc743",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/AppScope/app.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/AppScope/app.json5",
+      "patch": "@@ -0,0 +1,10 @@\n+{\n+  \"app\": {\n+    \"bundleName\": \"com.harmony.wechat.lib.demo\",\n+    \"vendor\": \"example\",\n+    \"versionCode\": 1000000,\n+    \"versionName\": \"1.0.0\",\n+    \"icon\": \"$media:app_icon\",\n+    \"label\": \"$string:app_name\"\n+  }\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/AppScope/resources/base/element/string.json",
+      "status": "added",
+      "additions": 8,
+      "deletions": 0,
+      "blob_id": "698a720065342ae0dadad63eb87d45fec8725f36",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/AppScope/resources/base/element/string.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/AppScope/resources/base/element/string.json",
+      "patch": "@@ -0,0 +1,8 @@\n+{\n+  \"string\": [\n+    {\n+      \"name\": \"app_name\",\n+      \"value\": \"RN Tester\"\n+    }\n+  ]\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/AppScope/resources/base/media/app_icon.png",
+      "status": "added",
+      "additions": 0,
+      "deletions": 0,
+      "blob_id": "ce307a8827bd75456441ceb57d530e4c8d45d36c",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/AppScope/resources/base/media/app_icon.png",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/AppScope/resources/base/media/app_icon.png",
+      "patch": "Binary files no preview for this file type",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/build-profile.template.json5",
+      "status": "added",
+      "additions": 40,
+      "deletions": 0,
+      "blob_id": "d048cbbb5908138ce147c06cf4ca44d49b1cc100",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/build-profile.template.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/build-profile.template.json5",
+      "patch": "@@ -0,0 +1,40 @@\n+{\n+  \"app\": {\n+    \"signingConfigs\": [\n+    ],\n+    \"products\": [\n+      {\n+        \"name\": \"default\",\n+        \"signingConfig\": \"default\",\n+        \"compatibleSdkVersion\": \"5.0.0(12)\",\n+        \"runtimeOS\": \"HarmonyOS\"\n+      }\n+    ],\n+    \"buildModeSet\": [\n+      {\n+        \"name\": \"debug\",\n+      },\n+      {\n+        \"name\": \"release\"\n+      }\n+    ]\n+  },\n+  \"modules\": [\n+    {\n+      \"name\": \"entry\",\n+      \"srcPath\": \"./entry\",\n+      \"targets\": [\n+        {\n+          \"name\": \"default\",\n+          \"applyToProducts\": [\n+            \"default\"\n+          ]\n+        }\n+      ]\n+    },\n+    {\n+      name: 'orientation_locker',\n+      srcPath: '../../harmony/orientation_locker',\n+    }\n+  ]\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/codelinter.json",
+      "status": "added",
+      "additions": 32,
+      "deletions": 0,
+      "blob_id": "e7f91acb037aeda939967a042f16033f4c6e21b9",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/codelinter.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/codelinter.json",
+      "patch": "@@ -0,0 +1,32 @@\n+{\n+  \"files\": [\"**/*.ts\", \"**/*.ets\"],\n+  \"ignore\": [\n+    \"**/ohosTest/**/*\",\n+    \"**/node_modules/**/*\",\n+    \"**/hvigorfile.ts\",\n+    \"**/node_modules/**/*\",\n+    \"**/oh_modules/**/*\",\n+    \"**/build/**/*\",\n+    \"**/.preview/**/*\"\n+  ],\n+  \"plugins\": [\"@typescript-eslint\"],\n+  \"ruleSet\": [],\n+  \"rules\": {\n+    \"@typescript-eslint/await-thenable\": \"warn\",\n+    \"@typescript-eslint/consistent-type-imports\": \"warn\",\n+    \"@typescript-eslint/explicit-function-return-type\": \"warn\",\n+    \"@typescript-eslint/explicit-module-boundary-types\": \"warn\",\n+    \"@typescript-eslint/no-dynamic-delete\": \"warn\",\n+    \"@typescript-eslint/no-explicit-any\": \"warn\",\n+    \"@typescript-eslint/no-for-in-array\": \"warn\",\n+    \"@typescript-eslint/no-this-alias\": \"warn\",\n+    \"@typescript-eslint/no-unnecessary-type-constraint\": \"warn\",\n+    \"@typescript-eslint/no-unsafe-argument\": \"warn\",\n+    \"@typescript-eslint/no-unsafe-assignment\": \"warn\",\n+    \"@typescript-eslint/no-unsafe-call\": \"warn\",\n+    \"@typescript-eslint/no-unsafe-member-access\": \"warn\",\n+    \"@typescript-eslint/no-unsafe-return\": \"warn\",\n+    \"@typescript-eslint/prefer-literal-enum-member\": \"warn\"\n+  },\n+  \"overrides\": []\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/entry/.gitignore",
+      "status": "added",
+      "additions": 7,
+      "deletions": 0,
+      "blob_id": "bbc049cfeb689c61d6c2922810f652cbb19aad21",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/.gitignore",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/.gitignore",
+      "patch": "@@ -0,0 +1,7 @@\n+/node_modules\n+/.preview\n+/build\n+/.cxx\n+package-lock.json\n+/oh_modules\n+/assets\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/entry/build-profile.json5",
+      "status": "added",
+      "additions": 21,
+      "deletions": 0,
+      "blob_id": "c7dfe66d23da874dda6a8b3fe0d4518e30b1adb3",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/build-profile.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/build-profile.json5",
+      "patch": "@@ -0,0 +1,21 @@\n+{\n+  \"apiType\": 'stageMode',\n+  \"buildOption\": {\n+    \"externalNativeOptions\": {\n+      \"path\": \"./src/main/cpp/CMakeLists.txt\",\n+      \"arguments\": \"\",\n+      \"cppFlags\": \"-s\",\n+      \"abiFilters\": [\n+        \"arm64-v8a\"\n+      ]\n+    }\n+  },\n+  \"targets\": [\n+    {\n+      \"name\": \"default\",\n+    },\n+    {\n+      \"name\": \"ohosTest\",\n+    }\n+  ]\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/entry/hvigorfile.ts",
+      "status": "added",
+      "additions": 8,
+      "deletions": 0,
+      "blob_id": "b56e312a0678edd7005549245f0c148b446b750b",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/hvigorfile.ts",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/hvigorfile.ts",
+      "patch": "@@ -0,0 +1,8 @@\n+/*\n+ * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n+ * Use of this source code is governed by a MIT license that can be\n+ * found in the LICENSE file.\n+ */\n+\n+// Script for compiling build behavior. It is built in the build plug-in and cannot be modified currently.\n+export { hapTasks } from '@ohos/hvigor-ohos-plugin';\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/entry/oh-package.json5",
+      "status": "added",
+      "additions": 11,
+      "deletions": 0,
+      "blob_id": "85c9a6ab40a8353c49e22ac9eddf880b204d7c31",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/oh-package.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/oh-package.json5",
+      "patch": "@@ -0,0 +1,11 @@\n+{\n+  \"license\": \"ISC\",\n+  \"devDependencies\": {},\n+  \"name\": \"entry\",\n+  \"description\": \"example description\",\n+  \"version\": \"1.0.0\",\n+  \"dependencies\": {\n+    \"@rnoh/react-native-openharmony\": \"file:../../node_modules/react-native-harmony/harmony/react_native_openharmony.har\",\n+     \"@react-native-ohos/react-native-orientation-locker\": \"file:../../node_modules/@react-native-ohos/react-native-orientation-locker/harmony/orientation_locker.har\"\n+  }\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/entry/src/main/cpp/.gitignore",
+      "status": "added",
+      "additions": 2,
+      "deletions": 0,
+      "blob_id": "881dde5479f322de9db2b2bb98fd94a95f73715e",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/cpp/.gitignore",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/cpp/.gitignore",
+      "patch": "@@ -0,0 +1,2 @@\n+jsbundle.h\n+generated/\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/entry/src/main/cpp/CMakeLists.txt",
+      "status": "added",
+      "additions": 38,
+      "deletions": 0,
+      "blob_id": "a12acb66bac5bd46d238a8885f1dac93e4297789",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/cpp/CMakeLists.txt",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/cpp/CMakeLists.txt",
+      "patch": "@@ -0,0 +1,38 @@\n+project(rnapp)\n+cmake_minimum_required(VERSION 3.4.1)\n+set(CMAKE_SKIP_BUILD_RPATH TRUE)\n+set(RNOH_APP_DIR \"${CMAKE_CURRENT_SOURCE_DIR}\")\n+set(NODE_MODULES \"${CMAKE_CURRENT_SOURCE_DIR}/../../../../../node_modules\")\n+set(OH_MODULE_DIR \"${CMAKE_CURRENT_SOURCE_DIR}/../../../oh_modules\")\n+set(RNOH_CPP_DIR \"${CMAKE_CURRENT_SOURCE_DIR}/../../../oh_modules/@rnoh/react-native-openharmony/src/main/cpp\")\n+set(RNOH_GENERATED_DIR \"${CMAKE_CURRENT_SOURCE_DIR}/generated\")\n+set(LOG_VERBOSITY_LEVEL 1)\n+set(CMAKE_ASM_FLAGS \"-Wno-error=unused-command-line-argument -Qunused-arguments\")\n+set(CMAKE_CXX_FLAGS \"-fstack-protector-strong -Wl,-z,relro,-z,now,-z,noexecstack -s -fPIE -pie\")\n+set(OH_MODULES \"${CMAKE_CURRENT_SOURCE_DIR}/../../../oh_modules\")\n+\n+set(WITH_HITRACE_SYSTRACE 1) # for other CMakeLists.txt files to use\n+add_compile_definitions(WITH_HITRACE_SYSTRACE)\n+\n+# (VM) Define a variable and assign it to the current module's cpp directory\n+set(NATIVERENDER_ROOT_PATH ${CMAKE_CURRENT_SOURCE_DIR})\n+\n+# Add the Header File directory, including cpp, cpp/include, and tell cmake to find the Header Files introduced by the code here\n+include_directories(${NATIVERENDER_ROOT_PATH}\n+                    ${NATIVERENDER_ROOT_PATH}/include)\n+\n+add_subdirectory(\"${RNOH_CPP_DIR}\" ./rn)\n+\n+# RNOH_BEGIN: manual_package_linking_1\n+add_subdirectory(\"${OH_MODULES}/@react-native-ohos/react-native-orientation-locker/src/main/cpp\" ./orientation-locker)\n+# RNOH_END: manual_package_linking_1\n+\n+add_library(rnoh_app SHARED\n+    \"./PackageProvider.cpp\"\n+    \"${RNOH_CPP_DIR}/RNOHAppNapiBridge.cpp\"\n+)\n+target_link_libraries(rnoh_app PUBLIC rnoh)\n+\n+# RNOH_BEGIN: manual_package_linking_2\n+target_link_libraries(rnoh_app PUBLIC rnoh_orientation_locker)\n+# RNOH_END: manual_package_linking_2\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/entry/src/main/cpp/PackageProvider.cpp",
+      "status": "added",
+      "additions": 15,
+      "deletions": 0,
+      "blob_id": "5104e8254e8c93d7680b5da9def786ee6bbc8800",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/cpp/PackageProvider.cpp",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/cpp/PackageProvider.cpp",
+      "patch": "@@ -0,0 +1,15 @@\n+// Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n+// Use of this source code is governed by a MIT license that can be\n+// found in the LICENSE file.\n+\n+#include \"RNOH/PackageProvider.h\"\n+#include \"OrientationLockerPackage.h\"\n+\n+using namespace rnoh;\n+\n+std::vector<std::shared_ptr<Package>> PackageProvider::getPackages(Package::Context ctx)\n+{\n+    return {\n+        std::make_shared<OrientationLockerPackage>(ctx),\n+    };\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/entry/src/main/ets/RNPackagesFactory.ets",
+      "status": "added",
+      "additions": 15,
+      "deletions": 0,
+      "blob_id": "42976ae171623e08ce88b8ed3447f41018018798",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/ets/RNPackagesFactory.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/ets/RNPackagesFactory.ets",
+      "patch": "@@ -0,0 +1,15 @@\n+/*\n+ * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n+ * Use of this source code is governed by a MIT license that can be\n+ * found in the LICENSE file.\n+ */\n+\n+\n+import type {RNPackageContext, RNPackage} from '@rnoh/react-native-openharmony/ts';\n+import { RNOrientationLockerPackage } from \"@react-native-ohos/react-native-orientation-locker/ts\";\n+\n+export function createRNPackages(ctx: RNPackageContext): RNPackage[] {\n+  return [\n+    new RNOrientationLockerPackage(ctx)\n+  ];\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/entry/src/main/ets/assets/fonts/Pacifico-Regular.ttf",
+      "status": "added",
+      "additions": 0,
+      "deletions": 0,
+      "blob_id": "e7def95d3f44c82086f6e74d93fc0aadac7c454a",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/ets/assets/fonts/Pacifico-Regular.ttf",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/ets/assets/fonts/Pacifico-Regular.ttf",
+      "patch": "Binary files no preview for this file type",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/entry/src/main/ets/assets/fonts/StintUltraCondensed-Regular.ttf",
+      "status": "added",
+      "additions": 0,
+      "deletions": 0,
+      "blob_id": "25c749e167bd5beef18360b13ae660f1c10ebc62",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/ets/assets/fonts/StintUltraCondensed-Regular.ttf",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/ets/assets/fonts/StintUltraCondensed-Regular.ttf",
+      "patch": "Binary files no preview for this file type",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/entry/src/main/ets/entryability/EntryAbility.ets",
+      "status": "added",
+      "additions": 27,
+      "deletions": 0,
+      "blob_id": "8b3bab8c92169005e9b0c90e5e29da693e04c6ef",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/ets/entryability/EntryAbility.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/ets/entryability/EntryAbility.ets",
+      "patch": "@@ -0,0 +1,27 @@\n+/*\n+ * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n+ * Use of this source code is governed by a MIT license that can be\n+ * found in the LICENSE file.\n+ */\n+\n+import {RNAbility} from '@rnoh/react-native-openharmony';\n+import { AbilityConstant, Want } from '@kit.AbilityKit';\n+\n+export default class EntryAbility extends RNAbility {\n+\n+  onCreate(want: Want) {\n+    super.onCreate(want)\n+    this.handleWeChatCallIfNeed(want)\n+  }\n+\n+  getPagePath() {\n+    return 'pages/Index';\n+  }\n+\n+  onNewWant(want: Want, _launchParam: AbilityConstant.LaunchParam): void {\n+    this.handleWeChatCallIfNeed(want)\n+  }\n+\n+  private handleWeChatCallIfNeed(want: Want) {\n+  }\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/entry/src/main/ets/pages/Index.ets",
+      "status": "added",
+      "additions": 113,
+      "deletions": 0,
+      "blob_id": "39406e6343fadfc1b7c34cf2e4a817e7c4766a05",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/ets/pages/Index.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/ets/pages/Index.ets",
+      "patch": "@@ -0,0 +1,113 @@\n+/*\n+ * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n+ * Use of this source code is governed by a MIT license that can be\n+ * found in the LICENSE file.\n+ */\n+\n+import {\n+  AnyJSBundleProvider,\n+  ComponentBuilderContext,\n+  FileJSBundleProvider,\n+  MetroJSBundleProvider,\n+  ResourceJSBundleProvider,\n+  RNApp,\n+  RNOHErrorDialog,\n+  RNOHLogger,\n+  TraceJSBundleProviderDecorator,\n+  RNOHCoreContext\n+} from '@rnoh/react-native-openharmony';\n+import font from '@ohos.font';\n+import { createRNPackages } from '../RNPackagesFactory';\n+import common from '@ohos.app.ability.common';\n+import BuildProfile from 'BuildProfile';\n+\n+\n+let context = getContext(this) as common.UIAbilityContext;\n+@Builder\n+export function buildCustomRNComponent(ctx: ComponentBuilderContext) {\n+  // There seems to be a problem with the placement of ArkTS components in mixed mode. Nested Stack temporarily avoided.\n+  Stack() {\n+  }\n+  .position({ x: 0, y: 0 })\n+\n+}\n+\n+const wrappedCustomRNComponentBuilder = wrapBuilder(buildCustomRNComponent)\n+\n+/**\n+ * If you want to use custom fonts, you need to register them here.\n+ * We should support react-native-asset to handle registering fonts automatically.\n+ */\n+const fonts: font.FontOptions[] = [\n+  {\n+    familyName: 'Pacifico-Regular',\n+    familySrc: '/assets/fonts/Pacifico-Regular.ttf'\n+  },\n+  {\n+    familyName: 'StintUltraCondensed-Regular',\n+    familySrc: '/assets/fonts/StintUltraCondensed-Regular.ttf'\n+  }\n+]\n+\n+@Entry\n+@Component\n+struct Index {\n+  @StorageLink('RNOHCoreContext') private rnohCoreContext: RNOHCoreContext | undefined = undefined\n+  @State shouldShow: boolean = false\n+  private logger!: RNOHLogger\n+  bundlePath: string = 'bundle.harmony.js'\n+  @State hasBundle: boolean = false\n+\n+  aboutToAppear() {\n+    this.logger = this.rnohCoreContext!.logger.clone(\"Index\")\n+    const stopTracing = this.logger.clone(\"aboutToAppear\").startTracing()\n+    for (const customFont of fonts) {\n+      font.registerFont(customFont)\n+    }\n+    this.shouldShow = true\n+    stopTracing()\n+  }\n+\n+  onBackPress(): boolean | undefined {\n+    // NOTE: this is required since `Ability`'s `onBackPressed` function always\n+    // terminates or puts the app in the background, but we want Ark to ignore it completely\n+    // when handled by RN\n+    this.rnohCoreContext!.dispatchBackPress()\n+    return true\n+  }\n+\n+  build() {\n+    Column() {\n+      if (this.rnohCoreContext && this.shouldShow) {\n+        if (this.rnohCoreContext?.isDebugModeEnabled) {\n+          RNOHErrorDialog({ ctx: this.rnohCoreContext })\n+        }\n+        RNApp({\n+          rnInstanceConfig: {\n+            createRNPackages,\n+            enableNDKTextMeasuring: true,\n+            enableBackgroundExecutor: false,\n+            enableCAPIArchitecture: true,\n+            arkTsComponentNames: [],\n+          },\n+          initialProps: { \"foo\": \"bar\" } as Record<string, string>,\n+          appKey: \"app_name\",\n+          wrappedCustomRNComponentBuilder: wrappedCustomRNComponentBuilder,\n+          onSetUp: (rnInstance) => {\n+            rnInstance.enableFeatureFlag(\"ENABLE_RN_INSTANCE_CLEAN_UP\")\n+          },\n+          jsBundleProvider: new TraceJSBundleProviderDecorator(\n+            new AnyJSBundleProvider([\n+              new MetroJSBundleProvider(),\n+              new FileJSBundleProvider(context.filesDir + '/Bundles/' + this.bundlePath),\n+              new ResourceJSBundleProvider(this.rnohCoreContext.uiAbilityContext.resourceManager, 'hermes_bundle.hbc'),\n+              new ResourceJSBundleProvider(this.rnohCoreContext.uiAbilityContext.resourceManager, 'bundle.harmony.js')\n+            ]),\n+            this.rnohCoreContext.logger),\n+        })\n+      }\n+    }\n+    .height('100%')\n+    .width('100%')\n+  }\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/entry/src/main/ets/pages/SurfaceDeadlockTest.ets",
+      "status": "added",
+      "additions": 135,
+      "deletions": 0,
+      "blob_id": "88e4439681c4981d7ab7e1b87a46653a9e5a9c35",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/ets/pages/SurfaceDeadlockTest.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/ets/pages/SurfaceDeadlockTest.ets",
+      "patch": "@@ -0,0 +1,135 @@\n+/*\n+ * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n+ * Use of this source code is governed by a MIT license that can be\n+ * found in the LICENSE file.\n+ */\n+import { RNInstance, JSBundleProvider, RNAbility, RNSurface } from '@rnoh/react-native-openharmony'\n+import { CustomComponentBuilder } from \"@rnoh/react-native-openharmony/src/main/ets/RNOHCorePackage\"\n+import { SurfaceConfig2 } from '@rnoh/react-native-openharmony/src/main/ets/RNSurface'\n+\n+\n+@Component\n+export struct SurfaceDeadlockTest {\n+  public jsBundleProvider: JSBundleProvider | undefined = undefined\n+  public appKeys: string[] = []\n+  public numberOfIterations: number = 1\n+  @BuilderParam public buildCustomComponent!: CustomComponentBuilder\n+  // -------------------------------------------------------------------------------------------------------------------\n+  @StorageLink('RNAbility') private rnAbility: RNAbility = {} as RNAbility\n+  private rnInstance!: RNInstance\n+  @State private shouldShow: boolean = false\n+  private shouldDestroyRNInstance: boolean = false\n+  private cleanUpCallbacks: (() => void)[] = []\n+\n+  aboutToAppear() {\n+    this.getOrCreateRNInstance().then(rnInstance => {\n+      this.rnInstance = rnInstance\n+      const jsBundleExecutionStatus = this.rnInstance.getBundleExecutionStatus(this.jsBundleProvider?.getURL())\n+      if (this.jsBundleProvider && jsBundleExecutionStatus === undefined) {\n+        this.rnInstance.runJSBundle(this.jsBundleProvider).then(() => {\n+          this.shouldShow = true\n+        })\n+        return;\n+      }\n+    }).catch((reason: string | Error) => {\n+      if (typeof reason === \"string\")\n+        this.rnAbility.getLogger().error(reason)\n+      else if (reason instanceof Error) {\n+        this.rnAbility.getLogger().error(reason.message)\n+      } else {\n+        this.rnAbility.getLogger().error(\"Fatal exception\")\n+      }\n+    })\n+  }\n+\n+  aboutToDisappear() {\n+    if (this.shouldDestroyRNInstance)\n+      this.rnAbility.destroyAndUnregisterRNInstance(this.rnInstance)\n+    this.cleanUpCallbacks.forEach(cleanUp => cleanUp())\n+  }\n+\n+  private getOrCreateRNInstance(): Promise<RNInstance> {\n+    return this.rnAbility.createAndRegisterRNInstance({ createRNPackages: () => [] })\n+  }\n+\n+  build() {\n+    Stack() {\n+      if (this.shouldShow) {\n+        ForEach(this.appKeys, (appKey: string, idx) => {\n+          Stack() {\n+            Blinker({\n+              minDelayInMs: 1000,\n+              maxDelayInMs: 2000,\n+              blinksCount: this.numberOfIterations,\n+              randomnessPrecisionInMs: 500\n+            }) {\n+              RNSurface({\n+                ctx: this.rnAbility.createRNOHContext({ rnInstance: this.rnInstance }),\n+                surfaceConfig: {\n+                  initialProps: {},\n+                  appKey: appKey,\n+                } as SurfaceConfig2,\n+                buildCustomComponent: this.buildCustomComponent,\n+              })\n+            }\n+          }.height(`${100 / this.appKeys.length}%`)\n+          .position({ x: 0, y: `${(idx / this.appKeys.length) * 100}%` })\n+        })\n+      }\n+    }.width(\"100%\")\n+    .height(\"100%\")\n+  }\n+}\n+\n+\n+@Component\n+struct Blinker {\n+  public minDelayInMs: number = 0\n+  public maxDelayInMs: number = 1000\n+  public blinksCount: number = 0\n+  public randomnessPrecisionInMs: number = 250\n+  @BuilderParam public renderChildren: () => void\n+  private currentBlinksCount = 0\n+  @State private isVisible: boolean = false\n+  private timeout: number = 0\n+\n+  aboutToAppear() {\n+    this.blink(this.minDelayInMs)\n+  }\n+\n+  aboutToDisappear() {\n+    clearTimeout(this.timeout)\n+  }\n+\n+  private blink(ms: number) {\n+    this.isVisible = !this.isVisible\n+    this.currentBlinksCount += 1\n+    if (this.currentBlinksCount >= this.blinksCount) {\n+      if (this.timeout) {\n+        clearTimeout(this.timeout)\n+      }\n+      this.isVisible = true\n+      return;\n+    }\n+    this.timeout = setTimeout(() => {\n+      this.blink(this.getNextDelay())\n+    }, ms)\n+  }\n+\n+  private getNextDelay(): number {\n+    return ((Math.floor(Math.random() * (Number.MAX_VALUE / this.randomnessPrecisionInMs)) * this.randomnessPrecisionInMs) % this.maxDelayInMs) + this.minDelayInMs\n+  }\n+\n+  build() {\n+    Stack() {\n+      if (this.isVisible) {\n+        this.renderChildren()\n+      }\n+    }\n+  }\n+}\n+\n+\n+\n+\n+\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/entry/src/main/ets/pages/TouchDisplayer.ets",
+      "status": "added",
+      "additions": 44,
+      "deletions": 0,
+      "blob_id": "4ab4f43ed078a227fba8eba9e1c592c3c0bcce79",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/ets/pages/TouchDisplayer.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/ets/pages/TouchDisplayer.ets",
+      "patch": "@@ -0,0 +1,44 @@\n+/*\n+ * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n+ * Use of this source code is governed by a MIT license that can be\n+ * found in the LICENSE file.\n+ */\n+\n+\n+@Component\n+export struct TouchDisplayer {\n+  @State currentTouches: TouchObject[] = []\n+  @State touchIndicatorOpacity: number = 0\n+  @BuilderParam buildChildren: () => void\n+  build() {\n+    Stack() {\n+      this.buildChildren()\n+      ForEach(this.currentTouches, (activeTouch: TouchObject) => {\n+        Stack() {\n+        }\n+        .width(64)\n+        .height(64)\n+        .backgroundColor(\"blue\")\n+        .borderWidth(2)\n+        .borderColor(\"white\")\n+        .opacity(this.touchIndicatorOpacity)\n+        .position({ x: activeTouch.x - 32, y: activeTouch.y - 32 })\n+        .borderRadius(1000)\n+        .hitTestBehavior(HitTestMode.Transparent)\n+      })\n+    }\n+    .width(\"100%\")\n+    .height(\"100%\")\n+    .hitTestBehavior(HitTestMode.Transparent)\n+    .onTouch(e => {\n+      this.currentTouches = e.touches\n+      this.touchIndicatorOpacity = 0.5\n+      animateTo({\n+        duration: 500,\n+        curve: Curve.Linear,\n+      }, () => {\n+        this.touchIndicatorOpacity = 0\n+      })\n+    })\n+  }\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/entry/src/main/module.json5",
+      "status": "added",
+      "additions": 52,
+      "deletions": 0,
+      "blob_id": "c7700c2c5f348cd7d73ed4cf3b8d7112a46295b9",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/module.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/module.json5",
+      "patch": "@@ -0,0 +1,52 @@\n+{\n+  \"module\": {\n+    \"name\": \"entry\",\n+    \"type\": \"entry\",\n+    \"description\": \"$string:module_desc\",\n+    \"mainElement\": \"EntryAbility\",\n+    \"deviceTypes\": [\n+      \"default\"\n+    ],\n+    \"querySchemes\": [\n+      \"weixin\",\n+    ],\n+    \"deliveryWithInstall\": true,\n+    \"installationFree\": false,\n+    \"pages\": \"$profile:main_pages\",\n+    // below property is supported from 5.0.0 - it is needed by bundleManager.canOpenLink to check if the app can open some url\n+    // \"querySchemes\": [\"maps\", \"http\", \"https\", \"customDomain\"],\n+    \"requestPermissions\": [\n+      {\n+        \"name\": \"ohos.permission.INTERNET\"\n+      },\n+    ],\n+    \"metadata\": [\n+      {\n+        \"name\": \"OPTLazyForEach\",\n+        \"value\": \"true\",\n+      }\n+    ],\n+    \"abilities\": [\n+      {\n+        \"name\": \"EntryAbility\",\n+        \"srcEntry\": \"./ets/entryability/EntryAbility.ets\",\n+        \"description\": \"$string:EntryAbility_desc\",\n+        \"icon\": \"$media:icon\",\n+        \"label\": \"$string:EntryAbility_label\",\n+        \"startWindowIcon\": \"$media:icon\",\n+        \"startWindowBackground\": \"$color:start_window_background\",\n+        \"visible\": true,\n+        \"skills\": [\n+          {\n+            \"entities\": [\n+              \"entity.system.home\"\n+            ],\n+            \"actions\": [\n+              \"action.system.home\"\n+            ]\n+          }\n+        ]\n+      }\n+    ]\n+  }\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/entry/src/main/resources/.gitignore",
+      "status": "added",
+      "additions": 1,
+      "deletions": 0,
+      "blob_id": "037cea9e70bef8c906560a871a394f748ec2325d",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/resources/.gitignore",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/resources/.gitignore",
+      "patch": "@@ -0,0 +1 @@\n+rawfile/assets\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/entry/src/main/resources/base/element/color.json",
+      "status": "added",
+      "additions": 8,
+      "deletions": 0,
+      "blob_id": "3c712962da3c2751c2b9ddb53559afcbd2b54a02",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/resources/base/element/color.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/resources/base/element/color.json",
+      "patch": "@@ -0,0 +1,8 @@\n+{\n+  \"color\": [\n+    {\n+      \"name\": \"start_window_background\",\n+      \"value\": \"#FFFFFF\"\n+    }\n+  ]\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/entry/src/main/resources/base/element/string.json",
+      "status": "added",
+      "additions": 16,
+      "deletions": 0,
+      "blob_id": "074b2173f51352f71629252715526554911d44bb",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/resources/base/element/string.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/resources/base/element/string.json",
+      "patch": "@@ -0,0 +1,16 @@\n+{\n+  \"string\": [\n+    {\n+      \"name\": \"module_desc\",\n+      \"value\": \"module description\"\n+    },\n+    {\n+      \"name\": \"EntryAbility_desc\",\n+      \"value\": \"description\"\n+    },\n+    {\n+      \"name\": \"EntryAbility_label\",\n+      \"value\": \"RN Tester\"\n+    }\n+  ]\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/entry/src/main/resources/base/media/icon.png",
+      "status": "added",
+      "additions": 0,
+      "deletions": 0,
+      "blob_id": "c0f05abe7eb110a3c4958a48f71ea15b28bae5d3",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/resources/base/media/icon.png",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/resources/base/media/icon.png",
+      "patch": "Binary files no preview for this file type",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/entry/src/main/resources/base/profile/main_pages.json",
+      "status": "added",
+      "additions": 5,
+      "deletions": 0,
+      "blob_id": "1898d94f58d6128ab712be2c68acc7c98e9ab9ce",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/resources/base/profile/main_pages.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/resources/base/profile/main_pages.json",
+      "patch": "@@ -0,0 +1,5 @@\n+{\n+  \"src\": [\n+    \"pages/Index\"\n+  ]\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/entry/src/main/resources/rawfile/1.txt",
+      "status": "added",
+      "additions": 1,
+      "deletions": 0,
+      "blob_id": "71f6ee3dfcd13fad21fc73e697c7c5a3c31ec039",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/resources/rawfile/1.txt",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/entry/src/main/resources/rawfile/1.txt",
+      "patch": "@@ -0,0 +1 @@\n+text test\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/format.ps1",
+      "status": "added",
+      "additions": 18,
+      "deletions": 0,
+      "blob_id": "3ee87d2fe090fd96667c59071d377c2a5f1d411b",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/format.ps1",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/format.ps1",
+      "patch": "@@ -0,0 +1,18 @@\n+/*\n+ * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n+ * Use of this source code is governed by a MIT license that can be\n+ * found in the LICENSE file.\n+ */\n+\n+$directoryPath = Split-Path -Parent $MyInvocation.MyCommand.Path\n+$filePaths = Get-ChildItem $directoryPath -Recurse -Include *.h, *.cpp |\n+Where-Object {\n+  $_.DirectoryName -notmatch 'third-party' -and\n+  $_.DirectoryName -notmatch 'patches' -and\n+  $_.DirectoryName -notmatch 'node_modules' -and\n+  $_.DirectoryName -notmatch '.cxx' -and\n+  $_.DirectoryName -notmatch 'build'\n+}\n+foreach ($filePath in $filePaths) {\n+  & \"clang-format.exe\" -style=file -i $filePath.FullName\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/hvigor/.gitignore",
+      "status": "added",
+      "additions": 1,
+      "deletions": 0,
+      "blob_id": "aa1ec1ea0618124672d14a63d00d943240f2db2a",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/hvigor/.gitignore",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/hvigor/.gitignore",
+      "patch": "@@ -0,0 +1 @@\n+*.tgz\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/hvigor/hvigor-config.json5",
+      "status": "added",
+      "additions": 21,
+      "deletions": 0,
+      "blob_id": "c8ba182673e80fbc3da9e614580e9453b718cd3b",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/hvigor/hvigor-config.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/hvigor/hvigor-config.json5",
+      "patch": "@@ -0,0 +1,21 @@\n+{\n+  \"modelVersion\": \"5.0.0\",\n+  \"dependencies\": {\n+  },\n+  \"execution\": {\n+    // \"analyze\": \"default\",                    /* Define the build analyze mode. Value: [ \"default\" | \"verbose\" | false ]. Default: \"default\" */\n+    // \"daemon\": true,                          /* Enable daemon compilation. Value: [ true | false ]. Default: true */\n+    // \"incremental\": true,                     /* Enable incremental compilation. Value: [ true | false ]. Default: true */\n+    // \"parallel\": true,                        /* Enable parallel compilation. Value: [ true | false ]. Default: true */\n+    // \"typeCheck\": false,                      /* Enable typeCheck. Value: [ true | false ]. Default: false */\n+  },\n+  \"logging\": {\n+    // \"level\": \"info\"                          /* Define the log level. Value: [ \"debug\" | \"info\" | \"warn\" | \"error\" ]. Default: \"info\" */\n+  },\n+  \"debugging\": {\n+     \"stacktrace\": false                      /* Disable stacktrace compilation. Value: [ true | false ]. Default: false */\n+  },\n+  \"nodeOptions\": {\n+    // \"maxOldSpaceSize\": 4096                  /* Enable nodeOptions maxOldSpaceSize compilation. Unit M. Used for the daemon process */\n+  }\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/hvigorfile.ts",
+      "status": "added",
+      "additions": 6,
+      "deletions": 0,
+      "blob_id": "47113e2e36ecefde41c136272a0bd6ff745cffe4",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/hvigorfile.ts",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/hvigorfile.ts",
+      "patch": "@@ -0,0 +1,6 @@\n+import { appTasks } from '@ohos/hvigor-ohos-plugin';\n+\n+export default {\n+  system: appTasks, /* Built-in plugin of Hvigor. It cannot be modified. */\n+  plugins: []       /* Custom plugin to extend the functionality of Hvigor. */\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/harmony/oh-package.json5",
+      "status": "added",
+      "additions": 13,
+      "deletions": 0,
+      "blob_id": "bba8863a76695eb3cb1ed6752351b195aa201904",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/oh-package.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/harmony/oh-package.json5",
+      "patch": "@@ -0,0 +1,13 @@\n+{\n+  \"modelVersion\": \"5.0.0\",\n+  \"description\": \"Please describe the basic information.\",\n+  \"dependencies\": {\n+  },\n+  \"devDependencies\": {\n+    \"@ohos/hypium\": \"1.0.21\",\n+    \"@ohos/hamock\": \"1.0.0\"\n+  },\n+  \"overrides\": {\n+    '@rnoh/react-native-openharmony': 'file:../node_modules/@react-native-oh/react-native-harmony/react_native_openharmony.har'\n+  }\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/index.js",
+      "status": "added",
+      "additions": 11,
+      "deletions": 0,
+      "blob_id": "99731060616282f12875c4d3e734f242d1d80d8b",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/index.js",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/index.js",
+      "patch": "@@ -0,0 +1,11 @@\n+/*\n+ * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n+ * Use of this source code is governed by a MIT license that can be\n+ * found in the LICENSE file.\n+ */\n+\n+import {AppRegistry, View, Text} from 'react-native';\n+import {name as appName} from './app.json';\n+import OrientationLockerExample from './src/OrientationLockerExample';\n+\n+AppRegistry.registerComponent(appName, () => OrientationLockerExample);\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/jest.config.js",
+      "status": "added",
+      "additions": 11,
+      "deletions": 0,
+      "blob_id": "cde287e65b8097af0464838626e7bbb7ec72c5bb",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/jest.config.js",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/jest.config.js",
+      "patch": "@@ -0,0 +1,11 @@\n+/*\n+ * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n+ * Use of this source code is governed by a MIT license that can be\n+ * found in the LICENSE file.\n+ */\n+\n+/** @type {import('ts-jest').JestConfigWithTsJest} */\n+module.exports = {\n+  preset: 'ts-jest',\n+  testEnvironment: 'node',\n+};\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/metro.config.js",
+      "status": "added",
+      "additions": 30,
+      "deletions": 0,
+      "blob_id": "13cf47b5d26ebc2955e99fa8caf1372aaebe9bfc",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/metro.config.js",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/metro.config.js",
+      "patch": "@@ -0,0 +1,30 @@\n+/*\n+ * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n+ * Use of this source code is governed by a MIT license that can be\n+ * found in the LICENSE file.\n+ */\n+\n+const {mergeConfig, getDefaultConfig} = require('@react-native/metro-config');\n+const {createHarmonyMetroConfig} = require('@react-native-oh/react-native-harmony/metro.config');\n+\n+/**\n+ * @type {import(\"metro-config\").ConfigT}\n+ */\n+const config = {\n+  transformer: {\n+    getTransformOptions: async () => ({\n+      transform: {\n+        experimentalImportSupport: false,\n+        inlineRequires: true,\n+      },\n+    }),\n+  },\n+};\n+\n+module.exports = mergeConfig(\n+  getDefaultConfig(__dirname),\n+  createHarmonyMetroConfig({\n+    reactNativeHarmonyPackageName: '@react-native-oh/react-native-harmony',\n+  }),\n+  config,\n+);\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/package.json",
+      "status": "added",
+      "additions": 61,
+      "deletions": 0,
+      "blob_id": "e23058c14f0d342d97734c5c988ad987d5ec21ec",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/package.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/package.json",
+      "patch": "@@ -0,0 +1,61 @@\n+{\n+  \"name\": \"react-native-harmony-tester\",\n+  \"version\": \"1.0.0\",\n+  \"private\": true,\n+  \"scripts\": {\n+    \"i\": \"cd ../ && npm i && npm run pack && cd ./example && npm i\",\n+    \"reStart\": \"npm run install:pkg && npm run codegen && hdc rport tcp:8081 tcp:8081 && react-native start\",\n+    \"start\": \"hdc rport tcp:8081 tcp:8081 && react-native start\",\n+    \"codegen\": \"react-native codegen-harmony --rnoh-module-path ./harmony/entry/oh_modules/@rnoh/react-native-openharmony\",\n+    \"pack:pkg\": \"cd ../ && npm pack && cd ./example\",\n+    \"install:pkg\": \"npm uninstall @react-native-ohos/react-native-orientation-locker && npm run pack:pkg && npm i @react-native-ohos/react-native-orientation-locker@file:../react-native-ohos-react-native-orientation-locker-1.8.1-beta.2.tgz\",\n+    \"dev\": \"npm run codegen && react-native bundle-harmony --dev --minify=false\",\n+    \"prod\": \"npm run codegen && react-native bundle-harmony --dev=false --minify=true\",\n+    \"postinstall\": \"node ./scripts/create-build-profile\",\n+    \"fast:pkg\": \"cd ../ && npm i --legacy-peer-deps && npm pack && cd ./example && npm i && npm run dev\"\n+  },\n+  \"dependencies\": {\n+    \"@gorhom/portal\": \"^1.0.14\",\n+    \"@react-native-ohos/react-native-orientation-locker\": \"file:../react-native-ohos-react-native-orientation-locker-1.8.1-beta.2.tgz\",\n+    \"react\": \"18.3.1\",\n+    \"react-native\": \"0.77.1\",\n+    \"@react-native-oh/react-native-harmony\": \"npm:@react-native-oh/react-native-harmony@0.77.18-1\",\n+    \"react-native-reanimated\": \"^3.6.0\",\n+    \"@rnoh/testerino\": \"file:./rnoh-testerino-0.0.12.tgz\"\n+  },\n+  \"devDependencies\": {\n+    \"@babel/core\": \"^7.25.2\",\n+    \"@babel/preset-env\": \"^7.25.3\",\n+    \"@babel/runtime\": \"^7.25.0\",\n+    \"@react-native-community/cli\": \"15.0.1\",\n+    \"@react-native-community/cli-platform-android\": \"15.0.1\",\n+    \"@react-native-community/cli-platform-ios\": \"15.0.1\",\n+    \"@react-native-community/eslint-config\": \"^3.2.0\",\n+    \"@react-native/babel-preset\": \"0.77.1\",\n+    \"@react-native/eslint-config\": \"0.77.1\",\n+    \"@react-native/metro-config\": \"^0.77.1\",\n+    \"@react-native/typescript-config\": \"0.77.1\",\n+    \"@rnoh/react-native-harmony-cli\": \"npm:@react-native-oh/react-native-harmony-cli@0.77.18\",\n+    \"@tsconfig/react-native\": \"^3.0.0\",\n+    \"@types/d3-scale-chromatic\": \"^3.0.0\",\n+    \"@types/jest\": \"^29.5.13\",\n+    \"@types/react\": \"^18.2.6\",\n+    \"@types/react-test-renderer\": \"^18.0.0\",\n+    \"babel-jest\": \"^29.6.3\",\n+    \"eslint\": \"^8.19.0\",\n+    \"jest\": \"^29.7.0\",\n+    \"metro-react-native-babel-preset\": \"0.76.8\",\n+    \"prettier\": \"2.8.8\",\n+    \"react-test-renderer\": \"18.3.1\",\n+    \"typescript\": \"5.5.4\"\n+  },\n+  \"overrides\": {\n+    \"@react-native-community/cli\": \"15.0.1\"\n+  },\n+ \"resolutions\": {\n+    \"@react-native-community/cli\": \"15.0.1\"\n+ },\n+ \"engines\": {\n+    \"node\": \">=18\"\n+ }\n+}\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/react-native.config.js",
+      "status": "added",
+      "additions": 11,
+      "deletions": 0,
+      "blob_id": "057661d2d3895d8797bd5ecd2d9454b80ebb32ee",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/react-native.config.js",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/react-native.config.js",
+      "patch": "@@ -0,0 +1,11 @@\n+/*\n+ * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n+ * Use of this source code is governed by a MIT license that can be\n+ * found in the LICENSE file.\n+ */\n+\n+module.exports = {\n+  project: {\n+  },\n+  assets: ['./assets/fonts/'],\n+};\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/rnoh-testerino-0.0.12.tgz",
+      "status": "added",
+      "additions": 0,
+      "deletions": 0,
+      "blob_id": "db80fbd340c559ef3b44cd10644a9e35ca863670",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/rnoh-testerino-0.0.12.tgz",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/rnoh-testerino-0.0.12.tgz",
+      "patch": "Binary files no preview for this file type",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/scripts/create-build-profile.js",
+      "status": "added",
+      "additions": 46,
+      "deletions": 0,
+      "blob_id": "bffa642e8e940bf8bfa222e11e02262f5ed05e22",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/scripts/create-build-profile.js",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/scripts/create-build-profile.js",
+      "patch": "@@ -0,0 +1,46 @@\n+/*\n+ * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n+ * Use of this source code is governed by a MIT license that can be\n+ * found in the LICENSE file.\n+ */\n+\n+\n+const fs = require('fs');\n+const JSON5 = require('json5');\n+const path = require('path');\n+\n+const templatePath = path.join(\n+  __dirname,\n+  '..',\n+  'harmony',\n+  'build-profile.template.json5',\n+);\n+const existingProfilePath = path.join(\n+  __dirname,\n+  '..',\n+  'harmony',\n+  'build-profile.json5',\n+);\n+\n+if (fs.existsSync(existingProfilePath)) {\n+  let existingProfile = JSON5.parse(\n+    fs.readFileSync(existingProfilePath, 'utf-8'),\n+  );\n+  let template = JSON5.parse(fs.readFileSync(templatePath, 'utf-8'));\n+  let signingConfigs =\n+    existingProfile.app && existingProfile.app.signingConfigs;\n+\n+  existingProfile = {...template};\n+\n+  if (signingConfigs) {\n+    existingProfile.app.signingConfigs = signingConfigs;\n+  }\n+\n+  fs.writeFileSync(\n+    existingProfilePath,\n+    JSON5.stringify(existingProfile, null, 2),\n+  );\n+} else {\n+  // File doesn't exist, create a copy from the template\n+  fs.copyFileSync(templatePath, existingProfilePath);\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/src/OrientationLockerExample.tsx",
+      "status": "added",
+      "additions": 510,
+      "deletions": 0,
+      "blob_id": "418cff0f566da61bd211b6db20d6035b4058d048",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/src/OrientationLockerExample.tsx",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/src/OrientationLockerExample.tsx",
+      "patch": "@@ -0,0 +1,510 @@\n+import Orientation, {\n+    useOrientationChange,\n+    useDeviceOrientationChange,\n+    useLockListener,\n+    OrientationLocker,\n+    UNLOCK,\n+    PORTRAIT,\n+    LANDSCAPE,\n+    LANDSCAPE_LEFT,\n+    LANDSCAPE_RIGHT,\n+    PORTRAIT_UPSIDE_DOWN,\n+    ALL_ORIENTATIONS_BUT_UPSIDE_DOWN,\n+} from 'react-native-orientation-locker';\n+import {\n+    StyleSheet,\n+    Text,\n+    TouchableOpacity,\n+    ScrollView,\n+    View,\n+    Alert,\n+} from 'react-native';\n+import { useEffect, useState, useCallback } from 'react';\n+import { Tester, TestSuite, TestCase } from '@rnoh/testerino';\n+\n+export default function OrientationLockerExample() {\n+    const [orientation, setOrientation] = useState<string>('PORTRAIT');\n+    const updateOrientation = useCallback((orientation: string) => {\n+        setOrientation(orientation);\n+    }, []);\n+    const [LockListener, setLockListener] = useState<string>();\n+    const [isLockedState, setIsLockedState] = useState<string>();\n+    const [initialOrientation, setInitialOrientation] = useState<string>();\n+    const [autoRotateState, setAutoRotateState] = useState<string>();\n+    const [hookOrientation, setHookOrientation] = useState<string>('PORTRAIT');\n+    const [hookDeviceOrientation, setHookDeviceOrientation] = useState<string>('PORTRAIT');\n+    const [hookLockState, setHookLockState] = useState<string>('未触发');\n+    const [lockerOrientation, setLockerOrientation] = useState<string>();\n+    const [lockerDeviceOrientation, setLockerDeviceOrientation] = useState<string>();\n+    const [lockerSelectValue, setLockerSelectValue] = useState<string>(PORTRAIT);\n+    const [configureState, setConfigureState] = useState<string>('disableFaceUpDown: false（已启用）');\n+    const [deviceOrientation, setDeviceOrientation] = useState<string>();\n+\n+    const updateDeviceOrientation = useCallback((orientation: string) => {\n+        setDeviceOrientation(orientation);\n+    }, []);\n+\n+    useEffect(() => {\n+        return () => {\n+            // 退出应用销毁监听\n+            unbindAllListeners();\n+        };\n+    }, []);\n+\n+    const setLockToPortrait = () => {\n+        Orientation.lockToPortrait();\n+    };\n+    const setLockToLandscape = () => {\n+        Orientation.lockToLandscape();\n+    };\n+    const setLockToLandscapeLeft = () => {\n+        Orientation.lockToLandscapeLeft();\n+    };\n+    const setLockToLandscapeRight = () => {\n+        Orientation.lockToLandscapeRight();\n+    };\n+    const unlockAllOrientations = () => {\n+        Orientation.unlockAllOrientations();\n+    };\n+    const lockToPortraitUpsideDown = () => {\n+        Orientation.lockToPortraitUpsideDown();\n+    };\n+    const lockToAllOrientationsButUpsideDown = () => {\n+        Orientation.lockToAllOrientationsButUpsideDown();\n+    };\n+    const bindDeviceOrientationListener = () => {\n+        Orientation.removeDeviceOrientationListener(updateDeviceOrientation);\n+        Orientation.addDeviceOrientationListener(updateDeviceOrientation);\n+    };\n+    const unbindDeviceOrientationListener = () => {\n+        Orientation.removeDeviceOrientationListener(updateDeviceOrientation);\n+    };\n+    const bindOrientationListener = () => {\n+        Orientation.removeOrientationListener(updateOrientation);\n+        Orientation.addOrientationListener(updateOrientation);\n+    };\n+    const unbindOrientationListener = () => {\n+        Orientation.removeOrientationListener(updateOrientation);\n+    };\n+\n+    const lockDidChange = useCallback((o: string) => {\n+        setLockListener(`屏幕锁定状态变化: ${o}`);\n+    }, []);\n+    const bindLockListener = () => {\n+        Orientation.removeLockListener(lockDidChange);\n+        Orientation.addLockListener(lockDidChange);\n+    };\n+\n+    const unbindLockListener = () => {\n+        Orientation.removeLockListener(lockDidChange);\n+    };\n+    const unbindAllListeners = () => {\n+        Orientation.removeAllListeners();\n+    };\n+\n+    const checkIsLocked = () => {\n+        const locked = Orientation.isLocked();\n+        setIsLockedState(locked ? '已锁定' : '未锁定');\n+    };\n+\n+    const checkInitialOrientation = () => {\n+        const initial = Orientation.getInitialOrientation();\n+        setInitialOrientation(initial);\n+    };\n+\n+    const checkAutoRotateState = () => {\n+        Orientation.getAutoRotateState((state: boolean) => {\n+            setAutoRotateState(state ? '已开启' : '已关闭');\n+        });\n+    };\n+\n+    const configureSetting = (value: boolean) => {\n+        Orientation.configure({ disableFaceUpDown: value });\n+        setConfigureState(value ? 'disableFaceUpDown: true（已禁用）' : 'disableFaceUpDown: false（已启用）');\n+    };\n+\n+    // Hooks\n+    useOrientationChange((o: string) => {\n+        setHookOrientation(o);\n+    });\n+\n+    useDeviceOrientationChange((o: string) => {\n+        setHookDeviceOrientation(o);\n+    });\n+\n+    useLockListener((o: string) => {\n+        setHookLockState(o);\n+        Alert.alert('锁定方向变化', `当前锁定方向: ${o}`);\n+    });\n+\n+\n+\n+    return (\n+        <Tester>\n+            <ScrollView style={{ marginBottom: 50 }}>\n+                <TestSuite name=\"orientation\">\n+                    <TestCase tags={['C_API']} itShould='当前设备方向为:'>\n+                        <Text style={styles.textContent}>{deviceOrientation}</Text>\n+                    </TestCase>\n+                    <TestCase tags={['C_API']} itShould='当前屏幕方向为:'>\n+                        <Text style={styles.textContent}>{orientation}</Text>\n+                    </TestCase>\n+                    <TestCase tags={['C_API']} itShould='当前屏幕锁定状态为:'>\n+                        <Text style={styles.textContent}>{LockListener}</Text>\n+                    </TestCase>\n+\n+                    <TestCase tags={['C_API']} itShould='监听测试：添加设备方向监听 (DeviceOrientation)'>\n+                        <TouchableOpacity onPress={bindDeviceOrientationListener}>\n+                            <Text>点击绑定 DeviceOrientation 监听</Text>\n+                        </TouchableOpacity>\n+                    </TestCase>\n+\n+                    <TestCase tags={['C_API']} itShould='监听测试：移除设备方向监听 (DeviceOrientation)'>\n+                        <TouchableOpacity onPress={unbindDeviceOrientationListener}>\n+                            <Text>点击解绑 DeviceOrientation 监听</Text>\n+                        </TouchableOpacity>\n+                    </TestCase>\n+\n+                    <TestCase tags={['C_API']} itShould='监听测试：添加屏幕/UI方向监听 (Orientation)'>\n+                        <TouchableOpacity onPress={bindOrientationListener}>\n+                            <Text>点击绑定 Orientation 监听</Text>\n+                        </TouchableOpacity>\n+                    </TestCase>\n+\n+                    <TestCase tags={['C_API']} itShould='监听测试：移除屏幕/UI方向监听 (Orientation)'>\n+                        <TouchableOpacity onPress={unbindOrientationListener}>\n+                            <Text>点击解绑 Orientation 监听</Text>\n+                        </TouchableOpacity>\n+                    </TestCase>\n+\n+                    <TestCase tags={['C_API']} itShould='监听测试：添加锁定状态监听 (LockListener)'>\n+                        <TouchableOpacity onPress={bindLockListener}>\n+                            <Text>点击绑定 LockListener 监听</Text>\n+                        </TouchableOpacity>\n+                    </TestCase>\n+\n+                    <TestCase tags={['C_API']} itShould='监听测试：移除锁定状态监听 (LockListener)'>\n+                        <TouchableOpacity onPress={unbindLockListener}>\n+                            <Text>点击解绑 LockListener 监听</Text>\n+                        </TouchableOpacity>\n+                    </TestCase>\n+\n+                    <TestCase tags={['C_API']} itShould='销毁当前组件挂载的全部监听 (removeAllListeners)'>\n+                        <TouchableOpacity onPress={unbindAllListeners}>\n+                            <Text>点击全部解绑</Text>\n+                        </TouchableOpacity>\n+                        <Text style={styles.noteText}>注：退出应用时会自动调用，手动调用会解绑所有手动 bind 和 Hooks 挂载的底层监听</Text>\n+                    </TestCase>\n+\n+                    <TestCase\n+                        itShould=\"锁定当前屏幕上下翻转\"\n+                        tags={['C_API']}\n+                        initialState={{}}\n+                        arrange={({ setState }) => {\n+                            return (\n+                                <TouchableOpacity\n+                                    onPress={() => {\n+                                        lockToPortraitUpsideDown();\n+                                        const time = setTimeout(() => {\n+                                            Orientation.getOrientation(\n+                                                (orientation: string, err: string) => {\n+                                                    if (orientation) {\n+                                                        setState(orientation);\n+                                                    } else {\n+                                                        console.log(\"当前屏幕上下翻转\");\n+                                                    }\n+                                                },\n+                                            );\n+                                        }, 50);\n+                                    }}\n+                                    style={styles.button}>\n+                                    <Text>锁定当前屏幕为上下翻转</Text>\n+                                </TouchableOpacity>\n+                            );\n+                        }}\n+                        assert={({ expect, state }) => {\n+                            expect(state).equal('PORTRAIT-UPSIDEDOWN');\n+                        }}></TestCase>\n+\n+                    <TestCase\n+                        itShould=\"锁定当前屏幕为竖屏\"\n+                        tags={['C_API']}\n+                        initialState={{}}\n+                        arrange={({ setState }) => {\n+                            return (\n+                                <TouchableOpacity\n+                                    onPress={() => {\n+                                        setLockToPortrait();\n+                                        const time = setTimeout(() => {\n+                                            Orientation.getOrientation(\n+                                                (orientation: string, err: string) => {\n+                                                    if (orientation) {\n+                                                        setState(orientation);\n+                                                    } else {\n+                                                        console.log(\"当前屏幕为竖屏\");\n+                                                    }\n+                                                },\n+                                            );\n+                                        }, 50);\n+                                    }}\n+                                    style={styles.button}>\n+                                    <Text>锁定当前屏幕为竖屏</Text>\n+                                </TouchableOpacity>\n+                            );\n+                        }}\n+                        assert={({ expect, state }) => {\n+                            expect(state).equal('PORTRAIT');\n+                        }}></TestCase>\n+\n+                    <TestCase\n+                        itShould=\"锁定当前屏幕为横屏\"\n+                        tags={['C_API']}\n+                        initialState={{}}\n+                        arrange={({ setState }) => {\n+                            return (\n+                                <TouchableOpacity\n+                                    onPress={() => {\n+                                        setLockToLandscape();\n+                                        const time = setTimeout(() => {\n+                                            Orientation.getOrientation(\n+                                                (orientation: string, err: string) => {\n+                                                    if (orientation) {\n+                                                        setState(orientation);\n+                                                    } else {\n+                                                        console.log(\"当前屏幕为横屏\");\n+                                                    }\n+                                                },\n+                                            );\n+                                        }, 50);\n+                                    }}\n+                                    style={styles.button}>\n+                                    <Text>锁定当前屏幕为横屏</Text>\n+                                </TouchableOpacity>\n+                            );\n+                        }}\n+                        assert={({ expect, state }) => {\n+                            expect(state).equal('LANDSCAPE-LEFT'); // lockToLandscape() 默认锁定到左横屏\n+                        }}></TestCase>\n+                    <TestCase\n+                        itShould=\"锁定当前屏幕为横屏，右旋转\"\n+                        tags={['C_API']}\n+                        initialState={{}}\n+                        arrange={({ setState }) => {\n+                            return (\n+                                <TouchableOpacity\n+                                    onPress={() => {\n+                                        setLockToLandscapeLeft();\n+                                        const time = setTimeout(() => {\n+                                            Orientation.getOrientation(\n+                                                (orientation: string, err: string) => {\n+                                                    if (orientation) {\n+                                                        setState(orientation);\n+                                                    } else {\n+                                                        console.log(\"当前屏幕横屏，右旋转\");\n+                                                    }\n+                                                },\n+                                            );\n+                                        }, 50);\n+                                    }}\n+                                    style={styles.button}>\n+                                    <Text>锁定当前屏幕为横屏，右旋转</Text>\n+                                </TouchableOpacity>\n+                            );\n+                        }}\n+                        assert={({ expect, state }) => {\n+                            expect(state).equal('LANDSCAPE-LEFT');\n+                        }}></TestCase>\n+                    <TestCase\n+                        itShould=\"锁定当前屏幕为横屏，左旋转\"\n+                        tags={['C_API']}\n+                        initialState={{}}\n+                        arrange={({ setState }) => {\n+                            return (\n+                                <TouchableOpacity\n+                                    onPress={() => {\n+                                        setLockToLandscapeRight();\n+                                        const time = setTimeout(() => {\n+                                            Orientation.getOrientation(\n+                                                (orientation: string, err: string) => {\n+                                                    if (orientation) {\n+                                                        setState(orientation);\n+                                                    } else {\n+                                                        console.log(\"当前屏幕横屏，左旋转\");\n+                                                    }\n+                                                },\n+                                            );\n+                                        }, 50);\n+                                    }}\n+                                    style={styles.button}>\n+                                    <Text>锁定当前屏幕为横屏，左旋转</Text>\n+                                </TouchableOpacity>\n+                            );\n+                        }}\n+                        assert={({ expect, state }) => {\n+                            expect(state).equal('LANDSCAPE-RIGHT');\n+                        }}></TestCase>\n+                    <TestCase\n+                        itShould=\"锁定除了上下翻转的所有方向\"\n+                        tags={['C_API']}\n+                        initialState={{}}\n+                        arrange={({ setState }) => {\n+                            return (\n+                                <TouchableOpacity\n+                                    onPress={() => {\n+                                        lockToAllOrientationsButUpsideDown();\n+                                        const time = setTimeout(() => {\n+                                            Orientation.getOrientation(\n+                                                (orientation: string, err: string) => {\n+                                                    if (orientation) {\n+                                                        setState(orientation);\n+                                                    } else {\n+                                                        console.log(\"锁定除了上下翻转的所有方向\");\n+                                                    }\n+                                                },\n+                                            );\n+                                        }, 50);\n+                                    }}\n+                                    style={styles.button}>\n+                                    <Text>锁定除了上下翻转的所有方向</Text>\n+                                </TouchableOpacity>\n+                            );\n+                        }}\n+                        assert={({ expect, state }) => {\n+                            expect(state).to.be.a('string');\n+                        }}></TestCase>\n+\n+                    <TestCase tags={['C_API']} itShould='解锁当前屏幕旋转锁定'>\n+                        <TouchableOpacity onPress={() => {\n+                            unlockAllOrientations();\n+                        }}>\n+                            <Text>解锁当前屏幕旋转锁定</Text>\n+                        </TouchableOpacity>\n+                    </TestCase>\n+\n+                    <TestCase tags={['C_API']} itShould='isLocked:查看当前是否处于锁定状态'>\n+                        <TouchableOpacity onPress={() => {\n+                            checkIsLocked();\n+                        }}>\n+                            <Text>点击此处查看锁定状态</Text>\n+                        </TouchableOpacity>\n+                        <Text style={styles.textContent}>{isLockedState}</Text>\n+                    </TestCase>\n+\n+                    <TestCase tags={['C_API']} itShould='getInitialOrientation:获取应用初始方向'>\n+                        <TouchableOpacity onPress={() => {\n+                            checkInitialOrientation();\n+                        }}>\n+                            <Text>点击此处获取初始方向</Text>\n+                        </TouchableOpacity>\n+                        <Text style={styles.textContent}>{initialOrientation}</Text>\n+                    </TestCase>\n+\n+                    <TestCase tags={['C_API']} itShould='getAutoRotateState:获取系统自动旋转状态'>\n+                        <TouchableOpacity onPress={() => {\n+                            checkAutoRotateState();\n+                        }}>\n+                            <Text>点击此处获取自动旋转状态</Text>\n+                        </TouchableOpacity>\n+                        <Text style={styles.textContent}>{autoRotateState}</Text>\n+                        <Text style={styles.noteText}>注: 读取系统自动旋转开关，开启返回\"已开启\"，关闭返回\"已关闭\"</Text>\n+                    </TestCase>\n+\n+                    <TestCase tags={['C_API']} itShould='configure:配置disableFaceUpDown选项'>\n+                        <Text style={styles.textContent}>当前状态: {configureState}</Text>\n+                        <TouchableOpacity onPress={() => {\n+                            configureSetting(true);\n+                        }}>\n+                            <Text>configure(disableFaceUpDown: true) - 禁用FACE-UP/DOWN</Text>\n+                        </TouchableOpacity>\n+                        <TouchableOpacity onPress={() => {\n+                            configureSetting(false);\n+                        }} style={{ marginTop: 8 }}>\n+                       \n... [diff 已截断]",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "example/tsconfig.json",
+      "status": "added",
+      "additions": 14,
+      "deletions": 0,
+      "blob_id": "f224f67deed574dd019f1e6c17e38055adf63f38",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/tsconfig.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/example/tsconfig.json",
+      "patch": "@@ -0,0 +1,14 @@\n+{\n+  \"extends\": \"@react-native/typescript-config/tsconfig.json\",\n+  \"compilerOptions\": {\n+    \"jsx\": \"react-native\",\n+    \"paths\": {\n+      \"react-native\": [\n+        \"./node_modules/react-native-harmony\"\n+      ],\n+    },\n+  },\n+  \"exclude\": [\n+    \"harmony\"\n+  ]\n+}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "harmony/orientation_locker/src/main/cpp/generated/RNOH/generated/turbo_modules/OreitationLockerNativeModule.cpp",
+      "additions": 2,
+      "deletions": 0,
+      "blob_id": "a6392beff6edd943b181b669768d5cc110a0caec",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/harmony/orientation_locker/src/main/cpp/generated/RNOH/generated/turbo_modules/OreitationLockerNativeModule.cpp",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/harmony/orientation_locker/src/main/cpp/generated/RNOH/generated/turbo_modules/OreitationLockerNativeModule.cpp",
+      "patch": "@@ -21,6 +21,8 @@ OreitationLockerNativeModule::OreitationLockerNativeModule(const ArkTSTurboModul\n         ARK_METHOD_METADATA(getDeviceOrientation, 1),\n         ARK_METHOD_METADATA(getAutoRotateState, 1),\n         ARK_METHOD_METADATA(configure, 1),\n+        ARK_METHOD_METADATA(openSensor, 0),\n+        ARK_METHOD_METADATA(closeSensor, 0),\n     };\n }\n \n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "harmony/orientation_locker/src/main/ets/Logger.ts",
+      "status": "added",
+      "additions": 64,
+      "deletions": 0,
+      "blob_id": "479f3c77c46f292fdd0630d4fafd917b07ed5796",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/harmony/orientation_locker/src/main/ets/Logger.ts",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/harmony/orientation_locker/src/main/ets/Logger.ts",
+      "patch": "@@ -0,0 +1,64 @@\n+/*\n+ * MIT License\n+ *\n+ * Copyright (C) 2026 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n+ */\n+\n+import hilog from '@ohos.hilog';\n+\n+class Logger {\n+  private domain: number;\n+  private prefix: string;\n+  private format: string = '%{public}s, %{public}s';\n+  private isDebug: boolean;\n+\n+  /**\n+   * constructor.\n+   *\n+   * @param Prefix Identifies the log tag.\n+   * @param domain Domain Indicates the service domain, which is a hexadecimal integer ranging from 0x0 to 0xFFFFF.\n+   */\n+  constructor(prefix: string = 'MyApp', domain: number = 0xFF00, isDebug = false) {\n+    this.prefix = prefix;\n+    this.domain = domain;\n+    this.isDebug = isDebug;\n+  }\n+\n+  debug(...args: string[]): void {\n+    if (this.isDebug) {\n+      hilog.debug(this.domain, this.prefix, this.format, args);\n+    }\n+  }\n+\n+  info(...args: string[]): void {\n+    hilog.info(this.domain, this.prefix, this.format, args);\n+  }\n+\n+  warn(...args: string[]): void {\n+    hilog.warn(this.domain, this.prefix, this.format, args);\n+  }\n+\n+  error(...args: string[]): void {\n+    hilog.error(this.domain, this.prefix, this.format, args);\n+  }\n+}\n+\n+export default new Logger('orientationLocker', 0xFF00, false)\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "harmony/orientation_locker/src/main/ets/RNOrientationLockerTurboModule.ts",
+      "additions": 75,
+      "deletions": 48,
+      "blob_id": "ba0fcd0fbe5aa9e1674ae83e999836e8f3198edb",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/harmony/orientation_locker/src/main/ets/RNOrientationLockerTurboModule.ts",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/harmony/orientation_locker/src/main/ets/RNOrientationLockerTurboModule.ts",
+      "patch": "@@ -11,7 +11,7 @@ import display from '@ohos.display'\n import { BusinessError } from '@kit.BasicServicesKit'\n import sensor from '@ohos.sensor';\n import settings from '@ohos.settings';\n-\n+import Logger from './Logger'\n const ORIENTATION_UNKNOWN = -1;\n \n export class RNOrientationLockerTurboModule extends TurboModule implements TM.OreitationLockerNativeModule.Spec {\n@@ -30,51 +30,72 @@ export class RNOrientationLockerTurboModule extends TurboModule implements TM.Or\n         ctx.rnInstance.emitDeviceEvent('orientationDidChange', { orientation: displayValueString })\n       }\n     })\n+  }\n \n-    sensor.on(sensor.SensorId.ACCELEROMETER, (data: sensor.AccelerometerResponse) => {\n-      const X = -data.x;\n-      const Y = -data.y;\n-      const Z = -data.z;\n-      const xyMagnitude = X * X + Y * Y;\n-      const zSquared = Z * Z;\n-      let orientation = ORIENTATION_UNKNOWN;\n-      if (xyMagnitude * 4 >= zSquared) {\n-        const angleRad = Math.atan2(-Y, X);\n-        let angleDeg = 90 - (angleRad * 180 / Math.PI);\n-        while (angleDeg >= 360) angleDeg -= 360;\n-        while (angleDeg < 0) angleDeg += 360;\n-        orientation = Math.round(angleDeg);\n-      }\n+  openSensor() {\n+    try {\n+      sensor.on(sensor.SensorId.ACCELEROMETER, (data: sensor.AccelerometerResponse) => {\n+        const X = -data.x;\n+        const Y = -data.y;\n+        const Z = -data.z;\n+        const xyMagnitude = X * X + Y * Y;\n+        const zSquared = Z * Z;\n+        let orientation = ORIENTATION_UNKNOWN;\n+        if (xyMagnitude * 4 >= zSquared) {\n+          const angleRad = Math.atan2(-Y, X);\n+          let angleDeg = 90 - (angleRad * 180 / Math.PI);\n+          while (angleDeg >= 360) {\n+            angleDeg -= 360;\n+          }\n+          while (angleDeg < 0) {\n+            angleDeg += 360;\n+          }\n+          orientation = Math.round(angleDeg);\n+        }\n \n-      let deviceOrientationValue:string = this.lastDeviceSensorOrientationValue;\n-      if (xyMagnitude * 4 < zSquared) {\n- \t      // Z 轴主导，设备平放\n- \t      // 注意：Z = -data.z，取反后正负颠倒\n- \t      // data.z > 0（屏幕朝上）→ Z < 0 → FACE-UP\n- \t      // data.z < 0（屏幕朝下）→ Z > 0 → FACE-DOWN\n- \t      if (!this.disableFaceUpDown) {\n- \t        if (Z < 0) {\n- \t          deviceOrientationValue = \"FACE-UP\";\n- \t        } else {\n- \t          deviceOrientationValue = \"FACE-DOWN\";\n- \t        }\n- \t      }\n- \t    } else if (orientation === ORIENTATION_UNKNOWN) {\n-        deviceOrientationValue = \"UNKNOWN\";\n-      } else if (orientation > 355 || orientation < 5) {\n-        deviceOrientationValue = \"PORTRAIT\";\n-      } else if (orientation > 85 && orientation < 95) {\n-        deviceOrientationValue = \"LANDSCAPE-RIGHT\";\n-      } else if (orientation > 175 && orientation < 185) {\n-        deviceOrientationValue = \"PORTRAIT-UPSIDEDOWN\";\n-      } else if (orientation > 265 && orientation < 275) {\n-        deviceOrientationValue = \"LANDSCAPE-LEFT\";\n-      }\n-      if (this.lastDeviceSensorOrientationValue !== deviceOrientationValue) {\n-        ctx.rnInstance.emitDeviceEvent('deviceOrientationDidChange', { deviceOrientation: deviceOrientationValue })\n-        this.lastDeviceSensorOrientationValue = deviceOrientationValue;\n-      }\n-    }, { interval: 100000000 });\n+        let deviceOrientationValue: string = this.lastDeviceSensorOrientationValue;\n+        if (xyMagnitude * 4 < zSquared) {\n+          // Z 轴主导，设备平放\n+          // 注意：Z = -data.z，取反后正负颠倒\n+          // data.z > 0（屏幕朝上）→ Z < 0 → FACE-UP\n+          // data.z < 0（屏幕朝下）→ Z > 0 → FACE-DOWN\n+          if (!this.disableFaceUpDown) {\n+            if (Z < 0) {\n+              deviceOrientationValue = \"FACE-UP\";\n+            } else {\n+              deviceOrientationValue = \"FACE-DOWN\";\n+            }\n+          }\n+        } else if (orientation === ORIENTATION_UNKNOWN) {\n+          deviceOrientationValue = \"UNKNOWN\";\n+        } else if (orientation > 355 || orientation < 5) {\n+          deviceOrientationValue = \"PORTRAIT\";\n+        } else if (orientation > 85 && orientation < 95) {\n+          deviceOrientationValue = \"LANDSCAPE-RIGHT\";\n+        } else if (orientation > 175 && orientation < 185) {\n+          deviceOrientationValue = \"PORTRAIT-UPSIDEDOWN\";\n+        } else if (orientation > 265 && orientation < 275) {\n+          deviceOrientationValue = \"LANDSCAPE-LEFT\";\n+        }\n+        if (this.lastDeviceSensorOrientationValue !== deviceOrientationValue) {\n+          this.ctx.rnInstance.emitDeviceEvent('deviceOrientationDidChange',\n+            { deviceOrientation: deviceOrientationValue })\n+          this.lastDeviceSensorOrientationValue = deviceOrientationValue;\n+        }\n+      }, { interval: 100000000 });\n+    } catch (err) {\n+      let e: BusinessError = err as BusinessError;\n+      Logger.error(`Failed sensor.on error. Code: ${e.code}, message: ${e.message}`);\n+    }\n+  }\n+\n+  closeSensor() {\n+    try {\n+      sensor.off(sensor.SensorId.ACCELEROMETER);\n+    } catch (err) {\n+      let e: BusinessError = err as BusinessError;\n+      Logger.error(`Failed sensor.off error. Code: ${e.code}, message: ${e.message}`);\n+    }\n   }\n \n   private windowClass: window.Window | undefined = undefined\n@@ -230,9 +251,15 @@ export class RNOrientationLockerTurboModule extends TurboModule implements TM.Or\n     }\n   }\n \n-   __onDestroy__(): void {\n-      super.__onDestroy__()\n-      display.off('change')\n-      sensor.off(sensor.SensorId.ACCELEROMETER)\n+  __onDestroy__(): void {\n+    super.__onDestroy__()\n+    display.off('change')\n+    try {\n+      this.closeSensor();\n+    } catch (error) {\n+      let e: BusinessError = error as BusinessError;\n+      Logger.error(`Failed to closeSensor. Code: ${e.code}, message: ${e.message}`);\n+    }\n+\n   }\n }\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "harmony/orientation_locker/src/main/ets/generated/turboModules/OreitationLockerNativeModule.ts",
+      "additions": 4,
+      "deletions": 0,
+      "blob_id": "05e815c4cf5ebea1cd98ca1e037610148a97292d",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/harmony/orientation_locker/src/main/ets/generated/turboModules/OreitationLockerNativeModule.ts",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/harmony/orientation_locker/src/main/ets/generated/turboModules/OreitationLockerNativeModule.ts",
+      "patch": "@@ -31,5 +31,9 @@ export namespace OreitationLockerNativeModule {\n     getAutoRotateState(callback: (state: boolean) => void): void;\n \n     configure(options: Object): void;\n+\n+    openSensor(): void;\n+\n+    closeSensor(): void;\n   }\n }\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "package.json",
+      "additions": 3,
+      "deletions": 3,
+      "blob_id": "08b28f52ee2ab14410beb2a18e85ed9eac59482a",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/package.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/package.json",
+      "patch": "@@ -3,12 +3,12 @@\n     \"version\": \"1.8.1-beta.2\",\n     \"summary\": \"A react-native module that can listen on orientation changing of device\",\n     \"description\": \"A react-native module that can listen on orientation changing of device, get current orientation, lock to preferred orientation.\",\n-    \"homepage\": \"https://gitcode.com/openharmony-sig/rntpc_react-native-orientation-locker\",\n+    \"homepage\": \"https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker\",\n     \"main\": \"index.js\",\n     \"types\": \"index.d.ts\",\n     \"repository\": {\n         \"type\": \"git\",\n-        \"url\": \"https://gitcode.com/openharmony-sig/rntpc_react-native-orientation-locker\"\n+        \"url\": \"https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker\"\n     },\n     \"scripts\": {\n         \"codegen-lib\": \"react-native codegen-lib-harmony --no-safety-check --npm-package-name react-native-orientation-locker --cpp-output-path ./harmony/orientation_locker/src/main/cpp/generated --ets-output-path ./harmony/orientation_locker/src/main/ets/generated --turbo-modules-spec-paths ./src/OreitationLockerNativeModule.ts\"\n@@ -28,7 +28,7 @@\n     },\n     \"license\": \"MIT\",\n     \"bugs\": {\n-        \"url\": \"https://gitcode.com/openharmony-sig/rntpc_react-native-orientation-locker/issues\"\n+        \"url\": \"https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/issues\"\n     },\n     \"dependencies\": {},\n     \"peerDependencies\": {\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "src/OreitationLockerNativeModule.ts",
+      "additions": 5,
+      "deletions": 0,
+      "blob_id": "4425c2dff6d1651cc13dc8d263d17611b4200fb2",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/src/OreitationLockerNativeModule.ts",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/src/OreitationLockerNativeModule.ts",
+      "patch": "@@ -39,6 +39,11 @@ export interface Spec extends TurboModule {\n    // 配置选项\n    configure(options: Object): void;\n \n+   // 订阅加速度传感器\n+   openSensor(): void;\n+\n+   // 取消订阅加速度传感器\n+   closeSensor(): void;\n }\n export default TurboModuleRegistry.get<Spec>('OreitationLockerNativeModule') as Spec | null;\n \n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "src/orientation.harmony.js",
+      "additions": 2,
+      "deletions": 0,
+      "blob_id": "df036356f5bc9dbea6ac736fc29f44e34e3161c7",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/src/orientation.harmony.js",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/src/orientation.harmony.js",
+      "patch": "@@ -115,6 +115,7 @@ export default class Orientation {\n   };\n \n   static addDeviceOrientationListener = cb => {\n+    OrientationNative.openSensor();\n     var key = getKey(cb);\n     listeners[key] = deviceEventEmitter.addListener(\n       \"deviceOrientationDidChange\",\n@@ -135,6 +136,7 @@ export default class Orientation {\n     }\n     listeners[key].remove();\n     listeners[key] = null;\n+    OrientationNative.closeSensor();\n   };\n \n   static addLockListener = cb => {\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    },
+    {
+      "sha": "2cd51c7539f4b11734c1ebe740b4d93bc53ae80e",
+      "filename": "src/orientation.js",
+      "additions": 4,
+      "deletions": 0,
+      "blob_id": "cef27c6148325d7be6e88d56772adfdd44f260d2",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/src/orientation.js",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/2cd51c7539f4b11734c1ebe740b4d93bc53ae80e/src/orientation.js",
+      "patch": "@@ -46,6 +46,10 @@ export default class Orientation {\n \n   static removeDeviceOrientationListener = cb => {};\n \n+  static openSensor = () => {};\n+\n+  static closeSensor = () => {};\n+\n   static addLockListener = cb => {};\n \n   static removeLockListener = cb => {};\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    }
+  ]
+}

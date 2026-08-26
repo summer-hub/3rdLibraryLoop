@@ -1,0 +1,463 @@
+{
+  "pr": {
+    "id": 8767667,
+    "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-svg/merge_requests/117",
+    "number": 117,
+    "state": "merged",
+    "title": "fix:解决Text组件设置渐变色失效的问题",
+    "url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-svg/pulls/117",
+    "issue_url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-svg/pulls/117/issues",
+    "body": "fix:解决Text组件设置渐变色失效的问题 [#77](https://gitcode.com/CPF-RN/rntpc_react-native-svg/issues/77) ",
+    "assignees_number": 2,
+    "assignees": [
+      {
+        "id": "6731c8f2fbbddc0c200a6019",
+        "login": "zhu_chengcheng",
+        "name": "zhu_chengcheng",
+        "avatar_url": "https://cdn-img.gitcode.com/fe/bd/f406eb600317d9bbb6a5c23042b49e5193dfbb7a63ee407f5bbfcbabcd177af1.jpg",
+        "html_url": "https://gitcode.com/zhu_chengcheng",
+        "assignee": true,
+        "code_owner": false,
+        "accept": true
+      },
+      {
+        "id": "67fdb69df01e3c566929edd4",
+        "login": "gcw_N7oHqLFR",
+        "name": "huang_jy",
+        "avatar_url": "",
+        "html_url": "https://gitcode.com/gcw_N7oHqLFR",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      }
+    ],
+    "testers": [
+      {
+        "id": "6541ccea82d8f837210e92c3",
+        "login": "openharmony_ci",
+        "name": "openharmony_ci",
+        "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+        "html_url": "https://gitcode.com/openharmony_ci",
+        "assignee": false,
+        "code_owner": false,
+        "accept": true
+      }
+    ],
+    "approval_reviewers": [],
+    "labels": [
+      {
+        "id": 13020334,
+        "color": "#20c22e",
+        "name": "dco检查成功",
+        "repository_id": 4369264,
+        "created_at": "2025-01-17T01:22:57+08:00",
+        "updated_at": "2026-06-22T20:05:31+08:00"
+      },
+      {
+        "id": 13240312,
+        "color": "#428BCA",
+        "name": "编译成功",
+        "repository_id": 4369264,
+        "created_at": "2026-05-30T12:17:22+08:00",
+        "updated_at": "2026-06-24T14:44:01+08:00"
+      },
+      {
+        "id": 13020333,
+        "color": "#20c22e",
+        "name": "静态检查成功",
+        "repository_id": 4369264,
+        "created_at": "2025-01-17T01:22:57+08:00",
+        "updated_at": "2026-06-24T14:46:45+08:00"
+      }
+    ],
+    "created_at": "2026-06-22T20:04:46+08:00",
+    "updated_at": "2026-06-24T14:47:25+08:00",
+    "closed_at": "2026-06-24T14:47:25+08:00",
+    "merged_at": "2026-06-24T14:47:25+08:00",
+    "merged_by": {
+      "id": "6541ccea82d8f837210e92c3",
+      "login": "openharmony_ci",
+      "name": "openharmony_ci",
+      "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+      "html_url": "https://gitcode.com/openharmony_ci"
+    },
+    "draft": false,
+    "can_merge_check": true,
+    "prune_branch": false,
+    "mergeable": true,
+    "user": {
+      "id": "6731c0e6fbbddc0c200a58bb",
+      "login": "cuijiaojiao1",
+      "name": "cuijiaojiao1",
+      "avatar_url": "https://cdn-img.gitcode.com/db/be/40716dbb72575e3df57f0d6f71d7566c9acaea74584916e1e3d65fe759ec5bab.jpg",
+      "html_url": "https://gitcode.com/cuijiaojiao1"
+    },
+    "head": {
+      "ref": "82Change",
+      "sha": "d404e104f85615049d2f83a78bbc4f863d39f113",
+      "label": "82Change",
+      "repo": {
+        "path": "rntpc_react-native-svg_text",
+        "name": "rntpc_react-native-svg_text",
+        "namespace": {
+          "path": "cuijiaojiao1"
+        },
+        "full_name": "cuijiaojiao1/rntpc_react-native-svg_text",
+        "html_url": "https://gitcode.com/cuijiaojiao1/rntpc_react-native-svg_text.git"
+      },
+      "user": {
+        "id": "6731c0e6fbbddc0c200a58bb",
+        "login": "cuijiaojiao1",
+        "name": "cuijiaojiao1",
+        "avatar_url": "https://cdn-img.gitcode.com/db/be/40716dbb72575e3df57f0d6f71d7566c9acaea74584916e1e3d65fe759ec5bab.jpg",
+        "html_url": "https://gitcode.com/cuijiaojiao1"
+      }
+    },
+    "base": {
+      "ref": "br_rnoh0.82",
+      "sha": "2b9a4a430aa12cc22161054d0085c9540219e490",
+      "label": "br_rnoh0.82",
+      "repo": {
+        "path": "rntpc_react-native-svg",
+        "name": "rntpc_react-native-svg",
+        "namespace": {
+          "path": "CPF-RN"
+        },
+        "full_name": "CPF-RN/rntpc_react-native-svg",
+        "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-svg.git"
+      }
+    },
+    "mergeable_state": {
+      "merge_request_id": 8767667,
+      "state": true,
+      "status_without_user_auth": true,
+      "conflict_passed": true,
+      "branch_missing_passed": true,
+      "non_ff_passed": true,
+      "mr_state_passed": true,
+      "merged_by_user_passed": true,
+      "work_in_progress_passed": true,
+      "resolve_discussion_passed": true,
+      "ci_state_passed": true,
+      "merge_by_self_passed": true,
+      "can_force_merge": true,
+      "approval_reviewers_required_passed": true,
+      "approval_approvers_required_passed": true,
+      "approval_testers_required_passed": true,
+      "merge_request_switch": {
+        "review_mode": "approval",
+        "merge_method": "merge",
+        "only_allow_merge_if_all_discussions_are_resolved": true,
+        "disable_merge_by_self": true,
+        "only_allow_merge_if_pipeline_succeeds": false,
+        "disable_squash_merge": false,
+        "squash_merge_with_no_merge_commit": false,
+        "approval_required_reviewers_count": 0,
+        "approval_required_reviewers_branch": "*",
+        "add_notes_after_merged": true,
+        "mark_auto_merged_mr_as_closed": true,
+        "can_force_merge": true,
+        "can_reopen": true
+      },
+      "reason": {},
+      "check_tasks_num": 2,
+      "all_depend_merge_request_merged_passed": true,
+      "approval_approvers_result": 2,
+      "approval_testers_result": 2
+    },
+    "visibility_reason": "public",
+    "close_related_issue": true,
+    "squash_merge": false
+  },
+  "files": [
+    {
+      "sha": "d404e104f85615049d2f83a78bbc4f863d39f113",
+      "filename": "OAT.xml",
+      "additions": 10,
+      "deletions": 2,
+      "blob_id": "ccabf0b7427f151065638da606291cdbb7c8d29b",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-svg/blob/d404e104f85615049d2f83a78bbc4f863d39f113/OAT.xml",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-svg/raw/d404e104f85615049d2f83a78bbc4f863d39f113/OAT.xml",
+      "patch": "@@ -51,7 +51,10 @@\n \t\t\t\t<filteritem type=\"filepath\" name=\"harmony/svg/src/main/cpp/svgImage/RNSVGImageShadowNode.h\" desc=\"第三方开源软件源码，不修改版权头，以防有修改版权风险\"/>\n \t\t\t\t<filteritem type=\"filepath\" name=\"harmony/svg/src/main/cpp/svgImage/RNSVGImageState.cpp\" desc=\"第三方开源软件源码，不修改版权头，以防有修改版权风险\"/>\n \t\t\t\t<filteritem type=\"filepath\" name=\"harmony/svg/src/main/cpp/svgImage/RNSVGImageState.h\" desc=\"第三方开源软件源码，不修改版权头，以防有修改版权风险\"/>\n-\t\t\t\t\n+\t\t\t\t<filteritem type=\"filename\" name=\".eslintrc.js\" desc=\"第三方开源软件源码，不修改版权头，以防有修改版权风险\"/>\n+                <filteritem type=\"filename\" name=\".prettierrc.js\" desc=\"第三方开源软件源码，不修改版权头，以防有修改版权风险\"/>\n+                <filteritem type=\"filename\" name=\"babel.config.js\" desc=\"第三方开源软件源码，不修改版权头，以防有修改版权风险\"/>\n+\t\t\t\t<filteritem type=\"filename\" name=\"buildEnv.sh\" desc=\"配置文件无需更改，因此添加过滤\"/>\n             </filefilter>\n             <filefilter name=\"defaultPolicyFilter\" desc=\"Filters for compatibility，license header policies\">\n                 <filteritem type=\"filepath\" name=\"harmony/svg/hvigorfile.ts\" desc=\"hvigor构建脚本，DevEco Studio自动生成，不手动修改\"/>\n@@ -89,6 +92,10 @@\n \t\t\t\t<filteritem type=\"filepath\" name=\"harmony/svg/src/main/cpp/svgImage/RNSVGImageState.h\" desc=\"第三方开源软件源码，不修改版权头，以防有修改版权风险\"/>\n \t\t\t\t<filteritem type=\"filepath\" name=\"harmony/svg/BuildProfile.ets\" desc=\"工程模板，不修改版权头，以防有修改版权风险\"/>\n \t\t\t\t<filteritem type=\"filepath\" name=\"example/harmony/hvigorfile.ts\" desc=\"工程模板，不修改版权头，以防有修改版权风险\"/>\n+                <filteritem type=\"filename\" name=\".eslintrc.js\" desc=\"第三方开源软件源码，不修改版权头，以防有修改版权风险\"/>\n+                <filteritem type=\"filename\" name=\".prettierrc.js\" desc=\"第三方开源软件源码，不修改版权头，以防有修改版权风险\"/>\n+                <filteritem type=\"filename\" name=\"babel.config.js\" desc=\"第三方开源软件源码，不修改版权头，以防有修改版权风险\"/>\n+\t\t\t\t<filteritem type=\"filename\" name=\"buildEnv.sh\" desc=\"配置文件无需更改，因此添加过滤\"/>\n             </filefilter>\n \n             <filefilter name=\"binaryFileTypePolicyFilter\" desc=\"Filters for copyright header policies\">\n@@ -101,4 +108,5 @@\n             </filefilter>\n         </filefilterlist>\n     </oatconfig>\n-</configuration>\n\\ No newline at end of file\n+</configuration>\n+\n",
+      "target_branch": "br_rnoh0.82",
+      "source_branch": "82Change",
+      "source_project": {
+        "id": 10189722,
+        "full_name": "cuijiaojiao1/rntpc_react-native-svg_text",
+        "human_name": "cuijiaojiao1 / rntpc_react-native-svg_text",
+        "path": "rntpc_react-native-svg_text"
+      },
+      "target_project": {
+        "id": 4369264,
+        "full_name": "CPF-RN/rntpc_react-native-svg",
+        "human_name": "CPF-RN / rntpc_react-native-svg",
+        "path": "rntpc_react-native-svg"
+      }
+    },
+    {
+      "sha": "d404e104f85615049d2f83a78bbc4f863d39f113",
+      "filename": "buildEnv.sh",
+      "status": "added",
+      "additions": 9,
+      "deletions": 0,
+      "blob_id": "b72b4032577456857e735c3989309f35f9cd59d3",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-svg/blob/d404e104f85615049d2f83a78bbc4f863d39f113/buildEnv.sh",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-svg/raw/d404e104f85615049d2f83a78bbc4f863d39f113/buildEnv.sh",
+      "patch": "@@ -0,0 +1,9 @@\n+#!/bin/bash\n+BUILD_PKG_DIR=example\n+BUILD_SAMPLE_DIR=example/harmony\n+BUILD_THIRD_PARTY_DIR=harmony/\n+\n+# BUILD_PKG_DIR: 用来打 tgz 包的工程目录\n+# BUILD_SAMPLE_DIR：用来打 har 包的目录\n+# BUILD_THIRD_PARTY_DIR：库模块源码目录\n+\n",
+      "target_branch": "br_rnoh0.82",
+      "source_branch": "82Change",
+      "source_project": {
+        "id": 10189722,
+        "full_name": "cuijiaojiao1/rntpc_react-native-svg_text",
+        "human_name": "cuijiaojiao1 / rntpc_react-native-svg_text",
+        "path": "rntpc_react-native-svg_text"
+      },
+      "target_project": {
+        "id": 4369264,
+        "full_name": "CPF-RN/rntpc_react-native-svg",
+        "human_name": "CPF-RN / rntpc_react-native-svg",
+        "path": "rntpc_react-native-svg"
+      }
+    },
+    {
+      "sha": "d404e104f85615049d2f83a78bbc4f863d39f113",
+      "filename": "example/harmony/AppScope/app.json5",
+      "additions": 1,
+      "deletions": 1,
+      "blob_id": "8bc9c1009d0d77c9ad4d2b81f836a15f4656d9d3",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-svg/blob/d404e104f85615049d2f83a78bbc4f863d39f113/example/harmony/AppScope/app.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-svg/raw/d404e104f85615049d2f83a78bbc4f863d39f113/example/harmony/AppScope/app.json5",
+      "patch": "@@ -1,6 +1,6 @@\n {\n   \"app\": {\n-    \"bundleName\": \"com.harmony.wechat.lib.demo\",\n+    \"bundleName\": \"com.example.svg\",\n     \"vendor\": \"example\",\n     \"versionCode\": 1000000,\n     \"versionName\": \"1.0.0\",\n",
+      "target_branch": "br_rnoh0.82",
+      "source_branch": "82Change",
+      "source_project": {
+        "id": 10189722,
+        "full_name": "cuijiaojiao1/rntpc_react-native-svg_text",
+        "human_name": "cuijiaojiao1 / rntpc_react-native-svg_text",
+        "path": "rntpc_react-native-svg_text"
+      },
+      "target_project": {
+        "id": 4369264,
+        "full_name": "CPF-RN/rntpc_react-native-svg",
+        "human_name": "CPF-RN / rntpc_react-native-svg",
+        "path": "rntpc_react-native-svg"
+      }
+    },
+    {
+      "sha": "d404e104f85615049d2f83a78bbc4f863d39f113",
+      "filename": "example/harmony/build-profile.template.json5",
+      "additions": 7,
+      "deletions": 4,
+      "blob_id": "833f0077dfff07109b1c5d5368740b2e9ecf3bd6",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-svg/blob/d404e104f85615049d2f83a78bbc4f863d39f113/example/harmony/build-profile.template.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-svg/raw/d404e104f85615049d2f83a78bbc4f863d39f113/example/harmony/build-profile.template.json5",
+      "patch": "@@ -4,7 +4,6 @@\n       {\n         \"name\": 'default',\n         \"signingConfig\": 'default',\n-        \"compileSdkVersion\": '5.0.1(13)',\n         \"compatibleSdkVersion\": '5.0.0(12)',\n         \"runtimeOS\": 'HarmonyOS'\n       },\n@@ -28,9 +27,13 @@\n           \"name\": 'default',\n           \"applyToProducts\": [\n             'default'\n-          ],\n-        },\n-      ],\n+          ]\n+        }\n+      ]\n+    },\n+    {\n+      \"name\": \"svg\",\n+      \"srcPath\": '../../harmony/svg'\n     }\n   ],\n }\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.82",
+      "source_branch": "82Change",
+      "source_project": {
+        "id": 10189722,
+        "full_name": "cuijiaojiao1/rntpc_react-native-svg_text",
+        "human_name": "cuijiaojiao1 / rntpc_react-native-svg_text",
+        "path": "rntpc_react-native-svg_text"
+      },
+      "target_project": {
+        "id": 4369264,
+        "full_name": "CPF-RN/rntpc_react-native-svg",
+        "human_name": "CPF-RN / rntpc_react-native-svg",
+        "path": "rntpc_react-native-svg"
+      }
+    },
+    {
+      "sha": "d404e104f85615049d2f83a78bbc4f863d39f113",
+      "filename": "example/harmony/entry/build-profile.json5",
+      "additions": 3,
+      "deletions": 0,
+      "blob_id": "9a736c4495e63e87caa11b9dddc51d09306420eb",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-svg/blob/d404e104f85615049d2f83a78bbc4f863d39f113/example/harmony/entry/build-profile.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-svg/raw/d404e104f85615049d2f83a78bbc4f863d39f113/example/harmony/entry/build-profile.json5",
+      "patch": "@@ -4,6 +4,9 @@\n     \"externalNativeOptions\": {\n       \"path\": \"./src/main/cpp/CMakeLists.txt\",\n       \"arguments\": \"\",\n+      \"abiFilters\": [\n+        \"arm64-v8a\"\n+      ]\n     },\n   },\n   \"targets\": [\n",
+      "target_branch": "br_rnoh0.82",
+      "source_branch": "82Change",
+      "source_project": {
+        "id": 10189722,
+        "full_name": "cuijiaojiao1/rntpc_react-native-svg_text",
+        "human_name": "cuijiaojiao1 / rntpc_react-native-svg_text",
+        "path": "rntpc_react-native-svg_text"
+      },
+      "target_project": {
+        "id": 4369264,
+        "full_name": "CPF-RN/rntpc_react-native-svg",
+        "human_name": "CPF-RN / rntpc_react-native-svg",
+        "path": "rntpc_react-native-svg"
+      }
+    },
+    {
+      "sha": "d404e104f85615049d2f83a78bbc4f863d39f113",
+      "filename": "example/harmony/entry/oh-package.json5",
+      "additions": 2,
+      "deletions": 2,
+      "blob_id": "bd035ad16bc6a2e3e4b36b42689dc6264308cece",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-svg/blob/d404e104f85615049d2f83a78bbc4f863d39f113/example/harmony/entry/oh-package.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-svg/raw/d404e104f85615049d2f83a78bbc4f863d39f113/example/harmony/entry/oh-package.json5",
+      "patch": "@@ -5,7 +5,7 @@\n   \"description\": \"example description\",\n   \"version\": \"1.0.0\",\n   \"dependencies\": {\n-    \"@rnoh/react-native-openharmony\": \"file:../../node_modules/react-native-harmony/harmony/react_native_openharmony.har\",\n-    \"@react-native-ohos/react-native-svg\": \"file:../../node_modules/@react-native-ohos/react-native-svg/harmony/svg.har\"\n+    \"@rnoh/react-native-openharmony\": \"file:../../node_modules/react-native-harmony/react_native_openharmony.har\",\n+    \"@react-native-ohos/react-native-svg\": \"file:../../node_modules/@react-native-ohos/react-native-svg/harmony/svg.har\",\n   }\n }\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.82",
+      "source_branch": "82Change",
+      "source_project": {
+        "id": 10189722,
+        "full_name": "cuijiaojiao1/rntpc_react-native-svg_text",
+        "human_name": "cuijiaojiao1 / rntpc_react-native-svg_text",
+        "path": "rntpc_react-native-svg_text"
+      },
+      "target_project": {
+        "id": 4369264,
+        "full_name": "CPF-RN/rntpc_react-native-svg",
+        "human_name": "CPF-RN / rntpc_react-native-svg",
+        "path": "rntpc_react-native-svg"
+      }
+    },
+    {
+      "sha": "d404e104f85615049d2f83a78bbc4f863d39f113",
+      "filename": "example/harmony/entry/src/main/cpp/CMakeLists.txt",
+      "additions": 1,
+      "deletions": 0,
+      "blob_id": "b37cc8060bae1680e58a7095c3f241441a5793fc",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-svg/blob/d404e104f85615049d2f83a78bbc4f863d39f113/example/harmony/entry/src/main/cpp/CMakeLists.txt",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-svg/raw/d404e104f85615049d2f83a78bbc4f863d39f113/example/harmony/entry/src/main/cpp/CMakeLists.txt",
+      "patch": "@@ -1,5 +1,6 @@\n project(rnapp)\n cmake_minimum_required(VERSION 3.4.1)\n+set(CMAKE_NINJA_FORCE_RESPONSE_FILE 1)\n set(CMAKE_SKIP_BUILD_RPATH TRUE)\n set(RNOH_APP_DIR \"${CMAKE_CURRENT_SOURCE_DIR}\")\n set(NODE_MODULES \"${CMAKE_CURRENT_SOURCE_DIR}/../../../../../node_modules\")\n",
+      "target_branch": "br_rnoh0.82",
+      "source_branch": "82Change",
+      "source_project": {
+        "id": 10189722,
+        "full_name": "cuijiaojiao1/rntpc_react-native-svg_text",
+        "human_name": "cuijiaojiao1 / rntpc_react-native-svg_text",
+        "path": "rntpc_react-native-svg_text"
+      },
+      "target_project": {
+        "id": 4369264,
+        "full_name": "CPF-RN/rntpc_react-native-svg",
+        "human_name": "CPF-RN / rntpc_react-native-svg",
+        "path": "rntpc_react-native-svg"
+      }
+    },
+    {
+      "sha": "d404e104f85615049d2f83a78bbc4f863d39f113",
+      "filename": "example/harmony/oh-package.json5",
+      "additions": 1,
+      "deletions": 1,
+      "blob_id": "8697e14971a640d31b25f46b57b5dfcdb1202167",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-svg/blob/d404e104f85615049d2f83a78bbc4f863d39f113/example/harmony/oh-package.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-svg/raw/d404e104f85615049d2f83a78bbc4f863d39f113/example/harmony/oh-package.json5",
+      "patch": "@@ -6,7 +6,7 @@\n   \"repository\": {},\n   \"version\": \"1.0.0\",\n   \"overrides\": {\n-    \"@rnoh/react-native-openharmony\": \"file:./../node_modules/react-native-harmony/harmony/react_native_openharmony.har\"\n+    \"@rnoh/react-native-openharmony\": \"file:../node_modules/react-native-harmony/react_native_openharmony.har\"\n   },\n   \"dynamicDependencies\": {}\n }\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.82",
+      "source_branch": "82Change",
+      "source_project": {
+        "id": 10189722,
+        "full_name": "cuijiaojiao1/rntpc_react-native-svg_text",
+        "human_name": "cuijiaojiao1 / rntpc_react-native-svg_text",
+        "path": "rntpc_react-native-svg_text"
+      },
+      "target_project": {
+        "id": 4369264,
+        "full_name": "CPF-RN/rntpc_react-native-svg",
+        "human_name": "CPF-RN / rntpc_react-native-svg",
+        "path": "rntpc_react-native-svg"
+      }
+    },
+    {
+      "sha": "d404e104f85615049d2f83a78bbc4f863d39f113",
+      "filename": "example/package.json",
+      "additions": 22,
+      "deletions": 20,
+      "blob_id": "747e8ef571845b2a7388f08bfe1d215e2f2f7ad0",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-svg/blob/d404e104f85615049d2f83a78bbc4f863d39f113/example/package.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-svg/raw/d404e104f85615049d2f83a78bbc4f863d39f113/example/package.json",
+      "patch": "@@ -1,6 +1,6 @@\n {\n   \"name\": \"@react-native-ohos/react-native-svg\",\n-  \"version\": \"15.12.1-rc.1\",\n+  \"version\": \"15.13.0\",\n   \"private\": true,\n   \"scripts\": {\n     \"i\": \"cd ../ && npm i && npm run pack && cd ./example && npm i\",\n@@ -8,53 +8,55 @@\n     \"start\": \"hdc rport tcp:8081 tcp:8081 && react-native start\",\n     \"codegen\": \"react-native codegen-harmony --rnoh-module-path ./harmony/entry/oh_modules/@rnoh/react-native-openharmony\",\n     \"pack:pkg\": \"cd ../ && npm pack && cd ./example\",\n-    \"install:pkg\": \"npm uninstall @react-native-ohos/react-native-svg && npm run pack:pkg && npm i @react-native-ohos/react-native-svg@file:../react-native-ohos-react-native-svg-15.12.1-rc.12.tgz\",\n+    \"install:pkg\": \"npm uninstall @react-native-ohos/react-native-svg && npm run pack:pkg && npm i @react-native-ohos/react-native-svg@file:../react-native-ohos-react-native-svg-15.13.0.tgz\",\n     \"dev\": \"npm run codegen && react-native bundle-harmony --dev --minify=false\",\n     \"prod\": \"npm run codegen && react-native bundle-harmony --dev=false --minify=true\",\n     \"postinstall\": \"node ./scripts/create-build-profile\",\n-    \"fast:pkg\": \"cd ../ && npm i --legacy-peer-deps && npm pack --ignore-scripts && cd ./example && npm i && npm run dev\"\n+    \"fast-install-project\": \"cd ../ && npm i --force && npm run pack && rm -r node_modules && cd ./example && npm i --force\",\n+    \"fast:pkg\": \"npm run fast-install-project && npm run dev\"    \n   },\n   \"dependencies\": {\n     \"@gorhom/portal\": \"^1.0.14\",\n-    \"@react-native-ohos/react-native-svg\": \"file:../react-native-ohos-react-native-svg-15.12.1-rc.11.tgz\",\n-    \"react\": \"18.3.1\",\n-    \"react-native\": \"0.77.1\",\n-    \"react-native-harmony\": \"file:../packages/rnoh-react-native-harmony-0.77.10.tgz\",\n+    \"@react-native-ohos/react-native-svg\": \"file:../react-native-ohos-react-native-svg-15.13.0.tgz\",\n+    \"react\": \"19.1.1\",\n+    \"react-native\": \"0.82.1\",\n+    \"react-native-harmony\": \"npm:@react-native-oh/react-native-harmony@0.82.7\",\n     \"react-native-reanimated\": \"^3.6.0\"\n   },\n   \"devDependencies\": {\n     \"@babel/core\": \"^7.25.2\",\n     \"@babel/preset-env\": \"^7.25.3\",\n     \"@babel/runtime\": \"^7.25.0\",\n-    \"@react-native-community/cli\": \"15.0.1\",\n+    \"@react-native-community/cli\": \"20.0.0\",\n     \"@react-native-community/cli-platform-android\": \"15.0.1\",\n-    \"@react-native-community/cli-platform-ios\": \"15.0.1\",\n+    \"@react-native-community/cli-platform-ios\": \"20.0.0\",\n     \"@react-native-community/eslint-config\": \"^3.2.0\",\n-    \"@react-native/babel-preset\": \"0.77.1\",\n-    \"@react-native/eslint-config\": \"0.77.1\",\n-    \"@react-native/metro-config\": \"^0.77.1\",\n-    \"@react-native/typescript-config\": \"0.77.1\",\n-    \"@rnoh/react-native-harmony-cli\": \"file:../packages/rnoh-react-native-harmony-cli-0.77.10.tgz\",\n+    \"@react-native/babel-preset\": \"0.82.1\",\n+    \"@react-native/eslint-config\": \"0.82.1\",\n+    \"@react-native/metro-config\": \"^0.82.1\",\n+    \"@react-native/typescript-config\": \"0.82.1\",\n+    \"@rnoh/react-native-harmony-cli\": \"npm:@react-native-oh/react-native-harmony-cli@0.82.7\",\n     \"@tsconfig/react-native\": \"^3.0.0\",\n     \"@types/d3-scale-chromatic\": \"^3.0.0\",\n     \"@types/jest\": \"^29.5.13\",\n-    \"@types/react\": \"^18.2.6\",\n-    \"@types/react-test-renderer\": \"^18.0.0\",\n+    \"@types/react\": \"^19.1.0\",\n+    \"@types/react-test-renderer\": \"^19.1.0\",\n     \"babel-jest\": \"^29.6.3\",\n     \"eslint\": \"^8.19.0\",\n     \"jest\": \"^29.7.0\",\n     \"metro-react-native-babel-preset\": \"0.76.8\",\n-    \"prettier\": \"2.8.8\",\n-    \"react-test-renderer\": \"18.3.1\",\n+    \"prettier\": \"3.0.0\",\n+    \"react-test-renderer\": \"19.1.1\",\n     \"typescript\": \"5.5.4\"\n   },\n   \"overrides\": {\n-    \"@react-native-community/cli\": \"15.0.1\"\n+    \"@react-native-community/cli\": \"20.0.0\"\n   },\n   \"resolutions\": {\n-    \"@react-native-community/cli\": \"15.0.1\"\n+    \"@react-native-community/cli\": \"20.0.0\"\n   },\n   \"engines\": {\n     \"node\": \">=18\"\n   }\n }\n+\n",
+      "target_branch": "br_rnoh0.82",
+      "source_branch": "82Change",
+      "source_project": {
+        "id": 10189722,
+        "full_name": "cuijiaojiao1/rntpc_react-native-svg_text",
+        "human_name": "cuijiaojiao1 / rntpc_react-native-svg_text",
+        "path": "rntpc_react-native-svg_text"
+      },
+      "target_project": {
+        "id": 4369264,
+        "full_name": "CPF-RN/rntpc_react-native-svg",
+        "human_name": "CPF-RN / rntpc_react-native-svg",
+        "path": "rntpc_react-native-svg"
+      }
+    },
+    {
+      "sha": "d404e104f85615049d2f83a78bbc4f863d39f113",
+      "filename": "harmony/svg/src/main/cpp/SvgNode.cpp",
+      "additions": 28,
+      "deletions": 16,
+      "blob_id": "71b4919e33e4d674517e09b88162d5ede9aadcbe",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-svg/blob/d404e104f85615049d2f83a78bbc4f863d39f113/harmony/svg/src/main/cpp/SvgNode.cpp",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-svg/raw/d404e104f85615049d2f83a78bbc4f863d39f113/harmony/svg/src/main/cpp/SvgNode.cpp",
+      "patch": "@@ -211,24 +211,36 @@ void SvgNode::Draw(OH_Drawing_Canvas *canvas) {\n     }\r\n \t\r\n     if (hrefFill_) {\r\n-\t\tattributes_.fillState.SetGradient(std::nullopt, false);\r\n-\t\tattributes_.strokeState.SetGradient(std::nullopt, false);\r\n         auto fillHref = attributes_.fillState.GetHref();\r\n-        if (!fillHref.empty()) {\r\n-            auto gradient = GetGradient(fillHref);\r\n-            if (gradient) {\r\n-                attributes_.fillState.SetGradient(gradient.value(), true);\r\n-            }\r\n-            auto pattern = GetPatternAttr(fillHref);\r\n-            if (pattern) {\r\n-                attributes_.fillState.SetPattern(pattern);\r\n-            }\r\n-        }\r\n         auto strokeHref = attributes_.strokeState.GetHref();\r\n-        if (!strokeHref.empty()) {\r\n-            auto gradient = GetGradient(strokeHref);\r\n-            if (gradient) {\r\n-                attributes_.strokeState.SetGradient(gradient.value(), true);\r\n+        // Only reset gradient if the node has its own href reference to resolve.\r\n+        // If there is no href, the gradient was inherited from parent via InitStyle/InheritAttr,\r\n+        // and resetting it would destroy the inherited gradient (critical for Text/TSpan elements\r\n+        // where gradient is inherited from parent, not referenced via href).\r\n+        bool hasFillHref = !fillHref.empty();\r\n+        bool hasStrokeHref = !strokeHref.empty();\r\n+        if (hasFillHref || hasStrokeHref) {\r\n+            if (hasFillHref) {\r\n+                attributes_.fillState.SetGradient(std::nullopt, false);\r\n+            }\r\n+            if (hasStrokeHref) {\r\n+                attributes_.strokeState.SetGradient(std::nullopt, false);\r\n+            }\r\n+            if (hasFillHref) {\r\n+                auto gradient = GetGradient(fillHref);\r\n+                if (gradient) {\r\n+                    attributes_.fillState.SetGradient(gradient.value(), true);\r\n+                }\r\n+                auto pattern = GetPatternAttr(fillHref);\r\n+                if (pattern) {\r\n+                    attributes_.fillState.SetPattern(pattern);\r\n+                }\r\n+            }\r\n+            if (hasStrokeHref) {\r\n+                auto gradient = GetGradient(strokeHref);\r\n+                if (gradient) {\r\n+                    attributes_.strokeState.SetGradient(gradient.value(), true);\r\n+                }\r\n             }\r\n         }\r\n     }\r\n",
+      "target_branch": "br_rnoh0.82",
+      "source_branch": "82Change",
+      "source_project": {
+        "id": 10189722,
+        "full_name": "cuijiaojiao1/rntpc_react-native-svg_text",
+        "human_name": "cuijiaojiao1 / rntpc_react-native-svg_text",
+        "path": "rntpc_react-native-svg_text"
+      },
+      "target_project": {
+        "id": 4369264,
+        "full_name": "CPF-RN/rntpc_react-native-svg",
+        "human_name": "CPF-RN / rntpc_react-native-svg",
+        "path": "rntpc_react-native-svg"
+      }
+    },
+    {
+      "sha": "d404e104f85615049d2f83a78bbc4f863d39f113",
+      "filename": "package.json",
+      "additions": 1,
+      "deletions": 0,
+      "blob_id": "a37257c1a844621af53aa499e7ec010fe3680489",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-svg/blob/d404e104f85615049d2f83a78bbc4f863d39f113/package.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-svg/raw/d404e104f85615049d2f83a78bbc4f863d39f113/package.json",
+      "patch": "@@ -7,6 +7,7 @@\n   \"module\": \"lib/module/index\",\n   \"types\": \"lib/typescript/index.d.ts\",\n   \"scripts\": {\n+    \"pack\": \"npm pack --ignore-scripts\",\n     \"prepack\": \"bob build\",\n     \"prepublishOnly\": \"npm run prepack && react-native verify-package-harmony --package-path . --skip-checks oh_package_name_is_derived_from_npm_package_name\",\n     \"update_version\": \"node ./scripts/update-version.js\",\n",
+      "target_branch": "br_rnoh0.82",
+      "source_branch": "82Change",
+      "source_project": {
+        "id": 10189722,
+        "full_name": "cuijiaojiao1/rntpc_react-native-svg_text",
+        "human_name": "cuijiaojiao1 / rntpc_react-native-svg_text",
+        "path": "rntpc_react-native-svg_text"
+      },
+      "target_project": {
+        "id": 4369264,
+        "full_name": "CPF-RN/rntpc_react-native-svg",
+        "human_name": "CPF-RN / rntpc_react-native-svg",
+        "path": "rntpc_react-native-svg"
+      }
+    },
+    {
+      "sha": "d404e104f85615049d2f83a78bbc4f863d39f113",
+      "filename": "tsconfig.json",
+      "additions": 12,
+      "deletions": 2,
+      "blob_id": "c27d096b0a95f14eab5b8e96b02c5e98f8c2351b",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-svg/blob/d404e104f85615049d2f83a78bbc4f863d39f113/tsconfig.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-svg/raw/d404e104f85615049d2f83a78bbc4f863d39f113/tsconfig.json",
+      "patch": "@@ -3,10 +3,20 @@\n     \"@tsconfig/react-native/tsconfig.json\",\n   ],\n   \"compilerOptions\": {\n-    \"noEmit\": false\n+    \"noEmit\": false,\n+    \"skipLibCheck\": true,\n+    \"allowJs\": false,\n+    \"baseUrl\": \".\",\n+    \"paths\": {\n+      \"react-native-svg/src/*\": [\"node_modules/react-native-svg/lib/typescript/*\"]\n+    }\n   },\n   \"exclude\": [\n     \"lib\",\n-    \"harmony\"\n+    \"harmony\",\n+    \"example\",\n+    \"node_modules\",\n+    \"scripts\",\n+    \"babel.config.js\"\n   ]\n }\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.82",
+      "source_branch": "82Change",
+      "source_project": {
+        "id": 10189722,
+        "full_name": "cuijiaojiao1/rntpc_react-native-svg_text",
+        "human_name": "cuijiaojiao1 / rntpc_react-native-svg_text",
+        "path": "rntpc_react-native-svg_text"
+      },
+      "target_project": {
+        "id": 4369264,
+        "full_name": "CPF-RN/rntpc_react-native-svg",
+        "human_name": "CPF-RN / rntpc_react-native-svg",
+        "path": "rntpc_react-native-svg"
+      }
+    }
+  ]
+}

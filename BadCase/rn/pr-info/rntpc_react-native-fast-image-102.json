@@ -1,0 +1,198 @@
+{
+  "pr": {
+    "id": 8929298,
+    "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-fast-image/merge_requests/102",
+    "number": 102,
+    "state": "merged",
+    "title": "fix(harmony): distinguish rawfile asset from file path when loading local images",
+    "url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-fast-image/pulls/102",
+    "issue_url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-fast-image/pulls/102/issues",
+    "body": "fix(harmony): distinguish rawfile asset from file path when loading local images [#60](https://gitcode.com/CPF-RN/rntpc_react-native-fast-image/issues/60) ",
+    "assignees_number": 2,
+    "assignees": [
+      {
+        "id": "6731c8f2fbbddc0c200a6019",
+        "login": "zhu_chengcheng",
+        "name": "zhu_chengcheng",
+        "avatar_url": "https://cdn-img.gitcode.com/fe/bd/f406eb600317d9bbb6a5c23042b49e5193dfbb7a63ee407f5bbfcbabcd177af1.jpg",
+        "html_url": "https://gitcode.com/zhu_chengcheng",
+        "assignee": true,
+        "code_owner": false,
+        "accept": true
+      },
+      {
+        "id": "67fdb69df01e3c566929edd4",
+        "login": "gcw_N7oHqLFR",
+        "name": "huang_jy",
+        "avatar_url": "",
+        "html_url": "https://gitcode.com/gcw_N7oHqLFR",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      }
+    ],
+    "testers": [
+      {
+        "id": "6541ccea82d8f837210e92c3",
+        "login": "openharmony_ci",
+        "name": "openharmony_ci",
+        "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+        "html_url": "https://gitcode.com/openharmony_ci",
+        "assignee": false,
+        "code_owner": false,
+        "accept": true
+      }
+    ],
+    "approval_reviewers": [],
+    "labels": [
+      {
+        "id": 13241951,
+        "color": "#428BCA",
+        "name": "dco检查成功",
+        "repository_id": 4369327,
+        "created_at": "2026-06-09T12:07:01+08:00",
+        "updated_at": "2026-07-24T16:03:38+08:00"
+      },
+      {
+        "id": 13241762,
+        "color": "#428BCA",
+        "name": "编译成功",
+        "repository_id": 4369327,
+        "created_at": "2026-06-08T17:10:00+08:00",
+        "updated_at": "2026-07-25T11:25:53+08:00"
+      },
+      {
+        "id": 13240443,
+        "color": "#428BCA",
+        "name": "静态检查成功",
+        "repository_id": 4369327,
+        "created_at": "2026-06-01T20:19:24+08:00",
+        "updated_at": "2026-07-25T11:26:25+08:00"
+      }
+    ],
+    "created_at": "2026-07-24T16:02:57+08:00",
+    "updated_at": "2026-07-25T12:01:18+08:00",
+    "closed_at": "2026-07-25T12:01:18+08:00",
+    "merged_at": "2026-07-25T12:01:18+08:00",
+    "merged_by": {
+      "id": "6541ccea82d8f837210e92c3",
+      "login": "openharmony_ci",
+      "name": "openharmony_ci",
+      "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+      "html_url": "https://gitcode.com/openharmony_ci"
+    },
+    "draft": false,
+    "can_merge_check": true,
+    "prune_branch": false,
+    "mergeable": true,
+    "user": {
+      "id": "6747427c7ebca92c73f8f23a",
+      "login": "qq_54551695",
+      "name": "YongHengCode",
+      "avatar_url": "https://cdn-img.gitcode.com/ed/fb/ed27f35be6a3b0883f845cba15fa23bccdea907b305681024d157e7cbd53d455.jpg",
+      "html_url": "https://gitcode.com/qq_54551695"
+    },
+    "head": {
+      "ref": "br_rnoh0.77",
+      "sha": "68748cac0d6cd9e966a5820610709bc2e651c39f",
+      "label": "br_rnoh0.77",
+      "repo": {
+        "path": "rntpc_react-native-fast-image",
+        "name": "rntpc_react-native-fast-image",
+        "namespace": {
+          "path": "qq_54551695"
+        },
+        "full_name": "qq_54551695/rntpc_react-native-fast-image",
+        "html_url": "https://gitcode.com/qq_54551695/rntpc_react-native-fast-image.git"
+      },
+      "user": {
+        "id": "6747427c7ebca92c73f8f23a",
+        "login": "qq_54551695",
+        "name": "YongHengCode",
+        "avatar_url": "https://cdn-img.gitcode.com/ed/fb/ed27f35be6a3b0883f845cba15fa23bccdea907b305681024d157e7cbd53d455.jpg",
+        "html_url": "https://gitcode.com/qq_54551695"
+      }
+    },
+    "base": {
+      "ref": "br_rnoh0.77",
+      "sha": "eb2f6ec5accb5e8fac4cd41c153abb68338ca52d",
+      "label": "br_rnoh0.77",
+      "repo": {
+        "path": "rntpc_react-native-fast-image",
+        "name": "rntpc_react-native-fast-image",
+        "namespace": {
+          "path": "CPF-RN"
+        },
+        "full_name": "CPF-RN/rntpc_react-native-fast-image",
+        "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-fast-image.git"
+      }
+    },
+    "mergeable_state": {
+      "merge_request_id": 8929298,
+      "state": true,
+      "status_without_user_auth": true,
+      "conflict_passed": true,
+      "branch_missing_passed": true,
+      "non_ff_passed": true,
+      "mr_state_passed": true,
+      "merged_by_user_passed": true,
+      "work_in_progress_passed": true,
+      "resolve_discussion_passed": true,
+      "ci_state_passed": true,
+      "merge_by_self_passed": true,
+      "can_force_merge": false,
+      "approval_reviewers_required_passed": true,
+      "approval_approvers_required_passed": true,
+      "approval_testers_required_passed": true,
+      "merge_request_switch": {
+        "review_mode": "approval",
+        "merge_method": "merge",
+        "only_allow_merge_if_all_discussions_are_resolved": false,
+        "disable_merge_by_self": true,
+        "only_allow_merge_if_pipeline_succeeds": false,
+        "disable_squash_merge": false,
+        "squash_merge_with_no_merge_commit": false,
+        "approval_required_reviewers_count": 0,
+        "approval_required_reviewers_branch": "*",
+        "add_notes_after_merged": false,
+        "mark_auto_merged_mr_as_closed": true,
+        "can_force_merge": false,
+        "can_reopen": false
+      },
+      "reason": {},
+      "check_tasks_num": 2,
+      "all_depend_merge_request_merged_passed": true,
+      "approval_approvers_result": 2,
+      "approval_testers_result": 2
+    },
+    "visibility_reason": "public",
+    "close_related_issue": true,
+    "squash_merge": false
+  },
+  "files": [
+    {
+      "sha": "68748cac0d6cd9e966a5820610709bc2e651c39f",
+      "filename": "harmony/fast_image/src/main/cpp/FastImageViewComponentInstance.cpp",
+      "additions": 7,
+      "deletions": 1,
+      "blob_id": "689f0f41c6a9e8b9a74fec374f692b69c85d75ef",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-fast-image/blob/68748cac0d6cd9e966a5820610709bc2e651c39f/harmony/fast_image/src/main/cpp/FastImageViewComponentInstance.cpp",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-fast-image/raw/68748cac0d6cd9e966a5820610709bc2e651c39f/harmony/fast_image/src/main/cpp/FastImageViewComponentInstance.cpp",
+      "patch": "@@ -139,7 +139,13 @@ void FastImageViewComponentInstance::onPropsChanged(SharedConcreteProps const &p\n     std::string newUri = setSources(props->source.uri, getAbsolutePathPrefix(getBundlePath()));\n     if (!m_props || m_props->source.uri != newUri) {\n         if (props->source.uri.rfind(ASSET_PREFIX, 0) == 0) {\n-            m_imageKnifeOption->loadSrc.SetResource({.id = -1, .param = newUri.c_str()});\n+            if (newUri.find(RAWFILE_PREFIX, 0) == 0) {\n+                m_imageKnifeOption->loadSrc.SetResource({.id = -1, .param = newUri.c_str()});\n+            }\n+            else\n+            {\n+                m_imageKnifeOption->loadSrc.SetString(newUri.c_str());\n+            }\n         }\n         else {\n             m_imageKnifeOption->loadSrc.SetString(props->source.uri);\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9494965,
+        "full_name": "qq_54551695/rntpc_react-native-fast-image",
+        "human_name": "qq_54551695 / rntpc_react-native-fast-image",
+        "path": "rntpc_react-native-fast-image"
+      },
+      "target_project": {
+        "id": 4369327,
+        "full_name": "CPF-RN/rntpc_react-native-fast-image",
+        "human_name": "CPF-RN / rntpc_react-native-fast-image",
+        "path": "rntpc_react-native-fast-image"
+      }
+    }
+  ]
+}

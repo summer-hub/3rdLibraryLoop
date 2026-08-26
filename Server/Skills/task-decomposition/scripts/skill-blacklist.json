@@ -5,6 +5,7 @@
     "task-decomposition",
     "acceptance-check",
     "skill-generator",
-    "knowledge-import"
+    "knowledge-import",
+    "rn-library-issue-generalizer"
   ]
 }

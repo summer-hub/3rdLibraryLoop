@@ -1,6 +1,6 @@
 ---
 name: knowledge-import
-description: 将积累的知识经验导入到知识库和SKILL系统中，实现系统的自我迭代。调用MCP知识库工具新增知识条目，并定位关联的SKILL进行优化修改。当需要将某条已沉淀的经验知识正式导入到MCP知识库和SKILL体系时使用此技能。
+description: 将积累的知识经验导入到知识库和SKILL系统中，实现系统的自我迭代。调用MCP知识库工具新增知识条目，并定位关联的SKILL进行优化修改；问题案例类经验路由到 rn-library-issue-generalizer 泛化为检视规则入库（BadCase/rn）。当需要将某条已沉淀的经验知识正式导入到MCP知识库和SKILL体系时使用此技能。
 license: Apache-2.0
 compatibility: 需要MCP Gateway运行中（kb_add_document 工具 + kb-server 下游工具），需要文件读写权限到Server/Skills目录和经验文档路径。通过opencode CLI调用执行。
 metadata:
@@ -48,11 +48,13 @@ metadata:
 ```
 Phase 1: 读取并分析经验文档
     ↓
-Phase 2: 内容分类（知识类 / SKILL类）
+Phase 2: 内容分类（知识类 / SKILL类 / 问题案例类）
     ↓
-Phase 3: 知识类导入 → 调用 MCP kb_add_document
+Phase 3: 知识类导入 → 调用 MCP 知识库
     ↓
 Phase 4: SKILL类导入 → 定位并优化对应 SKILL
+    ↓
+Phase 4.5: 问题案例类导入 → 调用 rn-library-issue-generalizer 泛化入库
     ↓
 Phase 5: 输出导入结果
 ```
@@ -90,12 +92,21 @@ Phase 5: 输出导入结果
 
 ### 2.1 分类标准
 
-将经验文档中的内容分为两类：
+将经验文档中的内容分为三类：
 
 | 类别 | 判断标准 | 导入目标 |
 |------|----------|----------|
 | **知识类** | 通用的技术发现、API行为、平台差异、最佳实践、踩坑记录等可被检索复用的知识 | MCP 知识库 |
 | **SKILL类** | 经验内容**显式提及**某SKILL的执行流程存在缺陷、遗漏或可优化（如"XX步骤应增加YY检查"、"SKILL缺少ZZ步骤"） | 对应 SKILL 文件 |
+| **问题案例类** | 经验内容包含**具体库的具体问题**：问题现象 + 根因 + 修复方式（含修复 PR/commit 链接），且问题模式可能复现于其他库 | `rn-library-issue-generalizer` 泛化入库（BadCase/rn） |
+
+> ⚠️ **问题案例类判断标准**（需同时满足）：
+> 1. **具体库**：明确提及某个三方库名称（如 react-native-webview）
+> 2. **具体问题**：描述了可复现的问题现象（非泛泛的最佳实践）
+> 3. **有修复证据**：包含修复 PR/commit 链接，或文档中有明确的错误代码→正确代码对照
+>
+> **路由规则**：命中问题案例类的内容**不进 MCP 知识库**，改由 `rn-library-issue-generalizer` SKILL 泛化为机制层规则写入 `BadCase/rn/`（draft 状态，人工审核后激活）。泛化调用参数：`issueList` = `[{"description": "问题现象", "prUrl": "修复PR链接"}]`，`knowledgeDir` = `BadCase/rn` 绝对路径。
+> 一条经验可同时含多类内容：案例部分走泛化，其余走知识类/SKILL类原有路径。
 
 > ⚠️ **SKILL类判断门槛**：内容必须同时满足两个条件才算SKILL类：
 > 1. **显式指向**：经验中明确提及了SKILL名称、步骤名、或具体流程环节（不是仅提及相关技术领域）
@@ -272,6 +283,36 @@ experiences/{知识总结}
 
 ---
 
+## Phase 4.5：问题案例类导入 → 调用泛化 SKILL
+
+> Phase 2 判定存在**问题案例类**内容时执行本阶段（无则跳过）。
+
+### 4.5.1 构造泛化输入
+
+从经验文档中提取案例信息，构造 `issueList`：
+
+```json
+[{"description": "【库名】问题现象简述", "prUrl": "https://gitcode.com/owner/repo/pull/123"}]
+```
+
+- `description`：保留库名 + 问题现象（泛化器需要现象层信息做根因分析）
+- `prUrl`：修复 PR 链接；缺失时仍可传入（泛化器降级为仅描述分析）
+
+### 4.5.2 调用 rn-library-issue-generalizer
+
+以子任务方式调用泛化 SKILL，参数：
+
+| 参数 | 值 |
+|------|-----|
+| `issueList` | 4.5.1 构造的 JSON 数组 |
+| `knowledgeDir` | `BadCase/rn` 的绝对路径（相对 3rdLibraryLoop 仓库根解析） |
+
+### 4.5.3 记录泛化产出
+
+泛化完成后，从 `BadCase/rn/generalization-log.md` 最新一节读取产出清单（新建规则/挂载案例/修订项），写入结果文件的"问题案例类导入"章节。**不做人工审核动作**（draft → active 由人工完成）。
+
+---
+
 ## Phase 5：输出导入结果
 
 ### 5.1 写入结果文件
@@ -301,6 +342,13 @@ experiences/{知识总结}
   2. {优化项2描述}
 - 状态: 已优化
 
+### 问题案例类导入
+- 泛化SKILL: rn-library-issue-generalizer
+- 知识库目录: BadCase/rn
+- 输入案例: {description + prUrl 摘要}
+- 产出: 新建规则 {R-XX 列表} / 挂载案例 {KI-XXX → R-XX}（draft 状态，待人工审核）
+- 状态: 已泛化入库
+
 ## 详细变更记录
 
 ### 知识库变更
@@ -328,6 +376,8 @@ experiences/{知识总结}
 | kb_add_document 调用失败 | 记录错误，尝试 kb-server 远程工具作为 fallback |
 | 无关联SKILL且无法定位 | SKILL类内容降级为知识类，全部导入知识库 |
 | 经验未显式提及任何SKILL | 不进行SKILL修改，所有内容归为知识类导入知识库 |
+| 问题案例无修复 PR 链接 | 仍可路由泛化（generalizer 支持仅描述分析），结果中标注"材料不足，泛化质量降级" |
+| generalizer 调用失败 | 案例原文降级为知识类导入 MCP 知识库，结果中记录失败原因 |
 | SKILL文件修改失败 | 记录错误，知识类导入结果仍保留 |
 | 无SKILL类内容 | 跳过 Phase 4，仅执行知识类导入 |
 | 无知识类内容 | 跳过 Phase 3，仅执行SKILL类导入 |

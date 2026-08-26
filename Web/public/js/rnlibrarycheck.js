@@ -4,10 +4,11 @@
  * 设计理念（与 flutterlibrarycheck.js 一致）：后端不感知定制化，前端直接调用
  * 通用 Orchestrator API 完成固定编排。
  *
- * 编排流程（参考 AIweb RNLibraryCheck：接口分析先行 + 5 维检视并发）：
+ * 编排流程（参考 AIweb RNLibraryCheck：接口分析先行 + 检视维度并发）：
  *   步骤 1  rn-library-interface-analyzer              — 双仓库克隆 + 接口规格分析
- *   步骤 2~6 stability / consistency / memoryLeak /    — 5 个检视维度并发执行
- *            documentation / testCoverage                （dependId=1 fan-out）
+ *   步骤 2~7 stability / consistency / memoryLeak /    — 6 个检视维度并发执行
+ *            documentation / testCoverage /             （dependId=1 fan-out）
+ *            knownIssue（独立扣分项）
  *
  * 每个检视 SKILL 输出 0-100 评分：
  *   - 首选：SKILL 按约定写 meta .json（stepId{X}_loop{L}_meta_{N}.json），
@@ -19,11 +20,12 @@
  *   - 双仓库入参：libraryName + ohosRepoUrl（鸿蒙化）+ upstreamRepoUrl（上游原库），
  *     可选 rndocUrl（RN 使用文档）/ rnRntUrl（RNT 测试 demo 地址）
  *   - 源码目录：{outputDir}/source/ohos/（鸿蒙化）+ {outputDir}/source/RN/（上游原库）
- *   - 无编码质量（codeQuality）维度，本地 5 维检视（AIweb 的 knownIssue 也无本地 SKILL）
- *   - 权重与 Flutter 一致：稳定性 20% / 一致性 20% / 内存泄露 20% / 文档质量 15% / 用例覆盖 25%
+ *   - 无编码质量（codeQuality）维度，本地 6 维检视（knownIssue 为独立扣分项，不参与加权）
+ *   - 权重与 Flutter 一致：稳定性 20% / 一致性 20% / 内存泄露 20% / 文档质量 15% / 用例覆盖 25%；
+ *     已知问题命中一条总分扣 30 分（独立扣分项）
  *
  * 前端编排时序：
- *   1. 构造 6 步 taskDef（specifiedSkill 固定指定 SKILL，跳过自动匹配）
+ *   1. 构造 7 步 taskDef（specifiedSkill 固定指定 SKILL，跳过自动匹配）
  *   2. POST /api/orchestrator/load  — 加载任务定义
  *   3. POST /api/orchestrator/start — 启动编排（步骤 2~6 依赖步骤 1 自动并发）
  *   4. GET  /stream/tasks/:taskId   — SSE 实时监控（orch:step:status 含 metrics）
@@ -38,7 +40,7 @@
  * ════════════════════════════════════════════════════════════════════ */
 'use strict';
 
-/* ── 编排配置：6 个 SKILL 步骤（stepId 固定，历史恢复依赖此顺序）───────── */
+/* ── 编排配置：7 个 SKILL 步骤（stepId 固定，历史恢复依赖此顺序）───────── */
 var _RN_STEP_DEFS = [
     { stepId: 1, key: 'interface',     skill: 'rn-library-interface-analyzer',           num: '①', name: '接口分析',     desc: '双仓库克隆 + 上游 API/TurboModule 接口规格', report: '接口规格说明.md',     scoreKey: null },
     { stepId: 2, key: 'stability',     skill: 'rn-library-stability-check',               num: '②', name: '稳定性检视',   desc: '异常处理、资源释放、并发安全',              report: '稳定性检视报告.md',   scoreKey: 'stabilityScore' },
@@ -46,9 +48,10 @@ var _RN_STEP_DEFS = [
     { stepId: 4, key: 'memoryleak',    skill: 'rn-library-memory-leak-check',             num: '④', name: '内存泄露检视', desc: 'NAPI 引用、JSI 绑定、事件监听',            report: '内存泄露检视报告.md', scoreKey: 'memoryLeakScore' },
     { stepId: 5, key: 'documentation', skill: 'rn-library-documentation-quality-check',   num: '⑤', name: '文档质量检视', desc: 'API 注释、适配说明、示例质量',              report: '文档质量检视报告.md', scoreKey: 'documentationScore' },
     { stepId: 6, key: 'testcoverage',  skill: 'rn-library-test-coverage-check',           num: '⑥', name: '用例覆盖度检视', desc: '测试覆盖率、Demo 覆盖率',               report: '用例覆盖度检视报告.md', scoreKey: 'testCoverageScore' },
+    { stepId: 7, key: 'knownissue',    skill: 'rn-library-known-issue-check',             num: '⑦', name: '已知问题检视', desc: '历史案例规则回归，独立扣分项（命中一条扣 30 分）', report: '已知问题检视报告.md', scoreKey: 'knownIssueScore' },
 ];
 
-/* 评分权重（与 AIweb RNLibraryCheck 综合评分口径一致，权重和 = 1） */
+/* 评分权重（与 AIweb RNLibraryCheck 综合评分口径一致，权重和 = 1；knownissue 为独立扣分项不参与加权） */
 var _RN_WEIGHTS = { stability: 0.20, consistency: 0.20, memoryleak: 0.20, documentation: 0.15, testcoverage: 0.25 };
 
 /* 用例覆盖度检视的附属脚本报告 */
@@ -249,9 +252,9 @@ async function doRNLibraryCheck() {
         var ts = Date.now().toString(36);
         var taskId = 'rncheck_' + safeName + '_' + ts;
 
-        // ── 2. 构造 6 步 taskDef ──
+        // ── 2. 构造 7 步 taskDef ──
         // 步骤 1：接口分析（双仓库克隆 + 接口规格说明.md）
-        // 步骤 2~6：5 个检视维度，dependId=1 fan-out 并发（编排器自动并行执行）
+        // 步骤 2~7：6 个检视维度，dependId=1 fan-out 并发（编排器自动并行执行）
         // specifiedSkill 固定指定 SKILL，跳过 SkillSelector 自动匹配
         // body.title 编码双仓库信息，供历史恢复解析（格式: RN仓库检视|{libraryName}|{ohosRepoUrl}|{upstreamRepoUrl}）
         var interfaceDesc = [
@@ -277,7 +280,7 @@ async function doRNLibraryCheck() {
             inputReport: '',
         }];
 
-        // 5 个检视步骤（并发）：依赖步骤 1 已克隆的 source/ohos/、source/RN/ 和 接口规格说明.md
+        // 6 个检视步骤（并发）：依赖步骤 1 已克隆的 source/ohos/、source/RN/ 和 接口规格说明.md
         for (var i = 1; i < _RN_STEP_DEFS.length; i++) {
             var def = _RN_STEP_DEFS[i];
             var desc = [
@@ -303,6 +306,9 @@ async function doRNLibraryCheck() {
             }
             if (def.key === 'testcoverage' && rnRntUrl) {
                 desc.push('- rnRntUrl（测试用例 demo 地址）: ' + rnRntUrl);
+            }
+            if (def.key === 'knownissue') {
+                desc.push('- knowledgeDir（已知问题知识库）: BadCase/rn（相对 3rdLibraryLoop 仓库根目录；若任务工作目录不在仓库内则使用绝对路径）');
             }
 
             steps.push({
@@ -381,7 +387,7 @@ function _rnNewTaskState(taskId, libraryName, ohosRepoUrl, upstreamRepoUrl, rndo
         mdFileCount: 0,    // taskDir 下的 .md 文件数（驱动"下载全部报告"按钮）
         reportPaths: {},   // 各维度专属报告文件（如 稳定性检视报告.md）
         resultPaths: {},   // 各步骤 result .md 兜底路径（部分 SKILL 会把报告合入 result 文件）
-        scores: { stability: null, consistency: null, memoryleak: null, documentation: null, testcoverage: null, overall: null },
+        scores: { stability: null, consistency: null, memoryleak: null, documentation: null, testcoverage: null, knownissue: null, overall: null },
         scoreReasons: {},  // 各维度评分判定依据（来自 meta .json 的 scoreReason，悬浮提示展示）
         stepStatus: {},
     };
@@ -430,7 +436,7 @@ function _rnCreateCard(idx, createdAt, isHistory) {
                 '<div class="rn-score-overall-row">' +
                     '<span class="rn-score-label">综合评分</span>' +
                     '<span class="rn-score-value" id="rn-' + idx + '-overall-score" style="display:none">--</span>' +
-                    '<span class="rn-score-weights">稳定性 20% · 一致性 20% · 内存泄露 20% · 文档质量 15% · 用例覆盖 25%</span>' +
+                    '<span class="rn-score-weights">稳定性 20% · 一致性 20% · 内存泄露 20% · 文档质量 15% · 用例覆盖 25% · 已知问题独立扣分</span>' +
                 '</div>' +
                 '<div class="rn-score-grid">' +
                     '<div class="rn-score-item"><span class="rn-score-item-label">稳定性</span><span class="rn-score-item-value" id="rn-' + idx + '-dim-stability">--</span></div>' +
@@ -438,6 +444,7 @@ function _rnCreateCard(idx, createdAt, isHistory) {
                     '<div class="rn-score-item"><span class="rn-score-item-label">内存泄露</span><span class="rn-score-item-value" id="rn-' + idx + '-dim-memoryleak">--</span></div>' +
                     '<div class="rn-score-item"><span class="rn-score-item-label">文档质量</span><span class="rn-score-item-value" id="rn-' + idx + '-dim-documentation">--</span></div>' +
                     '<div class="rn-score-item"><span class="rn-score-item-label">用例覆盖</span><span class="rn-score-item-value" id="rn-' + idx + '-dim-testcoverage">--</span></div>' +
+                    '<div class="rn-score-item"><span class="rn-score-item-label">已知问题</span><span class="rn-score-item-value" id="rn-' + idx + '-dim-knownissue">--</span></div>' +
                 '</div>' +
             '</div>' +
             '<div class="rn-steps-panel">' +
@@ -750,7 +757,7 @@ function _rnSetStepScore(idx, def, score, reason) {
     _rnRenderScorePanel(idx);
 }
 
-/** 评分概览面板渲染（维度评分 + 综合评分 + 头部总分徽章） */
+/** 评分概览面板渲染（维度评分 + 综合评分 + 头部总分徽章；knownissue 为独立扣分项） */
 function _rnRenderScorePanel(idx) {
     var task = _rnTasks[idx];
     if (!task) return;
@@ -761,7 +768,7 @@ function _rnRenderScorePanel(idx) {
     var panel = document.getElementById('rn-' + idx + '-score-panel');
     if (panel && hasAny) panel.style.display = 'block';
 
-    var dims = ['stability', 'consistency', 'memoryleak', 'documentation', 'testcoverage'];
+    var dims = ['stability', 'consistency', 'memoryleak', 'documentation', 'testcoverage', 'knownissue'];
     for (var i = 0; i < dims.length; i++) {
         var key = dims[i];
         var el = document.getElementById('rn-' + idx + '-dim-' + key);
@@ -778,23 +785,28 @@ function _rnRenderScorePanel(idx) {
         }
     }
 
-    // 综合评分（5 维齐全才计算）
+    // 综合评分（5 维齐全才计算；knownissue 不参与加权，作为独立扣分项：命中一条扣 30 分）
     if (task.scores.overall == null) {
         task.scores.overall = _rnComputeOverall(task.scores);
     }
     if (task.scores.overall != null) {
+        var displayOverall = task.scores.overall;
+        if (task.scores.knownissue != null && task.scores.knownissue < 100) {
+            var hitCount = Math.min(3, Math.round((100 - task.scores.knownissue) / 30));
+            displayOverall = Math.max(0, task.scores.overall - 30 * hitCount);
+        }
         var overallEl = document.getElementById('rn-' + idx + '-overall-score');
         if (overallEl) {
             overallEl.style.display = 'inline-flex';
-            overallEl.textContent = task.scores.overall + '分';
-            _rnApplyScoreStyle(overallEl, task.scores.overall, true);
+            overallEl.textContent = displayOverall + '分';
+            _rnApplyScoreStyle(overallEl, displayOverall, true);
         }
         var badge = document.getElementById('rn-' + idx + '-overall-badge');
         if (badge) {
             badge.style.display = 'inline-flex';
-            badge.textContent = '综合 ' + task.scores.overall + '分';
-            badge.style.color = task.scores.overall >= 80 ? 'var(--green)' : task.scores.overall >= 60 ? 'var(--orange)' : 'var(--red)';
-            badge.style.background = task.scores.overall >= 80 ? 'rgba(52,199,89,0.15)' : task.scores.overall >= 60 ? 'rgba(255,149,0,0.15)' : 'rgba(255,59,48,0.15)';
+            badge.textContent = '综合 ' + displayOverall + '分';
+            badge.style.color = displayOverall >= 80 ? 'var(--green)' : displayOverall >= 60 ? 'var(--orange)' : 'var(--red)';
+            badge.style.background = displayOverall >= 80 ? 'rgba(52,199,89,0.15)' : displayOverall >= 60 ? 'rgba(255,149,0,0.15)' : 'rgba(255,59,48,0.15)';
         }
     }
 }
@@ -1316,6 +1328,7 @@ function _rnRenderHistoryPage(tasks, isFirstPage) {
                 memoryLeakScore: 'memoryleak',
                 documentationScore: 'documentation',
                 testCoverageScore: 'testcoverage',
+                knownIssueScore: 'knownissue',
             };
             for (var scoreKey in keyMap) {
                 var dimKey = keyMap[scoreKey];

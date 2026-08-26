@@ -1,0 +1,377 @@
+{
+  "pr": {
+    "id": 8970199,
+    "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-pager-view/merge_requests/32",
+    "number": 32,
+    "state": "merged",
+    "title": "fix:修复嵌套滑动时父子组件无法联动响应的问题",
+    "url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-pager-view/pulls/32",
+    "issue_url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-pager-view/pulls/32/issues",
+    "body": "fix:修复嵌套滑动时父子组件无法联动响应的问题\nClose: [#19](https://gitcode.com/CPF-RN/rntpc_react-native-pager-view/issues/19) ",
+    "assignees_number": 3,
+    "assignees": [
+      {
+        "id": "6731c8f2fbbddc0c200a6019",
+        "login": "zhu_chengcheng",
+        "name": "zhu_chengcheng",
+        "avatar_url": "https://cdn-img.gitcode.com/fe/bd/f406eb600317d9bbb6a5c23042b49e5193dfbb7a63ee407f5bbfcbabcd177af1.jpg",
+        "html_url": "https://gitcode.com/zhu_chengcheng",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      },
+      {
+        "id": "67fdb69df01e3c566929edd4",
+        "login": "gcw_N7oHqLFR",
+        "name": "huang_jy",
+        "avatar_url": "",
+        "html_url": "https://gitcode.com/gcw_N7oHqLFR",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      },
+      {
+        "id": "67316e3733741160e6751351",
+        "login": "dingchengjie",
+        "name": "dingchengjie",
+        "avatar_url": "https://cdn-img.gitcode.com/fa/ed/6fa18810e4276d04d77bccf2f37c2287b44631cdcae7587fc4446f0bd79c2ed3.png",
+        "html_url": "https://gitcode.com/dingchengjie",
+        "assignee": true,
+        "code_owner": false,
+        "accept": true
+      }
+    ],
+    "testers": [
+      {
+        "id": "6541ccea82d8f837210e92c3",
+        "login": "openharmony_ci",
+        "name": "openharmony_ci",
+        "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+        "html_url": "https://gitcode.com/openharmony_ci",
+        "assignee": false,
+        "code_owner": false,
+        "accept": true
+      }
+    ],
+    "approval_reviewers": [],
+    "labels": [
+      {
+        "id": 13248164,
+        "color": "#428BCA",
+        "name": "dco检查成功",
+        "repository_id": 4369283,
+        "created_at": "2026-07-21T15:14:27+08:00",
+        "updated_at": "2026-08-01T19:35:37+08:00"
+      },
+      {
+        "id": 13250604,
+        "color": "#428BCA",
+        "name": "编译成功",
+        "repository_id": 4369283,
+        "created_at": "2026-08-01T20:31:19+08:00",
+        "updated_at": "2026-08-03T13:44:26+08:00"
+      },
+      {
+        "id": 13248162,
+        "color": "#428BCA",
+        "name": "静态检查成功",
+        "repository_id": 4369283,
+        "created_at": "2026-07-21T15:02:39+08:00",
+        "updated_at": "2026-08-03T11:40:00+08:00"
+      }
+    ],
+    "created_at": "2026-08-01T19:34:53+08:00",
+    "updated_at": "2026-08-03T13:45:15+08:00",
+    "closed_at": "2026-08-03T13:45:14+08:00",
+    "merged_at": "2026-08-03T13:45:14+08:00",
+    "merged_by": {
+      "id": "6541ccea82d8f837210e92c3",
+      "login": "openharmony_ci",
+      "name": "openharmony_ci",
+      "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+      "html_url": "https://gitcode.com/openharmony_ci"
+    },
+    "draft": false,
+    "can_merge_check": true,
+    "prune_branch": false,
+    "mergeable": true,
+    "user": {
+      "id": "66f4e6edca8388106d213150",
+      "login": "qq_434633291111",
+      "name": "wupingyuan",
+      "avatar_url": "https://cdn-img.gitcode.com/db/bc/dbbc52140cd3dd95d893359fd9341924a707304a0b81ab802ff56cf008923f45.png",
+      "html_url": "https://gitcode.com/qq_434633291111"
+    },
+    "head": {
+      "ref": "br_rnoh0.77",
+      "sha": "112467b4946ccafb44c95409b4f528d213928c7d",
+      "label": "br_rnoh0.77",
+      "repo": {
+        "path": "rntpc_react-native-pager-view",
+        "name": "rntpc_react-native-pager-view",
+        "namespace": {
+          "path": "qq_434633291111"
+        },
+        "full_name": "qq_434633291111/rntpc_react-native-pager-view",
+        "html_url": "https://gitcode.com/qq_434633291111/rntpc_react-native-pager-view.git"
+      },
+      "user": {
+        "id": "66f4e6edca8388106d213150",
+        "login": "qq_434633291111",
+        "name": "wupingyuan",
+        "avatar_url": "https://cdn-img.gitcode.com/db/bc/dbbc52140cd3dd95d893359fd9341924a707304a0b81ab802ff56cf008923f45.png",
+        "html_url": "https://gitcode.com/qq_434633291111"
+      }
+    },
+    "base": {
+      "ref": "br_rnoh0.77",
+      "sha": "2b92568a37bea3a9cd0a49e9732f94211b6ca4c7",
+      "label": "br_rnoh0.77",
+      "repo": {
+        "path": "rntpc_react-native-pager-view",
+        "name": "rntpc_react-native-pager-view",
+        "namespace": {
+          "path": "CPF-RN"
+        },
+        "full_name": "CPF-RN/rntpc_react-native-pager-view",
+        "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-pager-view.git"
+      }
+    },
+    "mergeable_state": {
+      "merge_request_id": 8970199,
+      "state": true,
+      "status_without_user_auth": true,
+      "conflict_passed": true,
+      "branch_missing_passed": true,
+      "non_ff_passed": true,
+      "mr_state_passed": true,
+      "merged_by_user_passed": true,
+      "work_in_progress_passed": true,
+      "resolve_discussion_passed": true,
+      "ci_state_passed": true,
+      "merge_by_self_passed": true,
+      "can_force_merge": true,
+      "approval_reviewers_required_passed": true,
+      "approval_approvers_required_passed": true,
+      "approval_testers_required_passed": true,
+      "merge_request_switch": {
+        "review_mode": "approval",
+        "merge_method": "merge",
+        "only_allow_merge_if_all_discussions_are_resolved": true,
+        "disable_merge_by_self": true,
+        "only_allow_merge_if_pipeline_succeeds": false,
+        "disable_squash_merge": false,
+        "squash_merge_with_no_merge_commit": false,
+        "approval_required_reviewers_count": 0,
+        "approval_required_reviewers_branch": "*",
+        "add_notes_after_merged": true,
+        "mark_auto_merged_mr_as_closed": false,
+        "can_force_merge": true,
+        "can_reopen": true
+      },
+      "reason": {},
+      "check_tasks_num": 2,
+      "all_depend_merge_request_merged_passed": true,
+      "approval_approvers_result": 2,
+      "approval_testers_result": 2
+    },
+    "visibility_reason": "public",
+    "close_related_issue": true,
+    "squash_merge": false
+  },
+  "files": [
+    {
+      "sha": "112467b4946ccafb44c95409b4f528d213928c7d",
+      "filename": ".npmignore",
+      "status": "added",
+      "additions": 2,
+      "deletions": 0,
+      "blob_id": "2e2ead6f526d8a8d5ddf575b4712100214d94510",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-pager-view/blob/112467b4946ccafb44c95409b4f528d213928c7d/.npmignore",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-pager-view/raw/112467b4946ccafb44c95409b4f528d213928c7d/.npmignore",
+      "patch": "@@ -0,0 +1,2 @@\n+example\n+build\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 7904914,
+        "full_name": "qq_434633291111/rntpc_react-native-pager-view",
+        "human_name": "qq_434633291111 / rntpc_react-native-pager-view",
+        "path": "rntpc_react-native-pager-view"
+      },
+      "target_project": {
+        "id": 4369283,
+        "full_name": "CPF-RN/rntpc_react-native-pager-view",
+        "human_name": "CPF-RN / rntpc_react-native-pager-view",
+        "path": "rntpc_react-native-pager-view"
+      }
+    },
+    {
+      "sha": "112467b4946ccafb44c95409b4f528d213928c7d",
+      "filename": "example/harmony/build-profile.template.json5",
+      "additions": 4,
+      "deletions": 1,
+      "blob_id": "cbb7b65d77c38645e1b47000bda0be0889eccefd",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-pager-view/blob/112467b4946ccafb44c95409b4f528d213928c7d/example/harmony/build-profile.template.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-pager-view/raw/112467b4946ccafb44c95409b4f528d213928c7d/example/harmony/build-profile.template.json5",
+      "patch": "@@ -4,7 +4,6 @@\n       {\n         \"name\": 'default',\n         \"signingConfig\": 'default',\n-        \"compileSdkVersion\": '5.0.1(13)',\n         \"compatibleSdkVersion\": '5.0.0(12)',\n         \"runtimeOS\": 'HarmonyOS'\n       },\n@@ -31,6 +30,10 @@\n           ],\n         },\n       ],\n+    },\n+    {\n+      name: 'pager_view',\n+      srcPath: '../../harmony/pager_view',\n     }\n   ],\n }\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 7904914,
+        "full_name": "qq_434633291111/rntpc_react-native-pager-view",
+        "human_name": "qq_434633291111 / rntpc_react-native-pager-view",
+        "path": "rntpc_react-native-pager-view"
+      },
+      "target_project": {
+        "id": 4369283,
+        "full_name": "CPF-RN/rntpc_react-native-pager-view",
+        "human_name": "CPF-RN / rntpc_react-native-pager-view",
+        "path": "rntpc_react-native-pager-view"
+      }
+    },
+    {
+      "sha": "112467b4946ccafb44c95409b4f528d213928c7d",
+      "filename": "example/harmony/entry/oh-package.json5",
+      "additions": 1,
+      "deletions": 1,
+      "blob_id": "745605bc313a2c698c98101ef4aef8801a8701e5",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-pager-view/blob/112467b4946ccafb44c95409b4f528d213928c7d/example/harmony/entry/oh-package.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-pager-view/raw/112467b4946ccafb44c95409b4f528d213928c7d/example/harmony/entry/oh-package.json5",
+      "patch": "@@ -5,7 +5,7 @@\n   \"description\": \"example description\",\n   \"version\": \"1.0.0\",\n   \"dependencies\": {\n-    \"@rnoh/react-native-openharmony\": \"file:../../node_modules/react-native-harmony/harmony/react_native_openharmony.har\",\n+    \"@rnoh/react-native-openharmony\": \"file:../../node_modules/@react-native-oh/react-native-harmony/react_native_openharmony.har\",\n     \"@react-native-ohos/react-native-pager-view\": \"file:../../node_modules/@react-native-ohos/react-native-pager-view/harmony/pager_view.har\"\n   }\n }\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 7904914,
+        "full_name": "qq_434633291111/rntpc_react-native-pager-view",
+        "human_name": "qq_434633291111 / rntpc_react-native-pager-view",
+        "path": "rntpc_react-native-pager-view"
+      },
+      "target_project": {
+        "id": 4369283,
+        "full_name": "CPF-RN/rntpc_react-native-pager-view",
+        "human_name": "CPF-RN / rntpc_react-native-pager-view",
+        "path": "rntpc_react-native-pager-view"
+      }
+    },
+    {
+      "sha": "112467b4946ccafb44c95409b4f528d213928c7d",
+      "filename": "example/harmony/oh-package.json5",
+      "additions": 1,
+      "deletions": 1,
+      "blob_id": "2e8fa395333000532f0999802fd0eab018c2abe7",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-pager-view/blob/112467b4946ccafb44c95409b4f528d213928c7d/example/harmony/oh-package.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-pager-view/raw/112467b4946ccafb44c95409b4f528d213928c7d/example/harmony/oh-package.json5",
+      "patch": "@@ -6,7 +6,7 @@\n   \"repository\": {},\n   \"version\": \"1.0.0\",\n   \"overrides\": {\n-    \"@rnoh/react-native-openharmony\": \"file:./../node_modules/react-native-harmony/harmony/react_native_openharmony.har\"\n+    '@rnoh/react-native-openharmony': 'file:../node_modules/@react-native-oh/react-native-harmony/react_native_openharmony.har'\n   },\n   \"dynamicDependencies\": {}\n }\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 7904914,
+        "full_name": "qq_434633291111/rntpc_react-native-pager-view",
+        "human_name": "qq_434633291111 / rntpc_react-native-pager-view",
+        "path": "rntpc_react-native-pager-view"
+      },
+      "target_project": {
+        "id": 4369283,
+        "full_name": "CPF-RN/rntpc_react-native-pager-view",
+        "human_name": "CPF-RN / rntpc_react-native-pager-view",
+        "path": "rntpc_react-native-pager-view"
+      }
+    },
+    {
+      "sha": "112467b4946ccafb44c95409b4f528d213928c7d",
+      "filename": "example/metro.config.js",
+      "additions": 2,
+      "deletions": 2,
+      "blob_id": "faf86d69d1938eb314cc12c0b287904dfbc6a682",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-pager-view/blob/112467b4946ccafb44c95409b4f528d213928c7d/example/metro.config.js",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-pager-view/raw/112467b4946ccafb44c95409b4f528d213928c7d/example/metro.config.js",
+      "patch": "@@ -5,7 +5,7 @@\n  */\n \n const {mergeConfig, getDefaultConfig} = require('@react-native/metro-config');\n-const {createHarmonyMetroConfig} = require('react-native-harmony/metro.config');\n+const {createHarmonyMetroConfig} = require('@react-native-oh/react-native-harmony/metro.config');\n \n /**\n  * @type {import(\"metro-config\").ConfigT}\n@@ -24,7 +24,7 @@ const config = {\n module.exports = mergeConfig(\n   getDefaultConfig(__dirname),\n   createHarmonyMetroConfig({\n-    reactNativeHarmonyPackageName: 'react-native-harmony',\n+    reactNativeHarmonyPackageName: '@react-native-oh/react-native-harmony',\n   }),\n   config,\n );\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 7904914,
+        "full_name": "qq_434633291111/rntpc_react-native-pager-view",
+        "human_name": "qq_434633291111 / rntpc_react-native-pager-view",
+        "path": "rntpc_react-native-pager-view"
+      },
+      "target_project": {
+        "id": 4369283,
+        "full_name": "CPF-RN/rntpc_react-native-pager-view",
+        "human_name": "CPF-RN / rntpc_react-native-pager-view",
+        "path": "rntpc_react-native-pager-view"
+      }
+    },
+    {
+      "sha": "112467b4946ccafb44c95409b4f528d213928c7d",
+      "filename": "example/package.json",
+      "additions": 2,
+      "deletions": 2,
+      "blob_id": "e5680ead85e79acf8b8e24ab95589485f791a1cc",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-pager-view/blob/112467b4946ccafb44c95409b4f528d213928c7d/example/package.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-pager-view/raw/112467b4946ccafb44c95409b4f528d213928c7d/example/package.json",
+      "patch": "@@ -19,7 +19,7 @@\n     \"@react-native-ohos/react-native-pager-view\": \"file:../react-native-ohos-react-native-pager-view-6.7.3.tgz\",\n     \"react\": \"18.3.1\",\n     \"react-native\": \"0.77.1\",\n-    \"react-native-harmony\": \"file:../packages/rnoh-react-native-harmony-0.77.10.tgz\",\n+    \"@react-native-oh/react-native-harmony\": \"npm:@react-native-oh/react-native-harmony@0.77.18-1\",\n     \"react-native-reanimated\": \"^3.6.0\"\n   },\n   \"devDependencies\": {\n@@ -34,7 +34,7 @@\n     \"@react-native/eslint-config\": \"0.77.1\",\n     \"@react-native/metro-config\": \"^0.77.1\",\n     \"@react-native/typescript-config\": \"0.77.1\",\n-    \"@rnoh/react-native-harmony-cli\": \"file:../packages/rnoh-react-native-harmony-cli-0.77.10.tgz\",\n+    \"@rnoh/react-native-harmony-cli\": \"npm:@react-native-oh/react-native-harmony-cli@0.77.18\",\n     \"@tsconfig/react-native\": \"^3.0.0\",\n     \"@types/d3-scale-chromatic\": \"^3.0.0\",\n     \"@types/jest\": \"^29.5.13\",\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 7904914,
+        "full_name": "qq_434633291111/rntpc_react-native-pager-view",
+        "human_name": "qq_434633291111 / rntpc_react-native-pager-view",
+        "path": "rntpc_react-native-pager-view"
+      },
+      "target_project": {
+        "id": 4369283,
+        "full_name": "CPF-RN/rntpc_react-native-pager-view",
+        "human_name": "CPF-RN / rntpc_react-native-pager-view",
+        "path": "rntpc_react-native-pager-view"
+      }
+    },
+    {
+      "sha": "112467b4946ccafb44c95409b4f528d213928c7d",
+      "filename": "harmony/pager_view/src/main/cpp/SwiperNode.cpp",
+      "additions": 4,
+      "deletions": 0,
+      "blob_id": "29e5b16632f3c4dc8d2f70a829c1722b84d00f2a",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-pager-view/blob/112467b4946ccafb44c95409b4f528d213928c7d/harmony/pager_view/src/main/cpp/SwiperNode.cpp",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-pager-view/raw/112467b4946ccafb44c95409b4f528d213928c7d/harmony/pager_view/src/main/cpp/SwiperNode.cpp",
+      "patch": "@@ -42,6 +42,10 @@ namespace rnoh {\n             m_nodeHandle, NODE_SWIPER_EVENT_ON_CONTENT_DID_SCROLL, NODE_SWIPER_EVENT_ON_CONTENT_DID_SCROLL, this));\r\n         maybeThrow(NativeNodeApi::getInstance()->registerNodeEvent(\r\n             m_nodeHandle, NODE_EVENT_ON_APPEAR, NODE_EVENT_ON_APPEAR, this));\r\n+        // 开启嵌套滑动时的父子联动响应\r\n+        ArkUI_NumberValue indexValue[] = {{.i32 = m_swiperNestedScrollMode}};\r\n+        ArkUI_AttributeItem indexItem = {indexValue, sizeof(indexValue) / sizeof(ArkUI_NumberValue)};\r\n+        maybeThrow(NativeNodeApi::getInstance()->setAttribute(m_nodeHandle, NODE_SWIPER_NESTED_SCROLL, &indexItem));\r\n     }\r\n \r\n \r\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 7904914,
+        "full_name": "qq_434633291111/rntpc_react-native-pager-view",
+        "human_name": "qq_434633291111 / rntpc_react-native-pager-view",
+        "path": "rntpc_react-native-pager-view"
+      },
+      "target_project": {
+        "id": 4369283,
+        "full_name": "CPF-RN/rntpc_react-native-pager-view",
+        "human_name": "CPF-RN / rntpc_react-native-pager-view",
+        "path": "rntpc_react-native-pager-view"
+      }
+    },
+    {
+      "sha": "112467b4946ccafb44c95409b4f528d213928c7d",
+      "filename": "harmony/pager_view/src/main/cpp/SwiperNode.h",
+      "additions": 1,
+      "deletions": 0,
+      "blob_id": "266704dd86d9dcebfa737c77b7472d889d28c7d8",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-pager-view/blob/112467b4946ccafb44c95409b4f528d213928c7d/harmony/pager_view/src/main/cpp/SwiperNode.h",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-pager-view/raw/112467b4946ccafb44c95409b4f528d213928c7d/harmony/pager_view/src/main/cpp/SwiperNode.h",
+      "patch": "@@ -81,6 +81,7 @@ namespace rnoh {\n         std::chrono::high_resolution_clock::time_point animationEnd;\r\n         bool m_interceptSendOffset = false;\r\n         std::map<void*,ArkUI_NodeHandle> m_nodeHandleMap;\r\n+        ArkUI_SwiperNestedScrollMode m_swiperNestedScrollMode = ARKUI_SWIPER_NESTED_SRCOLL_SELF_FIRST;\r\n     public:\r\n         SwiperNode();\r\n     \r\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 7904914,
+        "full_name": "qq_434633291111/rntpc_react-native-pager-view",
+        "human_name": "qq_434633291111 / rntpc_react-native-pager-view",
+        "path": "rntpc_react-native-pager-view"
+      },
+      "target_project": {
+        "id": 4369283,
+        "full_name": "CPF-RN/rntpc_react-native-pager-view",
+        "human_name": "CPF-RN / rntpc_react-native-pager-view",
+        "path": "rntpc_react-native-pager-view"
+      }
+    }
+  ]
+}

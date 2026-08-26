@@ -1,0 +1,211 @@
+{
+  "pr": {
+    "id": 8680822,
+    "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-netinfo/merge_requests/31",
+    "number": 31,
+    "state": "merged",
+    "title": "fix:删除高敏感日志打印",
+    "url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-netinfo/pulls/31",
+    "issue_url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-netinfo/pulls/31/issues",
+    "body": "原因：日志打印输出mac地址等信息\n方案：删除高敏感日志打印",
+    "assignees_number": 5,
+    "assignees": [
+      {
+        "id": "6731c8f2fbbddc0c200a6019",
+        "login": "zhu_chengcheng",
+        "name": "zhu_chengcheng",
+        "avatar_url": "https://cdn-img.gitcode.com/fe/bd/f406eb600317d9bbb6a5c23042b49e5193dfbb7a63ee407f5bbfcbabcd177af1.jpg",
+        "html_url": "https://gitcode.com/zhu_chengcheng",
+        "assignee": true,
+        "code_owner": false,
+        "accept": true
+      },
+      {
+        "id": "6502aad8179ac45d21eae407",
+        "login": "landwind",
+        "name": "mingshuai.ma",
+        "html_url": "https://gitcode.com/landwind",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      },
+      {
+        "id": "66f217bb07ddfc0488c0449f",
+        "login": "xiafeng_xf_admin",
+        "name": "xiafeng_xf",
+        "avatar_url": "https://cdn-img.gitcode.com/bb/ed/29b96b16571ed191a0c34f22d6fdb4ee8dd7cf9b2092cf472f0dace7c719bbf1.jpg",
+        "html_url": "https://gitcode.com/xiafeng_xf_admin",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      },
+      {
+        "id": "6732105dfbbddc0c200a87ab",
+        "login": "quwyts",
+        "name": "quwyts",
+        "avatar_url": "https://cdn-img.gitcode.com/ed/ed/646e92de059dc72be57110473939763c7c162e07365890ef042a7d87e1689b99.jpg",
+        "html_url": "https://gitcode.com/quwyts",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      },
+      {
+        "id": "678a25a0eb3f4263c2865357",
+        "login": "LouisC7",
+        "name": "Louis Chan",
+        "avatar_url": "https://cdn-img.gitcode.com/dc/ef/3d2ce5f716cd5266e2023a5e11cbcd63a94908971992891fa78db8f8bba748cd.png",
+        "html_url": "https://gitcode.com/LouisC7",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      }
+    ],
+    "testers": [
+      {
+        "id": "6541ccea82d8f837210e92c3",
+        "login": "openharmony_ci",
+        "name": "openharmony_ci",
+        "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+        "html_url": "https://gitcode.com/openharmony_ci",
+        "assignee": false,
+        "code_owner": false,
+        "accept": true
+      }
+    ],
+    "approval_reviewers": [],
+    "labels": [
+      {
+        "id": 87,
+        "color": "#20c22e",
+        "name": "dco检查成功",
+        "repository_id": 4369226,
+        "created_at": "2025-04-22T20:33:58+08:00",
+        "updated_at": "2026-06-01T18:26:36+08:00"
+      }
+    ],
+    "created_at": "2026-06-01T18:25:36+08:00",
+    "updated_at": "2026-06-01T20:03:42+08:00",
+    "closed_at": "2026-06-01T20:03:41+08:00",
+    "merged_at": "2026-06-01T20:03:41+08:00",
+    "merged_by": {
+      "id": "6541ccea82d8f837210e92c3",
+      "login": "openharmony_ci",
+      "name": "openharmony_ci",
+      "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+      "html_url": "https://gitcode.com/openharmony_ci"
+    },
+    "draft": false,
+    "can_merge_check": true,
+    "prune_branch": false,
+    "mergeable": true,
+    "user": {
+      "id": "67fe10947795fd623e1a1214",
+      "login": "chenbaodi123",
+      "name": "chenbaodi123",
+      "avatar_url": "",
+      "html_url": "https://gitcode.com/chenbaodi123"
+    },
+    "head": {
+      "ref": "77_bugfix",
+      "sha": "bd5ad5c34ff207780c0d1f3c03f0154b6ba865e4",
+      "label": "77_bugfix",
+      "repo": {
+        "path": "rntpc_react-native-netinfo",
+        "name": "rntpc_react-native-netinfo",
+        "namespace": {
+          "path": "chenbaodi123"
+        },
+        "full_name": "chenbaodi123/rntpc_react-native-netinfo",
+        "html_url": "https://gitcode.com/chenbaodi123/rntpc_react-native-netinfo.git"
+      },
+      "user": {
+        "id": "67fe10947795fd623e1a1214",
+        "login": "chenbaodi123",
+        "name": "chenbaodi123",
+        "avatar_url": "",
+        "html_url": "https://gitcode.com/chenbaodi123"
+      }
+    },
+    "base": {
+      "ref": "br_rnoh0.77",
+      "sha": "ada10942291fd453f5bfabc6214a0fa69cabde64",
+      "label": "br_rnoh0.77",
+      "repo": {
+        "path": "rntpc_react-native-netinfo",
+        "name": "rntpc_react-native-netinfo",
+        "namespace": {
+          "path": "CPF-RN"
+        },
+        "full_name": "CPF-RN/rntpc_react-native-netinfo",
+        "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-netinfo.git"
+      }
+    },
+    "mergeable_state": {
+      "merge_request_id": 8680822,
+      "state": true,
+      "status_without_user_auth": true,
+      "conflict_passed": true,
+      "branch_missing_passed": true,
+      "non_ff_passed": true,
+      "mr_state_passed": true,
+      "merged_by_user_passed": true,
+      "work_in_progress_passed": true,
+      "resolve_discussion_passed": true,
+      "ci_state_passed": true,
+      "merge_by_self_passed": true,
+      "can_force_merge": true,
+      "approval_reviewers_required_passed": true,
+      "approval_approvers_required_passed": true,
+      "approval_testers_required_passed": true,
+      "merge_request_switch": {
+        "review_mode": "approval",
+        "merge_method": "merge",
+        "only_allow_merge_if_all_discussions_are_resolved": false,
+        "disable_merge_by_self": true,
+        "only_allow_merge_if_pipeline_succeeds": false,
+        "disable_squash_merge": false,
+        "squash_merge_with_no_merge_commit": false,
+        "approval_required_reviewers_count": 0,
+        "approval_required_reviewers_branch": "*",
+        "add_notes_after_merged": true,
+        "mark_auto_merged_mr_as_closed": true,
+        "can_force_merge": true,
+        "can_reopen": true
+      },
+      "reason": {},
+      "check_tasks_num": 2,
+      "all_depend_merge_request_merged_passed": true,
+      "approval_approvers_result": 2,
+      "approval_testers_result": 2
+    },
+    "visibility_reason": "public",
+    "close_related_issue": true,
+    "squash_merge": false
+  },
+  "files": [
+    {
+      "sha": "bd5ad5c34ff207780c0d1f3c03f0154b6ba865e4",
+      "filename": "harmony/netinfo/src/main/ets/NetInfoTurboModule.ts",
+      "additions": 0,
+      "deletions": 4,
+      "blob_id": "5ba3fd67d15d46de81b8722e419c25e3d145ffa6",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-netinfo/blob/bd5ad5c34ff207780c0d1f3c03f0154b6ba865e4/harmony/netinfo/src/main/ets/NetInfoTurboModule.ts",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-netinfo/raw/bd5ad5c34ff207780c0d1f3c03f0154b6ba865e4/harmony/netinfo/src/main/ets/NetInfoTurboModule.ts",
+      "patch": "@@ -64,7 +64,6 @@ export class NetInfoTurboModule extends TurboModule {\n   }\n \n   configure(config: Details): void {\n-    Logger.info('configure,' + JSON.stringify(config));\n   }\n \n   getCurrentState(requestedInterface?: string): Promise<NetInfoState> {\n@@ -73,7 +72,6 @@ export class NetInfoTurboModule extends TurboModule {\n     return new Promise(async (resolve, reject) => {\n       try {\n         const events = await this.createConnectionEvent()\n-        Logger.info('events,' + JSON.stringify(events));\n         resolve(events)\n       } catch (e) {\n         reject(e)\n@@ -96,11 +94,9 @@ export class NetInfoTurboModule extends TurboModule {\n     this.netConnection = connection.createNetConnection()\n     // 先使用register接口注册订阅事件\n     this.netConnection.register((data) => {\n-      Logger.info('netConnection,' + JSON.stringify(data));\n     })\n     // 订阅网络可用事件\n     this.netConnection.on('netAvailable', (data) => {\n-      Logger.info('netAvailable,' + JSON.stringify(data));\n       this.listenerGetCurrentState()\n     })\n     // 订阅网络阻塞状态事件\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "77_bugfix",
+      "source_project": {
+        "id": 10006956,
+        "full_name": "chenbaodi123/rntpc_react-native-netinfo",
+        "human_name": "chenbaodi123 / rntpc_react-native-netinfo",
+        "path": "rntpc_react-native-netinfo"
+      },
+      "target_project": {
+        "id": 4369226,
+        "full_name": "CPF-RN/rntpc_react-native-netinfo",
+        "human_name": "CPF-RN / rntpc_react-native-netinfo",
+        "path": "rntpc_react-native-netinfo"
+      }
+    }
+  ]
+}

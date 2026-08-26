@@ -1,0 +1,295 @@
+{
+  "pr": {
+    "id": 8884761,
+    "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-wechat-lib/merge_requests/15",
+    "number": 15,
+    "state": "merged",
+    "title": "fix: 修复shareWebpage接口缩略图不支持本地图片问题",
+    "url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-wechat-lib/pulls/15",
+    "issue_url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-wechat-lib/pulls/15/issues",
+    "body": "fix: 修复shareWebpage接口缩略图不支持本地图片问题",
+    "assignees_number": 2,
+    "assignees": [
+      {
+        "id": "6731c8f2fbbddc0c200a6019",
+        "login": "zhu_chengcheng",
+        "name": "zhu_chengcheng",
+        "avatar_url": "https://cdn-img.gitcode.com/fe/bd/f406eb600317d9bbb6a5c23042b49e5193dfbb7a63ee407f5bbfcbabcd177af1.jpg",
+        "html_url": "https://gitcode.com/zhu_chengcheng",
+        "assignee": true,
+        "code_owner": false,
+        "accept": true
+      },
+      {
+        "id": "67fdb69df01e3c566929edd4",
+        "login": "gcw_N7oHqLFR",
+        "name": "huang_jy",
+        "avatar_url": "",
+        "html_url": "https://gitcode.com/gcw_N7oHqLFR",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      }
+    ],
+    "testers": [
+      {
+        "id": "6541ccea82d8f837210e92c3",
+        "login": "openharmony_ci",
+        "name": "openharmony_ci",
+        "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+        "html_url": "https://gitcode.com/openharmony_ci",
+        "assignee": false,
+        "code_owner": false,
+        "accept": true
+      }
+    ],
+    "approval_reviewers": [],
+    "labels": [
+      {
+        "id": 13235033,
+        "color": "#428BCA",
+        "name": "dco检查成功",
+        "repository_id": 8609480,
+        "created_at": "2026-04-16T14:53:55+08:00",
+        "updated_at": "2026-07-15T14:19:15+08:00"
+      },
+      {
+        "id": 13226059,
+        "color": "#428BCA",
+        "name": "编译成功",
+        "repository_id": 8609480,
+        "created_at": "2026-01-07T15:02:47+08:00",
+        "updated_at": "2026-07-16T15:19:40+08:00"
+      },
+      {
+        "id": 13227677,
+        "color": "#428BCA",
+        "name": "静态检查成功",
+        "repository_id": 8609480,
+        "created_at": "2026-01-26T20:52:50+08:00",
+        "updated_at": "2026-07-16T15:26:17+08:00"
+      }
+    ],
+    "created_at": "2026-07-15T14:18:32+08:00",
+    "updated_at": "2026-07-16T20:16:45+08:00",
+    "closed_at": "2026-07-16T20:16:44+08:00",
+    "merged_at": "2026-07-16T20:16:44+08:00",
+    "merged_by": {
+      "id": "6541ccea82d8f837210e92c3",
+      "login": "openharmony_ci",
+      "name": "openharmony_ci",
+      "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+      "html_url": "https://gitcode.com/openharmony_ci"
+    },
+    "draft": false,
+    "can_merge_check": true,
+    "prune_branch": false,
+    "mergeable": true,
+    "user": {
+      "id": "689eed273f601a0519ad876d",
+      "login": "houahui",
+      "name": "houahui",
+      "avatar_url": "https://cdn-img.gitcode.com/dc/af/1dc55a54483f3666a29e599e85d845b066104717df420840f44497fd892f8d4f.jpg",
+      "html_url": "https://gitcode.com/houahui"
+    },
+    "head": {
+      "ref": "br_rnoh0.72",
+      "sha": "9e279b104118dc4aa5f6587aec9c406e1c0fbef9",
+      "label": "br_rnoh0.72",
+      "repo": {
+        "path": "rntpc_react-native-wechat-lib",
+        "name": "rntpc_react-native-wechat-lib",
+        "namespace": {
+          "path": "houahui"
+        },
+        "full_name": "houahui/rntpc_react-native-wechat-lib",
+        "html_url": "https://gitcode.com/houahui/rntpc_react-native-wechat-lib.git"
+      },
+      "user": {
+        "id": "689eed273f601a0519ad876d",
+        "login": "houahui",
+        "name": "houahui",
+        "avatar_url": "https://cdn-img.gitcode.com/dc/af/1dc55a54483f3666a29e599e85d845b066104717df420840f44497fd892f8d4f.jpg",
+        "html_url": "https://gitcode.com/houahui"
+      }
+    },
+    "base": {
+      "ref": "br_rnoh0.72",
+      "sha": "fb500c143a8e245e52c77bb27f48cef28af70b78",
+      "label": "br_rnoh0.72",
+      "repo": {
+        "path": "rntpc_react-native-wechat-lib",
+        "name": "rntpc_react-native-wechat-lib",
+        "namespace": {
+          "path": "CPF-RN"
+        },
+        "full_name": "CPF-RN/rntpc_react-native-wechat-lib",
+        "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-wechat-lib.git"
+      }
+    },
+    "mergeable_state": {
+      "merge_request_id": 8884761,
+      "state": true,
+      "status_without_user_auth": true,
+      "conflict_passed": true,
+      "branch_missing_passed": true,
+      "non_ff_passed": true,
+      "mr_state_passed": true,
+      "merged_by_user_passed": true,
+      "work_in_progress_passed": true,
+      "resolve_discussion_passed": true,
+      "ci_state_passed": true,
+      "merge_by_self_passed": true,
+      "can_force_merge": false,
+      "approval_reviewers_required_passed": true,
+      "approval_approvers_required_passed": true,
+      "approval_testers_required_passed": true,
+      "merge_request_switch": {
+        "review_mode": "approval",
+        "merge_method": "merge",
+        "only_allow_merge_if_all_discussions_are_resolved": true,
+        "disable_merge_by_self": true,
+        "only_allow_merge_if_pipeline_succeeds": false,
+        "disable_squash_merge": false,
+        "squash_merge_with_no_merge_commit": false,
+        "approval_required_reviewers_count": 0,
+        "approval_required_reviewers_branch": "*",
+        "add_notes_after_merged": false,
+        "mark_auto_merged_mr_as_closed": false,
+        "can_force_merge": false,
+        "can_reopen": true
+      },
+      "reason": {},
+      "check_tasks_num": 2,
+      "all_depend_merge_request_merged_passed": true,
+      "approval_approvers_result": 2,
+      "approval_testers_result": 2
+    },
+    "visibility_reason": "public",
+    "close_related_issue": false,
+    "squash_merge": false
+  },
+  "files": [
+    {
+      "sha": "9e279b104118dc4aa5f6587aec9c406e1c0fbef9",
+      "filename": "README.md",
+      "additions": 395,
+      "deletions": 7,
+      "blob_id": "aa25a5acb21794356c05cda4d678aceba92f7fc2",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-wechat-lib/blob/9e279b104118dc4aa5f6587aec9c406e1c0fbef9/README.md",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-wechat-lib/raw/9e279b104118dc4aa5f6587aec9c406e1c0fbef9/README.md",
+      "patch": "@@ -1,13 +1,401 @@\n-# @react-native-ohos/react-native-wechat-lib\n+> 模板版本：v0.4.0\n \n-This project is based on [react-native-wechat-lib@v3.0.0](https://github.com/little-snow-fox/react-native-wechat-lib/tree/v3.0.0)\n+<p align=\"center\">\n+  <h1 align=\"center\"> <code>react-native-wechat-lib</code> </h1>\n+</p>\n+<p align=\"center\">\n+    <a href=\"https://github.com/little-snow-fox/react-native-wechat-lib\">\n+        <img src=\"https://img.shields.io/badge/platforms-android%20|%20ios%20|%20harmony%20-lightgrey.svg\" alt=\"Supported platforms\" />\n+    </a>\n+    <a href=\"https://github.com/little-snow-fox/react-native-wechat-lib/blob/master/LICENSE\">\n+        <img src=\"https://img.shields.io/badge/license-MIT-green.svg\" alt=\"License\" />\n+        <!-- <img src=\"https://img.shields.io/badge/license-Apache-blue.svg\" alt=\"License\" /> -->\n+    </a>\n+</p>\n \n-## Documentation\n+本项目基于 [原库react-native-wechat-lib](https://github.com/little-snow-fox/react-native-wechat-lib) 开发。\n \n-- [中文](https://gitee.com/react-native-oh-library/usage-docs/blob/master/zh-cn/react-native-wechat-lib.md)\n+该第三方库的仓库支持直接从 npm 下载，新的包名为：@react-native-ohos/react-native-wechat-lib  版本所属关系如下：\n+| 三方库名称    | 三方库版本    | 发布信息     | 支持RN版本    | Autolink     | 编译API版本     | 社区基线版本    | npm地址                |\n+| ------------ | ------------ | ------------------------------ | ------------- | ------------- |------------------------ | ------------- | ------------- |\n+| @react-native-ohos/react-native-wechat-lib | ~3.2.0（开发中）    | [Github Releases](https://github.com/react-native-oh-library/react-native-wechat-lib/releases) | 0.82.* | 是 | API12+ | 3.0.4 | [Npm Address](https://www.npmjs.com/package/@react-native-ohos/react-native-wechat-lib?activeTab=versions) |\n+| @react-native-ohos/react-native-wechat-lib | ~3.1.0    | [Github Releases](https://github.com/react-native-oh-library/react-native-wechat-lib/releases) | 0.77.* | 否 | API12+ | 3.0.4 | [Npm Address](https://www.npmjs.com/package/@react-native-ohos/react-native-wechat-lib?activeTab=versions) |\n+| @react-native-ohos/react-native-wechat-lib | ~3.0.6    | [Github Releases](https://github.com/react-native-oh-library/react-native-wechat-lib/releases) | 0.72.* | 是 | API12+ | 3.0.0 | [Npm Address](https://www.npmjs.com/package/@react-native-ohos/react-native-wechat-lib?activeTab=versions) |\n \n-- [English](https://gitee.com/react-native-oh-library/usage-docs/blob/master/en/react-native-wechat-lib.md)\n+## 1. 安装与使用\n \n-## License\n+进入到工程目录并输入以下命令：\n \n-This library is licensed under [The MIT License (MIT)](https://github.com/react-native-oh-library/react-native-wechat-lib/blob/sig/License)\n+<!-- tabs:start -->\n+\n+#### **npm**\n+\n+```bash\n+npm install @react-native-ohos/react-native-wechat-lib\n+```\n+\n+#### **yarn**\n+\n+```bash\n+yarn add @react-native-ohos/react-native-wechat-lib\n+```\n+\n+<!-- tabs:end -->\n+\n+下面的代码展示了这个库的基本使用场景：\n+\n+> [!WARNING] 使用时 import 的库名不变。\n+\n+> [tips] 下面 demo 在使用的过程中，请将 AppID 改为在[微信开放平台申请鸿蒙应用](https://developers.weixin.qq.com/doc/oplatform/Mobile_App/Access_Guide/ohos.html)的 AppID\n+\n+```js\n+import * as React from 'react';\n+\n+import { StyleSheet, View, Text, Button, Alert } from 'react-native';\n+import { getApiVersion, registerApp, openWXApp, sendAuthRequest, shareText } from 'react-native-wechat-lib';\n+\n+export default function App() {\n+  const [versionNumber, setVersionNumber] = React.useState<string | undefined>();\n+\n+  React.useEffect(() => {\n+    registerApp('AppID', 'universalLink').then((res) => {\n+      console.log(\"registerApp: \" + res)\n+    });\n+\n+  }, []);\n+\n+  function onLogin() {\n+    sendAuthRequest('snsapi_userinfo', '')\n+      .then((response: any) => {\n+        Alert.alert('登录成功，code: ' + response.code)\n+      })\n+      .catch(error => {\n+        console.log(error)\n+        let errorCode = Number(error.code);\n+        if (errorCode === -2) {\n+          Alert.alert('已取消授权登录')\n+        } else {\n+          Alert.alert('微信授权登录失败')\n+        }\n+      });\n+\n+  }\n+\n+  function onShareText() {\n+    shareText({\n+      text: 'test content.',\n+      scene: 0\n+    }).then()\n+  }\n+\n+  return (\n+    <View style={styles.container}>\n+      <Text style={styles.title}>Call wechat SDK demo</Text>\n+      <Text style={styles.versionBox}>\n+        Version: {versionNumber}\n+      </Text>\n+      <View style={styles.buttonGroup}>\n+        <View style={styles.button}>\n+          <Button title={'拉起微信'} onPress={() => { openWXApp().then() }} />\n+        </View>\n+        <View style={styles.button}>\n+          <Button title={'授权登录'} onPress={() => { onLogin() }} />\n+        </View>\n+        <View style={styles.button}>\n+          <Button title={'分享'} onPress={() => { onShareText() }} />\n+        </View>\n+      </View>\n+    </View>\n+  );\n+}\n+\n+const styles = StyleSheet.create({\n+  container: {\n+    width: '100%',\n+    // flex: 1,\n+    alignItems: 'center',\n+    // justifyContent: 'center',\n+  },\n+  box: {\n+    width: 60,\n+    height: 60,\n+    marginVertical: 20,\n+  },\n+  title: {\n+    marginTop: 48,\n+    fontSize: 24,\n+    color: 'rgba(0, 0, 0, 0.6)',\n+  },\n+  versionBox: {\n+    color: 'rgba(0, 0, 0, 0.6)'\n+  },\n+  buttonGroup: {\n+    width: '100%',\n+    padding: 6,\n+    marginTop: 24,\n+  },\n+  button: {\n+    margin: 6,\n+\n+  }\n+});\n+```\n+\n+## 2. Link\n+\n+|                                      | 是否支持autolink | RN框架版本 |\n+|--------------------------------------|-----------------|------------|\n+| ~3.2.0                               |  Yes             |  0.82     |\n+| ~3.1.0                               |  No              |  0.77     |\n+| ~3.0.6                               |  Yes             |  0.72     |\n+\n+使用AutoLink的工程需要根据该文档配置，Autolink框架指导文档：https://gitcode.com/openharmony-sig/ohos_react_native/blob/master/docs/zh-cn/Autolinking.md\n+\n+如您使用的版本支持 Autolink，并且工程已接入 Autolink，可跳过ManualLink配置。\n+<details>\n+  <summary>ManualLink: 此步骤为手动配置原生依赖项的指导</summary>\n+\n+首先需要使用 DevEco Studio 打开项目里的 HarmonyOS 工程 `harmony`。\n+\n+### 2.1 在工程根目录的 `oh-package.json5` 添加 overrides 字段\n+\n+```json\n+{\n+  ...\n+  \"overrides\": {\n+    \"@rnoh/react-native-openharmony\" : \"./react_native_openharmony\"\n+  }\n+}\n+```\n+\n+### 2.2 引入原生端代码\n+\n+目前有两种方法：\n+\n+1. 通过 har 包引入（在 IDE 完善相关功能后该方法会被遗弃，目前首选此方法）；\n+2. 直接链接源码。\n+\n+方法一：通过 har 包引入（推荐）\n+\n+> [!TIP] har 包位于三方库安装路径的 `harmony` 文件夹下。\n+\n+打开 `entry/oh-package.json5`，添加以下依赖\n+\n+```json\n+\"dependencies\": {\n+    \"@rnoh/react-native-openharmony\": \"file:../react_native_openharmony\",\n+    \"@react-native-ohos/react-native-wechat-lib\": \"file:../../node_modules/@react-native-ohos/react-native-wechat-lib/harmony/react_native_wechat_lib.har\"\n+  }\n+```\n+\n+点击右上角的 `sync` 按钮\n+\n+或者在终端执行：\n+\n+```bash\n+cd entry\n+ohpm install\n+```\n+\n+方法二：直接链接源码\n+\n+> [!TIP] 如需使用直接链接源码，请参考[直接链接源码说明](./link-source-code.md)\n+\n+### 2.3 配置 CMakeLists 和引入 RNWechatLibPackage\n+\n+打开 `entry/src/main/cpp/CMakeLists.txt`，添加：\n+\n+```diff\n+project(rnapp)\n+cmake_minimum_required(VERSION 3.4.1)\n+set(CMAKE_SKIP_BUILD_RPATH TRUE)\n+set(RNOH_APP_DIR \"${CMAKE_CURRENT_SOURCE_DIR}\")\n+set(NODE_MODULES \"${CMAKE_CURRENT_SOURCE_DIR}/../../../../../node_modules\")\n++ set(OH_MODULES \"${CMAKE_CURRENT_SOURCE_DIR}/../../../oh_modules\")\n+set(RNOH_CPP_DIR \"${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../react-native-harmony/harmony/cpp\")\n+set(LOG_VERBOSITY_LEVEL 1)\n+set(CMAKE_ASM_FLAGS \"-Wno-error=unused-command-line-argument -Qunused-arguments\")\n+set(CMAKE_CXX_FLAGS \"-fstack-protector-strong -Wl,-z,relro,-z,now,-z,noexecstack -s -fPIE -pie\")\n+set(WITH_HITRACE_SYSTRACE 1) # for other CMakeLists.txt files to use\n+add_compile_definitions(WITH_HITRACE_SYSTRACE)\n+\n+add_subdirectory(\"${RNOH_CPP_DIR}\" ./rn)\n+\n+# RNOH_BEGIN: manual_package_linking_1\n+add_subdirectory(\"../../../../sample_package/src/main/cpp\" ./sample-package)\n++ add_subdirectory(\"${OH_MODULES}/@react-native-ohos/react-native-wechat-lib/src/main/cpp\" ./wechat-lib)\n+# RNOH_END: manual_package_linking_1\n+\n+file(GLOB GENERATED_CPP_FILES \"./generated/*.cpp\")\n+\n+add_library(rnoh_app SHARED\n+    ${GENERATED_CPP_FILES}\n+    \"./PackageProvider.cpp\"\n+    \"${RNOH_CPP_DIR}/RNOHAppNapiBridge.cpp\"\n+)\n+target_link_libraries(rnoh_app PUBLIC rnoh)\n+\n+# RNOH_BEGIN: manual_package_linking_2\n+target_link_libraries(rnoh_app PUBLIC rnoh_sample_package)\n++ target_link_libraries(rnoh_app PUBLIC wechat_lib)\n+# RNOH_END: manual_package_linking_2\n+```\n+\n+打开 `entry/src/main/cpp/PackageProvider.cpp`，添加：\n+\n+```diff\n+#include \"RNOH/PackageProvider.h\"\n+#include \"generated/RNOHGeneratedPackage.h\"\n+#include \"SamplePackage.h\"\n++ #include \"RNWechatLibPackage.h\"\n+\n+using namespace rnoh;\n+\n+std::vector<std::shared_ptr<Package>> PackageProvider::getPackages(Package::Context ctx) {\n+    return {\n+        std::make_shared<RNOHGeneratedPackage>(ctx),\n+        std::make_shared<SamplePackage>(ctx),\n++       std::make_shared<RNWechatLibPackage>(ctx),\n+    };\n+}\n+```\n+\n+### 2.4 在 ArkTs 侧引入 WechatLibPackage\n+\n+打开 `entry/src/main/ets/RNPackagesFactory.ts`，添加：\n+\n+```diff\n+  ...\n++ import { WechatLibPackage } from '@react-native-ohos/react-native-wechat-lib/ts';\n+\n+export function createRNPackages(ctx: RNPackageContext): RNPackage[] {\n+  return [\n+    new SamplePackage(ctx),\n++   new WechatLibPackage(ctx),\n+  ];\n+}\n+```\n+</details>\n+\n+### 2.5 必要的配置项\n+\n+> [!TIP] 该模块的内容无法通过autolink自动生成，始终需要手动配置。\n+\n+#### 2.5.1 配置 EntryAbility（该模块始终需要手动配置）\n+\n+鸿蒙工程下 EntryAbility，一般位于 `entry\\src\\main\\ets\\entryability\\EntryAbility.ets`\n+\n+```diff\n+import {RNAbility} from '@rnoh/react-native-openharmony';\n++ import { AbilityConstant, Want } from '@kit.AbilityKit';\n++ import { WechatLibTurboModule } from '@react-native-ohos/react-native-wechat-lib';\n+\n+export default class EntryAbility extends RNAbility {\n+\n++   onCreate(want: Want) {\n++     super.onCreate(want)\n++     this.handleWeChatCallIfNeed(want)\n++   }\n+\n+  getPagePath() {\n+    return 'pages/Index';\n+  }\n+\n++  onNewWant(want: Want, _launchParam: AbilityConstant.LaunchParam): void {\n++    this.handleWeChatCallIfNeed(want)\n++  }\n+\n++  private handleWeChatCallIfNeed(want: Want) {\n++    WechatLibTurboModule.handleWant(want)\n++  }\n+}\n+\n+```\n+\n+#### 2.5.2 配置 module.json5（该模块始终需要手动配置）\n+\n+打开 `entry/src/main/module.json5`，添加：\n+\n+```diff\n+{\n+  \"module\": {\n+    \"name\": \"entry\",\n+    \"type\": \"entry\",\n+    \"description\": \"$string:module_desc\",\n+    \"mainElement\": \"EntryAbility\",\n+    \"deviceTypes\": [\n+      \"default\"\n+    ],\n++   \"querySchemes\": [\n++     \"weixin\",\n++   ],\n+    ...\n+  }\n+}\n+```\n+\n+### 2.6 运行\n+\n+点击右上角的 `sync` 按钮\n+\n+或者在终端执行：\n+\n+```bash\n+cd entry\n+ohpm install\n+```\n+\n+然后编译、运行即可。\n+\n+## 3. 约束与限制\n+\n+### 3.1 兼容性\n+\n+要使用此库，需要使用正确的 React-Native 和 RNOH 版本。另外，还需要使用配套的 DevEco Studio 和 手机 ROM。\n+\n+在以下版本验证通过：\n+\n+1. RNOH: 0.72.96; SDK: HarmonyOS 6.0.0 Release SDK; IDE: DevEco Studio 6.0.0.858; ROM: 6.0.0.112;\n+2. RNOH: 0.72.33; SDK: HarmonyOS NEXT B1; IDE: DevEco Studio: 5.0.3.900; ROM: Next.0.0.71;\n+3. RNOH: 0.77.18; SDK: HarmonyOS 6.0.0 Release SDK; IDE: DevEco Studio 6.0.0.858; ROM: 6.0.0.112;\n+4. RNOH: 0.82.7; SDK: HarmonyOS 6.0.1 Release SDK; IDE: DevEco Studio 6.0.1 Release; ROM: 6.0.0.328 SP26;\n+\n+## 4. API\n+\n+> [!TIP] \"Platform\"列表示该属性在原三方库上支持的平台。\n+\n+> [!TIP] \"HarmonyOS Support\"列为 yes 表示 HarmonyOS 平台支持该属性；no 则表示不支持；partially 表示部分支持。使用方法跨平台一致，效果对标 iOS 或 Android 的效果。\n+\n+> [!TIP] 移动应用跳转至小程序的规则，[请见APP拉起小程序的功能介绍](https://developers.weixin.qq.com/doc/oplatform/Mobile_App/Launching_a_Mini_Program/Launching_a_Mini_Program.html)\n+\n+| Name                                          | Description        | Type     | Required | Platform    | HarmonyOS Support |\n+| --------------------------------------------- | ------------------ | -------- | -------- | ----------- | ----------------- |\n+| registerApp(appid)                            | 注册               | Function | no       | Android/iOS | yes               |\n+| isWXAppInstalled()                            | 判断微信是否已安装 | Function | no       | Android/iOS | yes                |\n+| isWXAppSupportApi()                           | 检查支持情况       | Function | no       | Android/iOS | no                |\n+| getApiVersion()                               | 获取 API 版本号    | Function | no       | Android/iOS | no                |\n+| openWXApp()                                   | 打开微信           | Function | no       | Android/iOS | yes               |\n+| sendAuthRequest([scope[, state]])             | 微信授权登录       | Function | no       | Android/iOS | yes               |\n+| shareText(ShareTextMetadata)                  | 分享/收藏 文本     | Function | no       | Android/iOS | partially(Session、Timeline)          |\n+| shareImage(ShareImageMetadata)                | 分享/收藏 图片     | Function | no       | Android/iOS | partially(Session、Timeline)          |\n+| shareLocalImage(ShareImageMetadata)           | 分享/收藏 本地图片  | Function | no       | Android/iOS | partially(Session、Timeline)          |\n+| shareFile(ShareFileMetadata)                  | 分享文件           | Function | no       | Android/iOS | partially(Session)         |\n+| shareMusic(ShareMusicMetadata)                | 分享音频           | Function | no       | Android/iOS | no                         |\n+| shareVideo(ShareVideoMetadata)                | 分享视频           | Function | no       | Android/iOS | partially(Session)         |\n+| shareWebpage (ShareWebpageMetadata)           | 分享网页           | Function | no       | Android/iOS | partially(Session)         |\n+| shareMiniProgram(ShareMiniProgramMetadata)    | 分享小程序         | Function | no       | Android/iOS | partially(Session)         |\n+| launchMiniProgram (LaunchMiniProgramMetadata) | 跳到小程序         | Function | no       | Android/iOS | yes               |\n+| chooseInvoice (ChooseInvoice)                 | 选择发票           | Function | no       | Android/iOS | no                |\n+| pay(payload)                                  | 支付               | Function | no       | Android/iOS | yes               |\n+| subscribeMessage(SubscribeMessageMetadata)    | 一次性订阅消息     | Function | no        | Android/iOS | no                 |\n+\n+## 5. 遗留问题\n+\n+## 6. 其他\n+\n+- ShareText、ShareImage、ShareLocalImage、ShareMiniProgram、ShareFile、ShareVideo、ShareWebpage 只支持分享，不支持收藏，原因为目前微信 Open SDK 还不支持 HarmonyOS 平台的收藏\n+- isWXAppSupportApi、getApiVersion、ShareMusic、ChooseInvoice、subscribeMessage 这些接口目前在 HarmonyOS 微信 Open SDK 还不支持\n+\n+## 7. 开源协议\n+\n+本项目基于 [The MIT License (MIT)](https://github.com/little-snow-fox/react-native-wechat-lib/blob/master/LICENSE) ，请自由地享受和参与开源。\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10362750,
+        "full_name": "houahui/rntpc_react-native-wechat-lib",
+        "human_name": "houahui / rntpc_react-native-wechat-lib",
+        "path": "rntpc_react-native-wechat-lib"
+      },
+      "target_project": {
+        "id": 8609480,
+        "full_name": "CPF-RN/rntpc_react-native-wechat-lib",
+        "human_name": "CPF-RN / rntpc_react-native-wechat-lib",
+        "path": "rntpc_react-native-wechat-lib"
+      }
+    },
+    {
+      "sha": "9e279b104118dc4aa5f6587aec9c406e1c0fbef9",
+      "filename": "README_en.md",
+      "status": "added",
+      "additions": 400,
+      "deletions": 0,
+      "blob_id": "5ffce19d9319d71e1cb2dbc64f29a79060c0ba30",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-wechat-lib/blob/9e279b104118dc4aa5f6587aec9c406e1c0fbef9/README_en.md",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-wechat-lib/raw/9e279b104118dc4aa5f6587aec9c406e1c0fbef9/README_en.md",
+      "patch": "@@ -0,0 +1,400 @@\n+> Template version：v0.4.0\n+\n+<p align=\"center\">\n+  <h1 align=\"center\"> <code>react-native-wechat-lib</code> </h1>\n+</p>\n+<p align=\"center\">\n+    <a href=\"https://github.com/little-snow-fox/react-native-wechat-lib\">\n+        <img src=\"https://img.shields.io/badge/platforms-android%20|%20ios%20|%20harmony%20-lightgrey.svg\" alt=\"Supported platforms\" />\n+    </a>\n+    <a href=\"https://github.com/little-snow-fox/react-native-wechat-lib/blob/master/LICENSE\">\n+        <img src=\"https://img.shields.io/badge/license-MIT-green.svg\" alt=\"License\" />\n+        <!-- <img src=\"https://img.shields.io/badge/license-Apache-blue.svg\" alt=\"License\" /> -->\n+    </a>\n+</p>\n+\n+This project is based on [react-native-wechat-lib](https://github.com/little-snow-fox/react-native-wechat-lib).\n+\n+This third-party library is available for direct download from npm. The new package name is @react-native-ohos/react-native-wechat-lib. The version correspondence details are as follows:\n+\n+| Name    | Version    | Release Information     | Supported RN Version    | Supported Autolink     | Compile API Version     | Community Baseline Version    | npm Address                |\n+| ------------ | ------------ | ------------------------------ | ------------- | ------------- |------------------------ | ------------- | ------------- |\n+| @react-native-ohos/react-native-wechat-lib | ~3.2.0(In development)    | [Github Releases](https://github.com/react-native-oh-library/react-native-wechat-lib/releases) | 0.82.* | Yes | API12+ | 3.0.4 | [Npm Address](https://www.npmjs.com/package/@react-native-ohos/react-native-wechat-lib?activeTab=versions) |\n+| @react-native-ohos/react-native-wechat-lib | ~3.1.0    | [Github Releases](https://github.com/react-native-oh-library/react-native-wechat-lib/releases) | 0.77.* | No | API12+ | 3.0.4 | [Npm Address](https://www.npmjs.com/package/@react-native-ohos/react-native-wechat-lib?activeTab=versions) |\n+| @react-native-ohos/react-native-wechat-lib | ~3.0.6    | [Github Releases](https://github.com/react-native-oh-library/react-native-wechat-lib/releases) | 0.72.* | Yes | API12+ | 3.0.0 | [Npm Address](https://www.npmjs.com/package/@react-native-ohos/react-native-wechat-lib?activeTab=versions) |\n+\n+## 1. Installation and Usage\n+\n+Go to the project directory and execute the following instruction:\n+\n+<!-- tabs:start -->\n+\n+#### **npm**\n+\n+```bash\n+npm install @react-native-ohos/react-native-wechat-lib\n+```\n+\n+#### **yarn**\n+\n+```bash\n+yarn add @react-native-ohos/react-native-wechat-lib\n+```\n+\n+<!-- tabs:end -->\n+\n+The following code shows the basic use scenario of the repository：\n+\n+> [!WARNING] The name of the imported repository remains unchanged.\n+\n+> [tips] When using the demo below, please change the AppID to the AppID of the HarmonyOS application applied for on the [WeChat open platform](https://developers.weixin.qq.com/doc/oplatform/Mobile_App/Access_Guide/ohos.html).\n+\n+```js\n+import * as React from 'react';\n+\n+import { StyleSheet, View, Text, Button, Alert } from 'react-native';\n+import { getApiVersion, registerApp, openWXApp, sendAuthRequest, shareText } from 'react-native-wechat-lib';\n+\n+export default function App() {\n+  const [versionNumber, setVersionNumber] = React.useState<string | undefined>();\n+\n+  React.useEffect(() => {\n+    registerApp('AppID', 'universalLink').then((res) => {\n+      console.log(\"registerApp: \" + res)\n+    });\n+\n+  }, []);\n+\n+  function onLogin() {\n+    sendAuthRequest('snsapi_userinfo', '')\n+      .then((response: any) => {\n+        Alert.alert('Login successful, code' + response.code)\n+      })\n+      .catch(error => {\n+        console.log(error)\n+        let errorCode = Number(error.code);\n+        if (errorCode === -2) {\n+          Alert.alert('Authorized login has been canceled')\n+        } else {\n+          Alert.alert('WeChat authorized login failed')\n+        }\n+      });\n+\n+  }\n+\n+  function onShareText() {\n+    shareText({\n+      text: 'test content.',\n+      scene: 0\n+    }).then()\n+  }\n+\n+  return (\n+    <View style={styles.container}>\n+      <Text style={styles.title}>Call wechat SDK demo</Text>\n+      <Text style={styles.versionBox}>\n+        Version: {versionNumber}\n+      </Text>\n+      <View style={styles.buttonGroup}>\n+        <View style={styles.button}>\n+          <Button title={'Open WeChat'} onPress={() => { openWXApp().then() }} />\n+        </View>\n+        <View style={styles.button}>\n+          <Button title={'Authorized login'} onPress={() => { onLogin() }} />\n+        </View>\n+        <View style={styles.button}>\n+          <Button title={'Share Text'} onPress={() => { onShareText() }} />\n+        </View>\n+      </View>\n+    </View>\n+  );\n+}\n+\n+const styles = StyleSheet.create({\n+  container: {\n+    width: '100%',\n+    // flex: 1,\n+    alignItems: 'center',\n+    // justifyContent: 'center',\n+  },\n+  box: {\n+    width: 60,\n+    height: 60,\n+    marginVertical: 20,\n+  },\n+  title: {\n+    marginTop: 48,\n+    fontSize: 24,\n+    color: 'rgba(0, 0, 0, 0.6)',\n+  },\n+  versionBox: {\n+    color: 'rgba(0, 0, 0, 0.6)'\n+  },\n+  buttonGroup: {\n+    width: '100%',\n+    padding: 6,\n+    marginTop: 24,\n+  },\n+  button: {\n+    margin: 6,\n+\n+  }\n+});\n+```\n+\n+## 2. Link\n+\n+|                                      | Is supporte autolink | Supported RN Version |\n+|--------------------------------------|----------------------|------------|\n+| ~3.2.0                               |  Yes             |  0.82     |\n+| ~3.1.0                               | No                   |  0.77     |\n+| ~3.0.6                               | Yes                  |  0.72     |\n+\n+Using AutoLink need to be configured according to this document, Autolink Framework Guide Documentation: https://gitcode.com/openharmony-sig/ohos_react_native/blob/master/docs/zh-cn/Autolinking.md\n+\n+If the version you use supports Autolink and the project has been connected to Autolink, skip the ManualLink configuration.\n+<details>\n+  <summary>ManualLink: this step is a guide to manually configure native dependencies.</summary>\n+\n+First, use DevEco Studio to open the HarmonyOS project `harmony` in the project directory.\n+\n+### 2.1 Adding the overrides Field to oh-package.json5 File in the Root Directory of the Project\n+\n+```json\n+{\n+  ...\n+  \"overrides\": {\n+    \"@rnoh/react-native-openharmony\" : \"./react_native_openharmony\"\n+  }\n+}\n+```\n+\n+### 2.2 Introducing Native Code\n+\n+Currently, two methods are available:\n+\n+Method 1 (recommended): Use the HAR file.\n+\n+> [!TIP] The HAR file is stored in the `harmony` directory in the installation path of the third-party library.\n+\n+Open `entry/oh-package.json5` file and add the following dependencies:\n+\n+```json\n+\"dependencies\": {\n+    \"@rnoh/react-native-openharmony\": \"file:../react_native_openharmony\",\n+    \"@react-native-ohos/react-native-wechat-lib\": \"file:../../node_modules/@react-native-ohos/react-native-wechat-lib/harmony/react_native_wechat_lib.har\"\n+  }\n+```\n+\n+Click the `sync` button in the upper right corner.\n+\n+Alternatively, run the following instruction on the terminal:\n+\n+```bash\n+cd entry\n+ohpm install\n+```\n+\n+Method 2: Directly link to the source code.\n+\n+> [!TIP] For details, see [Directly Linking Source Code](./link-source-code.md).\n+\n+### 2.3 Configuring CMakeLists and Introducing RNWechatLibPackage\n+\n+open `entry/src/main/cpp/CMakeLists.txt` and add the following code:\n+\n+```diff\n+project(rnapp)\n+cmake_minimum_required(VERSION 3.4.1)\n+set(CMAKE_SKIP_BUILD_RPATH TRUE)\n+set(RNOH_APP_DIR \"${CMAKE_CURRENT_SOURCE_DIR}\")\n+set(NODE_MODULES \"${CMAKE_CURRENT_SOURCE_DIR}/../../../../../node_modules\")\n++ set(OH_MODULES \"${CMAKE_CURRENT_SOURCE_DIR}/../../../oh_modules\")\n+set(RNOH_CPP_DIR \"${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../react-native-harmony/harmony/cpp\")\n+set(LOG_VERBOSITY_LEVEL 1)\n+set(CMAKE_ASM_FLAGS \"-Wno-error=unused-command-line-argument -Qunused-arguments\")\n+set(CMAKE_CXX_FLAGS \"-fstack-protector-strong -Wl,-z,relro,-z,now,-z,noexecstack -s -fPIE -pie\")\n+set(WITH_HITRACE_SYSTRACE 1) # for other CMakeLists.txt files to use\n+add_compile_definitions(WITH_HITRACE_SYSTRACE)\n+\n+add_subdirectory(\"${RNOH_CPP_DIR}\" ./rn)\n+\n+# RNOH_BEGIN: manual_package_linking_1\n+add_subdirectory(\"../../../../sample_package/src/main/cpp\" ./sample-package)\n++ add_subdirectory(\"${OH_MODULES}/@react-native-ohos/react-native-wechat-lib/src/main/cpp\" ./wechat-lib)\n+# RNOH_END: manual_package_linking_1\n+\n+file(GLOB GENERATED_CPP_FILES \"./generated/*.cpp\")\n+\n+add_library(rnoh_app SHARED\n+    ${GENERATED_CPP_FILES}\n+    \"./PackageProvider.cpp\"\n+    \"${RNOH_CPP_DIR}/RNOHAppNapiBridge.cpp\"\n+)\n+target_link_libraries(rnoh_app PUBLIC rnoh)\n+\n+# RNOH_BEGIN: manual_package_linking_2\n+target_link_libraries(rnoh_app PUBLIC rnoh_sample_package)\n++ target_link_libraries(rnoh_app PUBLIC wechat_lib)\n+# RNOH_END: manual_package_linking_2\n+```\n+\n+Open `entry/src/main/cpp/PackageProvider.cpp` and add the following code:\n+\n+```diff\n+#include \"RNOH/PackageProvider.h\"\n+#include \"generated/RNOHGeneratedPackage.h\"\n+#include \"SamplePackage.h\"\n++ #include \"RNWechatLibPackage.h\"\n+\n+using namespace rnoh;\n+\n+std::vector<std::shared_ptr<Package>> PackageProvider::getPackages(Package::Context ctx) {\n+    return {\n+        std::make_shared<RNOHGeneratedPackage>(ctx),\n+        std::make_shared<SamplePackage>(ctx),\n++       std::make_shared<RNWechatLibPackage>(ctx),\n+    };\n+}\n+```\n+\n+### 2.4 Introducing WechatLibPackage to ArkTS\n+\n+Open the `entry/src/main/ets/RNPackagesFactory.ts` file and add the following code:\n+\n+```diff\n+  ...\n++ import { WechatLibPackage } from '@react-native-ohos/react-native-wechat-lib/ts';\n+\n+export function createRNPackages(ctx: RNPackageContext): RNPackage[] {\n+  return [\n+    new SamplePackage(ctx),\n++   new WechatLibPackage(ctx),\n+  ];\n+}\n+```\n+</details>\n+\n+### 2.5 Necessary configuration items\n+\n+> [!TIP] The content of this module cannot be automatically generated by autolink and must always be manually configured.\n+\n+#### 2.5.1 Configuring EntryAbility(This module always requires manual configuration)\n+\n+Open `entry\\src\\main\\ets\\entryability\\EntryAbility.ets` and add the following code:\n+\n+```diff\n+import {RNAbility} from '@rnoh/react-native-openharmony';\n++ import { AbilityConstant, Want } from '@kit.AbilityKit';\n++ import { WechatLibTurboModule } from '@react-native-ohos/react-native-wechat-lib';\n+\n+export default class EntryAbility extends RNAbility {\n+\n++   onCreate(want: Want) {\n++     super.onCreate(want)\n++     this.handleWeChatCallIfNeed(want)\n++   }\n+\n+  getPagePath() {\n+    return 'pages/Index';\n+  }\n+\n++  onNewWant(want: Want, _launchParam: AbilityConstant.LaunchParam): void {\n++    this.handleWeChatCallIfNeed(want)\n++  }\n+\n++  private handleWeChatCallIfNeed(want: Want) {\n++    WechatLibTurboModule.handleWant(want)\n++  }\n+}\n+\n+```\n+\n+#### 2.5.2 Configuring module.json5(This module always requires manual configuration)\n+\n+open `entry/src/main/module.json5` and add the following code:\n+\n+```diff\n+{\n+  \"module\": {\n+    \"name\": \"entry\",\n+    \"type\": \"entry\",\n+    \"description\": \"$string:module_desc\",\n+    \"mainElement\": \"EntryAbility\",\n+    \"deviceTypes\": [\n+      \"default\"\n+    ],\n++   \"querySchemes\": [\n++     \"weixin\",\n++   ],\n+    ...\n+  }\n+}\n+```\n+\n+### 2.6 Running\n+\n+Click the `sync` button in the upper right corner.\n+\n+Alternatively, run the following instruction on the terminal:\n+\n+```bash\n+cd entry\n+ohpm install\n+```\n+\n+Then build and run the code.\n+\n+## 3. Constraints\n+\n+### 3.1 Compatibility\n+\n+To use this repository, you need to use the correct React-Native and RNOH versions. In addition, you need to use DevEco Studio and the ROM on your phone.\n+\n+Verified in the following versions.\n+\n+1. RNOH: 0.72.96; SDK: HarmonyOS 6.0.0 Release SDK; IDE: DevEco Studio 6.0.0.858; ROM: 6.0.0.112;\n+2. RNOH: 0.72.33; SDK: HarmonyOS NEXT B1; IDE: DevEco Studio: 5.0.3.900; ROM: Next.0.0.71;\n+3. RNOH: 0.77.18; SDK: HarmonyOS 6.0.0 Release SDK; IDE: DevEco Studio 6.0.0.858; ROM: 6.0.0.112;\n+4. RNOH: 0.82.7; SDK: HarmonyOS 6.0.1 Release SDK; IDE: DevEco Studio 6.0.1 Release; ROM: 6.0.0.328 SP26;\n+\n+## 4. API\n+\n+> [!TIP] The **Platform** column indicates the platform where the properties are supported in the original third-party library.\n+\n+> [!TIP] If the value of **HarmonyOS Support** is **yes**, it means that the HarmonyOS platform supports this property; **no** means the opposite; **partially** means some capabilities of this property are supported. The usage method is the same on different platforms and the effect is the same as that of iOS or Android.\n+\n+> [!TIP] The rules for mobile applications to jump to Mini Program, [please refer to the feature introduction for launching Mini Program in the app](https://developers.weixin.qq.com/doc/oplatform/Mobile_App/Launching_a_Mini_Program/Launching_a_Mini_Program.html)\n+\n+| Name                                          | Description        | Type     | Required | Platform    | HarmonyOS Support |\n+| --------------------------------------------- | ------------------ | -------- | -------- | ----------- | ----------------- |\n+| registerApp(appid)                            | register               | Function | no       | Android/iOS | yes               |\n+| isWXAppInstalled()                            | Determine whether WeChat is installed | Function | no       | Android/iOS | yes               |\n+| isWXAppSupportApi()                           | Check support          | Function | no       | Android/iOS | no                |\n+| getApiVersion()                               | Get API version number | Function | no       | Android/iOS | no                |\n+| openWXApp()                                   | Open WeChat            | Function | no       | Android/iOS | yes               |\n+| sendAuthRequest([scope[, state]])             | WeChat authorized login| Function | no       | Android/iOS | yes               |\n+| shareText(ShareTextMetadata)                  | Share/Collect Text     | Function | no       | Android/iOS | partially(Session、Timeline)      |\n+| shareImage(ShareImageMetadata)                | Share Image            | Function | no       | Android/iOS | partially(Session、Timeline)      |\n+| shareLocalImage(ShareImageMetadata)           | Share LocalImage       | Function | no       | Android/iOS | partially(Session、Timeline)      |\n+| shareFile(ShareFileMetadata)                  | Share File             | Function | no       | Android/iOS | partially(Session)                |\n+| shareMusic(ShareMusicMetadata)                | Share Music            | Function | no       | Android/iOS | no                                |\n+| shareVideo(ShareVideoMetadata)                | Share Video            | Function | no       | Android/iOS | partially(Session)                |\n+| shareWebpage (ShareWebpageMetadata)           | Share Webpage          | Function | no       | Android/iOS | partially(Session)                |\n+| shareMiniProgram(ShareMiniProgramMetadata)    | Share MiniProgram      | Function | no       | Android/iOS | partially(Session)                |\n+| launchMiniProgram (LaunchMiniProgramMetadata) | Launch MiniProgram     | Function | no       | Android/iOS | yes               |\n+| chooseInvoice (ChooseInvoice)                 | Select invoice         | Function | no       | Android/iOS | no                |\n+| pay(payload)                                  | pay                    | Function | no       | Android/iOS | yes               |\n+| subscribeMessage(SubscribeMessageMetadata)    | \n+One-time subscription to messages     | Function | no       | Android/iOS | no                |\n+\n+## 5. Known Issues\n+\n+## 6. Others\n+\n+- ShareText、ShareImage、ShareLocalImage、ShareMiniProgram、ShareFile、ShareVideo、ShareWebpage: Only sharing is supported, collection is not supported, because the WeChat Open SDK currently does not support collection on the HarmonyOS platform.\n+- isWXAppSupportApi、getApiVersion、ShareMusic、ChooseInvoice、subscribeMessage. These interfaces are currently not supported by HarmonyOS WeChat Open SDK.\n+\n+## 7. License\n+\n+This project is licensed under [The MIT License (MIT)](https://github.com/little-snow-fox/react-native-wechat-lib/blob/master/LICENSE).\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10362750,
+        "full_name": "houahui/rntpc_react-native-wechat-lib",
+        "human_name": "houahui / rntpc_react-native-wechat-lib",
+        "path": "rntpc_react-native-wechat-lib"
+      },
+      "target_project": {
+        "id": 8609480,
+        "full_name": "CPF-RN/rntpc_react-native-wechat-lib",
+        "human_name": "CPF-RN / rntpc_react-native-wechat-lib",
+        "path": "rntpc_react-native-wechat-lib"
+      }
+    },
+    {
+      "sha": "9e279b104118dc4aa5f6587aec9c406e1c0fbef9",
+      "filename": "harmony/react_native_wechat_lib/src/main/ets/WechatLibTurboModule.ets",
+      "additions": 66,
+      "deletions": 41,
+      "blob_id": "0528eb49b2292c8b06b32d48d0e01ecb83f7f6ed",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-wechat-lib/blob/9e279b104118dc4aa5f6587aec9c406e1c0fbef9/harmony/react_native_wechat_lib/src/main/ets/WechatLibTurboModule.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-wechat-lib/raw/9e279b104118dc4aa5f6587aec9c406e1c0fbef9/harmony/react_native_wechat_lib/src/main/ets/WechatLibTurboModule.ets",
+      "patch": "@@ -504,19 +504,7 @@ export class WechatLibTurboModule extends TurboModule implements TM.WechatLibTur\n \n       let thumbImageUrl = (message.thumbImageUrl ? message.thumbImageUrl : null);\n       if (thumbImageUrl != null && !(thumbImageUrl === \"\")) {\n-        await new Promise<void>((resolve) => {\n-          this.downloadImageWithUrl(thumbImageUrl!, async (imageData: ArrayBuffer) => {\n-            if (!imageData) {\n-              callback(\"shareVideo Failed to retrieve imageData\", null);\n-              return;\n-            }\n-            let thumbPixel = image.createImageSource(imageData).createPixelMapSync();\n-            // 图片压缩\n-            let thumbBuffer = await this.bitmapResizeGetBytes(thumbPixel, this.THUMB_SIZE);\n-            mediaMessage.thumbData = new Uint8Array(thumbBuffer);\n-            resolve();\n-          }, callback);\n-        })\n+        await this.loadThumbImage(thumbImageUrl, mediaMessage);\n       }\n       // 构造一个Req\n       const req = new wxopensdk.SendMessageToWXReq();\n@@ -534,6 +522,67 @@ export class WechatLibTurboModule extends TurboModule implements TM.WechatLibTur\n     }\n   }\n \n+  async loadThumbImage(\n+    thumbImageUrl: string,\n+    mediaMessage: wxopensdk.WXMediaMessage\n+  ): Promise<void> {\n+    const ASSET_PREFIX = 'asset://';\n+    const RAWFILE_PREFIX = 'resource://RAWFILE/';\n+    const DATA_PREFIX = 'data:';\n+\n+    const getBytes = (): Promise<ArrayBuffer> => {\n+      return new Promise<ArrayBuffer>((resolve, reject) => {\n+        try {\n+          if (thumbImageUrl.startsWith('http://') || thumbImageUrl.startsWith('https://')) {\n+            this.downloadImageWithUrl(thumbImageUrl, (imageData: ArrayBuffer) => {\n+              if (!imageData) {\n+                reject(new Error('Failed to retrieve imageData'));\n+                return;\n+              }\n+              resolve(imageData);\n+            }, (error: string | null, _result: null | boolean) => {\n+              reject(new Error(error ?? 'Download image failed'));\n+            });\n+          } else if (thumbImageUrl.startsWith(DATA_PREFIX)) {\n+            const commaIndex = thumbImageUrl.indexOf(',');\n+            const base64Data = commaIndex >= 0\n+              ? thumbImageUrl.substring(commaIndex + 1)\n+              : thumbImageUrl.substring(DATA_PREFIX.length);\n+            const decoded = new util.Base64Helper().decodeSync(base64Data);\n+            const clean = new ArrayBuffer(decoded.byteLength);\n+            new Uint8Array(clean).set(decoded);\n+            resolve(clean);\n+          } else {\n+            let rawFilePath = thumbImageUrl;\n+            if (rawFilePath.startsWith(ASSET_PREFIX)) {\n+              rawFilePath = 'assets/' + rawFilePath.substring(ASSET_PREFIX.length);\n+            } else if (rawFilePath.startsWith(RAWFILE_PREFIX)) {\n+              rawFilePath = rawFilePath.substring(RAWFILE_PREFIX.length);\n+            }\n+            const content = getContext(this).resourceManager.getRawFileContentSync(rawFilePath);\n+            resolve(content.buffer);\n+          }\n+        } catch (err) {\n+          reject(err instanceof Error ? err : new Error('loadThumbImage getBytes error'));\n+        }\n+      });\n+    };\n+\n+    const imageData = await getBytes();\n+    let imageSource = image.createImageSource(imageData);\n+    try {\n+      let thumbPixel = imageSource.createPixelMapSync();\n+      try {\n+        let thumbBuffer = await this.bitmapResizeGetBytes(thumbPixel, this.THUMB_SIZE);\n+        mediaMessage.thumbData = new Uint8Array(thumbBuffer);\n+      } finally {\n+        thumbPixel.release();\n+      }\n+    } finally {\n+      imageSource.release();\n+    }\n+  }\n+\n   /**\n    * 分享网页\n    * @param message\n@@ -559,23 +608,11 @@ export class WechatLibTurboModule extends TurboModule implements TM.WechatLibTur\n \n       let thumbImageUrl = (message.thumbImageUrl ? message.thumbImageUrl : null);\n       if (thumbImageUrl != null && !(thumbImageUrl === \"\")) {\n-        await new Promise<void>((resolve) => {\n-          this.downloadImageWithUrl(thumbImageUrl!, async (imageData: ArrayBuffer) => {\n-            if (!imageData) {\n-              callback(\"shareWebpage Failed to retrieve imageData\", null);\n-              return;\n-            }\n-            let thumbPixel = image.createImageSource(imageData).createPixelMapSync();\n-            // 图片压缩\n-            let thumbBuffer = await this.bitmapResizeGetBytes(thumbPixel, this.THUMB_SIZE);\n-            mediaMessage.thumbData = new Uint8Array(thumbBuffer);\n-            resolve();\n-          }, callback);\n-        })\n+        await this.loadThumbImage(thumbImageUrl, mediaMessage);\n       }\n       // 构造一个Req\n       const req = new wxopensdk.SendMessageToWXReq();\n-      req.transaction = \"webpage\";\n+      req.transaction = util.generateRandomUUID().toString();\n       req.scene = message.scene ?? wxopensdk.SendMessageToWXReq.WXSceneSession;\n       req.message = mediaMessage;\n \n@@ -620,21 +657,9 @@ export class WechatLibTurboModule extends TurboModule implements TM.WechatLibTur\n         message.hdImageUrl ? message.hdImageUrl : (message.thumbImageUrl ? message.thumbImageUrl : null);\n \n       if (thumbImageUrl != null && !(thumbImageUrl === \"\")) {\n-        this.downloadImageWithUrl(thumbImageUrl, async (imageData: ArrayBuffer) => {\n-          if (!imageData) {\n-            callback(\"ShareMiniProgram Failed to retrieve imageData\", null);\n-            return;\n-          }\n-          let thumbPixel = image.createImageSource(imageData).createPixelMapSync();\n-          // 图片压缩\n-          let thumbBuffer = await this.bitmapResizeGetBytes(thumbPixel, this.THUMB_SIZE);\n-          mediaMessage.thumbData = new Uint8Array(thumbBuffer);\n-\n-          await this.shareMiniProgramSendReq(mediaMessage, message, callback);\n-        }, callback);\n-      } else {\n-        await this.shareMiniProgramSendReq(mediaMessage, message, callback);\n+        await this.loadThumbImage(thumbImageUrl, mediaMessage);\n       }\n+      await this.shareMiniProgramSendReq(mediaMessage, message, callback);\n     } catch (err) {\n       const message = err instanceof Error ? err.message : 'shareMiniProgram Unknown error';\n       callback(message, null);\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10362750,
+        "full_name": "houahui/rntpc_react-native-wechat-lib",
+        "human_name": "houahui / rntpc_react-native-wechat-lib",
+        "path": "rntpc_react-native-wechat-lib"
+      },
+      "target_project": {
+        "id": 8609480,
+        "full_name": "CPF-RN/rntpc_react-native-wechat-lib",
+        "human_name": "CPF-RN / rntpc_react-native-wechat-lib",
+        "path": "rntpc_react-native-wechat-lib"
+      }
+    },
+    {
+      "sha": "9e279b104118dc4aa5f6587aec9c406e1c0fbef9",
+      "filename": "package.json",
+      "additions": 2,
+      "deletions": 1,
+      "blob_id": "16f012f6563865dfdb6cf677a9469b1f5300c09c",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-wechat-lib/blob/9e279b104118dc4aa5f6587aec9c406e1c0fbef9/package.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-wechat-lib/raw/9e279b104118dc4aa5f6587aec9c406e1c0fbef9/package.json",
+      "patch": "@@ -36,7 +36,8 @@\n     \"package.json\",\n     \"!**/__tests__\",\n     \"!**/__fixtures__\",\n-    \"!**/__mocks__\"\n+    \"!**/__mocks__\",\n+    \"!build\"\n   ],\n   \"keywords\": [\n     \"react-native\",\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10362750,
+        "full_name": "houahui/rntpc_react-native-wechat-lib",
+        "human_name": "houahui / rntpc_react-native-wechat-lib",
+        "path": "rntpc_react-native-wechat-lib"
+      },
+      "target_project": {
+        "id": 8609480,
+        "full_name": "CPF-RN/rntpc_react-native-wechat-lib",
+        "human_name": "CPF-RN / rntpc_react-native-wechat-lib",
+        "path": "rntpc_react-native-wechat-lib"
+      }
+    },
+    {
+      "sha": "9e279b104118dc4aa5f6587aec9c406e1c0fbef9",
+      "filename": "src/index.ts",
+      "additions": 11,
+      "deletions": 2,
+      "blob_id": "b61ef36113e98dc1e10aa198af006e5462c617d1",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-wechat-lib/blob/9e279b104118dc4aa5f6587aec9c406e1c0fbef9/src/index.ts",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-wechat-lib/raw/9e279b104118dc4aa5f6587aec9c406e1c0fbef9/src/index.ts",
+      "patch": "@@ -343,14 +343,23 @@ export function shareWebpage(data: ShareWebpageMetadata) {\n     data.scene = 0;\n   }\n   return new Promise((resolve, reject) => {\n-    nativeShareWebpage?.(data);\n-    emitter.once(\"SendMessageToWX.Resp\", (resp) => {\n+    WechatLib.unregisterCallback(\"SendMessageToWX.Resp\");\n+    WechatLib.registerCallback(\"SendMessageToWX.Resp\", (result) => {\n+      if (!result) {\n+        return;\n+      }\n+      const resp = result as WechatResponse & { code?: string; returnKey?: string };\n+      if (resp.code !== undefined || resp.returnKey !== undefined) {\n+        return;\n+      }\n+      WechatLib.unregisterCallback(\"SendMessageToWX.Resp\");\n       if (resp.errCode === 0) {\n         resolve(resp);\n       } else {\n         reject(new WechatError(resp));\n       }\n     });\n+    nativeShareWebpage?.(data);\n   });\n }\n /**\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10362750,
+        "full_name": "houahui/rntpc_react-native-wechat-lib",
+        "human_name": "houahui / rntpc_react-native-wechat-lib",
+        "path": "rntpc_react-native-wechat-lib"
+      },
+      "target_project": {
+        "id": 8609480,
+        "full_name": "CPF-RN/rntpc_react-native-wechat-lib",
+        "human_name": "CPF-RN / rntpc_react-native-wechat-lib",
+        "path": "rntpc_react-native-wechat-lib"
+      }
+    }
+  ]
+}

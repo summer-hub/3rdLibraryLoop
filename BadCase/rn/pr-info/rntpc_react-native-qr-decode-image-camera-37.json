@@ -1,0 +1,232 @@
+{
+  "pr": {
+    "id": 8966051,
+    "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-qr-decode-image-camera/merge_requests/37",
+    "number": 37,
+    "state": "merged",
+    "title": "fix:Fix the issue where the horizontal camera view shifts downward.",
+    "url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-qr-decode-image-camera/pulls/37",
+    "issue_url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-qr-decode-image-camera/pulls/37/issues",
+    "body": "## 一、变更类型（单选，仅勾选一项）\n- [ ] feat（新增功能，对应 Changelog Added）\n- [x] fix（修复 Bug，对应 Changelog Fixed）\n- [ ] docs（文档变更，对应 Changelog Documentation）\n- [ ] refactor（代码重构，对应 Changelog Changed）\n- [ ] perf（性能优化，对应 Changelog Performance）\n- [ ] test（测试相关，不进入 Changelog）\n- [ ] chore（构建/工具链/依赖，不进入 Changelog）\n- [ ] deprecated（标记弃用，对应 Changelog Deprecated）\n- [ ] removed（移除功能，对应 Changelog Removed）\n- [ ] security（安全修复，对应 Changelog Security）\n\n## 二、变更内容\n### 简要描述\n解决横屏状态下相机显示问题\n\n### 破坏性变更说明\n无破坏性变更\n\n\n## 三、测试步骤\n运行demo,手机切换横屏，观察相机UI状态\n测试demo\n```\n/**\n * @format\n */\n\nimport { AppRegistry } from 'react-native';\nimport RNTester from './rn-tester';\nimport { name as appName } from './app.json';\n\nimport React, { useState } from 'react';\nimport { View, Text, TouchableOpacity, StyleSheet } from 'react-native';\nimport { QRscanner } from 'react-native-qr-decode-image-camera';\n\n\nexport const QrExample = () => {\n\n    const [flashMode, setflashMode] = useState(false);\n    const onRead = res => {\n        console.log(\"result:\" + res);\n    };\n    return (\n        <View style={styles.container}>\n            <QRscanner\n                onRead={onRead}\n                isRepeatScan={true}\n                renderBottomView={() => {\n                    return (\n                        <View\n                            style={{\n                                flex: 1,\n                                flexDirection: 'row',\n                                backgroundColor: '#0000004D',\n                            }}>\n                            <TouchableOpacity\n                                style={{\n                                    flex: 1,\n                                    alignItems: 'center',\n                                    justifyContent: 'center',\n                                }}\n                                onPress={() => {\n                                    if (flashMode) {\n                                        setflashMode(false);\n                                    } else {\n                                        setflashMode(true);\n                                    }\n                                }}>\n                                <Text style={{ color: '#fff' }}>flashMode</Text>\n                            </TouchableOpacity>\n                        </View>\n                    );\n                }}\n                flashMode={flashMode}\n                finderY={50}\n            />\n        </View>\n    );\n};\n\nconst styles = StyleSheet.create({\n    container: {\n        flex: 1,\n        backgroundColor: '#000',\n    },\n});\n\nAppRegistry.registerComponent(appName, () => QrExample);\n\n```\n\n## 四、测试情况\n横屏状态UI显示正常\n不涉及\n\n## 五、合入前自检\n- [x] 不涉及非兼容性变更；若涉及，已通过相应评审。\n- [x] 不涉及性能或已进行性能测试且无性能劣化。\n- [x] 符合对应的编码规范。\n- [x] 无敏感信息泄露，如密码、密钥等。\n- [x] 不涉及文档更新，或已更新了文档。\n- [x] 针对可测试性要求，已增加必要的自测用例、合理的日志记录或Trace信息。\n- [x] 不存在非法的文件引入，包括图片和代码等",
+    "assignees_number": 3,
+    "assignees": [
+      {
+        "id": "6731c8f2fbbddc0c200a6019",
+        "login": "zhu_chengcheng",
+        "name": "zhu_chengcheng",
+        "avatar_url": "https://cdn-img.gitcode.com/fe/bd/f406eb600317d9bbb6a5c23042b49e5193dfbb7a63ee407f5bbfcbabcd177af1.jpg",
+        "html_url": "https://gitcode.com/zhu_chengcheng",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      },
+      {
+        "id": "67fdb69df01e3c566929edd4",
+        "login": "gcw_N7oHqLFR",
+        "name": "huang_jy",
+        "avatar_url": "",
+        "html_url": "https://gitcode.com/gcw_N7oHqLFR",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      },
+      {
+        "id": "67316e3733741160e6751351",
+        "login": "dingchengjie",
+        "name": "dingchengjie",
+        "avatar_url": "https://cdn-img.gitcode.com/fa/ed/6fa18810e4276d04d77bccf2f37c2287b44631cdcae7587fc4446f0bd79c2ed3.png",
+        "html_url": "https://gitcode.com/dingchengjie",
+        "assignee": true,
+        "code_owner": false,
+        "accept": true
+      }
+    ],
+    "testers": [
+      {
+        "id": "6541ccea82d8f837210e92c3",
+        "login": "openharmony_ci",
+        "name": "openharmony_ci",
+        "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+        "html_url": "https://gitcode.com/openharmony_ci",
+        "assignee": false,
+        "code_owner": false,
+        "accept": true
+      }
+    ],
+    "approval_reviewers": [],
+    "labels": [
+      {
+        "id": 13245124,
+        "color": "#428BCA",
+        "name": "dco检查成功",
+        "repository_id": 4368657,
+        "created_at": "2026-07-02T17:57:08+08:00",
+        "updated_at": "2026-07-31T16:29:40+08:00"
+      },
+      {
+        "id": 13245970,
+        "color": "#428BCA",
+        "name": "编译成功",
+        "repository_id": 4368657,
+        "created_at": "2026-07-08T12:11:50+08:00",
+        "updated_at": "2026-08-06T16:12:25+08:00"
+      },
+      {
+        "id": 13245743,
+        "color": "#428BCA",
+        "name": "静态检查成功",
+        "repository_id": 4368657,
+        "created_at": "2026-07-07T20:59:55+08:00",
+        "updated_at": "2026-08-06T16:25:03+08:00"
+      }
+    ],
+    "created_at": "2026-07-31T16:28:57+08:00",
+    "updated_at": "2026-08-06T19:04:23+08:00",
+    "closed_at": "2026-08-06T19:04:22+08:00",
+    "merged_at": "2026-08-06T19:04:22+08:00",
+    "merged_by": {
+      "id": "6541ccea82d8f837210e92c3",
+      "login": "openharmony_ci",
+      "name": "openharmony_ci",
+      "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+      "html_url": "https://gitcode.com/openharmony_ci"
+    },
+    "draft": false,
+    "can_merge_check": true,
+    "prune_branch": false,
+    "mergeable": true,
+    "user": {
+      "id": "67fe10947795fd623e1a1214",
+      "login": "chenbaodi123",
+      "name": "chenbaodi123",
+      "avatar_url": "",
+      "html_url": "https://gitcode.com/chenbaodi123"
+    },
+    "head": {
+      "ref": "br_rnoh0.82",
+      "sha": "e05f632ffc76d2afa87b523ea708ff6ea8f7b2cf",
+      "label": "br_rnoh0.82",
+      "repo": {
+        "path": "rntpc_react-native-qr-decode-image-camera",
+        "name": "rntpc_react-native-qr-decode-image-camera",
+        "namespace": {
+          "path": "chenbaodi123"
+        },
+        "full_name": "chenbaodi123/rntpc_react-native-qr-decode-image-camera",
+        "html_url": "https://gitcode.com/chenbaodi123/rntpc_react-native-qr-decode-image-camera.git"
+      },
+      "user": {
+        "id": "67fe10947795fd623e1a1214",
+        "login": "chenbaodi123",
+        "name": "chenbaodi123",
+        "avatar_url": "",
+        "html_url": "https://gitcode.com/chenbaodi123"
+      }
+    },
+    "base": {
+      "ref": "br_rnoh0.82",
+      "sha": "2b9a5126d7ce9772cae4529b5c4fc51fb7f615f2",
+      "label": "br_rnoh0.82",
+      "repo": {
+        "path": "rntpc_react-native-qr-decode-image-camera",
+        "name": "rntpc_react-native-qr-decode-image-camera",
+        "namespace": {
+          "path": "CPF-RN"
+        },
+        "full_name": "CPF-RN/rntpc_react-native-qr-decode-image-camera",
+        "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-qr-decode-image-camera.git"
+      }
+    },
+    "mergeable_state": {
+      "merge_request_id": 8966051,
+      "state": true,
+      "status_without_user_auth": true,
+      "conflict_passed": true,
+      "branch_missing_passed": true,
+      "non_ff_passed": true,
+      "mr_state_passed": true,
+      "merged_by_user_passed": true,
+      "work_in_progress_passed": true,
+      "resolve_discussion_passed": true,
+      "ci_state_passed": true,
+      "merge_by_self_passed": true,
+      "can_force_merge": true,
+      "approval_reviewers_required_passed": true,
+      "approval_approvers_required_passed": true,
+      "approval_testers_required_passed": true,
+      "merge_request_switch": {
+        "review_mode": "approval",
+        "merge_method": "merge",
+        "only_allow_merge_if_all_discussions_are_resolved": true,
+        "disable_merge_by_self": true,
+        "only_allow_merge_if_pipeline_succeeds": false,
+        "disable_squash_merge": false,
+        "squash_merge_with_no_merge_commit": false,
+        "approval_required_reviewers_count": 0,
+        "approval_required_reviewers_branch": "*",
+        "add_notes_after_merged": true,
+        "mark_auto_merged_mr_as_closed": false,
+        "can_force_merge": true,
+        "can_reopen": true
+      },
+      "reason": {},
+      "check_tasks_num": 2,
+      "all_depend_merge_request_merged_passed": true,
+      "approval_approvers_result": 2,
+      "approval_testers_result": 2
+    },
+    "visibility_reason": "public",
+    "close_related_issue": true,
+    "squash_merge": false
+  },
+  "files": [
+    {
+      "sha": "e05f632ffc76d2afa87b523ea708ff6ea8f7b2cf",
+      "filename": "src/Camera.tsx",
+      "additions": 1,
+      "deletions": 2,
+      "blob_id": "83a35ae00587184d73e833a7ee0d25d9c20a2e8b",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-qr-decode-image-camera/blob/e05f632ffc76d2afa87b523ea708ff6ea8f7b2cf/src/Camera.tsx",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-qr-decode-image-camera/raw/e05f632ffc76d2afa87b523ea708ff6ea8f7b2cf/src/Camera.tsx",
+      "patch": "@@ -82,7 +82,6 @@ export const ComponentCamera = (props) => {\n \n const styles = StyleSheet.create({\n   camera: {\n-    width: '100%',\n-    aspectRatio: 3 / 4,\n+   flex: 1,\n   },\n });\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.82",
+      "source_branch": "br_rnoh0.82",
+      "source_project": {
+        "id": 10498861,
+        "full_name": "chenbaodi123/rntpc_react-native-qr-decode-image-camera",
+        "human_name": "chenbaodi123 / rntpc_react-native-qr-decode-image-camera",
+        "path": "rntpc_react-native-qr-decode-image-camera"
+      },
+      "target_project": {
+        "id": 4368657,
+        "full_name": "CPF-RN/rntpc_react-native-qr-decode-image-camera",
+        "human_name": "CPF-RN / rntpc_react-native-qr-decode-image-camera",
+        "path": "rntpc_react-native-qr-decode-image-camera"
+      }
+    },
+    {
+      "sha": "e05f632ffc76d2afa87b523ea708ff6ea8f7b2cf",
+      "filename": "src/QRScannerView.js",
+      "additions": 11,
+      "deletions": 5,
+      "blob_id": "a8c01e06dfeb6072f37ddcb883f1a49d3f9b1bfd",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-qr-decode-image-camera/blob/e05f632ffc76d2afa87b523ea708ff6ea8f7b2cf/src/QRScannerView.js",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-qr-decode-image-camera/raw/e05f632ffc76d2afa87b523ea708ff6ea8f7b2cf/src/QRScannerView.js",
+      "patch": "@@ -10,7 +10,8 @@ import {\n   Vibration,\n   Platform,\n   PixelRatio,\n-  StatusBar\n+  StatusBar,\n+  Dimensions\n } from 'react-native';\n /**\n  * Scanning Interface Mask\n@@ -46,11 +47,13 @@ export default class QRScannerView extends Component {\n \n   constructor(props) {\n     super(props);\n+    const { width, height } = Dimensions.get('window');\n     this.state = {\n       topWidth: 0,\n       topHeight: 0,\n       leftWidth: 0,\n-      animatedValue: new Animated.Value(0)\n+      animatedValue: new Animated.Value(0),\n+      isLandscape: width > height,\n     }\n     this.isClosed = false;\n   }\n@@ -101,7 +104,8 @@ export default class QRScannerView extends Component {\n   //Measure the size of the entire scanning component\n   measureTotalSize = (e) => {\n     let totalSize = e.layout;\n-    this.setState({ topWidth: totalSize.width })\n+    const isLandscape = totalSize.width > totalSize.height;\n+    this.setState({ topWidth: totalSize.width, isLandscape })\n   }\n \n   //Measure the position of the scan frame\n@@ -298,9 +302,11 @@ export default class QRScannerView extends Component {\n         <View\n           style={{\n             position: 'absolute',\n-            bottom: this.props.hintTextPosition\n+            ...(this.state.isLandscape\n+              ? { top: this.getBottomMaskHeight() - this.props.finderY + 10, left: 0, right: 0, alignItems: 'center' }\n+              : { bottom: this.props.hintTextPosition })\n           }}>\n-          <Text style={[this.props.hintTextStyle, { top: this.props.finderY, left: this.props.finderX }]}>{this.props.hintText}</Text>\n+          <Text style={[this.props.hintTextStyle, !this.state.isLandscape ? { top: this.props.finderY, left: this.props.finderX } : {}]}>{this.props.hintText}</Text>\n         </View>\n \n       </View>\n",
+      "target_branch": "br_rnoh0.82",
+      "source_branch": "br_rnoh0.82",
+      "source_project": {
+        "id": 10498861,
+        "full_name": "chenbaodi123/rntpc_react-native-qr-decode-image-camera",
+        "human_name": "chenbaodi123 / rntpc_react-native-qr-decode-image-camera",
+        "path": "rntpc_react-native-qr-decode-image-camera"
+      },
+      "target_project": {
+        "id": 4368657,
+        "full_name": "CPF-RN/rntpc_react-native-qr-decode-image-camera",
+        "human_name": "CPF-RN / rntpc_react-native-qr-decode-image-camera",
+        "path": "rntpc_react-native-qr-decode-image-camera"
+      }
+    }
+  ]
+}

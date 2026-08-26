@@ -1,0 +1,198 @@
+{
+  "pr": {
+    "id": 8961721,
+    "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-reanimated/merge_requests/82",
+    "number": 82,
+    "state": "merged",
+    "title": "fix(harmony): Fix the online crash issue of didi",
+    "url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-reanimated/pulls/82",
+    "issue_url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-reanimated/pulls/82/issues",
+    "body": "fix(harmony): Fix the online crash issue of didi\n\nThe online crash issue of Didi, with a crash rate of 0.01%\n\nClosed: [#54](https://gitcode.com/CPF-RN/rntpc_react-native-reanimated/issues/54) ",
+    "assignees_number": 2,
+    "assignees": [
+      {
+        "id": "6731c8f2fbbddc0c200a6019",
+        "login": "zhu_chengcheng",
+        "name": "zhu_chengcheng",
+        "avatar_url": "https://cdn-img.gitcode.com/fe/bd/f406eb600317d9bbb6a5c23042b49e5193dfbb7a63ee407f5bbfcbabcd177af1.jpg",
+        "html_url": "https://gitcode.com/zhu_chengcheng",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      },
+      {
+        "id": "67fdb69df01e3c566929edd4",
+        "login": "gcw_N7oHqLFR",
+        "name": "huang_jy",
+        "avatar_url": "",
+        "html_url": "https://gitcode.com/gcw_N7oHqLFR",
+        "assignee": true,
+        "code_owner": false,
+        "accept": true
+      }
+    ],
+    "testers": [
+      {
+        "id": "6541ccea82d8f837210e92c3",
+        "login": "openharmony_ci",
+        "name": "openharmony_ci",
+        "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+        "html_url": "https://gitcode.com/openharmony_ci",
+        "assignee": false,
+        "code_owner": false,
+        "accept": true
+      }
+    ],
+    "approval_reviewers": [],
+    "labels": [
+      {
+        "id": 13241991,
+        "color": "#428BCA",
+        "name": "dco检查成功",
+        "repository_id": 4369214,
+        "created_at": "2026-06-09T15:59:33+08:00",
+        "updated_at": "2026-07-30T21:21:00+08:00"
+      },
+      {
+        "id": 13240351,
+        "color": "#428BCA",
+        "name": "编译成功",
+        "repository_id": 4369214,
+        "created_at": "2026-05-31T11:50:59+08:00",
+        "updated_at": "2026-08-03T16:26:16+08:00"
+      },
+      {
+        "id": 13240386,
+        "color": "#428BCA",
+        "name": "静态检查成功",
+        "repository_id": 4369214,
+        "created_at": "2026-06-01T09:30:32+08:00",
+        "updated_at": "2026-08-03T16:28:34+08:00"
+      }
+    ],
+    "created_at": "2026-07-30T21:20:17+08:00",
+    "updated_at": "2026-08-03T16:43:37+08:00",
+    "closed_at": "2026-08-03T16:43:37+08:00",
+    "merged_at": "2026-08-03T16:43:37+08:00",
+    "merged_by": {
+      "id": "6541ccea82d8f837210e92c3",
+      "login": "openharmony_ci",
+      "name": "openharmony_ci",
+      "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+      "html_url": "https://gitcode.com/openharmony_ci"
+    },
+    "draft": false,
+    "can_merge_check": true,
+    "prune_branch": false,
+    "mergeable": true,
+    "user": {
+      "id": "66d26efad5084c7852c9cc0a",
+      "login": "chenhaoyue1",
+      "name": "chenhaoyue",
+      "avatar_url": "https://cdn-img.gitcode.com/db/cb/82d7644b39c2b5811c56273ec35606a8d270bf3795a60915c77cda9c33b9656f.png",
+      "html_url": "https://gitcode.com/chenhaoyue1"
+    },
+    "head": {
+      "ref": "0730",
+      "sha": "d38e3ef6ec8e5800fd42f486fd42ee4c68480cd4",
+      "label": "0730",
+      "repo": {
+        "path": "rntpc_react-native-reanimated",
+        "name": "rntpc_react-native-reanimated",
+        "namespace": {
+          "path": "chenhaoyue1"
+        },
+        "full_name": "chenhaoyue1/rntpc_react-native-reanimated",
+        "html_url": "https://gitcode.com/chenhaoyue1/rntpc_react-native-reanimated.git"
+      },
+      "user": {
+        "id": "66d26efad5084c7852c9cc0a",
+        "login": "chenhaoyue1",
+        "name": "chenhaoyue",
+        "avatar_url": "https://cdn-img.gitcode.com/db/cb/82d7644b39c2b5811c56273ec35606a8d270bf3795a60915c77cda9c33b9656f.png",
+        "html_url": "https://gitcode.com/chenhaoyue1"
+      }
+    },
+    "base": {
+      "ref": "br_rnoh0.77",
+      "sha": "3ca70ccff897961b7d83902f0a4af93b31091662",
+      "label": "br_rnoh0.77",
+      "repo": {
+        "path": "rntpc_react-native-reanimated",
+        "name": "rntpc_react-native-reanimated",
+        "namespace": {
+          "path": "CPF-RN"
+        },
+        "full_name": "CPF-RN/rntpc_react-native-reanimated",
+        "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-reanimated.git"
+      }
+    },
+    "mergeable_state": {
+      "merge_request_id": 8961721,
+      "state": true,
+      "status_without_user_auth": true,
+      "conflict_passed": true,
+      "branch_missing_passed": true,
+      "non_ff_passed": true,
+      "mr_state_passed": true,
+      "merged_by_user_passed": true,
+      "work_in_progress_passed": true,
+      "resolve_discussion_passed": true,
+      "ci_state_passed": true,
+      "merge_by_self_passed": true,
+      "can_force_merge": true,
+      "approval_reviewers_required_passed": true,
+      "approval_approvers_required_passed": true,
+      "approval_testers_required_passed": true,
+      "merge_request_switch": {
+        "review_mode": "approval",
+        "merge_method": "merge",
+        "only_allow_merge_if_all_discussions_are_resolved": true,
+        "disable_merge_by_self": true,
+        "only_allow_merge_if_pipeline_succeeds": false,
+        "disable_squash_merge": false,
+        "squash_merge_with_no_merge_commit": false,
+        "approval_required_reviewers_count": 0,
+        "approval_required_reviewers_branch": "*",
+        "add_notes_after_merged": true,
+        "mark_auto_merged_mr_as_closed": true,
+        "can_force_merge": true,
+        "can_reopen": true
+      },
+      "reason": {},
+      "check_tasks_num": 2,
+      "all_depend_merge_request_merged_passed": true,
+      "approval_approvers_result": 2,
+      "approval_testers_result": 2
+    },
+    "visibility_reason": "public",
+    "close_related_issue": true,
+    "squash_merge": false
+  },
+  "files": [
+    {
+      "sha": "d38e3ef6ec8e5800fd42f486fd42ee4c68480cd4",
+      "filename": "harmony/reanimated/src/main/cpp/patches/NativeModules/ReanimatedModuleProxy.cpp",
+      "additions": 31,
+      "deletions": 0,
+      "blob_id": "549c0e3f81f58c1dcbbab3fa75138cf0f3490f2d",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-reanimated/blob/d38e3ef6ec8e5800fd42f486fd42ee4c68480cd4/harmony/reanimated/src/main/cpp/patches/NativeModules/ReanimatedModuleProxy.cpp",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-reanimated/raw/d38e3ef6ec8e5800fd42f486fd42ee4c68480cd4/harmony/reanimated/src/main/cpp/patches/NativeModules/ReanimatedModuleProxy.cpp",
+      "patch": "@@ -256,6 +256,37 @@ ReanimatedModuleProxy::~ReanimatedModuleProxy() {\n   }\r\n   layoutAnimationsProxy_.reset();\r\n \r\n+  // 主动触发 Hermes GC：在 uiWorkletRuntime_ 销毁前回收 Hermes 堆中持有\r\n+  // ShadowNode::Shared（通过 NativeState / ShadowNodeWrapper）的 JSI 对象。\r\n+  //\r\n+  // 此处 commitHook_ / mountHook_ 仍未 reset，它们持有 uiManager_ 的\r\n+  // shared_ptr，确保 GC 回收 ShadowNodeWrapper 触发 ~ShadowNodeFamily 时\r\n+  // ComponentDescriptorRegistry 仍然有效。这样可避免 uiWorkletRuntime_.reset()\r\n+  // → HadesGC::finalizeAll() 在上下文可能已失效后触发\r\n+  // ~ShadowNodeFamily → ~InstanceHandle 崩溃（0730 复现变体根因）。\r\n+  //\r\n+  // UI runtime 为 LockableRuntime（supportsLocking=true），每个 JSI 操作\r\n+  // 自动加锁 runtimeMutex_（recursive_mutex），从主线程调用 gc() 会阻塞\r\n+  // 等待 UI 线程完成当前 worklet 后执行，不会死锁。\r\n+#if JS_RUNTIME_HERMES\r\n+  if (uiWorkletRuntime_) {\r\n+    try {\r\n+      auto &uiRuntime = uiWorkletRuntime_->getJSIRuntime();\r\n+      auto gc = uiRuntime.global().getPropertyAsFunction(uiRuntime, \"gc\");\r\n+      gc.call(uiRuntime);\r\n+    } catch (const std::exception &) {\r\n+      // gc() 调用失败不应阻止后续析构流程\r\n+    } catch (...) {\r\n+      // 忽略未知异常，保证析构不因 GC 失败而 terminate\r\n+    }\r\n+  }\r\n+#endif // JS_RUNTIME_HERMES\r\n+\r\n+  // GC 之后再注销 hooks：确保 GC 回收 ShadowNodeWrapper 时\r\n+  // UIManager（及 ComponentDescriptorRegistry）仍存活\r\n+  commitHook_.reset();\r\n+  mountHook_.reset();\r\n+  uiManager_.reset();\r\n #endif // RCT_NEW_ARCH_ENABLED\r\n   uiWorkletRuntime_.reset();\r\n }\r\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "0730",
+      "source_project": {
+        "id": 9073087,
+        "full_name": "chenhaoyue1/rntpc_react-native-reanimated",
+        "human_name": "chenhaoyue1 / rntpc_react-native-reanimated",
+        "path": "rntpc_react-native-reanimated"
+      },
+      "target_project": {
+        "id": 4369214,
+        "full_name": "CPF-RN/rntpc_react-native-reanimated",
+        "human_name": "CPF-RN / rntpc_react-native-reanimated",
+        "path": "rntpc_react-native-reanimated"
+      }
+    }
+  ]
+}

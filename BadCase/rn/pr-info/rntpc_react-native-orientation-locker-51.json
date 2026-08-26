@@ -1,0 +1,208 @@
+{
+  "pr": {
+    "id": 9011533,
+    "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/merge_requests/51",
+    "number": 51,
+    "state": "merged",
+    "title": "perf:优化加速度传感器的打开和关闭",
+    "url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-orientation-locker/pulls/51",
+    "issue_url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-orientation-locker/pulls/51/issues",
+    "body": "perf:优化加速度传感器的打开和关闭",
+    "assignees_number": 3,
+    "assignees": [
+      {
+        "id": "6731c8f2fbbddc0c200a6019",
+        "login": "zhu_chengcheng",
+        "name": "zhu_chengcheng",
+        "avatar_url": "https://cdn-img.gitcode.com/fe/bd/f406eb600317d9bbb6a5c23042b49e5193dfbb7a63ee407f5bbfcbabcd177af1.jpg",
+        "html_url": "https://gitcode.com/zhu_chengcheng",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      },
+      {
+        "id": "67fdb69df01e3c566929edd4",
+        "login": "gcw_N7oHqLFR",
+        "name": "huang_jy",
+        "avatar_url": "",
+        "html_url": "https://gitcode.com/gcw_N7oHqLFR",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      },
+      {
+        "id": "67316e3733741160e6751351",
+        "login": "dingchengjie",
+        "name": "dingchengjie",
+        "avatar_url": "https://cdn-img.gitcode.com/fa/ed/6fa18810e4276d04d77bccf2f37c2287b44631cdcae7587fc4446f0bd79c2ed3.png",
+        "html_url": "https://gitcode.com/dingchengjie",
+        "assignee": true,
+        "code_owner": false,
+        "accept": true
+      }
+    ],
+    "testers": [
+      {
+        "id": "6541ccea82d8f837210e92c3",
+        "login": "openharmony_ci",
+        "name": "openharmony_ci",
+        "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+        "html_url": "https://gitcode.com/openharmony_ci",
+        "assignee": false,
+        "code_owner": false,
+        "accept": true
+      }
+    ],
+    "approval_reviewers": [],
+    "labels": [
+      {
+        "id": 13245693,
+        "color": "#428BCA",
+        "name": "dco检查成功",
+        "repository_id": 4368861,
+        "created_at": "2026-07-07T17:22:19+08:00",
+        "updated_at": "2026-08-10T16:39:16+08:00"
+      },
+      {
+        "id": 13246086,
+        "color": "#428BCA",
+        "name": "编译成功",
+        "repository_id": 4368861,
+        "created_at": "2026-07-09T10:15:31+08:00",
+        "updated_at": "2026-08-10T19:22:57+08:00"
+      },
+      {
+        "id": 13245696,
+        "color": "#428BCA",
+        "name": "静态检查成功",
+        "repository_id": 4368861,
+        "created_at": "2026-07-07T17:33:39+08:00",
+        "updated_at": "2026-08-10T19:23:14+08:00"
+      }
+    ],
+    "created_at": "2026-08-10T16:38:38+08:00",
+    "updated_at": "2026-08-10T20:04:21+08:00",
+    "closed_at": "2026-08-10T20:04:20+08:00",
+    "merged_at": "2026-08-10T20:04:20+08:00",
+    "merged_by": {
+      "id": "6541ccea82d8f837210e92c3",
+      "login": "openharmony_ci",
+      "name": "openharmony_ci",
+      "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+      "html_url": "https://gitcode.com/openharmony_ci"
+    },
+    "draft": false,
+    "can_merge_check": true,
+    "prune_branch": false,
+    "mergeable": true,
+    "user": {
+      "id": "66f4e6edca8388106d213150",
+      "login": "qq_434633291111",
+      "name": "wupingyuan",
+      "avatar_url": "https://cdn-img.gitcode.com/db/bc/dbbc52140cd3dd95d893359fd9341924a707304a0b81ab802ff56cf008923f45.png",
+      "html_url": "https://gitcode.com/qq_434633291111"
+    },
+    "head": {
+      "ref": "br_rnoh0.77",
+      "sha": "877caf7ef0bf274c68b235b45cca3c75a9a92739",
+      "label": "br_rnoh0.77",
+      "repo": {
+        "path": "rntpc_react-native-orientation-locker",
+        "name": "rntpc_react-native-orientation-locker",
+        "namespace": {
+          "path": "qq_434633291111"
+        },
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "html_url": "https://gitcode.com/qq_434633291111/rntpc_react-native-orientation-locker.git"
+      },
+      "user": {
+        "id": "66f4e6edca8388106d213150",
+        "login": "qq_434633291111",
+        "name": "wupingyuan",
+        "avatar_url": "https://cdn-img.gitcode.com/db/bc/dbbc52140cd3dd95d893359fd9341924a707304a0b81ab802ff56cf008923f45.png",
+        "html_url": "https://gitcode.com/qq_434633291111"
+      }
+    },
+    "base": {
+      "ref": "br_rnoh0.77",
+      "sha": "27a6f2f6d8a554ad24f2c9139971ed72c39ed720",
+      "label": "br_rnoh0.77",
+      "repo": {
+        "path": "rntpc_react-native-orientation-locker",
+        "name": "rntpc_react-native-orientation-locker",
+        "namespace": {
+          "path": "CPF-RN"
+        },
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker.git"
+      }
+    },
+    "mergeable_state": {
+      "merge_request_id": 9011533,
+      "state": true,
+      "status_without_user_auth": true,
+      "conflict_passed": true,
+      "branch_missing_passed": true,
+      "non_ff_passed": true,
+      "mr_state_passed": true,
+      "merged_by_user_passed": true,
+      "work_in_progress_passed": true,
+      "resolve_discussion_passed": true,
+      "ci_state_passed": true,
+      "merge_by_self_passed": true,
+      "can_force_merge": true,
+      "approval_reviewers_required_passed": true,
+      "approval_approvers_required_passed": true,
+      "approval_testers_required_passed": true,
+      "merge_request_switch": {
+        "review_mode": "approval",
+        "merge_method": "merge",
+        "only_allow_merge_if_all_discussions_are_resolved": true,
+        "disable_merge_by_self": true,
+        "only_allow_merge_if_pipeline_succeeds": false,
+        "disable_squash_merge": false,
+        "squash_merge_with_no_merge_commit": false,
+        "approval_required_reviewers_count": 0,
+        "approval_required_reviewers_branch": "*",
+        "add_notes_after_merged": true,
+        "mark_auto_merged_mr_as_closed": false,
+        "can_force_merge": true,
+        "can_reopen": true
+      },
+      "reason": {},
+      "check_tasks_num": 2,
+      "all_depend_merge_request_merged_passed": true,
+      "approval_approvers_result": 2,
+      "approval_testers_result": 2
+    },
+    "visibility_reason": "public",
+    "close_related_issue": true,
+    "squash_merge": false
+  },
+  "files": [
+    {
+      "sha": "877caf7ef0bf274c68b235b45cca3c75a9a92739",
+      "filename": "src/orientation.harmony.js",
+      "additions": 21,
+      "deletions": 2,
+      "blob_id": "2e23ea468cc6e33f480b03300535d5ac42f27680",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/blob/877caf7ef0bf274c68b235b45cca3c75a9a92739/src/orientation.harmony.js",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-orientation-locker/raw/877caf7ef0bf274c68b235b45cca3c75a9a92739/src/orientation.harmony.js",
+      "patch": "@@ -21,6 +21,9 @@ var META = \"__listener_id\";\n \n var locked = false;\n \n+// 引用计数：count === 0 时 openSensor()（只一次），count 归 0 时 closeSensor()\n+var deviceOrientationListenerCount = 0;\n+\n function getKey(listener) {\n   if (!listener.hasOwnProperty(META)) {\n     if (!Object.isExtensible(listener)) {\n@@ -115,8 +118,15 @@ export default class Orientation {\n   };\n \n   static addDeviceOrientationListener = cb => {\n-    OrientationNative.openSensor();\n     var key = getKey(cb);\n+    // 同一个 cb 重复添加：不重复 openSensor()、不重复计数\n+    if (!listeners[key]) {\n+      // 引用计数为 0 时才打开 sensor（整个生命周期只调用一次）\n+      if (deviceOrientationListenerCount === 0) {\n+        OrientationNative.openSensor();\n+      }\n+      deviceOrientationListenerCount++;\n+    }\n     listeners[key] = deviceEventEmitter.addListener(\n       \"deviceOrientationDidChange\",\n       body => {\n@@ -136,7 +146,11 @@ export default class Orientation {\n     }\n     listeners[key].remove();\n     listeners[key] = null;\n-    OrientationNative.closeSensor();\n+    deviceOrientationListenerCount--;\n+    // 引用计数归 0 时才关闭 sensor\n+    if (deviceOrientationListenerCount === 0) {\n+      OrientationNative.closeSensor();\n+    }\n   };\n \n   static addLockListener = cb => {\n@@ -163,6 +177,11 @@ export default class Orientation {\n       listeners[key].remove();\n       listeners[key] = null;\n     }\n+    // 所有订阅被清空，若有 device 监听则复位计数并补一次 closeSensor\n+    if (deviceOrientationListenerCount > 0) {\n+      deviceOrientationListenerCount = 0;\n+      OrientationNative.closeSensor();\n+    }\n   };\n \n   static getInitialOrientation = () => {\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 9920253,
+        "full_name": "qq_434633291111/rntpc_react-native-orientation-locker",
+        "human_name": "qq_434633291111 / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      },
+      "target_project": {
+        "id": 4368861,
+        "full_name": "CPF-RN/rntpc_react-native-orientation-locker",
+        "human_name": "CPF-RN / rntpc_react-native-orientation-locker",
+        "path": "rntpc_react-native-orientation-locker"
+      }
+    }
+  ]
+}

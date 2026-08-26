@@ -1,0 +1,198 @@
+{
+  "pr": {
+    "id": 8968537,
+    "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-screens/merge_requests/87",
+    "number": 87,
+    "state": "merged",
+    "title": "fix: 修复77分支原生组件手势和库冲突问题",
+    "url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-screens/pulls/87",
+    "issue_url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-screens/pulls/87/issues",
+    "body": "fix: 修复77分支原生组件手势和库冲突问题",
+    "assignees_number": 2,
+    "assignees": [
+      {
+        "id": "6731c8f2fbbddc0c200a6019",
+        "login": "zhu_chengcheng",
+        "name": "zhu_chengcheng",
+        "avatar_url": "https://cdn-img.gitcode.com/fe/bd/f406eb600317d9bbb6a5c23042b49e5193dfbb7a63ee407f5bbfcbabcd177af1.jpg",
+        "html_url": "https://gitcode.com/zhu_chengcheng",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      },
+      {
+        "id": "67fdb69df01e3c566929edd4",
+        "login": "gcw_N7oHqLFR",
+        "name": "huang_jy",
+        "avatar_url": "",
+        "html_url": "https://gitcode.com/gcw_N7oHqLFR",
+        "assignee": true,
+        "code_owner": false,
+        "accept": true
+      }
+    ],
+    "testers": [
+      {
+        "id": "6541ccea82d8f837210e92c3",
+        "login": "openharmony_ci",
+        "name": "openharmony_ci",
+        "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+        "html_url": "https://gitcode.com/openharmony_ci",
+        "assignee": false,
+        "code_owner": false,
+        "accept": true
+      }
+    ],
+    "approval_reviewers": [],
+    "labels": [
+      {
+        "id": 13243364,
+        "color": "#428BCA",
+        "name": "dco检查成功",
+        "repository_id": 4369256,
+        "created_at": "2026-06-18T09:09:21+08:00",
+        "updated_at": "2026-08-01T10:40:25+08:00"
+      },
+      {
+        "id": 13240435,
+        "color": "#428BCA",
+        "name": "编译成功",
+        "repository_id": 4369256,
+        "created_at": "2026-06-01T17:54:35+08:00",
+        "updated_at": "2026-08-01T11:11:58+08:00"
+      },
+      {
+        "id": 13240429,
+        "color": "#428BCA",
+        "name": "静态检查成功",
+        "repository_id": 4369256,
+        "created_at": "2026-06-01T16:33:48+08:00",
+        "updated_at": "2026-08-01T11:12:38+08:00"
+      }
+    ],
+    "created_at": "2026-08-01T10:39:48+08:00",
+    "updated_at": "2026-08-01T11:46:59+08:00",
+    "closed_at": "2026-08-01T11:46:59+08:00",
+    "merged_at": "2026-08-01T11:46:59+08:00",
+    "merged_by": {
+      "id": "6541ccea82d8f837210e92c3",
+      "login": "openharmony_ci",
+      "name": "openharmony_ci",
+      "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+      "html_url": "https://gitcode.com/openharmony_ci"
+    },
+    "draft": false,
+    "can_merge_check": true,
+    "prune_branch": false,
+    "mergeable": true,
+    "user": {
+      "id": "6731f2dcbd7ba9479f2517f3",
+      "login": "zhuyongxiang",
+      "name": "zhuyongxiang",
+      "avatar_url": "https://cdn-img.gitcode.com/ea/cd/71e40acd515997b5d7074ae1a250669bb8964fbecb9a119b30536dbdf9217873.jpg",
+      "html_url": "https://gitcode.com/zhuyongxiang"
+    },
+    "head": {
+      "ref": "br_rnoh0.77",
+      "sha": "b396d1f9e40c6133e4d010d4ce25b8f42910ebba",
+      "label": "br_rnoh0.77",
+      "repo": {
+        "path": "rntpc_react-native-screens",
+        "name": "rntpc_react-native-screens",
+        "namespace": {
+          "path": "zhuyongxiang"
+        },
+        "full_name": "zhuyongxiang/rntpc_react-native-screens",
+        "html_url": "https://gitcode.com/zhuyongxiang/rntpc_react-native-screens.git"
+      },
+      "user": {
+        "id": "6731f2dcbd7ba9479f2517f3",
+        "login": "zhuyongxiang",
+        "name": "zhuyongxiang",
+        "avatar_url": "https://cdn-img.gitcode.com/ea/cd/71e40acd515997b5d7074ae1a250669bb8964fbecb9a119b30536dbdf9217873.jpg",
+        "html_url": "https://gitcode.com/zhuyongxiang"
+      }
+    },
+    "base": {
+      "ref": "br_rnoh0.77",
+      "sha": "8af7ace9cc795a5cf715168a997d3198cfb1e6d3",
+      "label": "br_rnoh0.77",
+      "repo": {
+        "path": "rntpc_react-native-screens",
+        "name": "rntpc_react-native-screens",
+        "namespace": {
+          "path": "CPF-RN"
+        },
+        "full_name": "CPF-RN/rntpc_react-native-screens",
+        "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-screens.git"
+      }
+    },
+    "mergeable_state": {
+      "merge_request_id": 8968537,
+      "state": true,
+      "status_without_user_auth": true,
+      "conflict_passed": true,
+      "branch_missing_passed": true,
+      "non_ff_passed": true,
+      "mr_state_passed": true,
+      "merged_by_user_passed": true,
+      "work_in_progress_passed": true,
+      "resolve_discussion_passed": true,
+      "ci_state_passed": true,
+      "merge_by_self_passed": true,
+      "can_force_merge": true,
+      "approval_reviewers_required_passed": true,
+      "approval_approvers_required_passed": true,
+      "approval_testers_required_passed": true,
+      "merge_request_switch": {
+        "review_mode": "approval",
+        "merge_method": "merge",
+        "only_allow_merge_if_all_discussions_are_resolved": true,
+        "disable_merge_by_self": true,
+        "only_allow_merge_if_pipeline_succeeds": false,
+        "disable_squash_merge": false,
+        "squash_merge_with_no_merge_commit": false,
+        "approval_required_reviewers_count": 0,
+        "approval_required_reviewers_branch": "*",
+        "add_notes_after_merged": true,
+        "mark_auto_merged_mr_as_closed": true,
+        "can_force_merge": true,
+        "can_reopen": true
+      },
+      "reason": {},
+      "check_tasks_num": 2,
+      "all_depend_merge_request_merged_passed": true,
+      "approval_approvers_result": 2,
+      "approval_testers_result": 2
+    },
+    "visibility_reason": "public",
+    "close_related_issue": true,
+    "squash_merge": false
+  },
+  "files": [
+    {
+      "sha": "b396d1f9e40c6133e4d010d4ce25b8f42910ebba",
+      "filename": "tester/harmony/screens/src/main/ets/components/RNSScreen.ets",
+      "additions": 6,
+      "deletions": 0,
+      "blob_id": "562388cc2f59af9a265b9d549ab8cd53675c4324",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-screens/blob/b396d1f9e40c6133e4d010d4ce25b8f42910ebba/tester/harmony/screens/src/main/ets/components/RNSScreen.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-screens/raw/b396d1f9e40c6133e4d010d4ce25b8f42910ebba/tester/harmony/screens/src/main/ets/components/RNSScreen.ets",
+      "patch": "@@ -1215,6 +1215,12 @@ export struct RNSScreen {\n       .backgroundColor(this.backgroundColorValue)\n       .translate({ x: this.translateXValue, y: this.translateYValue })\n       .opacity(this.opacityValue)\n+      .onGestureRecognizerJudgeBegin((event: BaseGestureEvent, current: GestureRecognizer, others: Array<GestureRecognizer>): GestureJudgeResult =>{\n+        if (this.gestureEnabled && this.fullScreenSwipeEnabled && !this.isRootStackGesturePopDisallowed()) {\n+          return GestureJudgeResult.CONTINUE;\n+        }\n+        return GestureJudgeResult.REJECT;\n+      })\n       .gesture(\n         PanGesture({ direction: this.from?PanDirection.None:PanDirection.All })\n           .onActionStart((event: GestureEvent) => {\n",
+      "target_branch": "br_rnoh0.77",
+      "source_branch": "br_rnoh0.77",
+      "source_project": {
+        "id": 7990748,
+        "full_name": "zhuyongxiang/rntpc_react-native-screens",
+        "human_name": "zhuyongxiang / rntpc_react-native-screens",
+        "path": "rntpc_react-native-screens"
+      },
+      "target_project": {
+        "id": 4369256,
+        "full_name": "CPF-RN/rntpc_react-native-screens",
+        "human_name": "CPF-RN / rntpc_react-native-screens",
+        "path": "rntpc_react-native-screens"
+      }
+    }
+  ]
+}

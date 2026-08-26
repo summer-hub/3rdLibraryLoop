@@ -1,0 +1,751 @@
+{
+  "pr": {
+    "id": 8785416,
+    "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-fs/merge_requests/38",
+    "number": 38,
+    "state": "merged",
+    "title": "fix:解决read接口读取其他格式的文件失败",
+    "url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-fs/pulls/38",
+    "issue_url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-fs/pulls/38/issues",
+    "body": "问题原因：read接口以前只能读取text的文件，无法读取其他文件，底层使用readText\n解决方案：read接口底层使用readSync",
+    "assignees_number": 2,
+    "assignees": [
+      {
+        "id": "6731c8f2fbbddc0c200a6019",
+        "login": "zhu_chengcheng",
+        "name": "zhu_chengcheng",
+        "avatar_url": "https://cdn-img.gitcode.com/fe/bd/f406eb600317d9bbb6a5c23042b49e5193dfbb7a63ee407f5bbfcbabcd177af1.jpg",
+        "html_url": "https://gitcode.com/zhu_chengcheng",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      },
+      {
+        "id": "67fdb69df01e3c566929edd4",
+        "login": "gcw_N7oHqLFR",
+        "name": "huang_jy",
+        "avatar_url": "",
+        "html_url": "https://gitcode.com/gcw_N7oHqLFR",
+        "assignee": true,
+        "code_owner": false,
+        "accept": true
+      }
+    ],
+    "testers": [
+      {
+        "id": "6541ccea82d8f837210e92c3",
+        "login": "openharmony_ci",
+        "name": "openharmony_ci",
+        "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+        "html_url": "https://gitcode.com/openharmony_ci",
+        "assignee": false,
+        "code_owner": false,
+        "accept": true
+      }
+    ],
+    "approval_reviewers": [],
+    "labels": [
+      {
+        "id": 13031381,
+        "color": "#20c22e",
+        "name": "dco检查成功",
+        "repository_id": 4369121,
+        "created_at": "2025-02-18T15:56:56+08:00",
+        "updated_at": "2026-06-25T20:50:10+08:00"
+      },
+      {
+        "id": 13031443,
+        "color": "#20c22e",
+        "name": "编译成功",
+        "repository_id": 4369121,
+        "created_at": "2025-02-18T17:46:01+08:00",
+        "updated_at": "2026-06-26T18:57:48+08:00"
+      },
+      {
+        "id": 13031380,
+        "color": "#20c22e",
+        "name": "静态检查成功",
+        "repository_id": 4369121,
+        "created_at": "2025-02-18T15:56:56+08:00",
+        "updated_at": "2026-06-26T18:58:00+08:00"
+      }
+    ],
+    "created_at": "2026-06-25T20:49:29+08:00",
+    "updated_at": "2026-06-26T19:05:57+08:00",
+    "closed_at": "2026-06-26T19:05:57+08:00",
+    "merged_at": "2026-06-26T19:05:57+08:00",
+    "merged_by": {
+      "id": "6541ccea82d8f837210e92c3",
+      "login": "openharmony_ci",
+      "name": "openharmony_ci",
+      "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+      "html_url": "https://gitcode.com/openharmony_ci"
+    },
+    "draft": false,
+    "can_merge_check": true,
+    "prune_branch": false,
+    "mergeable": true,
+    "user": {
+      "id": "67fe10947795fd623e1a1214",
+      "login": "chenbaodi123",
+      "name": "chenbaodi123",
+      "avatar_url": "",
+      "html_url": "https://gitcode.com/chenbaodi123"
+    },
+    "head": {
+      "ref": "br_rnoh0.72",
+      "sha": "ee116e60485a080eebc6598d59cd5ef532d728ce",
+      "label": "br_rnoh0.72",
+      "repo": {
+        "path": "rntpc_react-native-fs",
+        "name": "rntpc_react-native-fs",
+        "namespace": {
+          "path": "chenbaodi123"
+        },
+        "full_name": "chenbaodi123/rntpc_react-native-fs",
+        "html_url": "https://gitcode.com/chenbaodi123/rntpc_react-native-fs.git"
+      },
+      "user": {
+        "id": "67fe10947795fd623e1a1214",
+        "login": "chenbaodi123",
+        "name": "chenbaodi123",
+        "avatar_url": "",
+        "html_url": "https://gitcode.com/chenbaodi123"
+      }
+    },
+    "base": {
+      "ref": "br_rnoh0.72",
+      "sha": "57b23c836d260735da42223894e874340b9653d7",
+      "label": "br_rnoh0.72",
+      "repo": {
+        "path": "rntpc_react-native-fs",
+        "name": "rntpc_react-native-fs",
+        "namespace": {
+          "path": "CPF-RN"
+        },
+        "full_name": "CPF-RN/rntpc_react-native-fs",
+        "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-fs.git"
+      }
+    },
+    "mergeable_state": {
+      "merge_request_id": 8785416,
+      "state": true,
+      "status_without_user_auth": true,
+      "conflict_passed": true,
+      "branch_missing_passed": true,
+      "non_ff_passed": true,
+      "mr_state_passed": true,
+      "merged_by_user_passed": true,
+      "work_in_progress_passed": true,
+      "resolve_discussion_passed": true,
+      "ci_state_passed": true,
+      "merge_by_self_passed": true,
+      "can_force_merge": true,
+      "approval_reviewers_required_passed": true,
+      "approval_approvers_required_passed": true,
+      "approval_testers_required_passed": true,
+      "merge_request_switch": {
+        "review_mode": "approval",
+        "merge_method": "merge",
+        "only_allow_merge_if_all_discussions_are_resolved": true,
+        "disable_merge_by_self": true,
+        "only_allow_merge_if_pipeline_succeeds": false,
+        "disable_squash_merge": false,
+        "squash_merge_with_no_merge_commit": false,
+        "approval_required_reviewers_count": 0,
+        "approval_required_reviewers_branch": "*",
+        "add_notes_after_merged": true,
+        "mark_auto_merged_mr_as_closed": false,
+        "can_force_merge": true,
+        "can_reopen": true
+      },
+      "reason": {},
+      "check_tasks_num": 2,
+      "all_depend_merge_request_merged_passed": true,
+      "approval_approvers_result": 2,
+      "approval_testers_result": 2
+    },
+    "visibility_reason": "public",
+    "close_related_issue": true,
+    "squash_merge": false
+  },
+  "files": [
+    {
+      "sha": "ee116e60485a080eebc6598d59cd5ef532d728ce",
+      "filename": "OAT.xml",
+      "additions": 4,
+      "deletions": 0,
+      "blob_id": "47f3dc2e2b31e2f5e34825942acd73557002d091",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-fs/blob/ee116e60485a080eebc6598d59cd5ef532d728ce/OAT.xml",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-fs/raw/ee116e60485a080eebc6598d59cd5ef532d728ce/OAT.xml",
+      "patch": "@@ -34,6 +34,8 @@\n                 <filteritem type=\"filepath\" name=\"index.*\" desc=\"第三方开源软件源码，不修改版权头，以防有修改版权风险\"/>\n                 <filteritem type=\"filepath\" name=\"hvigor/hvigor-wrapper.js\" desc=\"工程模板，不修改版权头，以防有修改版权风险\"/>\n                 <filteritem type=\"filepath\" name=\"hvigor/hvigor-config.json5\" desc=\"工程模板，不修改版权头，以防有修改版权风险\"/>\n+                <filteritem type=\"filepath\" name=\".jshintrc\" desc=\"工程模板，不修改版权头，以防有修改版权风险\"/>\n+                <filteritem type=\"filepath\" name=\"buildEnv.sh\" desc=\"工程模板，不添加许可证头\"/>\n             </filefilter>\n             <filefilter name=\"defaultPolicyFilter\" desc=\"Filters for compatibility，license header policies\">\n                 <filteritem type=\"filepath\" name=\"example/.*\" desc=\"示例工程，不添加版权头\"/>\n@@ -54,6 +56,8 @@\n                 <filteritem type=\"filepath\" name=\"index.*\" desc=\"第三方开源软件源码，不修改版权头，以防有修改版权风险\"/>\n                 <filteritem type=\"filepath\" name=\"hvigor/hvigor-wrapper.js\" desc=\"工程模板，不修改版权头，以防有修改版权风险\"/>\n                 <filteritem type=\"filepath\" name=\"hvigor/hvigor-config.json5\" desc=\"工程模板，不修改版权头，以防有修改版权风险\"/>\n+                <filteritem type=\"filepath\" name=\".jshintrc\" desc=\"工程模板，不修改版权头，以防有修改版权风险\"/>\n+                <filteritem type=\"filepath\" name=\"buildEnv.sh\" desc=\"工程模板，不添加许可证头\"/>\n             </filefilter>\n \n             <filefilter name=\"binaryFileTypePolicyFilter\" desc=\"Filters for copyright header policies\">\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10219332,
+        "full_name": "chenbaodi123/rntpc_react-native-fs",
+        "human_name": "chenbaodi123 / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      },
+      "target_project": {
+        "id": 4369121,
+        "full_name": "CPF-RN/rntpc_react-native-fs",
+        "human_name": "CPF-RN / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      }
+    },
+    {
+      "sha": "ee116e60485a080eebc6598d59cd5ef532d728ce",
+      "filename": "buildEnv.sh",
+      "status": "added",
+      "additions": 8,
+      "deletions": 0,
+      "blob_id": "54b5a197d05363b1fe29d1e9fb071c73809e5dcf",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-fs/blob/ee116e60485a080eebc6598d59cd5ef532d728ce/buildEnv.sh",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-fs/raw/ee116e60485a080eebc6598d59cd5ef532d728ce/buildEnv.sh",
+      "patch": "@@ -0,0 +1,8 @@\n+#!/bin/bash\n+BUILD_PKG_DIR=example\n+BUILD_SAMPLE_DIR=example/harmony\n+BUILD_THIRD_PARTY_DIR=harmony/\n+\n+# BUILD_PKG_DIR: 用来打 tgz 包的工程目录\n+# BUILD_SAMPLE_DIR：用来打 har 包的目录\n+# BUILD_THIRD_PARTY_DIR：库模块源码目录\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10219332,
+        "full_name": "chenbaodi123/rntpc_react-native-fs",
+        "human_name": "chenbaodi123 / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      },
+      "target_project": {
+        "id": 4369121,
+        "full_name": "CPF-RN/rntpc_react-native-fs",
+        "human_name": "CPF-RN / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      }
+    },
+    {
+      "sha": "ee116e60485a080eebc6598d59cd5ef532d728ce",
+      "filename": "example/harmony/build-profile.template.json5",
+      "additions": 1,
+      "deletions": 2,
+      "blob_id": "9db07942f607d4dc7a57f6d138ee0f78f38c3892",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-fs/blob/ee116e60485a080eebc6598d59cd5ef532d728ce/example/harmony/build-profile.template.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-fs/raw/ee116e60485a080eebc6598d59cd5ef532d728ce/example/harmony/build-profile.template.json5",
+      "patch": "@@ -4,8 +4,7 @@\n       {\n         \"name\": 'default',\n         \"signingConfig\": 'default',\n-        \"compileSdkVersion\": '5.0.1(13)',\n-        \"compatibleSdkVersion\": '5.0.1(13)',\n+        compatibleSdkVersion: '5.0.0(12)',\n         \"runtimeOS\": 'HarmonyOS'\n       },\n     ],\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10219332,
+        "full_name": "chenbaodi123/rntpc_react-native-fs",
+        "human_name": "chenbaodi123 / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      },
+      "target_project": {
+        "id": 4369121,
+        "full_name": "CPF-RN/rntpc_react-native-fs",
+        "human_name": "CPF-RN / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      }
+    },
+    {
+      "sha": "ee116e60485a080eebc6598d59cd5ef532d728ce",
+      "filename": "example/harmony/entry/oh-package.json5",
+      "additions": 1,
+      "deletions": 2,
+      "blob_id": "baefb1aa3e93c62124123d1ad034004a9db2d91d",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-fs/blob/ee116e60485a080eebc6598d59cd5ef532d728ce/example/harmony/entry/oh-package.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-fs/raw/ee116e60485a080eebc6598d59cd5ef532d728ce/example/harmony/entry/oh-package.json5",
+      "patch": "@@ -5,8 +5,7 @@\n   \"description\": \"example description\",\n   \"version\": \"1.0.0\",\n   \"dependencies\": {\n-    \"@rnoh/react-native-openharmony\": \"0.72.38\",\n-//      \"@react-native-ohos/react-native-fs\": \"file:../fs\"\n+    \"@rnoh/react-native-openharmony\": \"file:../../node_modules/react-native-harmony/react_native_openharmony.har\",\n     \"@react-native-ohos/react-native-fs\": \"file:../../node_modules/@react-native-ohos/react-native-fs/harmony/fs.har\",\n   }\n }\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10219332,
+        "full_name": "chenbaodi123/rntpc_react-native-fs",
+        "human_name": "chenbaodi123 / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      },
+      "target_project": {
+        "id": 4369121,
+        "full_name": "CPF-RN/rntpc_react-native-fs",
+        "human_name": "CPF-RN / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      }
+    },
+    {
+      "sha": "ee116e60485a080eebc6598d59cd5ef532d728ce",
+      "filename": "example/harmony/entry/src/main/ets/entryability/EntryAbility.ets",
+      "additions": 22,
+      "deletions": 4,
+      "blob_id": "4b2bf64541413dda548d4817931e42435c8ef7cc",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-fs/blob/ee116e60485a080eebc6598d59cd5ef532d728ce/example/harmony/entry/src/main/ets/entryability/EntryAbility.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-fs/raw/ee116e60485a080eebc6598d59cd5ef532d728ce/example/harmony/entry/src/main/ets/entryability/EntryAbility.ets",
+      "patch": "@@ -1,7 +1,25 @@\n-/*\n- * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n- * Use of this source code is governed by a MIT license that can be\n- * found in the LICENSE file.\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2024 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n  */\n \n import {RNAbility} from '@rnoh/react-native-openharmony';\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10219332,
+        "full_name": "chenbaodi123/rntpc_react-native-fs",
+        "human_name": "chenbaodi123 / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      },
+      "target_project": {
+        "id": 4369121,
+        "full_name": "CPF-RN/rntpc_react-native-fs",
+        "human_name": "CPF-RN / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      }
+    },
+    {
+      "sha": "ee116e60485a080eebc6598d59cd5ef532d728ce",
+      "filename": "example/harmony/entry/src/main/ets/pages/Index.ets",
+      "additions": 22,
+      "deletions": 4,
+      "blob_id": "26a1bd483fe8cbc9c6df0cfd4f410adca4942a6d",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-fs/blob/ee116e60485a080eebc6598d59cd5ef532d728ce/example/harmony/entry/src/main/ets/pages/Index.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-fs/raw/ee116e60485a080eebc6598d59cd5ef532d728ce/example/harmony/entry/src/main/ets/pages/Index.ets",
+      "patch": "@@ -1,7 +1,25 @@\n-/*\n- * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n- * Use of this source code is governed by a MIT license that can be\n- * found in the LICENSE file.\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2024 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n  */\n \n import {\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10219332,
+        "full_name": "chenbaodi123/rntpc_react-native-fs",
+        "human_name": "chenbaodi123 / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      },
+      "target_project": {
+        "id": 4369121,
+        "full_name": "CPF-RN/rntpc_react-native-fs",
+        "human_name": "CPF-RN / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      }
+    },
+    {
+      "sha": "ee116e60485a080eebc6598d59cd5ef532d728ce",
+      "filename": "example/harmony/entry/src/main/ets/pages/SurfaceDeadlockTest.ets",
+      "additions": 22,
+      "deletions": 4,
+      "blob_id": "af4d9aeb462f9de9e007e73b21b401c65748ee36",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-fs/blob/ee116e60485a080eebc6598d59cd5ef532d728ce/example/harmony/entry/src/main/ets/pages/SurfaceDeadlockTest.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-fs/raw/ee116e60485a080eebc6598d59cd5ef532d728ce/example/harmony/entry/src/main/ets/pages/SurfaceDeadlockTest.ets",
+      "patch": "@@ -1,7 +1,25 @@\n-/*\n- * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n- * Use of this source code is governed by a MIT license that can be\n- * found in the LICENSE file.\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2024 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n  */\n import { RNInstance, JSBundleProvider, RNAbility, RNSurface } from '@rnoh/react-native-openharmony'\n import { CustomComponentBuilder } from \"@rnoh/react-native-openharmony/src/main/ets/RNOHCorePackage\"\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10219332,
+        "full_name": "chenbaodi123/rntpc_react-native-fs",
+        "human_name": "chenbaodi123 / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      },
+      "target_project": {
+        "id": 4369121,
+        "full_name": "CPF-RN/rntpc_react-native-fs",
+        "human_name": "CPF-RN / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      }
+    },
+    {
+      "sha": "ee116e60485a080eebc6598d59cd5ef532d728ce",
+      "filename": "example/harmony/oh-package.json5",
+      "additions": 1,
+      "deletions": 1,
+      "blob_id": "b8f190a82e8c2ebec8b4b34d6f97886306b44ef1",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-fs/blob/ee116e60485a080eebc6598d59cd5ef532d728ce/example/harmony/oh-package.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-fs/raw/ee116e60485a080eebc6598d59cd5ef532d728ce/example/harmony/oh-package.json5",
+      "patch": "@@ -6,7 +6,7 @@\n   \"repository\": {},\n   \"version\": \"1.0.0\",\n   \"overrides\": {\n-    \"@rnoh/react-native-openharmony\": \"0.72.38\"\n+     \"@rnoh/react-native-openharmony\": \"file:./../node_modules/react-native-harmony/react_native_openharmony.har\"\n   },\n   \"dynamicDependencies\": {}\n }\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10219332,
+        "full_name": "chenbaodi123/rntpc_react-native-fs",
+        "human_name": "chenbaodi123 / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      },
+      "target_project": {
+        "id": 4369121,
+        "full_name": "CPF-RN/rntpc_react-native-fs",
+        "human_name": "CPF-RN / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      }
+    },
+    {
+      "sha": "ee116e60485a080eebc6598d59cd5ef532d728ce",
+      "filename": "example/package.json",
+      "additions": 4,
+      "deletions": 3,
+      "blob_id": "c5e7b95b899aed16cd4b47a5078b1c4828a51089",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-fs/blob/ee116e60485a080eebc6598d59cd5ef532d728ce/example/package.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-fs/raw/ee116e60485a080eebc6598d59cd5ef532d728ce/example/package.json",
+      "patch": "@@ -8,15 +8,16 @@\n     \"start\": \"hdc rport tcp:8081 tcp:8081 && react-native start\",\n     \"codegen\": \"react-native codegen-harmony --rnoh-module-path ./harmony/entry/oh_modules/@rnoh/react-native-openharmony\",\n     \"pack:pkg\": \"cd ../ && npm run pack && cd ./example\",\n-    \"install:pkg\": \"npm uninstall @react-native-ohos/react-native-fs && npm run pack:pkg && npm i @react-native-ohos/react-native-fs@file:../react-native-ohos-react-native-fs-2.20.1-rc.2.tgz\",\n+    \"install:pkg\": \"npm uninstall @react-native-ohos/react-native-fs && npm run pack:pkg && npm i @react-native-ohos/react-native-fs@file:../react-native-ohos-react-native-fs-2.20.1-1.tgz\",\n     \"dev\": \"npm run codegen && react-native bundle-harmony --dev --minify=false\",\n     \"prod\": \"npm run codegen && react-native bundle-harmony --dev=false --minify=true\",\n     \"postinstall\": \"node ./scripts/create-build-profile\",\n-    \"fast:pkg\": \"cd ../ && npm i --legacy-peer-deps && npm pack && cd ./example && npm i && npm run dev\"\n+    \"fast-install-project\": \"cd ../ && npm i --force && npm run pack && rm -r node_modules && cd ./example && npm i --force\",\n+    \"fast:pkg\": \"npm run fast-install-project && npm run dev\"\n   },\n   \"dependencies\": {\n     \"@gorhom/portal\": \"^1.0.14\",\n-    \"@react-native-ohos/react-native-fs\": \"file:../react-native-ohos-react-native-fs-2.20.1-rc.2.tgz\",\n+    \"@react-native-ohos/react-native-fs\": \"file:../react-native-ohos-react-native-fs-2.20.1-1.tgz\",\n     \"@rnoh/testerino\": \"npm:@react-native-oh-tpl/testerino@0.0.9\",\n     \"react\": \"18.2.0\",\n     \"react-native\": \"0.72.5\",\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10219332,
+        "full_name": "chenbaodi123/rntpc_react-native-fs",
+        "human_name": "chenbaodi123 / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      },
+      "target_project": {
+        "id": 4369121,
+        "full_name": "CPF-RN/rntpc_react-native-fs",
+        "human_name": "CPF-RN / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      }
+    },
+    {
+      "sha": "ee116e60485a080eebc6598d59cd5ef532d728ce",
+      "filename": "harmony/fs/BuildProfile.ets",
+      "additions": 22,
+      "deletions": 4,
+      "blob_id": "5d76642c3d580d81dfae9316cd51d6a0af20b820",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-fs/blob/ee116e60485a080eebc6598d59cd5ef532d728ce/harmony/fs/BuildProfile.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-fs/raw/ee116e60485a080eebc6598d59cd5ef532d728ce/harmony/fs/BuildProfile.ets",
+      "patch": "@@ -1,7 +1,25 @@\n-/*\n- * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n- * Use of this source code is governed by a MIT license that can be\n- * found in the LICENSE file.\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2024 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n  */\n \n /**\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10219332,
+        "full_name": "chenbaodi123/rntpc_react-native-fs",
+        "human_name": "chenbaodi123 / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      },
+      "target_project": {
+        "id": 4369121,
+        "full_name": "CPF-RN/rntpc_react-native-fs",
+        "human_name": "CPF-RN / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      }
+    },
+    {
+      "sha": "ee116e60485a080eebc6598d59cd5ef532d728ce",
+      "filename": "harmony/fs/hvigorfile.ts",
+      "additions": 22,
+      "deletions": 4,
+      "blob_id": "f56e206efef6d84ca85fa99af9340f20a3e88fc3",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-fs/blob/ee116e60485a080eebc6598d59cd5ef532d728ce/harmony/fs/hvigorfile.ts",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-fs/raw/ee116e60485a080eebc6598d59cd5ef532d728ce/harmony/fs/hvigorfile.ts",
+      "patch": "@@ -1,6 +1,24 @@\n-/*\n- * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n- * Use of this source code is governed by a MIT license that can be\n- * found in the LICENSE file.\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2024 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n  */\n export  { harTasks } from '@ohos/hvigor-ohos-plugin';\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10219332,
+        "full_name": "chenbaodi123/rntpc_react-native-fs",
+        "human_name": "chenbaodi123 / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      },
+      "target_project": {
+        "id": 4369121,
+        "full_name": "CPF-RN/rntpc_react-native-fs",
+        "human_name": "CPF-RN / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      }
+    },
+    {
+      "sha": "ee116e60485a080eebc6598d59cd5ef532d728ce",
+      "filename": "harmony/fs/index.ets",
+      "additions": 22,
+      "deletions": 4,
+      "blob_id": "a161689649480a1898427894804e390118ac3e5d",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-fs/blob/ee116e60485a080eebc6598d59cd5ef532d728ce/harmony/fs/index.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-fs/raw/ee116e60485a080eebc6598d59cd5ef532d728ce/harmony/fs/index.ets",
+      "patch": "@@ -1,7 +1,25 @@\n-/*\n- * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n- * Use of this source code is governed by a MIT license that can be\n- * found in the LICENSE file.\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2024 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n  */\n import { FsPackage } from './src/main/ets/FsPackage'\n export * from './ts'\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10219332,
+        "full_name": "chenbaodi123/rntpc_react-native-fs",
+        "human_name": "chenbaodi123 / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      },
+      "target_project": {
+        "id": 4369121,
+        "full_name": "CPF-RN/rntpc_react-native-fs",
+        "human_name": "CPF-RN / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      }
+    },
+    {
+      "sha": "ee116e60485a080eebc6598d59cd5ef532d728ce",
+      "filename": "harmony/fs/src/main/cpp/RNFSPackage.h",
+      "additions": 22,
+      "deletions": 4,
+      "blob_id": "db533198de54d47dc4d4685bf73b9d406e8b3cb4",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-fs/blob/ee116e60485a080eebc6598d59cd5ef532d728ce/harmony/fs/src/main/cpp/RNFSPackage.h",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-fs/raw/ee116e60485a080eebc6598d59cd5ef532d728ce/harmony/fs/src/main/cpp/RNFSPackage.h",
+      "patch": "@@ -1,7 +1,25 @@\n-/*\n- * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n- * Use of this source code is governed by a MIT license that can be\n- * found in the LICENSE file.\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2024 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n  */\n #ifndef FSPACKAGE_H\n #define FSPACKAGE_H\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10219332,
+        "full_name": "chenbaodi123/rntpc_react-native-fs",
+        "human_name": "chenbaodi123 / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      },
+      "target_project": {
+        "id": 4369121,
+        "full_name": "CPF-RN/rntpc_react-native-fs",
+        "human_name": "CPF-RN / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      }
+    },
+    {
+      "sha": "ee116e60485a080eebc6598d59cd5ef532d728ce",
+      "filename": "harmony/fs/src/main/ets/FsPackage.ets",
+      "additions": 22,
+      "deletions": 4,
+      "blob_id": "2226bff412cb27fffa2c82cd7c33a320cab1e43b",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-fs/blob/ee116e60485a080eebc6598d59cd5ef532d728ce/harmony/fs/src/main/ets/FsPackage.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-fs/raw/ee116e60485a080eebc6598d59cd5ef532d728ce/harmony/fs/src/main/ets/FsPackage.ets",
+      "patch": "@@ -1,7 +1,25 @@\n-/*\n- * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n- * Use of this source code is governed by a MIT license that can be\n- * found in the LICENSE file.\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2024 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n  */\n \n import { RNPackage, TurboModulesFactory } from '@rnoh/react-native-openharmony/ts';\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10219332,
+        "full_name": "chenbaodi123/rntpc_react-native-fs",
+        "human_name": "chenbaodi123 / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      },
+      "target_project": {
+        "id": 4369121,
+        "full_name": "CPF-RN/rntpc_react-native-fs",
+        "human_name": "CPF-RN / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      }
+    },
+    {
+      "sha": "ee116e60485a080eebc6598d59cd5ef532d728ce",
+      "filename": "harmony/fs/src/main/ets/FsTurboModule.ts",
+      "additions": 56,
+      "deletions": 18,
+      "blob_id": "7745f6b19cd86831f3d823b11561b6fb57298ec7",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-fs/blob/ee116e60485a080eebc6598d59cd5ef532d728ce/harmony/fs/src/main/ets/FsTurboModule.ts",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-fs/raw/ee116e60485a080eebc6598d59cd5ef532d728ce/harmony/fs/src/main/ets/FsTurboModule.ts",
+      "patch": "@@ -1,7 +1,25 @@\n-/*\n- * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n- * Use of this source code is governed by a MIT license that can be\n- * found in the LICENSE file.\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2024 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n  */\n \n import { TurboModule, RNOHError, TurboModuleContext } from '@rnoh/react-native-openharmony/ts';\n@@ -482,8 +500,9 @@ export class FsTurboModule extends TurboModule implements TM.ReactNativeFs.Spec\n   readFile(path: string): Promise<string> {\n     this.logger.info('readFile')\n     return new Promise((resolve, reject) => {\n+      let file: fs.File | null = null;\n       try {\n-        let file = fs.openSync(path);\n+        file = fs.openSync(path);\n         let bufSize = this.FOUR_ZERO_NINE_SIX;\n         let readSize = this.ZERO;\n         let buf = new ArrayBuffer(bufSize);\n@@ -499,7 +518,6 @@ export class FsTurboModule extends TurboModule implements TM.ReactNativeFs.Spec\n           buffers.push(buffer.from(buf.slice(this.ZERO, readLen)))\n           readLen = fs.readSync(file.fd, buf, readOptions);\n         }\n-        fs.closeSync(file);\n         let finalBuf: ArrayBuffer = buffer.concat(buffers).buffer;\n         let base64Helper = new util.Base64Helper;\n         let result = base64Helper.encodeToStringSync(new Uint8Array(finalBuf));\n@@ -507,6 +525,14 @@ export class FsTurboModule extends TurboModule implements TM.ReactNativeFs.Spec\n       } catch (e) {\n         this.logger.error(`readFile error: ${e?.message}`)\n         reject(e);\n+      } finally {\n+        if (file) {\n+          try {\n+            fs.closeSync(file);\n+          } catch (closeErr: any) {\n+            this.logger.error(`readFile close error: ${closeErr?.message}`);\n+          }\n+        }\n       }\n     })\n   };\n@@ -682,19 +708,31 @@ export class FsTurboModule extends TurboModule implements TM.ReactNativeFs.Spec\n   // 文件内容部分读\n   read(path: string, length: number, position: number): Promise<string> {\n     return new Promise((resolve, reject) => {\n-      let readTextOption: ReadTextOptions = {\n-        offset: position,\n-        length: length,\n-        encoding: this.UTF_8\n-      };\n-      fs.readText(path, readTextOption, (err: BusinessError, str: string) => {\n-        if (err) {\n-          reject('readText failed with error message: ' + err.message + ', error code: ' + err.code);\n-        } else {\n-          let result = buffer.from(str, this.UTF8).toString(this.BASE64);\n-          resolve(result);\n+      let file: fs.File | null = null;\n+      try {\n+        file = fs.openSync(path);\n+        let buf = new ArrayBuffer(length);\n+        let readOptions: ReadOptions = {\n+          offset: position,\n+          length: length\n+        };\n+        let readLen = fs.readSync(file.fd, buf, readOptions);\n+        let actualBuf = buf.slice(0, readLen);\n+        let base64Helper = new util.Base64Helper();\n+        let result = base64Helper.encodeToStringSync(new Uint8Array(actualBuf));\n+        resolve(result);\n+      } catch (e) {\n+        this.logger.error(`read error: ${e?.message}`)\n+        reject(e);\n+      } finally {\n+        if (file) {\n+          try {\n+            fs.closeSync(file);\n+          } catch (closeErr: any) {\n+            this.logger.error(`read close error: ${closeErr?.message}`);\n+          }\n         }\n-      });\n+      }\n     })\n   }\n \n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10219332,
+        "full_name": "chenbaodi123/rntpc_react-native-fs",
+        "human_name": "chenbaodi123 / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      },
+      "target_project": {
+        "id": 4369121,
+        "full_name": "CPF-RN/rntpc_react-native-fs",
+        "human_name": "CPF-RN / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      }
+    },
+    {
+      "sha": "ee116e60485a080eebc6598d59cd5ef532d728ce",
+      "filename": "harmony/fs/src/ohosTest/ets/test/Ability.test.ets",
+      "additions": 22,
+      "deletions": 4,
+      "blob_id": "a8773a6b4108a4f34b09c6c275c0c084b3c51ffc",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-fs/blob/ee116e60485a080eebc6598d59cd5ef532d728ce/harmony/fs/src/ohosTest/ets/test/Ability.test.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-fs/raw/ee116e60485a080eebc6598d59cd5ef532d728ce/harmony/fs/src/ohosTest/ets/test/Ability.test.ets",
+      "patch": "@@ -1,7 +1,25 @@\n-/*\n- * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n- * Use of this source code is governed by a MIT license that can be\n- * found in the LICENSE file.\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2024 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n  */\n \n import hilog from '@ohos.hilog';\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10219332,
+        "full_name": "chenbaodi123/rntpc_react-native-fs",
+        "human_name": "chenbaodi123 / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      },
+      "target_project": {
+        "id": 4369121,
+        "full_name": "CPF-RN/rntpc_react-native-fs",
+        "human_name": "CPF-RN / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      }
+    },
+    {
+      "sha": "ee116e60485a080eebc6598d59cd5ef532d728ce",
+      "filename": "harmony/fs/src/ohosTest/ets/test/List.test.ets",
+      "additions": 22,
+      "deletions": 4,
+      "blob_id": "27027cb0c608c3d3639b99a69615c2cdd07ea652",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-fs/blob/ee116e60485a080eebc6598d59cd5ef532d728ce/harmony/fs/src/ohosTest/ets/test/List.test.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-fs/raw/ee116e60485a080eebc6598d59cd5ef532d728ce/harmony/fs/src/ohosTest/ets/test/List.test.ets",
+      "patch": "@@ -1,7 +1,25 @@\n-/*\n- * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n- * Use of this source code is governed by a MIT license that can be\n- * found in the LICENSE file.\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2024 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n  */\n \n import abilityTest from './Ability.test';\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10219332,
+        "full_name": "chenbaodi123/rntpc_react-native-fs",
+        "human_name": "chenbaodi123 / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      },
+      "target_project": {
+        "id": 4369121,
+        "full_name": "CPF-RN/rntpc_react-native-fs",
+        "human_name": "CPF-RN / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      }
+    },
+    {
+      "sha": "ee116e60485a080eebc6598d59cd5ef532d728ce",
+      "filename": "harmony/fs/src/ohosTest/ets/testability/TestAbility.ets",
+      "additions": 22,
+      "deletions": 4,
+      "blob_id": "5ea0df1aecede8be21869a55700a0c95b72cfb81",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-fs/blob/ee116e60485a080eebc6598d59cd5ef532d728ce/harmony/fs/src/ohosTest/ets/testability/TestAbility.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-fs/raw/ee116e60485a080eebc6598d59cd5ef532d728ce/harmony/fs/src/ohosTest/ets/testability/TestAbility.ets",
+      "patch": "@@ -1,7 +1,25 @@\n-/*\n- * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n- * Use of this source code is governed by a MIT license that can be\n- * found in the LICENSE file.\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2024 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n  */\n \n import UIAbility from '@ohos.app.ability.UIAbility';\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10219332,
+        "full_name": "chenbaodi123/rntpc_react-native-fs",
+        "human_name": "chenbaodi123 / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      },
+      "target_project": {
+        "id": 4369121,
+        "full_name": "CPF-RN/rntpc_react-native-fs",
+        "human_name": "CPF-RN / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      }
+    },
+    {
+      "sha": "ee116e60485a080eebc6598d59cd5ef532d728ce",
+      "filename": "harmony/fs/src/ohosTest/ets/testability/pages/Index.ets",
+      "additions": 22,
+      "deletions": 4,
+      "blob_id": "d6bf68944844f10832bf5feddd81bba6a2305c64",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-fs/blob/ee116e60485a080eebc6598d59cd5ef532d728ce/harmony/fs/src/ohosTest/ets/testability/pages/Index.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-fs/raw/ee116e60485a080eebc6598d59cd5ef532d728ce/harmony/fs/src/ohosTest/ets/testability/pages/Index.ets",
+      "patch": "@@ -1,7 +1,25 @@\n-/*\n- * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n- * Use of this source code is governed by a MIT license that can be\n- * found in the LICENSE file.\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2024 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n  */\n \n @Entry\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10219332,
+        "full_name": "chenbaodi123/rntpc_react-native-fs",
+        "human_name": "chenbaodi123 / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      },
+      "target_project": {
+        "id": 4369121,
+        "full_name": "CPF-RN/rntpc_react-native-fs",
+        "human_name": "CPF-RN / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      }
+    },
+    {
+      "sha": "ee116e60485a080eebc6598d59cd5ef532d728ce",
+      "filename": "harmony/fs/src/ohosTest/ets/testrunner/OpenHarmonyTestRunner.ets",
+      "additions": 22,
+      "deletions": 4,
+      "blob_id": "76c7ce6d1a04eec7a93153203e2f01fe6425de7d",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-fs/blob/ee116e60485a080eebc6598d59cd5ef532d728ce/harmony/fs/src/ohosTest/ets/testrunner/OpenHarmonyTestRunner.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-fs/raw/ee116e60485a080eebc6598d59cd5ef532d728ce/harmony/fs/src/ohosTest/ets/testrunner/OpenHarmonyTestRunner.ets",
+      "patch": "@@ -1,7 +1,25 @@\n-/*\n- * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n- * Use of this source code is governed by a MIT license that can be\n- * found in the LICENSE file.\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2024 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n  */\n \n import hilog from '@ohos.hilog';\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10219332,
+        "full_name": "chenbaodi123/rntpc_react-native-fs",
+        "human_name": "chenbaodi123 / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      },
+      "target_project": {
+        "id": 4369121,
+        "full_name": "CPF-RN/rntpc_react-native-fs",
+        "human_name": "CPF-RN / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      }
+    },
+    {
+      "sha": "ee116e60485a080eebc6598d59cd5ef532d728ce",
+      "filename": "harmony/fs/src/test/List.test.ets",
+      "additions": 22,
+      "deletions": 4,
+      "blob_id": "b4e45aceacbef72db2a3e458f1e7309f21f8f6cc",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-fs/blob/ee116e60485a080eebc6598d59cd5ef532d728ce/harmony/fs/src/test/List.test.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-fs/raw/ee116e60485a080eebc6598d59cd5ef532d728ce/harmony/fs/src/test/List.test.ets",
+      "patch": "@@ -1,7 +1,25 @@\n-/*\n- * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n- * Use of this source code is governed by a MIT license that can be\n- * found in the LICENSE file.\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2024 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n  */\n \n import localUnitTest from './LocalUnit.test';\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10219332,
+        "full_name": "chenbaodi123/rntpc_react-native-fs",
+        "human_name": "chenbaodi123 / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      },
+      "target_project": {
+        "id": 4369121,
+        "full_name": "CPF-RN/rntpc_react-native-fs",
+        "human_name": "CPF-RN / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      }
+    },
+    {
+      "sha": "ee116e60485a080eebc6598d59cd5ef532d728ce",
+      "filename": "harmony/fs/src/test/LocalUnit.test.ets",
+      "additions": 22,
+      "deletions": 4,
+      "blob_id": "56958b228a23baed9fb6769a1aadd5bbdcbcd8e1",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-fs/blob/ee116e60485a080eebc6598d59cd5ef532d728ce/harmony/fs/src/test/LocalUnit.test.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-fs/raw/ee116e60485a080eebc6598d59cd5ef532d728ce/harmony/fs/src/test/LocalUnit.test.ets",
+      "patch": "@@ -1,7 +1,25 @@\n-/*\n- * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n- * Use of this source code is governed by a MIT license that can be\n- * found in the LICENSE file.\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2024 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n  */\n \n import { describe, beforeAll, beforeEach, afterEach, afterAll, it, expect } from '@ohos/hypium';\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10219332,
+        "full_name": "chenbaodi123/rntpc_react-native-fs",
+        "human_name": "chenbaodi123 / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      },
+      "target_project": {
+        "id": 4369121,
+        "full_name": "CPF-RN/rntpc_react-native-fs",
+        "human_name": "CPF-RN / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      }
+    },
+    {
+      "sha": "ee116e60485a080eebc6598d59cd5ef532d728ce",
+      "filename": "harmony/fs/ts.ets",
+      "additions": 22,
+      "deletions": 4,
+      "blob_id": "cedfe1efd6b5dbabe8fae1a1e6f2991ccbb41e66",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-fs/blob/ee116e60485a080eebc6598d59cd5ef532d728ce/harmony/fs/ts.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-fs/raw/ee116e60485a080eebc6598d59cd5ef532d728ce/harmony/fs/ts.ets",
+      "patch": "@@ -1,7 +1,25 @@\n-/*\n- * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n- * Use of this source code is governed by a MIT license that can be\n- * found in the LICENSE file.\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2024 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n  */\n \n export * from \"./src/main/ets/FsPackage\"\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10219332,
+        "full_name": "chenbaodi123/rntpc_react-native-fs",
+        "human_name": "chenbaodi123 / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      },
+      "target_project": {
+        "id": 4369121,
+        "full_name": "CPF-RN/rntpc_react-native-fs",
+        "human_name": "CPF-RN / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      }
+    },
+    {
+      "sha": "ee116e60485a080eebc6598d59cd5ef532d728ce",
+      "filename": "src/NativeReactNativeFs.ts",
+      "additions": 22,
+      "deletions": 4,
+      "blob_id": "6de386763e705c945e6add6ce8282c34a163b350",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-fs/blob/ee116e60485a080eebc6598d59cd5ef532d728ce/src/NativeReactNativeFs.ts",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-fs/raw/ee116e60485a080eebc6598d59cd5ef532d728ce/src/NativeReactNativeFs.ts",
+      "patch": "@@ -1,7 +1,25 @@\n-/*\n- * Copyright (c) 2024 Huawei Device Co., Ltd. All rights reserved\n- * Use of this source code is governed by a MIT license that can be\n- * found in the LICENSE file.\n+/**\n+ * MIT License\n+ *\n+ * Copyright (C) 2024 Huawei Device Co., Ltd.\n+ *\n+ * Permission is hereby granted, free of charge, to any person obtaining a copy\n+ * of this software and associated documentation files (the \"Software\"), to deal\n+ * in the Software without restriction, including without limitation the rights\n+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+ * copies of the Software, and to permit persons to whom the Software is\n+ * furnished to do so, subject to the following conditions:\n+ *\n+ * The above copyright notice and this permission notice shall be included in all\n+ * copies or substantial portions of the Software.\n+ *\n+ * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+ * SOFTWARE.\n  */\n \n import type { TurboModule } from 'react-native';\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10219332,
+        "full_name": "chenbaodi123/rntpc_react-native-fs",
+        "human_name": "chenbaodi123 / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      },
+      "target_project": {
+        "id": 4369121,
+        "full_name": "CPF-RN/rntpc_react-native-fs",
+        "human_name": "CPF-RN / rntpc_react-native-fs",
+        "path": "rntpc_react-native-fs"
+      }
+    }
+  ]
+}

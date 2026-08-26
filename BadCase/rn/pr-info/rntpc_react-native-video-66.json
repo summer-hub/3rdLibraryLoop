@@ -1,0 +1,464 @@
+{
+  "pr": {
+    "id": 8766332,
+    "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-video/merge_requests/66",
+    "number": 66,
+    "state": "merged",
+    "title": "fix:修复播放本地视频异常问题",
+    "url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-video/pulls/66",
+    "issue_url": "https://api.gitcode.com/api/v5/repos/CPF-RN/rntpc_react-native-video/pulls/66/issues",
+    "body": "fix:修复播放本地视频异常问题",
+    "assignees_number": 2,
+    "assignees": [
+      {
+        "id": "6731c8f2fbbddc0c200a6019",
+        "login": "zhu_chengcheng",
+        "name": "zhu_chengcheng",
+        "avatar_url": "https://cdn-img.gitcode.com/fe/bd/f406eb600317d9bbb6a5c23042b49e5193dfbb7a63ee407f5bbfcbabcd177af1.jpg",
+        "html_url": "https://gitcode.com/zhu_chengcheng",
+        "assignee": true,
+        "code_owner": false,
+        "accept": false
+      },
+      {
+        "id": "67fdb69df01e3c566929edd4",
+        "login": "gcw_N7oHqLFR",
+        "name": "huang_jy",
+        "avatar_url": "",
+        "html_url": "https://gitcode.com/gcw_N7oHqLFR",
+        "assignee": true,
+        "code_owner": false,
+        "accept": true
+      }
+    ],
+    "testers": [
+      {
+        "id": "6541ccea82d8f837210e92c3",
+        "login": "openharmony_ci",
+        "name": "openharmony_ci",
+        "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+        "html_url": "https://gitcode.com/openharmony_ci",
+        "assignee": false,
+        "code_owner": false,
+        "accept": true
+      }
+    ],
+    "approval_reviewers": [],
+    "labels": [
+      {
+        "id": 13243652,
+        "color": "#428BCA",
+        "name": "dco检查成功",
+        "repository_id": 4369287,
+        "created_at": "2026-06-22T16:28:37+08:00",
+        "updated_at": "2026-06-22T16:28:37+08:00"
+      },
+      {
+        "id": 13244118,
+        "color": "#428BCA",
+        "name": "编译成功",
+        "repository_id": 4369287,
+        "created_at": "2026-06-26T11:30:29+08:00",
+        "updated_at": "2026-06-28T11:58:56+08:00"
+      },
+      {
+        "id": 13243949,
+        "color": "#428BCA",
+        "name": "静态检查成功",
+        "repository_id": 4369287,
+        "created_at": "2026-06-25T10:06:51+08:00",
+        "updated_at": "2026-06-28T11:58:59+08:00"
+      }
+    ],
+    "created_at": "2026-06-22T16:27:55+08:00",
+    "updated_at": "2026-06-28T11:59:47+08:00",
+    "closed_at": "2026-06-28T11:59:47+08:00",
+    "merged_at": "2026-06-28T11:59:47+08:00",
+    "merged_by": {
+      "id": "6541ccea82d8f837210e92c3",
+      "login": "openharmony_ci",
+      "name": "openharmony_ci",
+      "avatar_url": "https://cdn-img.gitcode.com/cb/be/5cb10620b4e9195576142df69cd44bb84df15d769c2a04eff5bf7324b903022c.png?time=1723462328974",
+      "html_url": "https://gitcode.com/openharmony_ci"
+    },
+    "draft": false,
+    "can_merge_check": true,
+    "prune_branch": false,
+    "mergeable": true,
+    "user": {
+      "id": "66f4e6edca8388106d213150",
+      "login": "qq_434633291111",
+      "name": "wupingyuan",
+      "avatar_url": "https://cdn-img.gitcode.com/db/bc/dbbc52140cd3dd95d893359fd9341924a707304a0b81ab802ff56cf008923f45.png",
+      "html_url": "https://gitcode.com/qq_434633291111"
+    },
+    "head": {
+      "ref": "br_rnoh0.72",
+      "sha": "68a82ccc48f795b9b6bcf5df5200140104bb6a2d",
+      "label": "br_rnoh0.72",
+      "repo": {
+        "path": "rntpc_react-native-video",
+        "name": "rntpc_react-native-video",
+        "namespace": {
+          "path": "qq_434633291111"
+        },
+        "full_name": "qq_434633291111/rntpc_react-native-video",
+        "html_url": "https://gitcode.com/qq_434633291111/rntpc_react-native-video.git"
+      },
+      "user": {
+        "id": "66f4e6edca8388106d213150",
+        "login": "qq_434633291111",
+        "name": "wupingyuan",
+        "avatar_url": "https://cdn-img.gitcode.com/db/bc/dbbc52140cd3dd95d893359fd9341924a707304a0b81ab802ff56cf008923f45.png",
+        "html_url": "https://gitcode.com/qq_434633291111"
+      }
+    },
+    "base": {
+      "ref": "br_rnoh0.72",
+      "sha": "80a430cdce404a5e90b4c67fffebac7b05eed44f",
+      "label": "br_rnoh0.72",
+      "repo": {
+        "path": "rntpc_react-native-video",
+        "name": "rntpc_react-native-video",
+        "namespace": {
+          "path": "CPF-RN"
+        },
+        "full_name": "CPF-RN/rntpc_react-native-video",
+        "html_url": "https://gitcode.com/CPF-RN/rntpc_react-native-video.git"
+      }
+    },
+    "mergeable_state": {
+      "merge_request_id": 8766332,
+      "state": true,
+      "status_without_user_auth": true,
+      "conflict_passed": true,
+      "branch_missing_passed": true,
+      "non_ff_passed": true,
+      "mr_state_passed": true,
+      "merged_by_user_passed": true,
+      "work_in_progress_passed": true,
+      "resolve_discussion_passed": true,
+      "ci_state_passed": true,
+      "merge_by_self_passed": true,
+      "can_force_merge": true,
+      "approval_reviewers_required_passed": true,
+      "approval_approvers_required_passed": true,
+      "approval_testers_required_passed": true,
+      "merge_request_switch": {
+        "review_mode": "approval",
+        "merge_method": "merge",
+        "only_allow_merge_if_all_discussions_are_resolved": true,
+        "disable_merge_by_self": true,
+        "only_allow_merge_if_pipeline_succeeds": false,
+        "disable_squash_merge": false,
+        "squash_merge_with_no_merge_commit": false,
+        "approval_required_reviewers_count": 0,
+        "approval_required_reviewers_branch": "*",
+        "add_notes_after_merged": true,
+        "mark_auto_merged_mr_as_closed": false,
+        "can_force_merge": true,
+        "can_reopen": true
+      },
+      "reason": {},
+      "check_tasks_num": 2,
+      "all_depend_merge_request_merged_passed": true,
+      "approval_approvers_result": 2,
+      "approval_testers_result": 2
+    },
+    "visibility_reason": "public",
+    "close_related_issue": true,
+    "squash_merge": false
+  },
+  "files": [
+    {
+      "sha": "68a82ccc48f795b9b6bcf5df5200140104bb6a2d",
+      "filename": "examples/harmony/build-profile.json5",
+      "additions": 2,
+      "deletions": 22,
+      "blob_id": "4783f0d2d602a4cca0a6c894221885243db6dcef",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-video/blob/68a82ccc48f795b9b6bcf5df5200140104bb6a2d/examples/harmony/build-profile.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-video/raw/68a82ccc48f795b9b6bcf5df5200140104bb6a2d/examples/harmony/build-profile.json5",
+      "patch": "@@ -1,33 +1,13 @@\n {\n   \"app\": {\n     \"signingConfigs\": [\n-      {\n-        \"name\": \"default\",\n-        \"type\": \"HarmonyOS\",\n-        \"material\": {\n-          \"certpath\": \"\",\n-          \"keyAlias\": \"debugKey\",\n-          \"keyPassword\": \"\",\n-          \"profile\": \"\",\n-          \"signAlg\": \"SHA256withECDSA\",\n-          \"storeFile\": \"\",\n-          \"storePassword\": \"\"\n-        }\n-      }\n     ],\n     \"products\": [\n       {\n         \"name\": \"default\",\n         \"signingConfig\": \"default\",\n-        \"targetSdkVersion\": \"5.1.1(19)\",\n-        \"compatibleSdkVersion\": \"5.0.1(13)\",\n-        \"runtimeOS\": \"HarmonyOS\",\n-        \"buildOption\": {\n-          \"strictMode\": {\n-            \"caseSensitiveCheck\": true,\n-            \"useNormalizedOHMUrl\": true\n-          }\n-        }\n+        \"compatibleSdkVersion\": \"5.0.0(12)\",\n+        \"runtimeOS\": \"HarmonyOS\"\n       }\n     ],\n     \"buildModeSet\": [\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10185442,
+        "full_name": "qq_434633291111/rntpc_react-native-video",
+        "human_name": "qq_434633291111 / rntpc_react-native-video",
+        "path": "rntpc_react-native-video"
+      },
+      "target_project": {
+        "id": 4369287,
+        "full_name": "CPF-RN/rntpc_react-native-video",
+        "human_name": "CPF-RN / rntpc_react-native-video",
+        "path": "rntpc_react-native-video"
+      }
+    },
+    {
+      "sha": "4858b2f0e17804a708d6ea6c0eba8a08b95ec786",
+      "filename": "examples/harmony/entry/oh-package-lock.json5",
+      "status": "deleted",
+      "additions": 0,
+      "deletions": 29,
+      "blob_id": "0000000000000000000000000000000000000000",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-video/blob/4858b2f0e17804a708d6ea6c0eba8a08b95ec786/examples/harmony/entry/oh-package-lock.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-video/raw/4858b2f0e17804a708d6ea6c0eba8a08b95ec786/examples/harmony/entry/oh-package-lock.json5",
+      "patch": "@@ -1,29 +0,0 @@\n-{\n-  \"meta\": {\n-    \"stableOrder\": true,\n-    \"enableUnifiedLockfile\": false\n-  },\n-  \"lockfileVersion\": 3,\n-  \"ATTENTION\": \"THIS IS AN AUTOGENERATED FILE. DO NOT EDIT THIS FILE DIRECTLY.\",\n-  \"specifiers\": {\n-    \"@react-native-oh-tpl/react-native-video@../../../harmony/rn_video\": \"@react-native-oh-tpl/react-native-video@../../../harmony/rn_video\",\n-    \"@rnoh/react-native-openharmony@../../node_modules/@react-native-oh/react-native-harmony/react_native_openharmony.har\": \"@rnoh/react-native-openharmony@../../node_modules/@react-native-oh/react-native-harmony/react_native_openharmony.har\"\n-  },\n-  \"packages\": {\n-    \"@react-native-oh-tpl/react-native-video@../../../harmony/rn_video\": {\n-      \"name\": \"@react-native-oh-tpl/react-native-video\",\n-      \"version\": \"5.2.3-rc.4\",\n-      \"resolved\": \"../../../harmony/rn_video\",\n-      \"registryType\": \"local\",\n-      \"dependencies\": {\n-        \"@rnoh/react-native-openharmony\": \"file:../react_native_openharmony.har\"\n-      }\n-    },\n-    \"@rnoh/react-native-openharmony@../../node_modules/@react-native-oh/react-native-harmony/react_native_openharmony.har\": {\n-      \"name\": \"@rnoh/react-native-openharmony\",\n-      \"version\": \"0.72.80\",\n-      \"resolved\": \"../../node_modules/@react-native-oh/react-native-harmony/react_native_openharmony.har\",\n-      \"registryType\": \"local\"\n-    }\n-  }\n-}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10185442,
+        "full_name": "qq_434633291111/rntpc_react-native-video",
+        "human_name": "qq_434633291111 / rntpc_react-native-video",
+        "path": "rntpc_react-native-video"
+      },
+      "target_project": {
+        "id": 4369287,
+        "full_name": "CPF-RN/rntpc_react-native-video",
+        "human_name": "CPF-RN / rntpc_react-native-video",
+        "path": "rntpc_react-native-video"
+      }
+    },
+    {
+      "sha": "68a82ccc48f795b9b6bcf5df5200140104bb6a2d",
+      "filename": "examples/harmony/entry/oh-package.json5",
+      "additions": 1,
+      "deletions": 1,
+      "blob_id": "550398f8f7e440d8ee11e919f208c09c83fd40d3",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-video/blob/68a82ccc48f795b9b6bcf5df5200140104bb6a2d/examples/harmony/entry/oh-package.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-video/raw/68a82ccc48f795b9b6bcf5df5200140104bb6a2d/examples/harmony/entry/oh-package.json5",
+      "patch": "@@ -7,7 +7,7 @@\n   \"license\": \"\",\n   \"dependencies\": {\n     '@rnoh/react-native-openharmony': 'file:../../node_modules/@react-native-oh/react-native-harmony/react_native_openharmony.har',\n-    '@react-native-oh-tpl/react-native-video': '../../../harmony/rn_video'\n+    '@react-native-ohos/react-native-video': '../../../harmony/rn_video'\n   }\n }\n \n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10185442,
+        "full_name": "qq_434633291111/rntpc_react-native-video",
+        "human_name": "qq_434633291111 / rntpc_react-native-video",
+        "path": "rntpc_react-native-video"
+      },
+      "target_project": {
+        "id": 4369287,
+        "full_name": "CPF-RN/rntpc_react-native-video",
+        "human_name": "CPF-RN / rntpc_react-native-video",
+        "path": "rntpc_react-native-video"
+      }
+    },
+    {
+      "sha": "68a82ccc48f795b9b6bcf5df5200140104bb6a2d",
+      "filename": "examples/harmony/entry/src/main/cpp/CMakeLists.txt",
+      "additions": 1,
+      "deletions": 1,
+      "blob_id": "1cec40495f9acf5833a15a5d9224975a3a9d1925",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-video/blob/68a82ccc48f795b9b6bcf5df5200140104bb6a2d/examples/harmony/entry/src/main/cpp/CMakeLists.txt",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-video/raw/68a82ccc48f795b9b6bcf5df5200140104bb6a2d/examples/harmony/entry/src/main/cpp/CMakeLists.txt",
+      "patch": "@@ -12,7 +12,7 @@ add_compile_definitions(WITH_HITRACE_SYSTRACE)\n set(WITH_HITRACE_SYSTRACE 1) # for other CMakeLists.txt files to use\n \n add_subdirectory(\"${RNOH_CPP_DIR}\" ./rn)\n-add_subdirectory(\"${OH_MODULE_DIR}/@react-native-oh-tpl/react-native-video/src/main/cpp\" ./video)\n+add_subdirectory(\"${OH_MODULE_DIR}/@react-native-ohos/react-native-video/src/main/cpp\" ./video)\n \n add_library(rnoh_app SHARED\n     \"./PackageProvider.cpp\"\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10185442,
+        "full_name": "qq_434633291111/rntpc_react-native-video",
+        "human_name": "qq_434633291111 / rntpc_react-native-video",
+        "path": "rntpc_react-native-video"
+      },
+      "target_project": {
+        "id": 4369287,
+        "full_name": "CPF-RN/rntpc_react-native-video",
+        "human_name": "CPF-RN / rntpc_react-native-video",
+        "path": "rntpc_react-native-video"
+      }
+    },
+    {
+      "sha": "68a82ccc48f795b9b6bcf5df5200140104bb6a2d",
+      "filename": "examples/harmony/entry/src/main/ets/RNPackagesFactory.ets",
+      "additions": 1,
+      "deletions": 1,
+      "blob_id": "6e619e66c3a7e42a20c216bff170e0abe18db8b8",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-video/blob/68a82ccc48f795b9b6bcf5df5200140104bb6a2d/examples/harmony/entry/src/main/ets/RNPackagesFactory.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-video/raw/68a82ccc48f795b9b6bcf5df5200140104bb6a2d/examples/harmony/entry/src/main/ets/RNPackagesFactory.ets",
+      "patch": "@@ -1,5 +1,5 @@\n import { RNPackageContext, RNPackage } from '@rnoh/react-native-openharmony/ts';\n-import { RNCVideoPackage } from '@react-native-oh-tpl/react-native-video/ts';\n+import { RNCVideoPackage } from '@react-native-ohos/react-native-video/ts';\n \n export function createRNPackages(ctx: RNPackageContext): RNPackage[] {\n   return [\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10185442,
+        "full_name": "qq_434633291111/rntpc_react-native-video",
+        "human_name": "qq_434633291111 / rntpc_react-native-video",
+        "path": "rntpc_react-native-video"
+      },
+      "target_project": {
+        "id": 4369287,
+        "full_name": "CPF-RN/rntpc_react-native-video",
+        "human_name": "CPF-RN / rntpc_react-native-video",
+        "path": "rntpc_react-native-video"
+      }
+    },
+    {
+      "sha": "68a82ccc48f795b9b6bcf5df5200140104bb6a2d",
+      "filename": "examples/harmony/entry/src/main/ets/pages/Index.ets",
+      "additions": 1,
+      "deletions": 1,
+      "blob_id": "36c2c65918f6d75146a243c1dc10e7722f3ecce5",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-video/blob/68a82ccc48f795b9b6bcf5df5200140104bb6a2d/examples/harmony/entry/src/main/ets/pages/Index.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-video/raw/68a82ccc48f795b9b6bcf5df5200140104bb6a2d/examples/harmony/entry/src/main/ets/pages/Index.ets",
+      "patch": "@@ -11,7 +11,7 @@ import {\n   RNOHCoreContext\n } from '@rnoh/react-native-openharmony';\n import { createRNPackages } from '../RNPackagesFactory';\n-import { RNCVideo, RNC_VIDEO_TYPE } from \"@react-native-oh-tpl/react-native-video\"\n+import { RNCVideo, RNC_VIDEO_TYPE } from \"@react-native-ohos/react-native-video\"\n \n const arkTsComponentNames: Array<string> = [RNC_VIDEO_TYPE];\n \n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10185442,
+        "full_name": "qq_434633291111/rntpc_react-native-video",
+        "human_name": "qq_434633291111 / rntpc_react-native-video",
+        "path": "rntpc_react-native-video"
+      },
+      "target_project": {
+        "id": 4369287,
+        "full_name": "CPF-RN/rntpc_react-native-video",
+        "human_name": "CPF-RN / rntpc_react-native-video",
+        "path": "rntpc_react-native-video"
+      }
+    },
+    {
+      "sha": "68a82ccc48f795b9b6bcf5df5200140104bb6a2d",
+      "filename": "examples/harmony/hvigor/hvigor-config.json5",
+      "additions": 1,
+      "deletions": 1,
+      "blob_id": "16105ebc2ac051bf3f755ff3fcc82adda989cf49",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-video/blob/68a82ccc48f795b9b6bcf5df5200140104bb6a2d/examples/harmony/hvigor/hvigor-config.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-video/raw/68a82ccc48f795b9b6bcf5df5200140104bb6a2d/examples/harmony/hvigor/hvigor-config.json5",
+      "patch": "@@ -1,5 +1,5 @@\n {\n-  \"modelVersion\": \"5.1.1\",\n+  \"modelVersion\": \"5.0.0\",\n   \"dependencies\": {\n   },\n   \"execution\": {\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10185442,
+        "full_name": "qq_434633291111/rntpc_react-native-video",
+        "human_name": "qq_434633291111 / rntpc_react-native-video",
+        "path": "rntpc_react-native-video"
+      },
+      "target_project": {
+        "id": 4369287,
+        "full_name": "CPF-RN/rntpc_react-native-video",
+        "human_name": "CPF-RN / rntpc_react-native-video",
+        "path": "rntpc_react-native-video"
+      }
+    },
+    {
+      "sha": "4858b2f0e17804a708d6ea6c0eba8a08b95ec786",
+      "filename": "examples/harmony/oh-package-lock.json5",
+      "status": "deleted",
+      "additions": 0,
+      "deletions": 28,
+      "blob_id": "0000000000000000000000000000000000000000",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-video/blob/4858b2f0e17804a708d6ea6c0eba8a08b95ec786/examples/harmony/oh-package-lock.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-video/raw/4858b2f0e17804a708d6ea6c0eba8a08b95ec786/examples/harmony/oh-package-lock.json5",
+      "patch": "@@ -1,28 +0,0 @@\n-{\n-  \"meta\": {\n-    \"stableOrder\": true,\n-    \"enableUnifiedLockfile\": false\n-  },\n-  \"lockfileVersion\": 3,\n-  \"ATTENTION\": \"THIS IS AN AUTOGENERATED FILE. DO NOT EDIT THIS FILE DIRECTLY.\",\n-  \"specifiers\": {\n-    \"@ohos/hamock@1.0.0\": \"@ohos/hamock@1.0.0\",\n-    \"@ohos/hypium@1.0.21\": \"@ohos/hypium@1.0.21\"\n-  },\n-  \"packages\": {\n-    \"@ohos/hamock@1.0.0\": {\n-      \"name\": \"@ohos/hamock\",\n-      \"version\": \"1.0.0\",\n-      \"integrity\": \"sha512-K6lDPYc6VkKe6ZBNQa9aoG+ZZMiwqfcR/7yAVFSUGIuOAhPvCJAo9+t1fZnpe0dBRBPxj2bxPPbKh69VuyAtDg==\",\n-      \"resolved\": \"https://ohpm.openharmony.cn/ohpm/@ohos/hamock/-/hamock-1.0.0.har\",\n-      \"registryType\": \"ohpm\"\n-    },\n-    \"@ohos/hypium@1.0.21\": {\n-      \"name\": \"@ohos/hypium\",\n-      \"version\": \"1.0.21\",\n-      \"integrity\": \"sha512-iyKGMXxE+9PpCkqEwu0VykN/7hNpb+QOeIuHwkmZnxOpI+dFZt6yhPB7k89EgV1MiSK/ieV/hMjr5Z2mWwRfMQ==\",\n-      \"resolved\": \"https://ohpm.openharmony.cn/ohpm/@ohos/hypium/-/hypium-1.0.21.har\",\n-      \"registryType\": \"ohpm\"\n-    }\n-  }\n-}\n\\ No newline at end of file\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10185442,
+        "full_name": "qq_434633291111/rntpc_react-native-video",
+        "human_name": "qq_434633291111 / rntpc_react-native-video",
+        "path": "rntpc_react-native-video"
+      },
+      "target_project": {
+        "id": 4369287,
+        "full_name": "CPF-RN/rntpc_react-native-video",
+        "human_name": "CPF-RN / rntpc_react-native-video",
+        "path": "rntpc_react-native-video"
+      }
+    },
+    {
+      "sha": "68a82ccc48f795b9b6bcf5df5200140104bb6a2d",
+      "filename": "examples/harmony/oh-package.json5",
+      "additions": 1,
+      "deletions": 1,
+      "blob_id": "bba8863a76695eb3cb1ed6752351b195aa201904",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-video/blob/68a82ccc48f795b9b6bcf5df5200140104bb6a2d/examples/harmony/oh-package.json5",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-video/raw/68a82ccc48f795b9b6bcf5df5200140104bb6a2d/examples/harmony/oh-package.json5",
+      "patch": "@@ -1,5 +1,5 @@\n {\n-  \"modelVersion\": \"5.1.1\",\n+  \"modelVersion\": \"5.0.0\",\n   \"description\": \"Please describe the basic information.\",\n   \"dependencies\": {\n   },\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10185442,
+        "full_name": "qq_434633291111/rntpc_react-native-video",
+        "human_name": "qq_434633291111 / rntpc_react-native-video",
+        "path": "rntpc_react-native-video"
+      },
+      "target_project": {
+        "id": 4369287,
+        "full_name": "CPF-RN/rntpc_react-native-video",
+        "human_name": "CPF-RN / rntpc_react-native-video",
+        "path": "rntpc_react-native-video"
+      }
+    },
+    {
+      "sha": "68a82ccc48f795b9b6bcf5df5200140104bb6a2d",
+      "filename": "examples/package.json",
+      "additions": 3,
+      "deletions": 2,
+      "blob_id": "a3462c87077248e2fe579bc5600e6c0cb6904891",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-video/blob/68a82ccc48f795b9b6bcf5df5200140104bb6a2d/examples/package.json",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-video/raw/68a82ccc48f795b9b6bcf5df5200140104bb6a2d/examples/package.json",
+      "patch": "@@ -8,10 +8,11 @@\n     \"start\": \"react-native start\",\n     \"test\": \"jest\",\n     \"dev\": \"react-native bundle-harmony --dev\",\n-    \"install:video\": \"cd ../ && npm pack && cd ./examples && npm i file:../react-native-ohos-react-native-video-6.13.2-rc.3.tgz\"\n+    \"install:video\": \"cd ../ && npm i --legacy-peer-deps && npm i typescript --legacy-peer-deps && npm pack && cd ./examples && npm i --legacy-peer-deps\",\n+    \"fast:pkg\": \"npm run install:video && npm run dev\"\n   },\n   \"dependencies\": {\n-    \"@react-native-ohos/react-native-video\": \"file:../react-native-ohos-react-native-video-6.13.2-rc.3.tgz\",\n+    \"@react-native-ohos/react-native-video\": \"file:../react-native-ohos-react-native-video-6.13.4.tgz\",\n     \"@react-native-oh/react-native-harmony\": \"^0.72.80\",\n     \"react\": \"18.2.0\",\n     \"react-native\": \"0.72.5\"\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10185442,
+        "full_name": "qq_434633291111/rntpc_react-native-video",
+        "human_name": "qq_434633291111 / rntpc_react-native-video",
+        "path": "rntpc_react-native-video"
+      },
+      "target_project": {
+        "id": 4369287,
+        "full_name": "CPF-RN/rntpc_react-native-video",
+        "human_name": "CPF-RN / rntpc_react-native-video",
+        "path": "rntpc_react-native-video"
+      }
+    },
+    {
+      "sha": "68a82ccc48f795b9b6bcf5df5200140104bb6a2d",
+      "filename": "harmony/rn_video/src/main/ets/controller/VideoController.ets",
+      "additions": 28,
+      "deletions": 13,
+      "blob_id": "dc5311fc7d3d49d82e1d26593f16ef848f5ad02d",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-video/blob/68a82ccc48f795b9b6bcf5df5200140104bb6a2d/harmony/rn_video/src/main/ets/controller/VideoController.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-video/raw/68a82ccc48f795b9b6bcf5df5200140104bb6a2d/harmony/rn_video/src/main/ets/controller/VideoController.ets",
+      "patch": "@@ -111,9 +111,9 @@ export class VideoController {\n         Logger.info(TAG, `createAVPlayer after bind`);\n         if (this.flagtd) {\n           this.flagtd = false;\n-          if (typeof this.url === \"string\") {\n+          if (typeof this.url === \"string\" && this.url.length > 0) {\n             this.avPlayer.url = this.url;\n-          } else {\n+          } else if (typeof this.url === \"object\") {\n             this.avPlayer.fdSrc = this.url;\n           }\n           Logger.error(TAG, `createAVPlayer need toplay url,after bind:` + this.url);\n@@ -274,14 +274,19 @@ export class VideoController {\n     this.avPlayer.on(Events.STATE_CHANGE, async (state) => {\n       switch (state) {\n         case AvplayerStatus.IDLE:\n-          if (typeof this.url === \"string\") {\n+          // 只有在 url 有效时才设置源，避免在 reset 后立即设置无效源\n+          if (typeof this.url === \"string\" && this.url.length > 0) {\n             this.avPlayer.url = this.url;\n-          } else {\n+          } else if (typeof this.url === \"object\") {\n             this.avPlayer.fdSrc = this.url;\n           }\n           this.playPageThis.onVideoIdle();\n           break;\n         case AvplayerStatus.INITIALIZED:\n+          // AVPlayer 已成功加载新源，旧 fd 不再被使用，可以安全关闭\n+          if (this.playerThis && typeof this.playerThis.closeOldFd === 'function') {\n+            this.playerThis.closeOldFd();\n+          }\n           if (this.playerThis.disableFocus) {\n             await this.setAudioRendererInfo(audio.AudioConcurrencyMode.CONCURRENCY_MIX_WITH_OTHERS);\n           } else {\n@@ -384,15 +389,17 @@ export class VideoController {\n    * @param surfaceId Indicates the surface ID of the surfaceId.\n    */\n   firstPlay(index: number, url: string | media.AVFileDescriptor, surfaceId: number): void {\n-    Logger.info(TAG, `firstPlay,  url ${url}`);\n+    Logger.info(TAG, `firstPlay, url type: ${typeof url}, state: ${this.avPlayer?.state}`);\n     this.index = index;\n     this.url = url;\n     this._surfaceId = surfaceId;\n     if (this.avPlayer && this.avPlayer.state == AvplayerStatus.IDLE) {\n-      if (typeof this.url === \"string\") {\n+      if (typeof this.url === \"string\" && this.url.length > 0) {\n         this.avPlayer.url = this.url;\n-      } else {\n+      } else if (typeof this.url === \"object\") {\n         this.avPlayer.fdSrc = this.url;\n+      } else {\n+        Logger.error(TAG, `firstPlay, invalid url: ${this.url}`);\n       }\n     } else {\n       this.flagtd = true;\n@@ -456,27 +463,35 @@ export class VideoController {\n    * @return\n    */\n   switchVideo(newUrl: string | media.AVFileDescriptor): void {\n-    Logger.info(TAG, `switchVideo,  newUrl ${newUrl}`);\n-    this.bindState();\n+    Logger.info(TAG, `switchVideo, newUrl type: ${typeof newUrl}, state: ${this.avPlayer?.state}`);\n+    // 注意：不要在这里调用 bindState()，否则会重复注册事件监听器\n+    // 导致 onStateChange 被多次触发，在非 IDLE 状态时重复设置 url/fdSrc 引发 5400102 错误\n     this.url = newUrl;\n     if (this._surfaceId == 0 || this._surfaceId == undefined) {\n-      // Logger.info(TAG, `switchVideo, return`);\n+      return;\n+    }\n+    if (!this.avPlayer) {\n+      Logger.info(TAG, `switchVideo, avPlayer not ready, setting flagtd`);\n+      this.flagtd = true;\n       return;\n     }\n     if (AvplayerStatus.IDLE == this.avPlayer.state) {\n-      // Logger.info(TAG, `switchVideo,  IDLE `);\n+      Logger.info(TAG, `switchVideo, IDLE state, setting source`);\n       if (typeof this.url === \"string\") {\n         this.avPlayer.url = this.url;\n       } else {\n         this.avPlayer.fdSrc = this.url;\n       }\n     } else {\n+      Logger.info(TAG, `switchVideo, non-IDLE state: ${this.avPlayer.state}, stopping...`);\n       this.avPlayer.stop().then(\n         ()=>{\n-          Logger.info(TAG, `switchVideo, reset`);\n+          Logger.info(TAG, `switchVideo, stopped, resetting`);\n           this.avPlayer.reset();\n         }\n-      )\n+      ).catch((err: BusinessError) => {\n+        Logger.error(TAG, `switchVideo, stop error: ${err.code} ${err.message}`);\n+      })\n     }\n \n     Logger.info(TAG, `switchVideo, state ${JSON.stringify(this.avPlayer.state)}`);\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10185442,
+        "full_name": "qq_434633291111/rntpc_react-native-video",
+        "human_name": "qq_434633291111 / rntpc_react-native-video",
+        "path": "rntpc_react-native-video"
+      },
+      "target_project": {
+        "id": 4369287,
+        "full_name": "CPF-RN/rntpc_react-native-video",
+        "human_name": "CPF-RN / rntpc_react-native-video",
+        "path": "rntpc_react-native-video"
+      }
+    },
+    {
+      "sha": "68a82ccc48f795b9b6bcf5df5200140104bb6a2d",
+      "filename": "harmony/rn_video/src/main/ets/view/PlayPlayer.ets",
+      "additions": 127,
+      "deletions": 25,
+      "blob_id": "fa944b97724bdeafb9c93520c61b0be2d8828ba2",
+      "blob_url": "https://gitcode.com/CPF-RN/rntpc_react-native-video/blob/68a82ccc48f795b9b6bcf5df5200140104bb6a2d/harmony/rn_video/src/main/ets/view/PlayPlayer.ets",
+      "raw_url": "https://raw.gitcode.com/CPF-RN/rntpc_react-native-video/raw/68a82ccc48f795b9b6bcf5df5200140104bb6a2d/harmony/rn_video/src/main/ets/view/PlayPlayer.ets",
+      "patch": "@@ -52,6 +52,7 @@ export interface IPlayPlayer {\n   videoJustifyContent: FlexAlign\n   videoAlignItems: HorizontalAlign\n   matrix: Matrix4.Matrix4Transit\n+  closeOldFd: () => void\n }\n \n const TAG: string = 'RNPlayPlayer'\n@@ -109,6 +110,7 @@ export struct PlayPlayer {\n   xComponentController: XComponentController = new XComponentController();\n   private surfaceID: number = 0;\n   private previousSrc: fs.File | string | undefined = undefined\n+  private pendingCloseSrc: fs.File | string | undefined = undefined\n   private orientationChange: boolean = true;\n   private isProgressSliding: boolean = false\n   private sliderTimer: number = 0\n@@ -191,31 +193,46 @@ export struct PlayPlayer {\n   }\n \n   closeFsRawFd() {\n-    if (typeof this.previousSrc === \"string\") {\n-      getContext(this).resourceManager.closeRawFd(this.previousSrc, (error: BusinessError) => {\n-        if (error != null) {\n-          Logger.debug(TAG, `aboutToDisappear, closeRawFd error is${error.message} error code:${error.code}`);\n-        } else {\n-          Logger.debug(TAG, `aboutToDisappear, closeRawFd file succeed`);\n+    // 关闭旧的文件资源\n+    try {\n+      if (typeof this.previousSrc === \"string\") {\n+        // rawfile 路径 - 关闭 rawfile fd\n+        getContext(this).resourceManager.closeRawFdSync(this.previousSrc);\n+        Logger.debug(TAG, `closeFsRawFd, closeRawFd succeed for: ${this.previousSrc}`);\n+      } else if (typeof this.previousSrc === \"object\") {\n+        // fs.File 对象 - 关闭文件\n+        fs.closeSync(this.previousSrc);\n+        Logger.debug(TAG, `closeFsRawFd, close file succeed`);\n+      }\n+      // undefined = 使用临时文件方式，无需关闭 rawfile fd\n+    } catch (err) {\n+      Logger.error(TAG, `closeFsRawFd error: ${JSON.stringify(err)}`);\n+    }\n+    this.previousSrc = undefined;\n+    // 同时关闭待关闭的旧 fd\n+    if (this.pendingCloseSrc !== undefined) {\n+      try {\n+        if (typeof this.pendingCloseSrc === \"string\") {\n+          getContext(this).resourceManager.closeRawFdSync(this.pendingCloseSrc);\n+        } else if (typeof this.pendingCloseSrc === \"object\") {\n+          fs.closeSync(this.pendingCloseSrc);\n         }\n-      });\n-    } else if (typeof this.previousSrc === \"object\") {\n-      fs.close(this.previousSrc, (err: BusinessError) => {\n-        if (err) {\n-          Logger.debug(TAG,\n-            `aboutToDisappear, close file failed with error message:${err.message},error code:${err.code}`);\n-        } else {\n-          Logger.debug(TAG, `aboutToDisappear, close file succeed`);\n-        }\n-      });\n+      } catch (err) {\n+        Logger.error(TAG, `closeFsRawFd pendingCloseSrc error: ${JSON.stringify(err)}`);\n+      }\n+      this.pendingCloseSrc = undefined;\n     }\n   }\n \n   aboutToDisappear(): void {\n     if (this.playVideoModel) {\n-      this.playVideoModel.release()\n-      this.closeFsRawFd()\n+      try {\n+        this.playVideoModel.release()\n+      } catch (err) {\n+        Logger.error(TAG, `aboutToDisappear release error: ${JSON.stringify(err)}`);\n+      }\n     }\n+    this.closeFsRawFd()\n   }\n \n   // @Watch cb\n@@ -226,33 +243,118 @@ export struct PlayPlayer {\n   }\n \n   async preparePlayer(): Promise<string | media.AVFileDescriptor> {\n-    this.closeFsRawFd()\n     return new Promise(async (resolve, reject) => {\n       try {\n         let src: string | media.AVFileDescriptor = '';\n         if (this.srcParam.startsWith('http')) {\n           this.type = CommonConstants.TYPE_INTERNET\n           src = this.srcParam\n+          this.pendingCloseSrc = this.previousSrc\n           this.previousSrc = undefined\n         } else if (this.srcParam.startsWith('asset')) {\n           const fileUrl = this.srcParam.split('//')[1];\n-          let fileDescriptor = await getContext(this).resourceManager.getRawFd(`assets/${fileUrl}`);\n-          this.previousSrc = `assets/${fileUrl}`\n-          src = fileDescriptor;\n+          const rawFilePath = `assets/${fileUrl}`;\n+          Logger.debug(TAG, `asset source, rawFilePath: ${rawFilePath}`);\n+          // fix：修复播放本地视频异常问题\n+          // 方案：将 rawfile 复制到应用沙箱临时目录，再用 file:// URI 播放\n+          // 原因：getRawFd 返回的 AVFileDescriptor 中 offset != 0（rawfile 在 HAP 包内有偏移），\n+          // AVPlayer 的 fdSrc 对 offset!=0 的支持在某些 HarmonyOS 版本上有 bug，\n+          // 会报 5400106 (Unsupported Format: CONTAINER_ERR-null-unsupport container format type)\n+          const context = getContext(this);\n+          const cacheDir = context.cacheDir;\n+          // 使用 rawfile 完整路径生成唯一缓存文件名，避免不同路径的同名文件冲突\n+          const cacheFileName = rawFilePath.replace(/\\//g, '_');\n+          const destPath = `${cacheDir}/${cacheFileName}`;\n+          let needCopy = true;\n+          try {\n+            const stat = fs.statSync(destPath);\n+            const rawFdInfo = await context.resourceManager.getRawFd(rawFilePath);\n+            if (stat.size === rawFdInfo.length) {\n+              needCopy = false;\n+              Logger.debug(TAG, `cache hit: ${destPath}, size=${stat.size}`);\n+              context.resourceManager.closeRawFdSync(rawFilePath);\n+            } else {\n+              Logger.debug(TAG, `cache size mismatch: local=${stat.size}, rawfile=${rawFdInfo.length}`);\n+              context.resourceManager.closeRawFdSync(rawFilePath);\n+            }\n+          } catch (e) {\n+            Logger.error(TAG, `Error cache miss: ${destPath}`);\n+          }\n+          if (needCopy) {\n+            // 将 rawfile 内容读取后写入临时文件\n+            try {\n+              const content: Uint8Array = await context.resourceManager.getRawFile(rawFilePath);\n+              const destFile = fs.openSync(destPath, fs.OpenMode.CREATE | fs.OpenMode.READ_WRITE | fs.OpenMode.TRUNC);\n+              fs.writeSync(destFile.fd, content.buffer);\n+              fs.closeSync(destFile);\n+              Logger.debug(TAG, `copied rawfile to: ${destPath}, size=${content.length}`);\n+            } catch (copyErr) {\n+              Logger.error(TAG, `getRawFile copy failed: ${JSON.stringify(copyErr)}, trying fdSrc fallback`);\n+              try {\n+                let fileDescriptor = await context.resourceManager.getRawFd(rawFilePath);\n+                this.pendingCloseSrc = this.previousSrc\n+                this.previousSrc = rawFilePath;\n+                src = fileDescriptor;\n+                Logger.debug(TAG, `fallback to fdSrc: fd=${fileDescriptor.fd}, offset=${fileDescriptor.offset}, length=${fileDescriptor.length}`);\n+              } catch (fdErr) {\n+                Logger.error(TAG, `getRawFd also failed: ${JSON.stringify(fdErr)}`);\n+                reject(fdErr);\n+                return;\n+              }\n+              resolve(src);\n+              return;\n+            }\n+          }\n+          this.pendingCloseSrc = this.previousSrc\n+          // 打开复制后的临时文件，获取 fd（offset=0 的独立文件，不存在 fdSrc 兼容性问题）\n+          const tempFile = fs.openSync(destPath, fs.OpenMode.READ_ONLY);\n+          this.previousSrc = tempFile; // 记录以便后续关闭\n+          src = `fd://${tempFile.fd}`;\n+          Logger.debug(TAG, `local video source: ${src}`);\n         } else if (this.srcParam.startsWith('file:')) {\n-          this.previousSrc = fs.openSync(this.srcParam, fs.OpenMode.READ_ONLY)\n-          src = `fd://${this.previousSrc.fd}`;\n+          let file = fs.openSync(this.srcParam, fs.OpenMode.READ_ONLY)\n+          this.pendingCloseSrc = this.previousSrc\n+          this.previousSrc = file;\n+          src = `fd://${file.fd}`;\n+        } else if (this.srcParam.length > 0) {\n+          Logger.debug(TAG, `unknown scheme, trying as file path: ${this.srcParam}`);\n+          this.pendingCloseSrc = this.previousSrc\n+          src = this.srcParam;\n+          this.previousSrc = undefined;\n         } else {\n+          this.pendingCloseSrc = this.previousSrc\n           this.previousSrc = undefined\n-          Logger.debug(TAG, `local, finalsrc: ${(src)}`);\n+          Logger.debug(TAG, `empty source, finalsrc: ${src}`);\n         }\n         resolve(src)\n       } catch (error) {\n+        Logger.error(TAG, `preparePlayer error: ${JSON.stringify(error)}`);\n         reject(error)\n       }\n     })\n   }\n \n+  /**\n+   * 关闭旧的文件描述符（在 AVPlayer 完成切换后调用）\n+   * 此时 AVPlayer 已经不再使用旧 fd，可以安全关闭\n+   */\n+  closeOldFd(): void {\n+    if (this.pendingCloseSrc !== undefined) {\n+      try {\n+        if (typeof this.pendingCloseSrc === \"string\") {\n+          getContext(this).resourceManager.closeRawFdSync(this.pendingCloseSrc);\n+          Logger.debug(TAG, `closeOldFd, closeRawFd succeed for: ${this.pendingCloseSrc}`);\n+        } else if (typeof this.pendingCloseSrc === \"object\") {\n+          fs.closeSync(this.pendingCloseSrc);\n+          Logger.debug(TAG, `closeOldFd, close file succeed`);\n+        }\n+      } catch (err) {\n+        Logger.error(TAG, `closeOldFd error: ${JSON.stringify(err)}`);\n+      }\n+      this.pendingCloseSrc = undefined;\n+    }\n+  }\n+\n   onSrcChanged(propName: string): void {\n     Logger.debug(TAG, `onSrcChanged,propName: ${JSON.stringify(propName)}`);\n     this.preparePlayer().then((src) => {\n",
+      "target_branch": "br_rnoh0.72",
+      "source_branch": "br_rnoh0.72",
+      "source_project": {
+        "id": 10185442,
+        "full_name": "qq_434633291111/rntpc_react-native-video",
+        "human_name": "qq_434633291111 / rntpc_react-native-video",
+        "path": "rntpc_react-native-video"
+      },
+      "target_project": {
+        "id": 4369287,
+        "full_name": "CPF-RN/rntpc_react-native-video",
+        "human_name": "CPF-RN / rntpc_react-native-video",
+        "path": "rntpc_react-native-video"
+      }
+    }
+  ]
+}
