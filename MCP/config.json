@@ -7,14 +7,6 @@
       "headers": {
         "Authorization": "Bearer test-secret"
       }
-    },
-    "gitcode": {
-      "type": "remote",
-      "enabled": true,
-      "url": "https://api.gitcode.com/mcp-server/v1/mcp",
-      "headers": {
-        "Authorization": "ie_2_uMfwXh35Qcu7ZHGd6pn"
-      }
     }
   },
   "scriptsDir": "./scripts",
