@@ -7,7 +7,6 @@
     "skill-generator",
     "knowledge-import",
     "rn-library-issue-generalizer",
-    "arkts-library-source-clone",
     "arkts-library-interface-spec",
     "arkts-library-stability-check",
     "arkts-library-memory-leak-check",
