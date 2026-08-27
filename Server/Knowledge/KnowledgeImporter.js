@@ -317,7 +317,7 @@ class KnowledgeImporter {
                     entry.result = result.success ? { success: true, message: result.message, sessionId: result.sessionId } : null;
                 }
 
-                // ── 导入成功后自动删除原知识条目（软删除） ──
+                // ── 导入成功后自动删除原知识条目（硬删除：物理删除 JSON 文件并从索引移除） ──
                 if (result.success && knowledgeInfo.id) {
                     try {
                         const km = await this._getKnowledgeManager();

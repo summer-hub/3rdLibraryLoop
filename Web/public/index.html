@@ -512,11 +512,7 @@
                         <div class="kn-import-body">
                             <div class="form-group">
                                 <label>导入模式</label>
-                                <div class="kn-mode-tabs">
-                                    <div class="kn-mode-tab active" data-mode="sync">⚡ 同步导入</div>
-                                    <div class="kn-mode-tab" data-mode="async">🔄 异步导入</div>
-                                </div>
-                                <div class="hint" id="knModeHint">同步等待导入完成，适合较短任务</div>
+                                <div class="hint" style="margin-top:4px;">🔄 异步导入 — 立即返回 importId，通过轮询查询导入进度（适合长任务）</div>
                             </div>
                             <div class="form-group">
                                 <label>自定义提示词（可选）</label>
@@ -675,16 +671,20 @@
     </div>
 </div>
 
-<!-- 知识导入结果弹窗 -->
-<div class="modal-overlay" id="resultOverlay">
-    <div class="modal" style="width:720px;">
-        <div class="modal-header">
-            <h3 id="resultTitle">导入结果</h3>
-            <button class="modal-close" id="resultClose">✕</button>
+<!-- 知识删除确认弹窗 -->
+<div class="modal-overlay kn-delete-overlay" id="knDeleteOverlay">
+    <div class="modal kn-delete-modal">
+        <div class="kn-delete-icon">🗑️</div>
+        <h3 class="kn-delete-title">删除知识</h3>
+        <div class="kn-delete-desc" id="knDelTitle">—</div>
+        <div class="kn-delete-id">ID: <span id="knDelId">—</span></div>
+        <div class="kn-delete-warning">
+            ⚠️ 删除后将<strong>永久移除</strong>该知识条目（含索引记录），不可恢复。
+            原始经验文档（.md）文件不会被删除，仅从知识库中取消引用。
         </div>
-        <div class="modal-body"><pre id="resultContent"></pre></div>
-        <div class="modal-footer">
-            <button class="secondary" id="resultOk">关闭</button>
+        <div class="kn-delete-actions">
+            <button class="secondary" id="btnDeleteCancel">取消</button>
+            <button class="danger" id="btnDeleteConfirm">🗑️ 确认删除</button>
         </div>
     </div>
 </div>

@@ -4,7 +4,7 @@ description: 扫描提取鸿蒙ArkTs原生库源码中对外公开的方法级�
 license: Apache-2.0
 compatibility: 适用于鸿蒙原生库工程（含 library 模块和 Index.ets 入口文件）。需要 git 命令行工具（用于克隆源码）和 Node.js（运行提取脚本）。
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   category: harmonyos-development
   language: ArkTS/ETS
   useWhen: 从鸿蒙原生库源码提取方法级接口规格时
@@ -48,14 +48,14 @@ metadata:
 
 **目标：** 确保 `repoDir` 下存在仓库源码。优先复用已存在的仓库源码，避免重复克隆。
 
-> ⚠️ **前置源码已就位时直接复用**：若任务参数显式提供了 `repoDir`（如源码已由前置源码下载 SKILL 克隆到 `outputDir/source`），先用 `list_dir` 验证该目录下存在源码（`.git` 子目录、`library/Index.ets`、`oh-package.json5` 任一即可），验证通过后**跳过本步骤的全部克隆操作**，直接以该 `repoDir` 进入步骤 1。
+> ⚠️ **前置源码已就位时直接复用**：若任务参数显式提供了 `repoDir`（如源码已由前置源码下载 SKILL 克隆到 `outputDir/source`），先用 `list_dir` 验证该目录下存在源码（`.git` 子目录、`library/index.ets`（大小写不敏感，`Index.ets`/`index.ets` 皆可）、`oh-package.json5` 任一即可），验证通过后**跳过本步骤的全部克隆操作**，直接以该 `repoDir` 进入步骤 1。
 
 1. **提取仓库名**：从 `repoUrl` 末尾取仓库名，去掉 `.git` 后缀，确定 `repoDir = outputDir/repoName`
 
 2. **扫描工作目录**：用 `list_dir` 列出 `outputDir` 下所有条目，判定是否为可复用的仓库源码（满足其一即可）：
    - 目录名与 `repoName` 一致；或
    - 目录内含 `.git` 子目录；或
-   - 目录内含 `library/Index.ets` 或 `library/src/main/ets/Index.ets`
+   - 目录内含 `library/index.ets` 或 `library/src/main/ets/index.ets`（**大小写不敏感**，`Index.ets`/`index.ets` 皆可；部分移植库入口为小写，属正常结构）
 
 3. **条件克隆**：若不存在可用仓库：
    ```bash
@@ -80,7 +80,9 @@ node "{{mcpScriptsDir}}/render-spec-doc.cjs" --libroot "{{repoDir}}" --output "{
 
 脚本自动输出包含基本信息、接口统计、按类/接口分节（方法/属性/字段/枚举值/函数/变量/类型别名/事件方法汇总）、源文件列表的完整 Markdown 报告。
 
-**验证**：确认脚本退出码为 0、报告文件已生成。若脚本报错（如无法定位 Index.ets），检查 `repoDir` 路径是否正确、仓库是否含 `library/Index.ets` 或 `library/src/main/ets/Index.ets`。
+**验证**：确认脚本退出码为 0、报告文件已生成。若脚本报错（如无法定位 index.ets），检查 `repoDir` 路径是否正确、仓库是否含 `library/index.ets` 或 `library/src/main/ets/index.ets`（**大小写不敏感**，`Index.ets`/`index.ets` 皆可，可用 `ls | grep -i index` 探测实际入口文件名）。
+
+> ⚠️ **移植库结构说明**：部分 Java 移植库（如 CPF-ApplicationTPC 系列的 mp3agic）入口为小写 `library/index.ets`，实现源码为 `.ts` 扩展名且位于 `library/src/main/ets/components/<libname>/` 下——这是移植工程的常见模式，属正常结构，`render-spec-doc.cjs` 可直接解析，无需人工干预。切勿因入口文件大小写差异误判"仓库缺少入口文件"（Linux 等大小写敏感文件系统上尤其注意）。
 
 ---
 

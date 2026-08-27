@@ -13,7 +13,7 @@ import KnowledgeImportController from '../controllers/KnowledgeImportController.
  *  GET    /list               — 列出所有知识经验
  *  GET    /experience         — 获取单条知识经验详情
  *  GET    /doc                — 读取经验文档（.md）原文内容
- *  DELETE /delete             — 删除一条知识经验（软删除）
+ *  DELETE /delete             — 删除一条知识经验（硬删除：物理删除 JSON 文件并从索引移除）
  *
  * @param {object} dependencies - 共享依赖
  * @param {object} [dependencies.cli]               - CLIController 实例

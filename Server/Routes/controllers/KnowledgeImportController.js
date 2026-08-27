@@ -11,7 +11,7 @@
  *   GET    /list               — 列出所有知识经验
  *   GET    /experience         — 获取单条知识经验详情
  *   GET    /doc                — 读取经验文档（.md）原文内容
- *   DELETE /delete             — 删除一条知识经验（软删除）
+ *   DELETE /delete             — 删除一条知识经验（硬删除：物理删除 JSON 文件并从索引移除）
  *
  * 不感知 HTTP 层细节，只接收 RequestContext / ResponseContext。
  */
@@ -310,9 +310,10 @@ class KnowledgeImportController {
 
     /**
      * DELETE /api/knowledge/delete
-     * 删除一条知识经验（软删除，标记 active=false）。
+     * 删除一条知识经验（硬删除：物理删除 JSON 文件并从索引移除）。
      *
      * 用于手动清除无价值或错误的知识条目。
+     * 注意：原始经验文档（.md）文件不会被删除，仅移除知识库中的记录与索引引用。
      *
      * Query: { id: string }  — 知识条目 ID（kn_xxx）
      *

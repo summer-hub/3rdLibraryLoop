@@ -16,7 +16,6 @@ var KnState = {
     filtered: [],
     selectedId: null,
     selectedExp: null,
-    importMode: 'sync',
     pollTimer: null,
     currentImportId: null
 };
@@ -154,28 +153,17 @@ async function submitImport() {
     var btn = $('btnImportSubmit');
     btn.disabled = true;
 
-    var endpoint = KnState.importMode === 'async' ? '/api/knowledge/import-async' : '/api/knowledge/import';
-    var btnLabel = KnState.importMode === 'async' ? '🔄 异步导入中...' : '⏳ 同步导入中...';
-    btn.textContent = btnLabel;
+    btn.textContent = '🔄 异步导入中...';
 
     try {
-        var d = await API.post(endpoint, body);
+        var d = await API.post('/api/knowledge/import-async', body);
         btn.disabled = false;
         btn.textContent = '📥 执行导入';
 
         if (d.status === 'ok') {
-            if (KnState.importMode === 'async') {
-                toast('success', '异步导入已启动: ' + d.importId);
-                KnState.currentImportId = d.importId;
-                startImportPolling(d.importId);
-            } else {
-                toast('success', '导入完成');
-                showImportResult('导入结果', d);
-                // 同步导入成功后刷新列表（原知识已自动删除）
-                if (d.autoDeleted) {
-                    loadKnowledgeList();
-                }
-            }
+            toast('success', '异步导入已启动: ' + d.importId);
+            KnState.currentImportId = d.importId;
+            startImportPolling(d.importId);
         } else {
             toast('error', d.error || d.message || '导入失败');
         }
@@ -262,24 +250,38 @@ function renderImportStatus(imp) {
 }
 
 /* ─── 删除知识 ──────────────────────────────────────────────────────── */
+
+/**
+ * 打开删除确认弹窗（替代原生 confirm，风格与站点模态一致）
+ */
+function openDeleteConfirm() {
+    var exp = KnState.selectedExp;
+    if (!exp) { toast('warn', '请先选择一条知识'); return; }
+
+    $('knDelTitle').textContent = truncate(exp.taskDescription, 60) || '(无描述)';
+    $('knDelId').textContent = exp.id;
+    $('knDeleteOverlay').classList.add('show');
+}
+
+function closeDeleteConfirm() {
+    $('knDeleteOverlay').classList.remove('show');
+}
+
 async function deleteKnowledge() {
     var exp = KnState.selectedExp;
     if (!exp) { toast('warn', '请先选择一条知识'); return; }
 
-    if (!confirm('确定要删除知识「' + truncate(exp.taskDescription, 60) + '」吗？\n\nID: ' + exp.id + '\n\n删除后将从知识库中移除（软删除），不可恢复。')) {
-        return;
-    }
-
-    var btn = $('btnDeleteKn');
+    var btn = $('btnDeleteConfirm');
     btn.disabled = true;
     btn.textContent = '🗑️ 删除中...';
 
     try {
         var d = await API.del('/api/knowledge/delete?id=' + encodeURIComponent(exp.id));
         btn.disabled = false;
-        btn.textContent = '🗑️ 删除知识';
+        btn.textContent = '🗑️ 确认删除';
 
         if (d.status === 'ok') {
+            closeDeleteConfirm();
             toast('success', d.message || '知识已删除');
             // 清除选中状态，刷新列表
             KnState.selectedId = null;
@@ -293,29 +295,11 @@ async function deleteKnowledge() {
         }
     } catch (err) {
         btn.disabled = false;
-        btn.textContent = '🗑️ 删除知识';
+        btn.textContent = '🗑️ 确认删除';
         toast('error', '请求失败: ' + err.message);
     }
 }
 
-/* ─── 导入结果弹窗 ──────────────────────────────────────────────────── */
-function showImportResult(title, data) {
-    $('resultTitle').textContent = title;
-    var content = '导入 ID: ' + (data.importId || '—') + '\n';
-    content += '消息: ' + (data.message || '—') + '\n';
-    content += '结果文件: ' + (data.resultFilePath || '—') + '\n\n';
-    if (data.result) {
-        content += '=== 执行结果 ===\n';
-        content += '成功: ' + (data.result.success ? '是' : '否') + '\n';
-        content += 'Session ID: ' + (data.result.sessionId || '—') + '\n';
-        content += '消息: ' + (data.result.message || '—') + '\n\n';
-        if (data.result.resultContent) {
-            content += '=== 结果内容 ===\n' + data.result.resultContent;
-        }
-    }
-    $('resultContent').textContent = content;
-    $('resultOverlay').classList.add('show');
-}
 
 /* ─── 事件绑定 & 初始化 ──────────────────────────────────────────────── */
 $('knSearch').oninput = filterKnowledge;
@@ -328,26 +312,23 @@ $('btnStartImport').onclick = function () {
 
 $('btnViewDoc').onclick = viewDoc;
 
-$('btnDeleteKn').onclick = deleteKnowledge;
+$('btnDeleteKn').onclick = openDeleteConfirm;
+$('btnDeleteCancel').onclick = closeDeleteConfirm;
+$('btnDeleteConfirm').onclick = deleteKnowledge;
+$('knDeleteOverlay').onclick = function (e) {
+    if (e.target === $('knDeleteOverlay')) closeDeleteConfirm();
+};
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && $('knDeleteOverlay').classList.contains('show')) {
+        closeDeleteConfirm();
+    }
+});
 
 $('btnImportCancel').onclick = function () {
     $('knImportPanel').style.display = 'none';
 };
 
 $('btnImportSubmit').onclick = submitImport;
-
-// 模式切换
-document.querySelectorAll('.kn-mode-tab').forEach(function (tab) {
-    tab.onclick = function () {
-        document.querySelectorAll('.kn-mode-tab').forEach(function (t) { t.classList.remove('active'); });
-        tab.classList.add('active');
-        KnState.importMode = tab.dataset.mode;
-        var hint = KnState.importMode === 'async'
-            ? '异步启动导入，立即返回 importId，可轮询查询进度（适合长任务）'
-            : '同步等待导入完成，适合较短任务';
-        $('knModeHint').textContent = hint;
-    };
-});
 
 // 高级选项折叠
 $('knAdvancedToggle').onclick = function () {
@@ -364,9 +345,6 @@ $('btnStopPoll').onclick = function () {
 // 弹窗关闭
 $('docClose').onclick = function () { $('docOverlay').classList.remove('show'); };
 $('docOverlay').onclick = function (e) { if (e.target === $('docOverlay')) $('docOverlay').classList.remove('show'); };
-$('resultClose').onclick = function () { $('resultOverlay').classList.remove('show'); };
-$('resultOk').onclick = function () { $('resultOverlay').classList.remove('show'); };
-$('resultOverlay').onclick = function (e) { if (e.target === $('resultOverlay')) $('resultOverlay').classList.remove('show'); };
 
 // 暴露内联调用
 window.selectKnowledge = selectKnowledge;
