@@ -68,7 +68,7 @@ node {{skillDir}}/scripts/code-linter.cjs --source {{sourcePath}} --target entry
 | 情况 | 处理 |
 |------|------|
 | 退出码 0（0 Error） | 静态检查通过，进入编译验证 |
-| 退出码 2（存在 Error） | 逐条修复（判断属测试生成代码则按编译修复循环 / 3.3 规范同源修复），重跑脚本直至 0 Error；计入编译修复轮次 |
+| 退出码 2（存在 Error） | 逐条修复（判断属测试生成代码则按编译修复循环 / [CODE_STANDARDS.md 八](CODE_STANDARDS.md) 错误速查表同源修复），重跑脚本直至 0 Error；计入编译修复轮次 |
 | 退出码 1（环境不可用） | 标注"Code Linter 环境不可用，跳过"，进入编译验证 |
 
 ### 2.3 Warning 处理原则
@@ -133,9 +133,9 @@ devecocli build --modules entry@ohosTest
 
 | 错误来源 | 错误类型 | 修复方式 |
 |---------|---------|---------|
-| 生成代码 | 3.3 规范已知模式 | 按表修复 |
+| 生成代码 | 已知错误模式 | 按 [CODE_STANDARDS.md 八](CODE_STANDARDS.md) 速查表修复 |
 | 生成代码 | 接口签名/类型不匹配 | 对照接口规格文档 + 源码 |
-| 生成代码 | 表外新错误 | 分析 → 修复 → 记录到 3.3 规范 |
+| 生成代码 | 表外新错误 | 分析 → 修复 → 记录到 CODE_STANDARDS.md 八 |
 | 源库 | SDK 版本/依赖缺失/CMake 冲突 | 修正 build-profile/oh-package/externalNativeOptions ✅ |
 | 源库 | ArkTS 类型错误 | 仅机械性修正 ⚠️ |
 | 源库 | 业务逻辑错误 | 不修复，标注 ❌ |
@@ -187,7 +187,7 @@ powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -JavaH
 
 - ⚠️ 编译验证未通过
 - 在最终报告中列出：
-  - 生成代码未修复的错误 → 标注"需加入 3.3 错误处理规范"
+  - 生成代码未修复的错误 → 标注"需加入 CODE_STANDARDS.md 八 错误速查表"
   - 源库不可修复的错误 → 标注"需源库作者修复"
 - **任务状态仍为"完成"**（代码生成本身已完成，编译验证因源库问题跳过）
 
@@ -195,22 +195,4 @@ powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -JavaH
 
 ## 6. 编译失败常见问题速查
 
-| 错误类型 | 错误标识 | 解决方法 |
-|---------|---------|---------|
-| private/protected 访问 | `Property 'X' is private` | Phase 1.5 预检排除（已执行时）；残留的删除直接访问或跳过该用例 |
-| any 类型 | `arkts-no-any` | 定义具体类型或 interface |
-| unknown 关键字 | `arkts-no-any-unknown` | `unknown` 被完全禁止。改用空但合法的对象、构造最小字段对象字面量 `as Type`、或 `{} as Type` |
-| catch 类型注解 | `arkts-no-types-in-catch` | `catch (e)` 不带类型注解，e 默认为 Object 类型 |
-| Object 属性访问 | `Property 'X' does not exist on type 'Object'` | 保留原始类型不做 `as Object` 转型；仅在不需要属性访问时用 `as Object` |
-| 枚举比较重叠 | `types 'A' and 'B' have no overlap` | `(Enum.A as number) !== (Enum.B as number)` 转型后比较 |
-| null 转 Object | `Type 'null' is not assignable to type 'Object'` | 直接用 `null`，不做 `null as Object` 转型 |
-| 对象字面量无类型 | `arkts-no-untyped-obj-literals` | 定义命名 interface/class，不能用 `{}` 赋值给 Object |
-| ESObject 类型 | `arkts-no-esobj` | 定义命名 interface |
-| 不安全转型 | `arkts-no-unsafe-cast` | 正确定义类型，避免双重 `as unknown as` |
-| **接口/实现返回类型不匹配** | `Argument of type 'X' is not assignable to parameter of type 'I'. The types returned by 'getY()' are incompatible` + `is missing the following properties from type` | 库接口方法返回类型声明与实现类不一致（如声明 `Array<>` 实现返回 `JList<>`；Demo 不暴露，测试首次触达"实现类实例 → 接口参数/比较"赋值路径才显现）。**修接口声明对齐实现**（属源库机械性修正 ⚠️），禁止在测试中强转绕过——1 处修复可消全部同类错误 |
-| **裸断言/未导入符号批量报错** | `Cannot find name 'assertTrue'`（批量出现，数十处） | subagent 生成了 `assertTrue(x)` / `assertEqual(a, b)` 裸函数调用而非 `expect(x).assertXxx()` 链式调用（hypium 断言只存在于 expect 对象上）。修复：编写括号配平转换器脚本一次性批量转换（解析顶层逗号切分双参断言、单参断言直接包裹）；预防：dispatch 前 grep 预检批次输出文件中的 `assertTrue\(|assertEqual\(` 裸调用 |
-| null 实参类型错误 | `Argument of type 'null' is not assignable to parameter of type 'string'` | 测试向库 API 传 null 实参（库源码 `@ts-nocheck` 不豁免测试文件）。库内部用 `if (x)` 判空时空串/空数组与 null 语义等价 → 改传等价 falsy 值（如 `new ID3v1Tag('')`）覆盖同一守卫路径，注释等价依据 |
-| 导入路径错误 | — | 检查库导出入口的实际路径；未从根入口导出的类型（实现类/自定义异常）需深层路径导入（如 `@ohos/{lib}/src/main/ets/components/{lib}/{Class}`），异常类必须真实 import 后才能 `e instanceof XxxException` |
-| 缺少权限 | — | 在 ohosTest 的 module.json5 中声明 |
-
-> 完整的编译错误列表及修复方法参见 [CODE_STANDARDS.md 二和八](CODE_STANDARDS.md)。
+> 完整的编译错误列表及修复方法（含 private 访问、any/unknown、catch 类型注解、枚举比较、裸断言批量报错、接口/实现返回类型不匹配、null 实参、深层路径导入等）统一维护在 [CODE_STANDARDS.md 八](CODE_STANDARDS.md)，本节不再重复收录。

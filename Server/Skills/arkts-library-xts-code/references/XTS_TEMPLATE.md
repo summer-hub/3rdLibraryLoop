@@ -153,114 +153,7 @@ export default function {LibraryName}XtsTest() {
 
 ---
 
-## 四、空值/null 测试
-
-适用于验证接口对边界值的处理测试：
-
-```typescript
-    /**
-     * 用例 {SEQ}: {用例名称}
-     *
-     * 用例描述：验证接口对边界值的处理能力
-     * 涉及接口：{接口签名}
-     * 预期结果：
-     *   1. 输入 {边界值 1} 时，应返回 {预期结果 1}
-     *   2. 输入 {边界值 2} 时，应返回 {预期结果 2}
-     */
-    it('{function_boundary}_{SEQ}', 0, () => {
-      hilog.info(DOMAIN, TAG, 'Test {SEQ}: {用例名称} started');
-
-      // ─── 测试 1：{边界值类型 1} ────────────────────────────────────────────
-      const result1 = {接口调用({边界值 1})};
-      hilog.debug(DOMAIN, TAG, 'Boundary test 1 result: %{public}s', String(result1));
-      expect(result1).assertEqual({预期结果 1});
-
-      // ─── 测试 2：{边界值类型 2} ────────────────────────────────────────────
-      const result2 = {接口调用({边界值 2})};
-      hilog.debug(DOMAIN, TAG, 'Boundary test 2 result: %{public}s', String(result2));
-      expect(result2).assertEqual({预期结果 2});
-
-      hilog.info(DOMAIN, TAG, 'Test {SEQ} passed');
-    });
-```
-
----
-
-## 五、异常/边界值测试（参数异常）
-
-适用于验证接口对非法参数处理的测试：
-
-```typescript
-    /**
-     * 用例 {SEQ}: {用例名称}
-     *
-     * 用例描述：验证接口对非法参数的处理能力，确保接口健壮性
-     * 涉及接口：{接口签名}
-     * 预期结果：
-     *   1. 输入 {非法参数 1} 时，应抛出异常或返回错误码
-     *   2. 输入 {非法参数 2} 时，应抛出异常或返回安全默认值
-     */
-    it('{function_error}_{SEQ}', 0, () => {
-      hilog.info(DOMAIN, TAG, 'Test {SEQ}: {用例名称} started');
-
-      // ─── 测试 1：{非法参数类型 1} - 预期抛异常 ─────────────────────────────
-      let caught1: boolean = false;
-      try {
-        {接口调用({非法参数 1})};
-      } catch (e) {
-        caught1 = true;
-      }
-      expect(caught1).assertTrue();
-      hilog.debug(DOMAIN, TAG, 'Test 1: Invalid input handled correctly (exception thrown)');
-
-      // ─── 测试 2：{非法参数类型 2} - 预期返回安全默认值 ──────────────────────
-      const result2 = {接口调用({非法参数 2})};
-      // 根据库的实际行为验证（可能返回 null、空值或错误码）
-      expect(result2).assertNull();  // 或 expect(result2).assertEqual({安全默认值})
-      hilog.debug(DOMAIN, TAG, 'Test 2: Invalid input handled correctly (safe default)');
-
-      hilog.info(DOMAIN, TAG, 'Test {SEQ} passed');
-    });
-```
-
----
-
-## 六、反向测试（状态异常）
-
-适用于验证接口在异常状态下的行为测试：
-
-```typescript
-    /**
-     * 用例 {SEQ}: {用例名称}
-     *
-     * 用例描述：验证接口在未初始化状态下的调用行为
-     * 涉及接口：{接口签名}
-     * 前置条件：{正常前置条件}（本测试故意不满足）
-     * 预期结果：
-     *   1. 在未满足前置条件时调用，应抛出异常或返回错误码
-     *   2. 不应导致崩溃或不可预期行为
-     */
-    it('{function_state_error}_{SEQ}', 0, () => {
-      hilog.info(DOMAIN, TAG, 'Test {SEQ}: {用例名称} started');
-
-      // ─── 测试场景：未初始化状态调用 ──────────────────────────────────────
-      // 不调用初始化方法，直接调用执行方法
-      let caught: boolean = false;
-      try {
-        {执行接口调用()};
-      } catch (e) {
-        caught = true;
-      }
-      expect(caught).assertTrue();
-      hilog.debug(DOMAIN, TAG, 'Uninitialized call handled correctly');
-
-      hilog.info(DOMAIN, TAG, 'Test {SEQ} passed');
-    });
-```
-
----
-
-## 七、空值/null/undefined 输入测试
+## 四、空值/null/undefined 输入测试
 
 适用于验证接口对空值输入的处理测试：
 
@@ -309,7 +202,7 @@ export default function {LibraryName}XtsTest() {
 
 ---
 
-## 八、异常参数与边界值测试
+## 五、异常参数与边界值测试
 
 适用于验证接口对异常参数和边界值的处理测试：
 
@@ -359,7 +252,42 @@ export default function {LibraryName}XtsTest() {
 
 ---
 
-## 九、大数据量测试
+## 六、反向测试（状态异常）
+
+适用于验证接口在异常状态下的行为测试：
+
+```typescript
+    /**
+     * 用例 {SEQ}: {用例名称}
+     *
+     * 用例描述：验证接口在未初始化状态下的调用行为
+     * 涉及接口：{接口签名}
+     * 前置条件：{正常前置条件}（本测试故意不满足）
+     * 预期结果：
+     *   1. 在未满足前置条件时调用，应抛出异常或返回错误码
+     *   2. 不应导致崩溃或不可预期行为
+     */
+    it('{function_state_error}_{SEQ}', 0, () => {
+      hilog.info(DOMAIN, TAG, 'Test {SEQ}: {用例名称} started');
+
+      // ─── 测试场景：未初始化状态调用 ──────────────────────────────────────
+      // 不调用初始化方法，直接调用执行方法
+      let caught: boolean = false;
+      try {
+        {执行接口调用()};
+      } catch (e) {
+        caught = true;
+      }
+      expect(caught).assertTrue();
+      hilog.debug(DOMAIN, TAG, 'Uninitialized call handled correctly');
+
+      hilog.info(DOMAIN, TAG, 'Test {SEQ} passed');
+    });
+```
+
+---
+
+## 七、大数据量测试
 
 适用于验证接口在大数据量输入下的处理能力和性能：
 
@@ -427,7 +355,7 @@ export default function {LibraryName}XtsTest() {
 
 ---
 
-## 十、异步测试
+## 八、异步测试
 
 适用于验证异步接口的测试：
 
@@ -457,9 +385,30 @@ export default function {LibraryName}XtsTest() {
 
 > ⚠️ **同步方法内部委托异步方法的陷阱**：若库的某个同步方法（如 `saveIntoFile`）内部实际委托给异步方法（如 `saveIntoFileAsync`），则测试时必须使用 `async` 函数 + `await` 调用异步版本，否则异步操作尚未完成就执行了后续断言。
 
+**超时验证变体**（在异步测试中附加执行时间断言）：
+
+```typescript
+    it('{async_timeout}_{SEQ}', 0, async () => {
+      hilog.info(DOMAIN, TAG, 'Test {SEQ} started (async with timeout)');
+
+      const startTime = Date.now();
+
+      const result = await {异步接口调用()};
+      const duration = Date.now() - startTime;
+
+      // 验证结果正确性
+      expect(result).assertEqual({预期结果});
+
+      // 验证执行时间在合理范围内 —— 反转比较方向：5000 > duration
+      expect(5000).assertLarger(duration);
+
+      hilog.info(DOMAIN, TAG, 'Test {SEQ} passed, duration: %{public}dms', duration);
+    });
+```
+
 ---
 
-## 十一、类型判断测试
+## 九、类型判断测试
 
 适用于验证类型判断接口的测试：
 
@@ -492,27 +441,7 @@ export default function {LibraryName}XtsTest() {
 
 ---
 
-## 十二、测试套件注册模板
-
-测试套件需要在 ohosTest 的入口文件中注册：
-
-```typescript
-// entry/src/ohosTest/ets/test/List.test.ets
-
-import {LibraryName}XtsTest from './{LibraryName}XtsTest.test';
-import {OtherLibrary}XtsTest from './{OtherLibrary}XtsTest.test';
-
-export default function testsuite() {
-  {LibraryName}XtsTest();
-  {OtherLibrary}XtsTest();
-}
-```
-
-> **注意**：import 路径不带 `.ets` 扩展名，但保留 `.test` 部分（如 `'./LodashXtsTest.test'`）。
-
----
-
-## 十三、需要 Mock 数据的测试模板
+## 十、需要 Mock 数据的测试模板
 
 ```typescript
     /**
@@ -541,12 +470,12 @@ export default function testsuite() {
 
 ---
 
-## 十四、降级测试（接口不可导入）
+## 十一、降级测试（接口不可导入）
 
 > 当接口类型被标记为「未导出」或「ESObject 阻断」时使用此模板。
 > 仅测试 getter 初始状态，setter 标注不可测试原因。
 
-### 14.1 setter 参数不可导入 — 仅测试 getter
+### 11.1 setter 参数不可导入 — 仅测试 getter
 
 ```typescript
     /**
@@ -567,7 +496,7 @@ export default function testsuite() {
     });
 ```
 
-### 14.2 构造器参数含不可导入类型 — 使用 SDK Mock 替代
+### 11.2 构造器参数含不可导入类型 — 使用 SDK Mock 替代
 
 ```typescript
     /**
@@ -588,7 +517,7 @@ export default function testsuite() {
     });
 ```
 
-### 14.3 getter 返回不可导入类型 — 仅验证初始 null
+### 11.3 getter 返回不可导入类型 — 仅验证初始 null
 
 ```typescript
     /**
@@ -610,38 +539,11 @@ export default function testsuite() {
 
 ---
 
-## 十五、需要设置超时的异步测试模板
+## 十二、interface 实例化模板
 
-```typescript
-    /**
-     * 用例 {SEQ}: {用例名称}（异步超时验证）
-     */
-    it('{async_timeout}_{SEQ}', 0, async () => {
-      hilog.info(DOMAIN, TAG, 'Test {SEQ} started (async with timeout)');
+> ⚠️ interface 类型禁止 `new`（见 [CODE_STANDARDS.md 二](CODE_STANDARDS.md)）
 
-      const startTime = Date.now();
-
-      const result = await {异步接口调用()};
-      const endTime = Date.now();
-      const duration = endTime - startTime;
-
-      // 验证结果正确性
-      expect(result).assertEqual({预期结果});
-
-      // 验证执行时间在合理范围内 —— 反转比较方向：5000 > duration
-      expect(5000).assertLarger(duration);
-
-      hilog.info(DOMAIN, TAG, 'Test {SEQ} passed, duration: %{public}dms', duration);
-    });
-```
-
----
-
-## 十六、interface 实例化模板
-
-> ⚠️ interface 类型禁止 `new`（见 [CODE_STANDARDS.md 八 规则 A](CODE_STANDARDS.md)）
-
-### 16.1 interface 对象字面量
+### 12.1 interface 对象字面量
 
 ```typescript
     // ✅ 正确：interface 用对象字面量赋值
@@ -651,7 +553,7 @@ export default function testsuite() {
     // const headerOpt = new HeaderOptions();
 ```
 
-### 16.2 implements 实现类
+### 12.2 implements 实现类
 
 ```typescript
     // ✅ 正确：interface 用 implements 实现类
@@ -668,10 +570,10 @@ export default function testsuite() {
     option.onLoadListener = callback;
 ```
 
-### 16.3 嵌套 interface 属性赋值
+### 12.3 嵌套 interface 属性赋值
 
 ```typescript
-    // ✅ 正确：通过嵌套 interface 对象设置（见 CODE_STANDARDS.md 规则 D）
+    // ✅ 正确：通过嵌套 interface 对象设置（接口属性为对象时整体赋值）
     const option = new ImageKnifeOptionV2();
     option.onLoadListener = {
       onLoadSuccess: (data: ImageInfo) => { ... },
@@ -684,49 +586,47 @@ export default function testsuite() {
 
 ---
 
-## 十七、测试函数命名映射示例
+## 十三、测试套件注册模板
 
-| 用例序号 | 用例中文名称 | 测试函数名 |
-|---------|-------------|-----------|
-| 001 | 数组分块基础功能验证 | `chunk_basic_001` |
-| 002 | 数值范围限制功能验证 | `clamp_range_002` |
-| 003 | 对象浅拷贝功能验证 | `clone_shallow_003` |
-| 004 | 对象深拷贝功能验证 | `clone_deep_004` |
-| 005 | 对象默认属性填充功能验证 | `defaults_fill_005` |
-| 006 | 数组差异计算功能验证 | `difference_calc_006` |
-| 007 | 对象属性路径访问与设置验证 | `get_set_path_007` |
-| 008 | 对象类型判断组合验证 | `is_type_combo_008` |
-| 009 | 数组分块边界条件验证 | `chunk_boundary_009` |
-| 010 | 对象深拷贝嵌套结构验证 | `clone_deep_nested_010` |
-| 011 | 对象属性路径非法输入验证 | `get_set_invalid_011` |
-| 012 | 类型判断边界值验证 | `is_number_boundary_012` |
+测试套件需要在 ohosTest 的入口文件中注册：
+
+```typescript
+// entry/src/ohosTest/ets/test/List.test.ets
+
+import {LibraryName}XtsTest from './{LibraryName}XtsTest.test';
+import {OtherLibrary}XtsTest from './{OtherLibrary}XtsTest.test';
+
+export default function testsuite() {
+  {LibraryName}XtsTest();
+  {OtherLibrary}XtsTest();
+}
+```
+
+> **注意**：import 路径不带 `.ets` 扩展名，但保留 `.test` 部分（如 `'./LodashXtsTest.test'`）。
 
 ---
 
-## 附录：断言 API 速查表
+## 十四、测试覆盖率统计注释
 
-| 预期结果类型 | 断言方式 | 说明 |
-|------------|---------|------|
-| 返回值应等于 X | `expect(result).assertEqual(X)` | 严格相等（===）|
-| 返回值应包含 X | `expect(result).assertContain(X)` | 包含判断 |
-| 返回值应大于 X | `expect(result).assertLarger(X)` | 大于判断 |
-| 返回值应为 null | `expect(result).assertNull()` | null 判断 |
-| 布尔值为真 | `expect(bool).assertTrue()` | true 判断 |
-| 布尔值为假 | `expect(bool).assertFalse()` | false 判断 |
-| 应抛出异常 | try-catch + 布尔标记 | 见下方 |
-| 不应抛出异常 | 直接调用即可 | 正常执行即通过 |
-| 返回值应小于 X | `expect(X).assertLarger(result)` | 反转比较方向 |
-| 返回值非 null | `expect(result !== null).assertTrue()` | 布尔表达式 |
-| 不应等于 X | `expect(result === X).assertFalse()` | 布尔表达式 |
-
-**try-catch + 布尔标记模式**（替代 `toThrow()`）：
+在测试文件末尾添加覆盖率统计注释：
 
 ```typescript
-let caught: boolean = false;
-try {
-  func(null);
-} catch (e) {
-  caught = true;
-}
-expect(caught).assertTrue();
+/**
+ * ─── 测试覆盖率统计 ──────────────────────────────────────────────────────
+ *
+ * 用例总数：{N}
+ * 可测试接口数：{M}
+ * 测试函数数：{K}
+ *
+ * 功能模块覆盖：
+ *   - {模块 A}：{X} 个用例（{接口列表}）- 100% 覆盖
+ *   - {模块 B}：{Y} 个用例（{接口列表}）- 100% 覆盖
+ *
+ * 测试类型分布：
+ *   - 正向功能测试：{X} 个（{%}）
+ *   - 多接口协同测试：{X} 个（{%}）
+ *   - 空值输入测试：{X} 个（{%}）
+ *   - 异常/边界值测试：{X} 个（{%}）
+ *   - 大数据量测试：{X} 个（{%}）
+ */
 ```

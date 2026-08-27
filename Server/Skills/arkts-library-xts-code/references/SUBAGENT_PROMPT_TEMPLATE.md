@@ -203,7 +203,11 @@ it('function_snake_case_001', 0, () => {
    - `beforeAll` / `afterAll` / `beforeEach` / `afterEach`
    - 日志常量 `DOMAIN` / `TAG` 定义
    - helper class 定义（callback 子类、exception 子类等）
-3. 每个 `it()` 函数前必须有 JSDoc 注释：
+3. **测试函数命名**：`{英文功能描述_snake_case}_{序号}`
+   - 英文功能描述：小写字母+下划线，≤20 字符，体现核心功能；多接口用例可合并描述
+   - 序号：三位数字，与本批用例描述中的用例序号对应
+   - 示例：`chunk_basic_001`、`get_set_path_007`
+4. 每个 `it()` 函数前必须有 JSDoc 注释：
    ```typescript
    /**
     * 用例 {SEQ}: {用例名称}
@@ -214,9 +218,9 @@ it('function_snake_case_001', 0, () => {
     *   2. {预期结果 2}
     */
    ```
-4. 每个函数开头和结尾有 `hilog.info` 日志
-5. `DOMAIN = {DOMAIN}`，`TAG = '{TAG}'`
-6. 需要的 helper class 已在框架文件中预定义，直接使用类名引用
+5. 每个函数开头和结尾有 `hilog.info` 日志
+6. `DOMAIN = {DOMAIN}`，`TAG = '{TAG}'`
+7. 需要的 helper class 已在框架文件中预定义，直接使用类名引用
 
 ---
 

@@ -1,6 +1,6 @@
 # XTS 测试代码生成规范速查
 
-本文档为 `ohos-xts-code-generator` 技能提供编码规范速查，涵盖文件命名、ArkTS 禁止项、日志规范、注释规范、错误处理、hypium 测试框架使用等。
+本文档为 `arkts-library-xts-code` 技能提供编码规范速查，涵盖文件命名、ArkTS 禁止项、日志规范、注释规范、错误处理、hypium 测试框架使用等。
 
 ---
 
@@ -427,9 +427,8 @@ export default function testsuite() {
 - ✅ 大数据量用例验证结果正确性（长度/首尾/深层值）+ 不超时 + 不崩溃
 - ✅ 大数据量用例的测试数据构建使用类型安全方式（定义 interface，禁止 any/Object）
 - ✅ 所有导入路径正确
-- ✅ 使用 DevEco MCP `check_ets_files` 工具验证通过
 
-### 7.2 日志检查
+### 7.3 日志检查
 
 - ✅ 所有测试函数开始有 INFO 日志
 - ✅ 测试执行结果有 DEBUG 日志
@@ -438,14 +437,14 @@ export default function testsuite() {
 - ✅ 日志格式化参数正确（public/private）
 - ✅ DOMAIN 和 TAG 定义正确
 
-### 7.3 注释检查
+### 7.4 注释检查
 
 - ✅ 文件头部有完整注释
 - ✅ 每个测试函数有 JSDoc 注释
 - ✅ 测试步骤有区块分隔注释
 - ✅ 注释内容清晰明了
 
-### 7.4 错误处理检查
+### 7.5 错误处理检查
 
 - ✅ 预期异常测试使用 try-catch + 布尔标记模式
 - ✅ catch 中禁止 `throw e`（arkts-limited-throw）
@@ -454,28 +453,28 @@ export default function testsuite() {
 - ✅ instanceof 异常类型断言已深层路径导入真实异常类（见 5.5）
 - ✅ 文件路径通过 abilityDelegatorRegistry 获取，不硬编码
 
-### 7.5 测试逻辑检查
+### 7.6 测试逻辑检查
 
 - ✅ 预期结果断言完整
 - ✅ 多接口用例调用顺序正确
 - ✅ 测试数据准备充分
 - ✅ 边界值覆盖完整
 
-### 7.6 测试隔离检查
+### 7.7 测试隔离检查
 
 - ✅ 单例状态隔离：库使用 `getInstance()` 单例模式时，断言单例状态的用例必须在断言前重置状态
 - ✅ 跨用例污染检查：同一测试文件中排在前面的用例是否可能修改了被断言的全局/单例状态
 - ✅ `beforeAll` vs `beforeEach`：单例状态重置应使用 `beforeEach`（每个用例前都执行），而非 `beforeAll`（仅执行一次）
 - ✅ 初始状态断言守则：断言"初始状态/默认状态"时，必须确认该状态在当前运行环境中确实可达（前面用例未修改）
 
-### 7.7 期望值验证检查
+### 7.8 期望值验证检查
 
 - ✅ 程序化数据期望值：测试数据通过 `for` 循环、取余、映射等程序化方式生成时，期望值必须用表达式计算或手动计算后注释计算过程
 - ✅ 取余/循环计算验证：涉及 `%`（取余）操作的测试数据，必须实际计算目标索引处的值（如 `9999 % 256 = 15`），禁止从"循环范围上界"联想
 - ✅ 语义联想禁止：禁止从报告描述（如"0-255 循环"、"递增序列"）直接推断具体索引处的期望值，必须基于生成公式计算
 - ✅ 计算过程注释：硬编码期望值旁建议添加注释记录计算依据（如 `// 9999 % 256 = 15`）
 
-### 7.8 访问修饰符预检检查
+### 7.9 访问修饰符预检检查
 
 - ✅ Phase 1.5 预检已执行（条件性）：`precheck-access-modifiers.cjs` 脚本已运行（当输入含旧格式规格文档时），`precheck-access-modifiers.json` 已生成
 - ✅ private/protected 成员排除清单已建立：所有 `private`/`protected` 属性和方法已记录
@@ -512,98 +511,9 @@ export default function testsuite() {
 | `Argument of type 'null' is not assignable to parameter of type 'string'` | 测试代码向库 API 传 null 实参（库源码 `@ts-nocheck` 不豁免测试文件的严格检查） | 库内部用 `if (x)` 判空时空串/空数组与 null 语义等价，改传等价 falsy 值（如 `new ID3v1Tag('')`）覆盖同一守卫路径并注释等价依据 |
 | instanceof 异常类型断言失效/异常类未导出 | 自定义异常类未从 `library/index.ets` 导出，无法 import | 深层路径导入（如 `@ohos/mp3agic/src/main/ets/components/mp3agic/NoSuchTagException`），import 真实类后做 `e instanceof XxxException` |
 | 文件路径不可写 | 硬编码 `/data/local/tmp/` 等 | 通过 abilityDelegatorRegistry 获取沙箱 tempDir/filesDir |
+| 不安全转型 | `arkts-no-unsafe-cast` | 正确定义类型，避免双重 `as unknown as` |
+| 缺少权限 | — | 在 ohosTest 的 module.json5 中声明 |
 
 ---
 
-## 九、测试执行验证流程
-
-### 9.1 编译验证步骤
-
-```
-1. 使用 DevEco MCP 的 check_ets_files 工具：
-   mcp_deveco-mcp_check_ets_files({ files: ["测试文件路径"] })
-
-2. 若有错误，根据诊断信息修复代码
-
-3. 使用 DevEco MCP 的 build_project 工具编译：
-   mcp_deveco-mcp_build_project({ 
-     build_intent: "LogVerification", 
-     clean: true 
-   })
-
-4. 确保编译成功，无 ArkTS 严格模式错误
-```
-
-### 9.2 运行验证步骤
-
-```
-1. 使用 DevEco MCP 的 start_app 工具运行测试：
-   mcp_deveco-mcp_start_app({ 
-     hvd: "设备名", 
-     module: "entry_test" 
-   })
-
-2. 检查测试执行日志：
-   - 搜索 "XTS test suite started" 确认套件启动
-   - 搜索 "Test XXX passed" 确认各测试通过
-   - 搜索 "Test XXX failed" 定位失败测试
-
-3. 若有测试失败：
-   - 分析 ERROR 日志中的异常信息
-   - 根据失败原因修复测试代码或库实现
-   - 重新编译运行验证
-
-4. 确保所有测试用例在目标设备上成功运行
-```
-
----
-
-## 十、Subagent 注入用规则速查
-
-> 以下为 condensed 通用版，用于注入 subagent prompt（见 [SUBAGENT_PROMPT_TEMPLATE.md](SUBAGENT_PROMPT_TEMPLATE.md)）。
-> 仅保留最高频违反的规则，完整规则见本文档第一至九节。
-
-### 10.1 断言 API（最高频违反项）
-
-| 场景 | hypium 正确写法 | Jest 错误写法（编译失败） |
-|------|----------------|-------------------------|
-| 严格相等 | `expect(x).assertEqual(y)` | `toBe`、`toEqual` |
-| null 判断 | `expect(x).assertNull()` | `toBeNull`、`assertNotNull` |
-| 布尔真 | `expect(x).assertTrue()` | `toBeTruthy` |
-| 布尔假 | `expect(x).assertFalse()` | `toBeFalsy` |
-| 大于 | `expect(x).assertLarger(y)` | `toBeGreaterThan` |
-| 小于（反转方向） | `expect(y).assertLarger(x)` | `toBeLessThan` |
-| 包含 | `expect(x).assertContain(y)` | `toContain` |
-| undefined | `expect(x).assertUndefined()` | — |
-| 非 null | `expect(x !== null).assertTrue()` | `not.toBeNull` |
-| 不等于 | `expect(x === y).assertFalse()` | `not.toBe` |
-| 抛异常 | `try-catch` + 布尔标记 | `toThrow` |
-
-> ⚠️ `expect()` 对象上**不存在** Jest 风格方法。`assertNotNull` **不存在**于 hypium，用 `expect(x !== null).assertTrue()` 替代。
-> ⚠️ **断言必须链式调用**：裸调用 `assertTrue(x)`/`assertEqual(a, b)` 是编译错误（`Cannot find name`），唯一合法形式为 `expect(x).assertXxx()`。
-
-### 10.2 类型禁止速查
-
-| 禁止 | 原因标识 | 替代方案 |
-|------|---------|---------|
-| `any` | `arkts-no-any` | 具体类型或泛型 `T` |
-| `Object` | `arkts-no-esobj` | 定义 `interface` 或使用具体类型 |
-| `unknown`（含 `as unknown as T`） | `arkts-no-any-unknown` | 禁止，改用空但合法的对象或系统 API 创建 |
-| `ESObject` 作变量声明 | `arkts-limited-esobj` | 仅用于 `null as ESObject as SomeType` 转型 |
-| `{ } as Type` 无类型字面量 | `arkts-no-untyped-obj-literals` | `new Class()` 或系统 API 创建 |
-| `catch(e: Type)` 类型注解 | `arkts-no-types-in-catch` | `catch(e)` 无注解 |
-| `throw e`（e 非 Error 类型） | `arkts-limited-throw` | 仅设标记变量，不 throw |
-| `null as SomeType` 直接强转 | 类型不兼容 | 系统 API 创建 或 `null as ESObject as SomeType` |
-| 向 `@ts-nocheck` 库 API 传 `null` 实参 | `Argument of type 'null' is not assignable to parameter of type 'string'` | 库内部 `if (x)` 判空时空串/空数组与 null 等价 → 改传等价 falsy 值覆盖同一守卫路径，注释等价依据 |
-
-### 10.3 测试函数格式速查
-
-| 规则 | 正确 | 错误 |
-|------|------|------|
-| `it()` 参数 | 三参数 `it('name', 0, () => {})` | 省略 `0`（部分设备崩溃） |
-| 文件扩展名 | `.test.ets` | `.ts` 或 `.ets` |
-| hilog 导入 | `import { hilog } from '@kit.PerformanceAnalysisKit'` | `import hilog from '@ohos.hilog'` |
-| 日志格式 | 公开数据 `%{public}s`，敏感数据 `%{private}s` | 禁止敏感信息用 `%{public}s` |
-| 文件路径 | `abilityDelegatorRegistry` 获取沙箱 `tempDir` | 硬编码 `/data/local/tmp/` |
-| 返回值含 `\| undefined` | `if (result) { ... }` 判空后访问属性 | 直接访问属性 |
-| 枚举比较 | `(Enum.A as number) !== (Enum.B as number)` | `Enum.A === Enum.B`（报 overlap） |
+> 编译验证与运行验证的完整流程（迁移 → Linter → 编译修复循环）参见 [BUILD_VERIFICATION.md](BUILD_VERIFICATION.md)；分批生成时注入 subagent 的规则速查已内置于 [SUBAGENT_PROMPT_TEMPLATE.md](SUBAGENT_PROMPT_TEMPLATE.md)，无需单独抄录。

@@ -1,17 +1,18 @@
 ---
 name: arkts-library-xts-code
-description: 基于 XTS 用例描述文档（由 ArkTsLibraryXTSDocSkill 生成）自动生成可在 Harmony ohosTest 系统上编译运行的 XTS 测试用例代码。使用 hypium 测试框架，遵循 ArkTS 编码规范。当需要将 XTS 用例描述转化为可执行自动化测试代码时使用。关键词：ArkTS、XTS、hypium、ohosTest、OpenHarmony。
+description: 基于 XTS 用例描述文档（由 arkts-library-xts-doc SKILL 生成）自动生成可在 Harmony ohosTest 系统上编译运行的 XTS 测试用例代码。使用 hypium 测试框架，遵循 ArkTS 编码规范。当需要将 XTS 用例描述转化为可执行自动化测试代码时使用。关键词：ArkTS、XTS、hypium、ohosTest、OpenHarmony。
 license: Apache-2.0
 compatibility: 需要 devecocli CLI（编译/静态检查/文档检索）、ohpm（依赖管理）、hvigor 构建环境；MCP Gateway 运行中（script_deveco_docs 工具）。编译验证平台适配：Windows 用 build.ps1（PowerShell），macOS/Linux 直接 Bash 调用 devecocli build（见 Phase 7.3）
 metadata:
-  version: "2.1.0"
+  author: lalhan
+  version: "2.2.0"
   category: ohos-testing
   language: ArkTS/ETS
 ---
 
 # ArkTS XTS 测试代码生成
 
-读取 XTS 用例描述文档（由 ArkTsLibraryXTSDocSkill 生成），为每个用例生成独立的 XTS 测试函数代码，使用 OpenHarmony hypium 测试框架。用例文档的"对应的函数接口"列已自包含完整接口签名，无需额外读取接口规格文档。
+读取 XTS 用例描述文档（由 arkts-library-xts-doc 生成），为每个用例生成独立的 XTS 测试函数代码，使用 OpenHarmony hypium 测试框架。用例文档的"对应的函数接口"列已自包含完整接口签名，无需额外读取接口规格文档。
 
 > ⚠️ **核心约束**：
 > 1. 所有测试代码必须基于 XTS 用例描述文档中真实存在的用例和接口生成，严禁凭空捏造
@@ -73,16 +74,9 @@ Phase 8: 输出与总结（报告含分批方式 / Linter / 编译结论）
 执行步骤：
 1. read_file 读取 XTS 用例描述文档全文
 2. 提取库名称（用于测试文件命名和导入语句）
-3. 解析"用例索引表"，提取每个用例的：
-   - 用例序号（三位数字）
-   - 用例名称
-   - 涉及接口列表
-   - 模块归属
-4. 解析"XTS 用例详细描述"部分，提取每个用例的：
-   - 用例名称
-   - 用例描述（用于注释）
-   - 用例预期结果（用于编写 expect 断言）
-   - 对应的函数接口（用于编写测试代码）
+3. 解析"用例索引表"，提取每个用例的：用例序号（三位数字）、用例名称、涉及接口列表、模块归属
+4. 解析"XTS 用例详细描述"部分，提取每个用例的：用例名称、用例描述（用于注释）、
+   用例预期结果（用于编写 expect 断言）、对应的函数接口（用于编写测试代码）
 5. 统计用例总数，规划生成测试函数列表
 ```
 
@@ -94,10 +88,10 @@ Phase 8: 输出与总结（报告含分批方式 / Linter / 编译结论）
 |---------|---------|---------|---------|
 | 正向功能测试 | 验证接口正常行为，预期返回具体值 | 单接口/多接口正向模板 | [XTS_TEMPLATE.md 二/三](references/XTS_TEMPLATE.md) |
 | 多接口协同测试 | 用例涉及多个接口协作完成功能 | 按调用顺序依次调用验证 | [XTS_TEMPLATE.md 三](references/XTS_TEMPLATE.md) |
-| 空值/null/undefined 测试 | 验证空值输入不崩溃 | 空值断言策略 + 空值模板 | [XTS_TEMPLATE.md 七](references/XTS_TEMPLATE.md) |
-| 异常/边界值测试 | 验证非法参数、NaN/Infinity/负值 | 异常断言策略 + 边界值模板 | [XTS_TEMPLATE.md 八](references/XTS_TEMPLATE.md) |
-| 大数据量测试 | 验证大数组/深度嵌套处理 | 大数据断言策略 + 大数据模板 | [XTS_TEMPLATE.md 九](references/XTS_TEMPLATE.md) |
-| 异步测试 | 接口返回 Promise | async/await 模板 | [XTS_TEMPLATE.md 十](references/XTS_TEMPLATE.md) |
+| 空值/null/undefined 测试 | 验证空值输入不崩溃 | 空值断言策略 + 空值模板 | [XTS_TEMPLATE.md 四](references/XTS_TEMPLATE.md) |
+| 异常/边界值测试 | 验证非法参数、NaN/Infinity/负值 | 异常断言策略 + 边界值模板 | [XTS_TEMPLATE.md 五](references/XTS_TEMPLATE.md) |
+| 大数据量测试 | 验证大数组/深度嵌套处理 | 大数据断言策略 + 大数据模板 | [XTS_TEMPLATE.md 七](references/XTS_TEMPLATE.md) |
+| 异步测试 | 接口返回 Promise | async/await 模板 | [XTS_TEMPLATE.md 八](references/XTS_TEMPLATE.md) |
 
 > 各类型的断言设计策略详见 [CODE_STANDARDS.md 七](references/CODE_STANDARDS.md)。
 
@@ -115,29 +109,25 @@ Phase 8: 输出与总结（报告含分批方式 / Linter / 编译结论）
 
 > **多文件策略**：当用例数超过 30 时，按模块拆分为多个测试文件，每个文件不超过 30 个测试函数。
 
----
-
 ### 1.5 访问修饰符预检（条件性，编译前错误预防）
 
-> ⚠️ **条件性执行**：本子步骤仅在输入含 `private`/`protected` 成员可能漏出时执行。上游 `arkts-library-interface-spec`（提取时已剔除 private/protected）与 `arkts-library-xts-doc`（已将 private/protected 归为不可测试）**已保证 XTS 用例描述文档不含 private/protected**；因此当 `interfaceSpecPath` 为最新格式接口规格文档且由标准链路生成时，**本子步骤可跳过**。
+> ⚠️ **条件性执行**：上游 `arkts-library-interface-spec`（提取时已剔除 private/protected）与 `arkts-library-xts-doc`（已将 private/protected 归为不可测试）**已保证标准链路生成的 XTS 用例描述文档不含 private/protected**，此时**本子步骤可跳过**。
 >
-> 需要执行的情形：输入的是**旧格式接口规格文档** / XTS 文档由**旧版 xts-doc** 生成 / **接口规格文档缺失**，此时用例描述中可能残留 private/protected 成员，需预检拦截 ~35% 编译错误。
+> 需要执行的情形：输入为**旧格式接口规格文档** / XTS 文档由**旧版 xts-doc** 生成 / **接口规格文档缺失**（用例描述中可能残留 private/protected 成员，预检可拦截 ~35% 编译错误）。
 
 **执行步骤**：
 1. 运行 `node {{skillDir}}/scripts/precheck-access-modifiers.cjs --source {{sourcePath}}` 扫描库源码
 2. 读取生成的 `precheck-access-modifiers.json`，建立禁止直接调用清单
-3. 生成代码时跳过清单成员，不生成用例（这些接口无需补充 XTS 用例）
+3. 生成代码时跳过清单成员，不生成用例
 4. 若使用并行 Agent，将排除清单注入每个 Agent 的 prompt
 
-> 完整的脚本用法、排除清单格式、Agent 注入模板详见 [ACCESS_MODIFIER_PRECHECK.md](references/ACCESS_MODIFIER_PRECHECK.md)。
+> 脚本用法、排除清单格式、Agent 注入模板详见 [ACCESS_MODIFIER_PRECHECK.md](references/ACCESS_MODIFIER_PRECHECK.md)。
 
 ---
 
 ## Phase 2：分批策略判断
 
 > 本步骤决定代码生成方式：subagent 分批（Phase 4）还是 orchestrator 直接生成（Phase 5）。
-
-**判定条件**：
 
 | 条件 | 模式 | 执行阶段 |
 |------|------|---------|
@@ -150,9 +140,9 @@ Phase 8: 输出与总结（报告含分批方式 / Linter / 编译结论）
 
 1. **预扫描 helper class**：读全部用例的"涉及接口"，提取所有 abstract callback 类、abstract exception 类等需要子类化的类型，在框架文件中预定义子类（subagent 直接引用，不重复定义）
 2. **按模块分批**：同模块用例尽量在同一批（减少 subagent 需读源文件数），每批 5-8 用例
-3. **指定临时输出路径**：每批输出到工作目录内的独立临时文件（`{outputDir}/.xts-batches/batch_{n}.ets`），避免并发冲突。**禁止写到工作目录之外**（如系统 temp 目录），否则人工审核无法追溯写权限
+3. **指定临时输出路径**：每批输出到 `{outputDir}/.xts-batches/batch_{n}.ets`。**禁止写到工作目录之外**（如系统 temp 目录），否则人工审核无法追溯写权限
 
-> 验证依据：subagent 可访问 MCP Gateway 工具（`script_deveco_docs` 等），已实测确认。
+> subagent 可访问 MCP Gateway 工具（`script_deveco_docs` 等），可自行完成系统 API 预检。
 
 ---
 
@@ -160,17 +150,11 @@ Phase 8: 输出与总结（报告含分批方式 / Linter / 编译结论）
 
 ### 3.1 确定测试文件命名
 
-**命名规则**：测试文件统一放在 `entry/src/ohosTest/ets/test/` 目录，文件名格式为 `{LibraryName}XtsTest.test.ets`。
+测试文件统一放在 `entry/src/ohosTest/ets/test/` 目录，文件名格式为 `{LibraryName}XtsTest.test.ets`（如 lodash → `LodashXtsTest.test.ets`）。
 
 > ⚠️ **扩展名必须为 `.test.ets`**，不能用 `.ts` 或 `.ets`。OpenHarmony XTS 测试框架要求测试文件使用 `.test.ets` 扩展名。
 
-示例映射：
-
-| 库名 | 测试文件名 |
-|------|-----------|
-| lodash | `LodashXtsTest.test.ets` |
-| axios | `AxiosXtsTest.test.ets` |
-| blur-kit | `BlurKitXtsTest.test.ets` |
+> 完整命名规则与示例映射参见 [CODE_STANDARDS.md 一](references/CODE_STANDARDS.md)。
 
 ### 3.2 生成测试文件基础框架
 
@@ -206,7 +190,7 @@ Phase 8: 输出与总结（报告含分批方式 / Linter / 编译结论）
 | `{SOURCE_FILE_PATHS}` | 本批涉及的所有库源文件路径 |
 | `{FRAMEWORK_FILE_PATH}` | Phase 3 生成的框架文件路径 |
 | `{OUTPUT_FILE_PATH}` | 本批临时输出路径（`{outputDir}/.xts-batches/batch_{n}.ets`，必须在工作目录内） |
-| `{ACCESS_MODIFIER_EXCLUSION_LIST}` | Phase 1.5 预检结果（本批涉及类的 private/protected 成员，如已执行预检） |
+| `{ACCESS_MODIFIER_EXCLUSION_LIST}` | Phase 1.5 预检结果（如已执行预检） |
 | `{ADDITIONAL_PRIVATE_MEMBERS}` | Orchestrator 从源码额外发现的 private 成员 |
 | `{TEST_CASE_DESCRIPTIONS}` | 本批用例的序号/名称/涉及接口/预期结果（从 XTS 报告提取） |
 | `{DOMAIN}` | `0xD001` |
@@ -215,7 +199,7 @@ Phase 8: 输出与总结（报告含分批方式 / Linter / 编译结论）
 3. 使用 `Task` 工具 dispatch `general` 类型 subagent
 4. **全部批次并行 dispatch**（各写独立临时文件，无并发冲突）
 
-> subagent 内部执行流程：`script_deveco_docs` 查系统 API（强制）→ `read` 库源码确认签名 → 写 `it()` 函数体 → 自检（7 项规则清单）
+> subagent 内部执行流程：`script_deveco_docs` 查系统 API（强制）→ `read` 库源码确认签名 → 写 `it()` 函数体 → 自检（10 项规则清单）
 
 #### 4.2 收集并合并输出
 
@@ -243,47 +227,29 @@ Phase 8: 输出与总结（报告含分批方式 / Linter / 编译结论）
 
 > **本阶段为"直接生成模式"（Phase 2 判定为 ≤20 用例时执行）。** 若 Phase 2 判定为"Subagent 分批模式"，本阶段跳过（已由 Phase 4 完成）。
 
-对每个用例，按以下步骤生成对应的测试函数代码。
-
 ### 5.1 推导测试函数命名
 
-**命名规则**：测试函数名格式为 `{英文功能描述_snake_case}_{序号}`。
+**命名规则**：测试函数名格式为 `{英文功能描述_snake_case}_{序号}`。英文描述使用小写字母+下划线（≤20 字符，体现核心功能，多接口用例可合并描述），序号使用三位数字（与用例描述文档对应）。
 
-示例映射：
-
-| 用例序号 | 用例名称 | 测试函数名 |
-|---------|---------|-----------|
-| 001 | 数组分块基础功能验证 | `chunk_basic_001` |
-| 002 | 数值范围限制功能验证 | `clamp_range_002` |
-| 003 | 对象浅拷贝功能验证 | `clone_shallow_003` |
-| 007 | 对象属性路径访问与设置验证 | `get_set_path_007` |
-
-关键规则：
-- 英文功能描述使用 snake_case（小写字母+下划线）
-- 描述简洁，体现核心功能（不超过 20 字符）
-- 序号使用三位数字（与用例描述文档对应）
-- 多接口用例可合并功能描述（如 `get_set_path`）
+示例：001 数组分块基础功能验证 → `chunk_basic_001`；007 对象属性路径访问与设置验证 → `get_set_path_007`
 
 ### 5.2 分析预期结果并设计断言
 
 根据用例描述文档中的"用例预期结果"，设计对应的 expect 断言。常见映射：
 
-| 预期结果类型 | 断言方式 | 说明 |
-|------------|---------|------|
-| 返回值应等于 X | `expect(result).assertEqual(X)` | 严格相等（===）|
-| 返回值应包含 X | `expect(result).assertContain(X)` | 包含判断 |
-| 返回值应大于 X | `expect(result).assertLarger(X)` | 大于判断 |
-| 返回值应为 null | `expect(result).assertNull()` | null 判断 |
-| 布尔值为真 | `expect(bool).assertTrue()` | true 判断 |
-| 布尔值为假 | `expect(bool).assertFalse()` | false 判断 |
-| 应抛出异常 | try-catch + 布尔标记 | 见 CODE_STANDARDS.md 5.2 |
-| 不应抛出异常 | try-catch 无异常 | 正常执行即通过 |
+| 预期结果类型 | 断言方式 |
+|------------|---------|
+| 返回值应等于 X | `expect(result).assertEqual(X)` |
+| 返回值应包含 X | `expect(result).assertContain(X)` |
+| 返回值应大于 X | `expect(result).assertLarger(X)` |
+| 返回值应为 null | `expect(result).assertNull()` |
+| 布尔值为真/假 | `expect(bool).assertTrue()` / `assertFalse()` |
+| 应抛出异常 | try-catch + 布尔标记（见 [CODE_STANDARDS.md 5.2](references/CODE_STANDARDS.md)） |
+| 不应抛出异常 | 直接调用，正常执行即通过 |
 
-> ⚠️ **hypium 断言 API 重要约束**：`expect()` 对象上**不存在** Jest 风格方法（`toBe`/`toEqual`/`toBeNull`/`toBeTruthy`/`toThrow`/`toBeGreaterThan`/`toContain` 等）。完整替代方案见 [CODE_STANDARDS.md 6.2/6.3](references/CODE_STANDARDS.md)。
->
-> 关键替代：`toThrow()` → try-catch + 布尔标记；`toBeLessThan(n)` → `expect(n).assertLarger(x)`（反转方向）。
+> ⚠️ **hypium 断言 API 重要约束**：`expect()` 对象上**不存在** Jest 风格方法（`toBe`/`toEqual`/`toBeNull`/`toBeTruthy`/`toThrow` 等），断言**必须链式调用**（裸调用 `assertTrue(x)` 是编译错误）。完整替代方案见 [CODE_STANDARDS.md 6.2/6.3](references/CODE_STANDARDS.md)。
 
-> ⚠️ **期望值计算规则（强制）**：程序化生成的测试数据（如 `arr[i] = i % 256`），断言期望值必须用表达式计算或手动计算后注释计算过程，**禁止**从报告描述语义联想硬编码。详见 [CODE_STANDARDS.md 7.7](references/CODE_STANDARDS.md)。
+> ⚠️ **期望值计算规则（强制）**：程序化生成的测试数据（如 `arr[i] = i % 256`），断言期望值必须用表达式计算或手动计算后注释计算过程，**禁止**从报告描述语义联想硬编码。详见 [CODE_STANDARDS.md 7.8](references/CODE_STANDARDS.md)。
 
 > 空值/异常/大数据场景的详细断言策略参见 [CODE_STANDARDS.md 七](references/CODE_STANDARDS.md)。
 
@@ -310,7 +276,7 @@ Phase 8: 输出与总结（报告含分批方式 / Linter / 编译结论）
 > action=search, keywords=<系统API名/枚举名/模块名>
 > action=read, documentId=<search结果>, section=<目标接口/枚举/属性名>
 > ```
-> 检索要点：search 取首条命中；read 带 `section` 精确定位（聚合文档不带 section 会返回数十 KB）；import 路径以 read 结果的 `#### 导入模块` 为准；`hypium` 与库自身 API 不在系统语料中，返回"未找到"时直接按接口规格文档/源码编写。
+> 检索要点：search 取首条命中；read 带 `section` 精确定位（聚合文档不带 section 会返回数十 KB）；import 路径以 read 结果的 `#### 导入模块` 为准；`hypium` 与库自身 API 不在系统语料中，返回"未找到"时直接按接口规格文档/源码编写。详见 [SYSTEM_API_LOOKUP.md](references/SYSTEM_API_LOOKUP.md)。
 >
 > 🚨 **import 类型链追踪**（不可跳过）：`read_file library/Index.ets` → 确认每个 import 类型在导出列表中 → 不在则禁止 import，用对象字面量 → 衍生类型 `read_file` 库源码找定义 → 库源码也找不到标记"不可用"。
 >
@@ -345,17 +311,13 @@ Phase 8: 输出与总结（报告含分批方式 / Linter / 编译结论）
 - 优先使用 `beforeEach`（而非 `beforeAll`）重置单例状态
 - 若无法重置（库未提供 reset 方法），改为断言"调用某方法后的状态"而非"初始状态"
 
-> 单例状态隔离测试模板参见 [XTS_TEMPLATE.md 十七](references/XTS_TEMPLATE.md)。
-
 ---
 
 ## Phase 6：代码质量保障
 
-> 以下为精简要点，完整的日志规范、注释规范、错误处理规范详见 [CODE_STANDARDS.md](references/CODE_STANDARDS.md)。
+> 以下为精简要点，完整的日志规范、注释规范、错误处理规范详见 [CODE_STANDARDS.md 三/四/五](references/CODE_STANDARDS.md)。
 
-### 6.1 日志/注释/错误处理规范要点
-
-> 以下为精简要点，完整规范详见 [CODE_STANDARDS.md 三/四/五](references/CODE_STANDARDS.md)。
+### 6.1 编码规范要点
 
 - 每个测试函数开始/结束记录 INFO 日志，执行结果记录 DEBUG（`%{public}s`），失败记录 ERROR
 - DOMAIN 统一 `0xD001`，TAG 格式 `{LibraryName}_XtsTest`
@@ -375,27 +337,21 @@ Phase 8: 输出与总结（报告含分批方式 / Linter / 编译结论）
 | "这个期望值在运行时到底等于多少？" | 期望值计算错误 | 实际计算后修正期望值，或改用表达式 |
 | "这个初始状态在前面用例跑完后还成立吗？" | 单例状态污染 | 添加状态重置调用或改用 `beforeEach` |
 
-**执行方式**：逐条遍历所有 `expect()` 调用，对每条回答两个反问。无法确认的回答"不确定"并标记需要进一步验证。
+**执行方式**：逐条遍历所有 `expect()` 调用，对每条回答两个反问。无法确认的回答"不确定"，在报告中标注"期望值未实测，存在运行时失败风险"。
 
-> 标记"不确定"的期望值：库满足 5.3.1 探针触发条件时必须经运行时探针实测确认（或核对 5.3.1 已产出的实测清单）；不满足时在报告中标注"期望值未实测，存在运行时失败风险"。
-
-> ArkTS 类型安全规范、文件路径规范等完整编码标准参见 [CODE_STANDARDS.md](references/CODE_STANDARDS.md) 二/五/六。
+> ArkTS 类型安全规范、文件路径规范等完整编码标准与生成后自检清单参见 [CODE_STANDARDS.md](references/CODE_STANDARDS.md) 二/六/七。
 
 ---
 
 ## Phase 7：编译与运行验证
 
-> 🔴 **本阶段为强制阶段，不可跳过**。包含三个强制步骤：工程迁移 → 静态检查 → 编译验证。若宿主机无编译环境（devecocli/ohpm/hvigor 不可用），必须在最终报告中标注并在报告中给出明确原因；只要环境可用，就必须执行并产出真实编译结论。详细操作、命令、修复策略和常见问题速查参见 [BUILD_VERIFICATION.md](references/BUILD_VERIFICATION.md)。
+> 🔴 **本阶段为强制阶段，不可跳过**。包含三个强制步骤：工程迁移 → 静态检查 → 编译验证。若宿主机无编译环境（devecocli/ohpm/hvigor 不可用），必须在最终报告中标注并给出明确原因；只要环境可用，就必须执行并产出真实编译结论。详细操作、命令、修复策略和常见问题速查参见 [BUILD_VERIFICATION.md](references/BUILD_VERIFICATION.md)。
 
 ### 7.1 工程迁移（migrate.cjs，必做不可跳过）
 
 > 🔴 **禁止跳过**：无论工程类型和 SDK 版本是否匹配，都必须执行迁移脚本。源工程的 hvigor 文件、`oh-package.json5`、product 的 `runtimeOS`/`compatibleSdkVersion` 等配置仍可能不兼容当前构建环境。
 
-**预迁移设备探测**（可选）：
-```powershell
-cmd /c "hdc list targets"
-# 若有设备：cmd /c "hdc shell param get const.ohos.apiversion" → deviceApi
-```
+**预迁移设备探测**（可选）：`cmd /c "hdc list targets"`，若有设备再探测 `cmd /c "hdc shell param get const.ohos.apiversion"` 取 deviceApi。
 
 ```powershell
 # 有设备时
@@ -425,9 +381,9 @@ node {{skillDir}}/scripts/code-linter.cjs --source {{sourcePath}} --target entry
 
 ### 7.3 编译验证（最多 5 轮修复）
 
-> 🔴 **必须通过 build.ps1 执行**（Windows 下直接调用 devecocli build 会阻塞 session）。
+> 🔴 **Windows 必须通过 build.ps1 执行**（直接调用 devecocli build 会阻塞 session）。
 >
-> **macOS/Linux 平台适配**：build.ps1 为 Windows PowerShell 专用（cmd.exe/.NET Process/hvigor daemon 清理）。macOS/Linux 上直接经 Bash 调用 `devecocli build` 即可（hvigor daemon 后台运行不占用 shell 句柄，无 session 阻塞问题），以 Bash 工具的 timeout 参数做等效保护，编译结论与 Windows 同等有效：
+> **macOS/Linux 平台适配**：直接经 Bash 调用 `devecocli build`（hvigor daemon 后台运行不占用 shell 句柄，无 session 阻塞问题），以 Bash 工具的 timeout 参数做等效保护，编译结论与 Windows 同等有效：
 > ```bash
 > cd {{sourcePath}} && devecocli build clean
 > cd {{sourcePath}} && devecocli build --modules entry@ohosTest
@@ -438,22 +394,11 @@ powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -Cmd "
 powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -JavaHome -Cmd "cd /d {{sourcePath}} && devecocli build --modules entry@ohosTest"
 ```
 
-**提效策略**：按错误优先级批量修复（P0-P3 sed 批量 1 轮 + P4-P6 逐个 1 轮 = 2 轮而非 5 轮）：
-
-| 优先级 | 错误类型 | 批量修复方式 | 预计解决数 |
-|--------|---------|-------------|-----------|
-| P0 | private/protected 访问 | 删除直接访问或跳过该用例 | ~35% |
-| P1 | `any`/`unknown` 残留 | `sed` 替换 `as any` → `as Object` | ~15% |
-| P2 | catch 类型注解 | `sed` 替换 `catch (e: Object)` → `catch (e)` | ~5% |
-| P3 | `null as Object` 转型 | `sed` 替换 → `null` | ~8% |
-| P4 | Object 属性访问 | 逐个改为原始类型 | ~15% |
-| P5-P6 | 枚举比较/其他类型不匹配 | 逐个分析修复 | ~22% |
-
-> ⚠️ 修复后**不要** `build clean`，hvigor 增量编译可节省 ~70% 时间。
+**提效策略**：按错误优先级批量修复（P0-P3 sed 批量 1 轮 + P4-P6 逐个 1 轮 = 2 轮而非 5 轮）；首轮大量报错时先按根因聚类，同一根因的 N 个错误合并为一条修复动作。修复后**不要** `build clean`，hvigor 增量编译可节省 ~70% 时间。
 
 **错误来源分级**：生成代码错误（按表修复 / 对照规格文档+源码 / 记录新模式）、源库错误（SDK/依赖 ✅ 修复 / ArkTS 类型 ⚠️ 仅机械性修正 / 业务逻辑 ❌ 不修复）。连续 2 轮源库不可修复 → 终止。
 
-> 错误优先级完整表、增量编译、ohpm 线上版本替换、降级流程、常见问题速查详见 [BUILD_VERIFICATION.md 3-6](references/BUILD_VERIFICATION.md)。
+> 错误优先级完整表（P0-P6）、根因聚类、增量编译、ohpm 线上版本替换、降级流程详见 [BUILD_VERIFICATION.md 3-5](references/BUILD_VERIFICATION.md)；常见编译错误速查见 [CODE_STANDARDS.md 八](references/CODE_STANDARDS.md)。
 
 ---
 
@@ -465,11 +410,11 @@ powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -JavaH
 
 ### 8.2 测试套件注册
 
-在 `entry/src/ohosTest/ets/test/List.test.ets` 中注册（已存在则追加，不覆盖）。import 路径不带 `.ets` 扩展名但保留 `.test` 部分。模板参见 [XTS_TEMPLATE.md 十二](references/XTS_TEMPLATE.md)。
+在 `entry/src/ohosTest/ets/test/List.test.ets` 中注册（已存在则追加，不覆盖）。import 路径不带 `.ets` 扩展名但保留 `.test` 部分。模板参见 [XTS_TEMPLATE.md 十三](references/XTS_TEMPLATE.md)。
 
 ### 8.3 测试覆盖率统计
 
-在测试文件末尾添加覆盖率统计注释，格式参见 [XTS_TEMPLATE.md 十三](references/XTS_TEMPLATE.md)。
+在测试文件末尾添加覆盖率统计注释，格式参见 [XTS_TEMPLATE.md 十四](references/XTS_TEMPLATE.md)。
 
 ### 8.4 生成XTS代码生成报告
 
@@ -479,38 +424,16 @@ powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -JavaH
 
 ---
 
-## Todos 蓝图
-
-> 🔴 **在开始任何 Phase 之前，先建立以下 todos，并逐项勾选完成。加粗项为强制项，不可跳过。** 这是 opencode 生成运行待办清单的蓝图：必须覆盖以下全部条目，不得只凭标题简化为"写文件 → 报告"。
-
-- [ ] **Phase 1 解析 XTS 用例描述文档**：读取用例文档，提取库名、用例索引、涉及接口，规划文件
-- [ ] **Phase 1 探查鸿蒙工程结构**：确认 `entry/src/ohosTest/` 存在、`devecocli` 可用
-- [ ] **Phase 1 访问修饰符预检（条件性）**：仅当输入规格文档可能含 private/protected 成员时运行 precheck 脚本
-- [ ] **Phase 2 分批策略判断**：统计用例数与预估代码行，判定走 Subagent 分批还是直接生成
-- [ ] **Phase 3 生成测试文件框架**：建 `{LibraryName}XtsTest.test.ets` 基础结构（导入、describe、beforeAll、helper class）与 INSERTION_POINT 标记
-- [ ] **Phase 4 Subagent 分批代码生成（分批模式）**：填充 SUBAGENT_PROMPT_TEMPLATE → 并行 dispatch subagent → 收集合并输出 → 记录各批自检结果  ✓/✗
-- [ ] **Phase 5 逐用例生成测试函数（直接生成模式）**：逐用例系统 API 预检 → 生成 it() 函数体
-- [ ] **Phase 6 代码质量保障**：逐条断言运行时反推、ArkTS 规范自检
-- [ ] **Phase 7.1 工程迁移**：执行 `migrate.cjs`（强制，禁止跳过）
-- [ ] **Phase 7.2 Code Linter 静态检查**：执行 `code-linter.cjs`（强制）
-- [ ] **Phase 7.3 编译验证**：执行 `build.ps1` → 修复循环（强制；不可仅报"生成完成"）
-- [ ] **Phase 8 输出与总结**：注册 `List.test.ets`、生成 XTS 代码生成报告（含分批方式 / Linter / 编译结论）
-
-> 若环境无编译能力，Phase 7 的三项 todos 勾选时必须同步在报告中注明"环境不可用"及原因。
-
----
-
 ## 参考文档
 
 | 文档 | 内容说明 |
 |------|---------|
-| [CODE_STANDARDS.md](references/CODE_STANDARDS.md) | 编码规范完整参考：文件命名、ArkTS 禁止项、日志/注释/错误处理规范、hypium 框架使用（含断言 API 速查）、编译错误修复、代码质量检查清单、§10 Subagent 注入用规则速查 |
-| [XTS_TEMPLATE.md](references/XTS_TEMPLATE.md) | 各类型测试函数模板：测试文件框架、单接口/多接口正向、反向、空值、异常/边界值、大数据量、异步、类型判断、Mock、降级测试、interface 实例化、单例状态隔离、测试夹具 rawfile 注入交付、断言 API 速查表 |
-| [SUBAGENT_PROMPT_TEMPLATE.md](references/SUBAGENT_PROMPT_TEMPLATE.md) | Subagent prompt 通用模板：系统 API 预检步骤、ArkTS 规则清单（含断言语法正反例）、access modifier 排除清单、输出要求、7 项自检清单。Phase 4 分批模式下由 orchestrator 填充后发给 subagent |
-| [EXAMPLES.md](references/EXAMPLES.md) | 基于 lodash 的完整示例：输入文档片段、生成的完整测试代码、编译运行验证、覆盖率统计 |
+| [CODE_STANDARDS.md](references/CODE_STANDARDS.md) | 编码规范完整参考：文件命名、ArkTS 禁止项、日志/注释/错误处理规范、hypium 框架使用（含断言 API 速查）、代码质量检查清单、常见编译错误及修复 |
+| [XTS_TEMPLATE.md](references/XTS_TEMPLATE.md) | 各类型测试函数模板：测试文件框架、单接口/多接口正向、空值、异常/边界值、反向、大数据量、异步（含超时）、类型判断、Mock、降级测试、interface 实例化、测试套件注册、覆盖率统计注释 |
+| [SUBAGENT_PROMPT_TEMPLATE.md](references/SUBAGENT_PROMPT_TEMPLATE.md) | Subagent prompt 通用模板：系统 API 预检步骤、ArkTS 规则清单（含断言语法正反例）、access modifier 排除清单、输出要求、自检清单。Phase 4 分批模式下由 orchestrator 填充后发给 subagent |
 | [SYSTEM_API_LOOKUP.md](references/SYSTEM_API_LOOKUP.md) | 系统 API 检索工具指南：`script_deveco_docs` 用法、常用系统 API 速查、降噪策略、检索边界 |
 | [ACCESS_MODIFIER_PRECHECK.md](references/ACCESS_MODIFIER_PRECHECK.md) | 访问修饰符预检详细指南：脚本用法、排除清单格式、跳过规则、并行 Agent 注入模板 |
-| [BUILD_VERIFICATION.md](references/BUILD_VERIFICATION.md) | 编译与运行验证详细指南：工程迁移、静态检查、5 轮修复策略、编译错误速查（含接口/实现类型不匹配、裸断言批量处理）、ohpm 线上版本替换、降级流程、常见问题速查 |
+| [BUILD_VERIFICATION.md](references/BUILD_VERIFICATION.md) | 编译与运行验证详细指南：工程迁移、静态检查、5 轮修复策略、ohpm 线上版本替换、降级流程 |
 
 ### 资源文件
 

@@ -39,7 +39,7 @@ node {{skillDir}}/scripts/precheck-access-modifiers.cjs --source {{sourcePath}}
 
 ## 3. 代码生成规则（强制）
 
-对清单中的每个 `private`/`protected` 成员，在 Phase 5 生成代码时遵守以下规则：
+对清单中的每个 `private`/`protected` 成员，在生成代码时遵守以下规则：
 
 | 场景 | 处理方式 | 示例 |
 |------|---------|------|
@@ -49,13 +49,7 @@ node {{skillDir}}/scripts/precheck-access-modifiers.cjs --source {{sourcePath}}
 
 ---
 
-## 4. 跳过规则
-
-`private`/`protected` 成员属于非对外 API，已从覆盖率口径剔除，不生成 XTS 用例。若一个用例涉及的所有接口均为 private/protected 成员，则该用例整体跳过；若混合 public 成员，则仅保留 public 成员对应的测试逻辑，删除对 private/protected 成员的引用。
-
----
-
-## 5. 预检结果注入并行 Agent
+## 4. 预检结果注入并行 Agent
 
 > 当使用并行 Agent 生成多个测试文件时，将排除清单注入每个 Agent 的 prompt 中，确保所有 Agent 生成的代码**第一次就符合规范**。
 
@@ -71,7 +65,7 @@ node {{skillDir}}/scripts/precheck-access-modifiers.cjs --source {{sourcePath}}
 
 ---
 
-## 6. 预检后验证
+## 5. 预检后验证
 
 | 检查项 | 通过条件 |
 |--------|----------|
