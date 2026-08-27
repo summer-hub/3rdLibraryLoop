@@ -62,6 +62,8 @@
 | `as Object` 后访问属性 | `Property 'X' does not exist on type 'Object'` | 保留原始类型不做 `as Object` 转型；仅在不需要属性访问时用 `as Object`（如验证非 null） |
 | 枚举成员直接比较 | `types 'A' and 'B' have no overlap` | `(Enum.A as number) !== (Enum.B as number)` 转型后比较 |
 | 无类型对象字面量 | `arkts-no-untyped-obj-literals` | `{}` 或 `{ key: value }` 必须对应命名 interface/class；定义 `class MockTarget { prop: string = ''; }` 代替 `let x: Object = {}` |
+| 向 `@ts-nocheck` 库 API 传 `null` 实参 | `Argument of type 'null' is not assignable to parameter of type 'string'` | 库源码的 `@ts-nocheck` **不豁免测试文件**，调用处仍受严格空值检查约束。库内部用 `if (x)` 判空时，空串 `''`/空数组 `[]` 与 null 语义等价 → 改传等价 falsy 值覆盖同一守卫路径（如 `new ID3v1Tag('')`），并在注释中说明等价性依据 |
+| 断言裸函数调用 | `Cannot find name 'assertTrue'`（批量） | hypium 断言只存在于 `expect()` 返回对象上，**不存在独立全局函数**。`assertTrue(x)`/`assertEqual(a, b)` 裸调用是编译错误，必须写 `expect(x).assertTrue()` 链式调用 |
 
 ---
 
@@ -227,6 +229,25 @@ manager.processRenderScript(mockContext, radius);
 // ❌ 错误：null as image.PixelMap（类型不兼容）
 ```
 
+### 5.5 异常类型断言（instanceof）与深层路径导入
+
+自定义异常类通常未从 `library/index.ets` 根入口导出，做 `instanceof` 类型断言前必须深层路径导入真实异常类（未导出的实现类同理）：
+
+```typescript
+// ✅ 正确：深层路径导入真实异常类后做 instanceof 断言
+import { NoSuchTagException } from '@ohos/{LibraryName}/src/main/ets/components/{lib}/NoSuchTagException';
+
+let isTarget: boolean = false;
+try {
+  someCall();
+} catch (e) {
+  isTarget = e instanceof NoSuchTagException;  // 必须真实 import，禁止用 e.message 字符串匹配替代
+}
+expect(isTarget).assertTrue();
+```
+
+> 深层导入路径以库源码实际目录为准。仅做异常"是否抛出"的布尔断言时无需导入异常类；需要断言"异常类型正确"时才用本模式。
+
 ---
 
 ## 六、hypium 测试框架使用指南
@@ -387,6 +408,8 @@ export default function testsuite() {
 - ✅ 无动态属性访问 `obj['key']`
 - ✅ 所有变量有明确类型声明
 - ✅ 无 Jest 风格断言（toBe/equal/toThrow/toBeNull/toBeTruthy 等）
+- ✅ 断言全部为 `expect(x).assertXxx()` 链式调用（无 `assertTrue(x)`/`assertEqual(a, b)` 裸函数调用）
+- ✅ 无向库 API 直传 `null` 实参（用等价 falsy 值覆盖守卫路径并注释依据）
 - ✅ 无硬编码文件路径（使用 abilityDelegatorRegistry 获取沙箱目录）
 - ✅ 无 `null as SomeType` 不兼容强转
 - ✅ 无 `unknown` 关键字使用（包括 `as unknown as` 双重转换，arkts-no-any-unknown）
@@ -428,6 +451,7 @@ export default function testsuite() {
 - ✅ catch 中禁止 `throw e`（arkts-limited-throw）
 - ✅ 正常测试不需要 try-catch 包裹
 - ✅ null 值输入测试使用 null 检查 + `throw new Error()` 或空对象 mock
+- ✅ instanceof 异常类型断言已深层路径导入真实异常类（见 5.5）
 - ✅ 文件路径通过 abilityDelegatorRegistry 获取，不硬编码
 
 ### 7.5 测试逻辑检查
@@ -483,6 +507,10 @@ export default function testsuite() {
 | 未找到模块 | 模块未安装 | 运行 `ohpm install` 安装依赖 |
 | hilog 导入错误 | 使用 `import hilog from '@ohos.hilog'` | 改为 `import { hilog } from '@kit.PerformanceAnalysisKit'` |
 | 断言方法不存在 | 使用 Jest 风格如 toBe/toThrow | 改用 hypium 断言：assertEqual/assertNull/assertTrue/assertFalse/assertLarger/assertContain |
+| `Cannot find name 'assertTrue'`（批量） | 生成了 `assertTrue(x)`/`assertEqual(a,b)` 裸函数调用而非 `expect(x).assertXxx()` 链式调用（hypium 断言只存在于 expect 对象上） | 脚本批量转换（括号配平、顶层逗号切分双参断言、单参直接包裹）；生成前 prompt 给断言正反例预防 |
+| 接口赋值类型不兼容 | `The types returned by 'getX()' are incompatible` + `is missing the following properties from type` —— 库接口方法返回类型声明与实现类不一致（Demo 不暴露，测试首次触达才显现） | 修接口声明对齐实现类实际返回类型（如 `Array<>` 改实际容器类型，属源库机械性修正 ⚠️），禁止在测试中强转绕过 |
+| `Argument of type 'null' is not assignable to parameter of type 'string'` | 测试代码向库 API 传 null 实参（库源码 `@ts-nocheck` 不豁免测试文件的严格检查） | 库内部用 `if (x)` 判空时空串/空数组与 null 语义等价，改传等价 falsy 值（如 `new ID3v1Tag('')`）覆盖同一守卫路径并注释等价依据 |
+| instanceof 异常类型断言失效/异常类未导出 | 自定义异常类未从 `library/index.ets` 导出，无法 import | 深层路径导入（如 `@ohos/mp3agic/src/main/ets/components/mp3agic/NoSuchTagException`），import 真实类后做 `e instanceof XxxException` |
 | 文件路径不可写 | 硬编码 `/data/local/tmp/` 等 | 通过 abilityDelegatorRegistry 获取沙箱 tempDir/filesDir |
 
 ---
@@ -552,6 +580,7 @@ export default function testsuite() {
 | 抛异常 | `try-catch` + 布尔标记 | `toThrow` |
 
 > ⚠️ `expect()` 对象上**不存在** Jest 风格方法。`assertNotNull` **不存在**于 hypium，用 `expect(x !== null).assertTrue()` 替代。
+> ⚠️ **断言必须链式调用**：裸调用 `assertTrue(x)`/`assertEqual(a, b)` 是编译错误（`Cannot find name`），唯一合法形式为 `expect(x).assertXxx()`。
 
 ### 10.2 类型禁止速查
 
@@ -565,6 +594,7 @@ export default function testsuite() {
 | `catch(e: Type)` 类型注解 | `arkts-no-types-in-catch` | `catch(e)` 无注解 |
 | `throw e`（e 非 Error 类型） | `arkts-limited-throw` | 仅设标记变量，不 throw |
 | `null as SomeType` 直接强转 | 类型不兼容 | 系统 API 创建 或 `null as ESObject as SomeType` |
+| 向 `@ts-nocheck` 库 API 传 `null` 实参 | `Argument of type 'null' is not assignable to parameter of type 'string'` | 库内部 `if (x)` 判空时空串/空数组与 null 等价 → 改传等价 falsy 值覆盖同一守卫路径，注释等价依据 |
 
 ### 10.3 测试函数格式速查
 

@@ -1,6 +1,6 @@
 # Demo 代码生成规范速查
 
-本文档为 `ohos-demo-code-generator` 技能的 ArkTS Demo 代码生成提供规范速查，涵盖命名规则、ArkTS 禁止项、日志规范、权限申请模式等。
+本文档为 `arkts-library-demo-code` 技能的 ArkTS Demo 代码生成提供规范速查，涵盖命名规则、ArkTS 禁止项、日志规范、权限申请模式、国际化资源规范等。
 
 ---
 
@@ -147,12 +147,14 @@ private callSyncApi(): void {
 }
 ```
 
-### 4.3 router.pushUrl 错误处理
+### 4.3 页面跳转错误处理
 
 ```typescript
-router.pushUrl({ url: 'pages/xxx/XxxPage' }).catch((err: Error) => {
-  hilog.error(DOMAIN, TAG, 'Navigation failed: %{public}s', err.message);
-});
+// 组件方法内（推荐 getUIContext().getRouter()，路由路径无子目录）
+this.getUIContext().getRouter().pushUrl({ url: 'pages/001_XxxPage' })
+  .catch((err: Error) => {
+    hilog.error(DOMAIN, TAG, 'Navigation failed: %{public}s', err.message);
+  });
 ```
 
 ---
@@ -265,7 +267,8 @@ if (this.resultText.length > 0) {
 ### 7.2 按钮禁用逻辑
 
 ```typescript
-Button('执行操作')
+// 按钮文本必须通过 $r() 引用国际化字符串，禁止硬编码
+Button($r('app.string.demo_001_action_btn'))
   .width('100%')
   .enabled(!this.isLoading)  // 加载中禁用，防止重复触发
   .onClick(() => this.doAction())
@@ -280,9 +283,46 @@ ForEach(this.items, (item: ItemType) => {
 }, (item: ItemType) => item.id)  // 使用唯一 id 作为 key
 ```
 
+### 7.4 @Builder 动态数据禁用
+
+**严禁**将 `@Builder` 方法用于展示需要动态更新的 `@State` 数据（耗时、计数器、状态标志等）：
+
+- 原因：`@Builder` 在调用时对参数进行 **by-value 快照复制**，ArkUI diff 算法在同一位置遇到同一 `@Builder` 调用时判断"结构未变"而**跳过重渲染**，即使外部 `@State` 已更新，`@Builder` 子作用域内的展示内容也**不会刷新**
+- 正确做法：将涉及动态 `@State` 的 `Text`/`Image` 等节点**直接内联在 `build()` 方法中**，让 `@State` 变量直接出现在组件树属性表达式里，ArkUI 才能建立正确依赖并触发细粒度更新
+- 合法用法：`@Builder` 仅适用于静态布局复用（不依赖 `@State` 的纯展示结构）；`DemoIndex` 中的 `@Builder DemoCard(demo: DemoEntry)` 传入静态数据对象，属于合法用法
+
 ---
 
-## 八、验证点注释规范
+## 八、国际化资源规范
+
+### 8.1 强制规则
+
+- 所有出现在 UI `Text`/`Button` 组件中的静态字符串（页面标题、按钮文本、区块标签等）**必须**通过 `$r('app.string.xxx')` 引用，禁止在 ETS 代码中硬编码任何 UI 文本
+- 主导航页面 `DemoEntry` 数组中，`title` 和 `description` 字段类型必须声明为 `Resource`，使用 `$r('app.string.demo_NNN_title')` 和 `$r('app.string.demo_NNN_index_desc')` 赋值
+- 动态文本（运行时错误信息、接口返回结果等）不属于静态字符串，不需要资源键，在代码中直接赋值
+
+### 8.2 三文件同步
+
+每个 `$r('app.string.xxx')` 键必须**同时**在三个资源文件中添加同名条目：
+
+| 文件 | 值的约定 |
+|------|---------|
+| `entry/src/main/resources/base/element/string.json` | 默认值（建议中文） |
+| `entry/src/main/resources/zh_CN/element/string.json` | 中文，值用【序号】前缀标识 |
+| `entry/src/main/resources/en_US/element/string.json` | 英文，值用 Title Case |
+
+> 遗漏 base 会报 `Warning: the string of 'xxx' does not have a base resource.`（不阻塞编译，但影响资源回退与运行时定位）。
+
+### 8.3 键名规则
+
+- 格式：`demo_{三位序号}_{语义描述}`，如 `demo_001_title`、`demo_001_check_btn`
+- 主导航专用键：每个 Demo 的 `demo_NNN_index_desc`（列表描述）、页面标题 `demo_index_title`
+- 原始 Demo 入口：`demo_original_title`、`demo_original_index_desc`
+- 键名以序号前缀隔离不同 Demo，避免冲突
+
+---
+
+## 九、验证点注释规范
 
 在代码中为 Demo 描述文档中的每条"预期结果"添加验证点注释，帮助开发者对照验证：
 

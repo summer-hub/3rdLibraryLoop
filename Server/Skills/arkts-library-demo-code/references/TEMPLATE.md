@@ -1,6 +1,6 @@
 # Demo 代码模板
 
-本文档提供 `ohos-demo-code-generator` 技能生成 Demo 代码时使用的标准模板，包含 Demo 页面模板、主导航页面模板和 module.json5 权限段模板。
+本文档提供 `arkts-library-demo-code` 技能生成 Demo 代码时使用的标准模板，包含 Demo 页面模板、主导航页面模板、原始 Demo 入口保留模板、路由配置模板和 module.json5 权限段模板。
 
 ---
 
@@ -96,9 +96,9 @@ struct {ComponentName} {
 
         Divider()
 
-        // TODO: 根据 Demo 步骤描述填写操作控件（输入框、按鈕、选择器等）
+        // TODO: 根据 Demo 步骤描述填写操作控件（输入框、按钮、选择器等）
 
-        // 执行按鈕（按鈕文本必须通过 $r() 引用）
+        // 执行按钮（按钮文本必须通过 $r() 引用）
         Button($r('app.string.demo_{seq}_{action}_btn'))
           .width('100%')
           .enabled(!this.isLoading)
@@ -287,67 +287,59 @@ struct {ComponentName} {
 
 ## 三、主导航页面模板（DemoIndex.ets）
 
+> ⚠️ `DemoEntry.title/description` 必须声明为 `Resource` 类型并由 `$r()` 赋值（禁止硬编码字符串）；路由为 `pages/{序号}_{PascalCaseName}Page`（**无子目录**）。
+
 ```typescript
 /**
  * {LIBRARY_NAME} Demo 主导航页面
  *
- * 汇总所有测试 Demo 的入口，通过 List 展示 Demo 列表并支持点击跳转。
+ * 提供所有 Demo 的入口列表，通过 router 跳转到各 Demo 页面。
  *
  * @author {AUTHOR}
  */
 
 import hilog from '@ohos.hilog';
-import router from '@ohos.router';
 
 const DOMAIN: number = 0xD001;
 const TAG: string = '{LIBRARY_TAG}_DemoIndex';
 
-/** Demo 条目数据结构（禁止使用 Object/any） */
+// Demo 条目数据结构（title/description 使用 Resource 类型，支持国际化）
 interface DemoEntry {
-  id: string;          // 三位序号字符串：'001'、'002'
-  title: string;       // Demo 中文名称
-  description: string; // 一句话功能描述
-  route: string;       // router.pushUrl 目标路径
+  id: string;          // Demo 编号，如 "001"
+  title: Resource;     // Demo 名称，通过 $r('app.string.demo_NNN_title') 引用
+  description: Resource; // Demo 简要描述，通过 $r('app.string.demo_NNN_index_desc') 引用
+  route: string;       // 路由路径（无子目录，如 'pages/001_XxxPage'）
 }
 
-/**
- * DEMO_LIST - 所有 Demo 的配置信息。
- * 每新增一个 Demo 必须在此列表中追加一条记录。
- */
+// Demo 列表配置（按序号排列；title/description 必须用 $r() 引用，禁止硬编码字符串）
 const DEMO_LIST: DemoEntry[] = [
-  // TODO: 按 Demo 描述文档中的序号顺序填写
   {
     id: '001',
-    title: '{Demo 1 中文名}',
-    description: '{Demo 1 一句话描述}',
-    route: 'pages/001_{dir_name}/{ComponentName}'
+    title: $r('app.string.demo_001_title'),
+    description: $r('app.string.demo_001_index_desc'),
+    route: 'pages/001_{PascalCaseName}Page'
   },
-  {
-    id: '002',
-    title: '{Demo 2 中文名}',
-    description: '{Demo 2 一句话描述}',
-    route: 'pages/002_{dir_name}/{ComponentName}'
-  },
-  // ... 其他 Demo
+  // ... 其他 Demo（数量必须与场景文档一致）
 ];
 
 @Entry
 @Component
 struct DemoIndex {
   aboutToAppear(): void {
-    hilog.info(DOMAIN, TAG, 'DemoIndex appeared, demo count: %{public}d', DEMO_LIST.length);
+    hilog.info(DOMAIN, TAG, 'DemoIndex appeared, total demos: %{public}d', DEMO_LIST.length);
   }
 
   build() {
     Column() {
-      // 页面标题区域
-      Text('{LIBRARY_NAME} Demo 示例')
+      // 页面标题（$r() 引用）
+      Text($r('app.string.demo_index_title'))
         .fontSize(22)
         .fontWeight(FontWeight.Bold)
         .width('100%')
         .textAlign(TextAlign.Center)
         .padding({ top: 24, bottom: 4 })
 
+      // 动态计数文本：运行时数据，无需 $r()
       Text(`共 ${DEMO_LIST.length} 个测试 Demo`)
         .fontSize(13)
         .fontColor('#888888')
@@ -355,7 +347,6 @@ struct DemoIndex {
         .textAlign(TextAlign.Center)
         .margin({ bottom: 16 })
 
-      // Demo 列表
       List({ space: 8 }) {
         ForEach(DEMO_LIST, (demo: DemoEntry) => {
           ListItem() {
@@ -372,45 +363,50 @@ struct DemoIndex {
     .backgroundColor('#F0F2F5')
   }
 
+  // @Builder 传入静态数据对象，属合法用法（不依赖 @State）
   @Builder
   DemoCard(demo: DemoEntry): void {
     Row({ space: 12 }) {
-      // 序号圆形标签
+      // 序号徽章（纯动态字符串，直接插入 demo.id 即可）
       Text(demo.id)
-        .fontSize(13)
+        .fontSize(14)
         .fontWeight(FontWeight.Bold)
-        .fontColor(Color.White)
-        .width(40)
-        .height(40)
+        .fontColor('#FFFFFF')
+        .width(44).height(44)
         .textAlign(TextAlign.Center)
-        .backgroundColor('#1976D2')
-        .borderRadius(20)
+        .backgroundColor('#3478F6')
+        .borderRadius(22)
 
-      // 标题和描述
+      // 标题 + 描述（Resource 类型，直接传入 Text，不可用模板字符串插入）
       Column({ space: 4 }) {
         Text(demo.title)
-          .fontSize(15)
+          .fontSize(14)
           .fontWeight(FontWeight.Medium)
-          .fontColor('#212121')
+          .width('100%')
         Text(demo.description)
-          .fontSize(12)
+          .fontSize(11)
           .fontColor('#888888')
+          .width('100%')
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
+
+      // 箭头
+      Text('›')
+        .fontSize(20)
+        .fontColor('#BBBBBB')
     }
     .width('100%')
-    .padding(12)
+    .padding({ left: 16, right: 16, top: 12, bottom: 12 })
     .backgroundColor(Color.White)
-    .borderRadius(10)
     .onClick(() => {
-      hilog.info(DOMAIN, TAG, 'Navigate to demo %{public}s', demo.id);
-      router.pushUrl({ url: demo.route }).catch((err: Error) => {
-        hilog.error(DOMAIN, TAG, 'Navigate to %{public}s failed: %{public}s',
-                    demo.id, err.message);
-      });
+      hilog.info(DOMAIN, TAG, 'Navigate to demo: %{public}s', demo.id);
+      this.getUIContext().getRouter().pushUrl({ url: demo.route })
+        .catch((err: Error) => {
+          hilog.error(DOMAIN, TAG, 'Navigation failed: %{public}s', err.message);
+        });
     })
   }
 }
@@ -424,16 +420,16 @@ struct DemoIndex {
 {
   "src": [
     "pages/DemoIndex",
-    "pages/001_{dir1}/{Component1}",
-    "pages/002_{dir2}/{Component2}"
+    "pages/001_{PascalCaseName1}Page",
+    "pages/002_{PascalCaseName2}Page"
   ]
 }
 ```
 
 **更新规则**：
 - 主页面 `DemoIndex` 必须列在第一位
-- 其余 Demo 页面按序号顺序排列
-- `route` 字段与 Demo 页面的 `@Entry` 组件所在路径一致（不含 `.ets` 后缀）
+- 其余 Demo 页面按序号顺序排列，路径格式 `pages/{序号}_{PascalCaseName}Page`（**不含子目录**）
+- 路径与 Demo 页面文件所在位置一致（不含 `.ets` 后缀）
 
 ---
 
@@ -473,4 +469,76 @@ struct DemoIndex {
 }
 ```
 
-> ⚠️ `reason` 字段必须引用 `$string:xxx` 资源，不得硬编码字符串。需在 `resources/base/element/string.json` 中添加对应字符串资源。
+> ⚠️ `reason` 字段必须引用 `$string:xxx` 资源，不得硬编码字符串。需在 `resources/base/element/string.json`（及 zh_CN/en_US）中添加对应字符串资源。
+
+---
+
+## 六、原始库 Demo 入口保留模板（OriginalDemoCard）
+
+若工程中已有原始的鸿蒙原生库功能演示页面（如 `pages/Tab`，通过 `pages/Index` 跳转进入），**必须**在 `DemoIndex.ets` 中以视觉区分的方式保留其跳转入口，确保原有 Demo 不被覆盖。
+
+1. 在 `DemoIndex.ets` 顶层常量区声明原始 Demo 路由：
+
+```typescript
+// 原始库 Demo 路由（保留原有演示，不纳入序号列表）
+const ORIGINAL_DEMO_ROUTE: string = 'pages/Tab';
+```
+
+2. 在 `struct DemoIndex` 中添加 `@Builder OriginalDemoCard()` 方法（静态布局，无 `@State`）：
+
+```typescript
+@Builder
+OriginalDemoCard(): void {
+  Row({ space: 12 }) {
+    Text('↗')
+      .fontSize(14).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
+      .width(44).height(44).textAlign(TextAlign.Center)
+      .backgroundColor('#FF8C00')  // 橙色，与蓝色序号徽章区分
+      .borderRadius(22)
+
+    Column({ space: 4 }) {
+      Text($r('app.string.demo_original_title'))
+        .fontSize(14).fontWeight(FontWeight.Medium).width('100%')
+      Text($r('app.string.demo_original_index_desc'))
+        .fontSize(11).fontColor('#888888').width('100%')
+        .maxLines(2).textOverflow({ overflow: TextOverflow.Ellipsis })
+    }
+    .layoutWeight(1).alignItems(HorizontalAlign.Start)
+
+    Text('›').fontSize(24).fontColor('#BBBBBB')
+  }
+  .width('100%')
+  .padding({ left: 16, right: 16, top: 12, bottom: 12 })
+  .backgroundColor('#FFF8EE')
+  .borderRadius(8)
+  .border({ width: 1, color: '#FFD580', style: BorderStyle.Solid })
+  .onClick(() => {
+    this.getUIContext().getRouter().pushUrl({ url: ORIGINAL_DEMO_ROUTE })
+      .catch((err: Error) => {
+        hilog.error(DOMAIN, TAG, 'Original demo navigation failed: %{public}s', err.message);
+      });
+  })
+}
+```
+
+3. 在 `build()` 的 Divider 下方、序号 Demo List 上方插入原始 Demo 卡片（用 Column 包裹确保水平边距一致）：
+
+```typescript
+Column() {
+  this.OriginalDemoCard()
+}
+.width('100%')
+.padding({ left: 16, right: 16 })
+```
+
+4. 在 **base / zh_CN / en_US 三个** `string.json` 中添加对应字符串键：
+
+```json
+// base 与 zh_CN
+{ "name": "demo_original_title", "value": "原始鸿蒙原生库示例" },
+{ "name": "demo_original_index_desc", "value": "原有鸿蒙原生库功能演示页面（保留入口）" }
+
+// en_US
+{ "name": "demo_original_title", "value": "Original Library Demo" },
+{ "name": "demo_original_index_desc", "value": "Original library feature showcase page (preserved entry)" }
+```

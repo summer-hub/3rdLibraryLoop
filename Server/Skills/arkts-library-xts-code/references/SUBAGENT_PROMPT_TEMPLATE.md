@@ -90,6 +90,18 @@ Orchestrator 将本模板的 `{PLACEHOLDER}` 填充后作为 `general` 类型 su
 
 > ⚠️ `expect()` 对象上**不存在** Jest 风格方法。`assertNotNull` **不存在**于 hypium。
 
+> ⚠️ **断言必须链式调用，禁止裸函数调用**。hypium 断言方法只存在于 `expect()` 返回的对象上，**不存在独立全局函数**。裸调用 `assertTrue(x)` / `assertEqual(a, b)` 会产生批量编译错误（`Cannot find name 'assertTrue'`）：
+>
+> ```typescript
+> // ✅ 正确（唯一合法形式）
+> expect(result).assertEqual(5);
+> expect(caught).assertTrue();
+>
+> // ❌ 错误（编译失败：Cannot find name 'assertTrue'）
+> // assertEqual(result, 5);
+> // assertTrue(caught);
+> ```
+
 #### 3.2 类型禁止
 
 | 禁止 | 原因 | 替代方案 |
@@ -147,6 +159,7 @@ it('function_snake_case_001', 0, () => {
 - 返回类型含 `| undefined` 或 `| null` 时：访问属性前必须 `if (result)` 判空
 - 枚举成员直接 `===` 比较会报 `types have no overlap`：用 `(Enum.A as number) !== (Enum.B as number)` 转型后比较
 - `null as SomeType` 强转会报类型不兼容：改用系统 API 创建对象，或 `null as ESObject as SomeType`
+- **禁止向库 API 传 `null` 实参**：即使库源码有 `@ts-nocheck`，测试文件调用处仍受严格空值检查约束（`Argument of type 'null' is not assignable to parameter of type 'string'`）。库内部用 `if (x)` 判空时，空串 `''` / 空数组 `[]` 与 null 语义等价 → 改传等价 falsy 值覆盖同一守卫路径，并在注释中说明等价性依据
 
 ---
 
@@ -213,6 +226,10 @@ it('function_snake_case_001', 0, () => {
 
 - [ ] 是否有 `assertNotNull` / `toBe` / `toEqual` / `toThrow` / `toBeNull` / `toBeTruthy` 等 Jest 风格方法？
   → 替换为 hypium API（见 3.1 表格）
+- [ ] 断言是否全部为 `expect(x).assertXxx()` 链式调用？
+  → 裸调用 `assertTrue(x)` / `assertEqual(a, b)` 是编译错误（Cannot find name），必须改为链式
+- [ ] 是否向库 API 传了 `null` 实参？
+  → 库内部 `if (x)` 判空时空串/空数组与 null 等价，改传等价 falsy 值并注释等价依据
 - [ ] 是否有 `any` / `Object` / `unknown` 类型声明？
   → 替换为具体类型
 - [ ] 是否有 `{ ... } as Type` 无类型对象字面量？
@@ -239,6 +256,8 @@ it('function_snake_case_001', 0, () => {
 本批用例数：{N}
 自检结果：
   [✓/✗] 无 Jest 风格断言方法
+  [✓/✗] 断言全部链式调用（无裸 assertTrue/assertEqual）
+  [✓/✗] 无 null 实参直传库 API
   [✓/✗] 无 any/Object/unknown 类型
   [✓/✗] 无无类型对象字面量
   [✓/✗] 无 catch throw / catch 类型注解

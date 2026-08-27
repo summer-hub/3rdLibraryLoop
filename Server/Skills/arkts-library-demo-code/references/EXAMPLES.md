@@ -1,6 +1,6 @@
 # 示例：ohos-blur-kit Demo 代码生成
 
-本文档展示使用 `ohos-demo-code-generator` 技能，基于 `ohos-blur-kit` 库的测试 Demo 描述文档，生成实际 ArkTS 页面代码的完整示例。
+本文档展示使用 `arkts-library-demo-code` 技能，基于 `ohos-blur-kit` 库的测试 Demo 描述文档，生成实际 ArkTS 页面代码的完整示例。
 
 ---
 
@@ -238,7 +238,6 @@ struct CheckSupportAndConfigPage {
  */
 
 import hilog from '@ohos.hilog';
-import router from '@ohos.router';
 
 const DOMAIN: number = 0xD001;
 const TAG: string = 'BlurKit_DemoIndex';
@@ -352,7 +351,7 @@ struct DemoIndex {
     .borderRadius(10)
     .onClick(() => {
       hilog.info(DOMAIN, TAG, 'Navigate to demo %{public}s: %{public}s', demo.id, demo.route);
-      router.pushUrl({ url: demo.route }).catch((err: Error) => {
+      this.getUIContext().getRouter().pushUrl({ url: demo.route }).catch((err: Error) => {
         hilog.error(DOMAIN, TAG, 'Navigation to %{public}s failed: %{public}s',
                     demo.id, err.message);
       });
@@ -398,4 +397,4 @@ struct DemoIndex {
 { "name": "demo_004_index_desc", "value": "blur() 对 PixelMap 异步模糊处理" }
 ```
 
-> 对应的 `en_US/element/string.json` 中同理追加英文翻译，键名完全一致，值改为英文 Title Case。
+> 同名键须在 **三个** 资源文件中同步添加：`base/element/string.json`（默认值，建议与 zh_CN 相同）、`en_US/element/string.json`（英文 Title Case，键名完全一致）。

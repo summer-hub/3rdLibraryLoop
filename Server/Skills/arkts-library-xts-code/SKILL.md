@@ -2,9 +2,9 @@
 name: arkts-library-xts-code
 description: 基于 XTS 用例描述文档（由 ArkTsLibraryXTSDocSkill 生成）自动生成可在 Harmony ohosTest 系统上编译运行的 XTS 测试用例代码。使用 hypium 测试框架，遵循 ArkTS 编码规范。当需要将 XTS 用例描述转化为可执行自动化测试代码时使用。关键词：ArkTS、XTS、hypium、ohosTest、OpenHarmony。
 license: Apache-2.0
-compatibility: 需要 devecocli CLI（编译/静态检查/文档检索）、ohpm（依赖管理）、PowerShell（build.ps1）、hvigor 构建环境；MCP Gateway 运行中（script_deveco_docs 工具）
+compatibility: 需要 devecocli CLI（编译/静态检查/文档检索）、ohpm（依赖管理）、hvigor 构建环境；MCP Gateway 运行中（script_deveco_docs 工具）。编译验证平台适配：Windows 用 build.ps1（PowerShell），macOS/Linux 直接 Bash 调用 devecocli build（见 Phase 7.3）
 metadata:
-  version: "2.0.0"
+  version: "2.1.0"
   category: ohos-testing
   language: ArkTS/ETS
 ---
@@ -222,6 +222,11 @@ Phase 8: 输出与总结（报告含分批方式 / Linter / 编译结论）
 1. 等待所有 subagent 返回
 2. 按批次顺序将各 subagent 输出的 `it()` 函数体合并到框架文件的 `INSERTION_POINT` 位置
 3. 合并后保存为最终测试文件 `{LibraryName}XtsTest.test.ets`
+4. 🔴 **合并后置校验（强制，校验不过禁止进入 Phase 6/7）**：
+   - 逐文件统计 `it(` 出现次数，与批次规划的用例总数逐批对照（防止空批次先消费 INSERTION_POINT 标记、后续合并静默不生效导致用例丢失）
+   - 用例名唯一性检查（防止插入脚本重跑导致用例重复）
+   - 文件结尾完整性检查：必须以 `});` + `}` 收尾（describe 块完整闭合，防止合并/手工去重误删结尾括号）
+   - 任一项不过 → 修复后重新校验，全部通过才继续（实测该校验可省去 3 轮编译-修复循环）
 
 #### 4.3 失败回退
 
@@ -372,6 +377,8 @@ Phase 8: 输出与总结（报告含分批方式 / Linter / 编译结论）
 
 **执行方式**：逐条遍历所有 `expect()` 调用，对每条回答两个反问。无法确认的回答"不确定"并标记需要进一步验证。
 
+> 标记"不确定"的期望值：库满足 5.3.1 探针触发条件时必须经运行时探针实测确认（或核对 5.3.1 已产出的实测清单）；不满足时在报告中标注"期望值未实测，存在运行时失败风险"。
+
 > ArkTS 类型安全规范、文件路径规范等完整编码标准参见 [CODE_STANDARDS.md](references/CODE_STANDARDS.md) 二/五/六。
 
 ---
@@ -418,7 +425,13 @@ node {{skillDir}}/scripts/code-linter.cjs --source {{sourcePath}} --target entry
 
 ### 7.3 编译验证（最多 5 轮修复）
 
-> 🔴 **必须通过 build.ps1 执行**（直接调用 devecocli build 会阻塞 session）。
+> 🔴 **必须通过 build.ps1 执行**（Windows 下直接调用 devecocli build 会阻塞 session）。
+>
+> **macOS/Linux 平台适配**：build.ps1 为 Windows PowerShell 专用（cmd.exe/.NET Process/hvigor daemon 清理）。macOS/Linux 上直接经 Bash 调用 `devecocli build` 即可（hvigor daemon 后台运行不占用 shell 句柄，无 session 阻塞问题），以 Bash 工具的 timeout 参数做等效保护，编译结论与 Windows 同等有效：
+> ```bash
+> cd {{sourcePath}} && devecocli build clean
+> cd {{sourcePath}} && devecocli build --modules entry@ohosTest
+> ```
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -Cmd "cd /d {{sourcePath}} && devecocli build clean"
@@ -492,12 +505,12 @@ powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -JavaH
 | 文档 | 内容说明 |
 |------|---------|
 | [CODE_STANDARDS.md](references/CODE_STANDARDS.md) | 编码规范完整参考：文件命名、ArkTS 禁止项、日志/注释/错误处理规范、hypium 框架使用（含断言 API 速查）、编译错误修复、代码质量检查清单、§10 Subagent 注入用规则速查 |
-| [XTS_TEMPLATE.md](references/XTS_TEMPLATE.md) | 各类型测试函数模板：测试文件框架、单接口/多接口正向、反向、空值、异常/边界值、大数据量、异步、类型判断、Mock、降级测试、interface 实例化、单例状态隔离、断言 API 速查表 |
-| [SUBAGENT_PROMPT_TEMPLATE.md](references/SUBAGENT_PROMPT_TEMPLATE.md) | Subagent prompt 通用模板：系统 API 预检步骤、ArkTS 规则清单、access modifier 排除清单、输出要求、7 项自检清单。Phase 4 分批模式下由 orchestrator 填充后发给 subagent |
+| [XTS_TEMPLATE.md](references/XTS_TEMPLATE.md) | 各类型测试函数模板：测试文件框架、单接口/多接口正向、反向、空值、异常/边界值、大数据量、异步、类型判断、Mock、降级测试、interface 实例化、单例状态隔离、测试夹具 rawfile 注入交付、断言 API 速查表 |
+| [SUBAGENT_PROMPT_TEMPLATE.md](references/SUBAGENT_PROMPT_TEMPLATE.md) | Subagent prompt 通用模板：系统 API 预检步骤、ArkTS 规则清单（含断言语法正反例）、access modifier 排除清单、输出要求、7 项自检清单。Phase 4 分批模式下由 orchestrator 填充后发给 subagent |
 | [EXAMPLES.md](references/EXAMPLES.md) | 基于 lodash 的完整示例：输入文档片段、生成的完整测试代码、编译运行验证、覆盖率统计 |
 | [SYSTEM_API_LOOKUP.md](references/SYSTEM_API_LOOKUP.md) | 系统 API 检索工具指南：`script_deveco_docs` 用法、常用系统 API 速查、降噪策略、检索边界 |
 | [ACCESS_MODIFIER_PRECHECK.md](references/ACCESS_MODIFIER_PRECHECK.md) | 访问修饰符预检详细指南：脚本用法、排除清单格式、跳过规则、并行 Agent 注入模板 |
-| [BUILD_VERIFICATION.md](references/BUILD_VERIFICATION.md) | 编译与运行验证详细指南：工程迁移、静态检查、5 轮修复策略、ohpm 线上版本替换、降级流程、常见问题速查 |
+| [BUILD_VERIFICATION.md](references/BUILD_VERIFICATION.md) | 编译与运行验证详细指南：工程迁移、静态检查、5 轮修复策略、编译错误速查（含接口/实现类型不匹配、裸断言批量处理）、ohpm 线上版本替换、降级流程、常见问题速查 |
 
 ### 资源文件
 

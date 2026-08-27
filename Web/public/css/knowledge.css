@@ -101,7 +101,10 @@
 }
 
 /* ─── 知识详情卡 ────────────────────────────────────────────────────── */
+/* flex-shrink: 0 —— .kn-main 是纵向 flex 容器，若允许收缩，内容超出时卡片会被
+   压扁（配合 overflow: hidden 直接裁剪内容），且容器 scrollHeight 不增长导致无法滚动 */
 .kn-detail-card {
+    flex-shrink: 0;
     background: var(--card);
     border: 1px solid var(--border-light);
     border-radius: 10px;
@@ -166,6 +169,7 @@
 
 /* ─── 导入面板 ──────────────────────────────────────────────────────── */
 .kn-import-panel {
+    flex-shrink: 0;
     background: var(--card);
     border: 1px solid var(--border-light);
     border-radius: 10px;
@@ -222,6 +226,7 @@
 
 /* ─── 异步导入状态 ──────────────────────────────────────────────────── */
 .kn-import-status {
+    flex-shrink: 0;
     background: var(--card);
     border: 1px solid var(--border-light);
     border-radius: 10px;

@@ -81,7 +81,13 @@ node {{skillDir}}/scripts/code-linter.cjs --source {{sourcePath}} --target entry
 
 ## 3. 编译验证（5 轮修复策略）
 
-> 🔴 **必须通过 build.ps1 执行**（直接调用 devecocli build 会阻塞 session）。`-Cmd` 必须含 `cd /d {{sourcePath}} &&` 前缀。
+> 🔴 **必须通过 build.ps1 执行**（Windows 下直接调用 devecocli build 会阻塞 session）。`-Cmd` 必须含 `cd /d {{sourcePath}} &&` 前缀。
+>
+> **macOS/Linux 平台适配**：build.ps1 为 Windows PowerShell 专用（cmd.exe/.NET Process/hvigor daemon 清理逻辑）。macOS/Linux 上直接经 Bash 调用 `devecocli build` 即可——hvigor daemon 后台运行不占用 shell 句柄，无 session 阻塞问题——以 Bash 工具的 timeout 参数做等效保护。实测 clean 全量重建约 6 秒，无 daemon 阻塞，编译结论与 Windows 同等有效：
+> ```bash
+> cd {{sourcePath}} && devecocli build clean
+> cd {{sourcePath}} && devecocli build --modules entry@ohosTest
+> ```
 
 ```powershell
 # 首次编译
@@ -108,6 +114,8 @@ powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -JavaH
 | P6 | 其他类型不匹配 | 各种 | 逐个分析修复 | ~19% |
 
 **P0-P3 用 sed 批量处理（1 轮），P4-P6 逐个处理（1 轮）——总计 2 轮而非 5 轮。**
+
+> 💡 **根因聚类（提效关键）**：首轮大量报错时，先按根因聚类统计——同一根因的 N 个错误合并为**一条**修复动作，单类错误一次修复即可全消（实测 mp3agic：86 错误 = 4 类根因，1 轮清零 = 75 × 裸断言脚本批量转换 + 4 × 重复 import 去重 + 1 × null 实参等价替换 + 6 × 库接口签名修复）。同类错误重复出现在多个文件时，优先编写一次性批量转换脚本（括号配平 + 顶层逗号切分），而非逐文件手改。
 
 #### 增量编译（提效）
 
@@ -199,7 +207,10 @@ powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -JavaH
 | 对象字面量无类型 | `arkts-no-untyped-obj-literals` | 定义命名 interface/class，不能用 `{}` 赋值给 Object |
 | ESObject 类型 | `arkts-no-esobj` | 定义命名 interface |
 | 不安全转型 | `arkts-no-unsafe-cast` | 正确定义类型，避免双重 `as unknown as` |
-| 导入路径错误 | — | 检查库导出入口的实际路径 |
+| **接口/实现返回类型不匹配** | `Argument of type 'X' is not assignable to parameter of type 'I'. The types returned by 'getY()' are incompatible` + `is missing the following properties from type` | 库接口方法返回类型声明与实现类不一致（如声明 `Array<>` 实现返回 `JList<>`；Demo 不暴露，测试首次触达"实现类实例 → 接口参数/比较"赋值路径才显现）。**修接口声明对齐实现**（属源库机械性修正 ⚠️），禁止在测试中强转绕过——1 处修复可消全部同类错误 |
+| **裸断言/未导入符号批量报错** | `Cannot find name 'assertTrue'`（批量出现，数十处） | subagent 生成了 `assertTrue(x)` / `assertEqual(a, b)` 裸函数调用而非 `expect(x).assertXxx()` 链式调用（hypium 断言只存在于 expect 对象上）。修复：编写括号配平转换器脚本一次性批量转换（解析顶层逗号切分双参断言、单参断言直接包裹）；预防：dispatch 前 grep 预检批次输出文件中的 `assertTrue\(|assertEqual\(` 裸调用 |
+| null 实参类型错误 | `Argument of type 'null' is not assignable to parameter of type 'string'` | 测试向库 API 传 null 实参（库源码 `@ts-nocheck` 不豁免测试文件）。库内部用 `if (x)` 判空时空串/空数组与 null 语义等价 → 改传等价 falsy 值（如 `new ID3v1Tag('')`）覆盖同一守卫路径，注释等价依据 |
+| 导入路径错误 | — | 检查库导出入口的实际路径；未从根入口导出的类型（实现类/自定义异常）需深层路径导入（如 `@ohos/{lib}/src/main/ets/components/{lib}/{Class}`），异常类必须真实 import 后才能 `e instanceof XxxException` |
 | 缺少权限 | — | 在 ohosTest 的 module.json5 中声明 |
 
 > 完整的编译错误列表及修复方法参见 [CODE_STANDARDS.md 二和八](CODE_STANDARDS.md)。
