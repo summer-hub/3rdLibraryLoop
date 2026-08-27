@@ -1,19 +1,13 @@
 import OpenCodeCLI from './opencode/index.js';
-import CopilotCLI from './copilot/index.js';
 import { StatsService } from '../library/StatsService.js';
 
 /**
  * 通用 CLI 控制类
  *
- * 统一封装 opencode-cli 和 copilot-cli，对外暴露一致的 Session 管理接口。
- * 底层实现通过 type 参数动态选择对应的适配器。
+ * 封装 opencode-cli，对外暴露统一的 Session 管理接口。
  *
  * @example
- * // 使用 opencode
  * const cli = new CLIController('opencode', { host: 'localhost', port: '4096' });
- *
- * // 使用 copilot
- * const cli = new CLIController('copilot', { mode: 'suggest' });
  *
  * // 通用接口
  * await cli.checkHealth();
@@ -27,18 +21,13 @@ import { StatsService } from '../library/StatsService.js';
  */
 class CLIController {
     /**
-     * @param {'opencode'|'copilot'} type - CLI 类型
+     * @param {'opencode'} type - CLI 类型
      * @param {object} [options={}]       - 传递给对应适配器的配置项
      *
      * opencode 选项：
      *   options.host    {string} - 服务主机（默认 localhost）
      *   options.port    {string} - 服务端口（默认 4096）
      *   options.baseUrl {string} - 完整 URL，优先级高于 host/port
-     *
-     * copilot 选项：
-     *   options.ghCommand  {string} - gh CLI 路径（默认 'gh'）
-     *   options.mode       {'suggest'|'explain'} - 对话模式（默认 'suggest'）
-     *   options.shellType  {string} - suggest 的 shell 类型（默认 'shell'）
      *
      * 公共选项：
      *   options.archive    - MessageArchive 实例（消息存档与卡死检测），不传则适配器内部自建
@@ -50,12 +39,9 @@ class CLIController {
             case 'opencode':
                 this.adapter = new OpenCodeCLI(options);
                 break;
-            case 'copilot':
-                this.adapter = new CopilotCLI(options);
-                break;
             default:
                 throw new Error(
-                    `不支持的 CLI 类型: "${type}"，可选值为 'opencode' | 'copilot'`
+                    `不支持的 CLI 类型: "${type}"，可选值为 'opencode'`
                 );
         }
     }
@@ -137,7 +123,7 @@ class CLIController {
      * 利用 opencode SDK 的 noReply: true 能力，将文本注入对话历史
      * 但不触发 AI 生成回复。适用于对话过程中动态补充上下文、规则、指令。
      *
-     * ⚠️ 仅 opencode 适配器支持此能力；copilot 适配器会抛出 not-supported 错误。
+     * 向 Session 注入上下文（不触发 AI 响应，基于 opencode noReply 模式）。
      *
      * @param {string} sessionId
      * @param {string} message  - 要注入的提示词/上下文
@@ -238,7 +224,7 @@ class CLIController {
 
     /**
      * 返回当前使用的 CLI 类型
-     * @returns {'opencode'|'copilot'}
+     * @returns {'opencode'}
      */
     getType() {
         return this.type;
@@ -246,12 +232,12 @@ class CLIController {
 
     /**
      * 返回底层适配器实例（供高级用途）
-     * @returns {OpenCodeCLI|CopilotCLI}
+     * @returns {OpenCodeCLI}
      */
     getAdapter() {
         return this.adapter;
     }
 }
 
-export { CLIController, OpenCodeCLI, CopilotCLI };
+export { CLIController, OpenCodeCLI };
 export default CLIController;

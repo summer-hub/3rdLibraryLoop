@@ -29,7 +29,6 @@ const BUILTIN = new Set([...builtinModules, ...builtinModules.map(m => `node:${m
 
 // 已知的裸模块依赖（vendored 代码 import 的第三方包）
 const BARE_MODULES = [
-    '@github/copilot-sdk',
     '@opencode-ai/sdk',
     'better-sqlite3',
     'dotenv',

@@ -123,7 +123,7 @@ await storage.close();
 
 ### MessageArchive.js — 兼容门面
 
-⚠️ 现为 `SessionStore` 的薄代理，保留原构造签名与方法，使现有 CLI 适配器（OpenCodeCLI / CopilotCLI）的 `new MessageArchive()` 与 `this.archive.*` 调用无需改动即可工作。
+⚠️ 现为 `SessionStore` 的薄代理，保留原构造签名与方法，使现有 CLI 适配器（OpenCodeCLI）的 `new MessageArchive()` 与 `this.archive.*` 调用无需改动即可工作。
 
 实际逻辑已迁入 `stores/SessionStore.js`，存储细节下沉到 `adapters/` 层。**新代码请直接使用 `StorageManager` + `SessionStore`**（见 `index.js` 导出）。
 

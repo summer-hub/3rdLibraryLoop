@@ -34,7 +34,7 @@
 
 - **🧠 Brain（任务拆解）**：接收自然语言任务描述，通过 LLM 拆解为含依赖关系的步骤图
 - **🔀 Orchestrator（编排调度）**：按依赖关系并行/串行执行步骤，支持重试、循环检测、死锁检测
-- **🏃 FlexRunner（步骤执行）**：语义匹配最佳 SKILL，通过 CLI（opencode/copilot）执行
+- **🏃 FlexRunner（步骤执行）**：语义匹配最佳 SKILL，通过 CLI（opencode）执行
 - **✅ TestCheck（准出审核）**：对照验收标准逐条评估，决定是否通过或触发重规划
 - **📚 KnowledgeManager（知识沉淀）**：将有效经验持久化，实现跨任务/跨轮次复用
 - **🎯 SkillSelector（SKILL 选择器）**：ReAct Agent，BM25 模糊匹配 + LLM 排序，自动选出最佳 SKILL
@@ -56,7 +56,7 @@
 │   ├── Knowledge/                  # 知识沉淀系统
 │   ├── Agent/
 │   │   └── SkillSelector/          # SKILL 选择器 ReAct Agent
-│   ├── CLI/                        # CLI 适配器（opencode / copilot）
+│   ├── CLI/                        # CLI 适配器（opencode）
 │   ├── DbUse/                      # 统一持久化存储（Json/Jsonl/Sqlite/File）
 │   ├── Routes/                     # HTTP 路由 + 控制器 + SSE 推送
 │   ├── Skills/                     # SKILL 技能库
@@ -93,7 +93,6 @@ flowchart LR
     SkillSelector -->|"匹配最佳SKILL"| Skills["Skills 技能库"]
     FlexRunner --> CLI["CLI 适配器"]
     CLI --> opencode["opencode"]
-    CLI --> copilot["copilot"]
     Orchestrator -->|"全部完成"| TestCheck
     TestCheck -->|"通过"| Done["✅ 循环结束"]
     TestCheck -->|"未通过"| Brain
@@ -108,7 +107,7 @@ flowchart LR
 |------|------|------|
 | **运行时** | Node.js ≥ 22 | ESM 模块，内置 `node:sqlite` |
 | **LLM** | 百炼 / DashScope（GLM-5.1） | OpenAI 兼容端点，ReAct 推理 |
-| **CLI 引擎** | opencode / copilot | 双适配器统一封装 |
+| **CLI 引擎** | opencode | 统一适配器封装 |
 | **存储** | JSON / JSONL / SQLite / File | 四层适配器架构，统一管理 |
 | **实时通信** | SSE（Server-Sent Events） | 按任务频道分组推送 |
 | **前端** | 原生 HTML/CSS/JS | 无框架依赖，静态托管 |

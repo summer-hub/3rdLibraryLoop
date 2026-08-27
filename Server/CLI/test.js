@@ -1,4 +1,4 @@
-import CLIController, { OpenCodeCLI, CopilotCLI } from './cli.js';
+import CLIController, { OpenCodeCLI } from './cli.js';
 
 /**
  * CLIController 接口调用测试
@@ -10,8 +10,6 @@ import CLIController, { OpenCodeCLI, CopilotCLI } from './cli.js';
  *   checkSessionStatus → getSessionMessages → getSession →
  *   getArchivedMessages → getArchiveMeta → listArchivedSessions →
  *   abortSession → deleteSession → getType / getAdapter
- *
- * copilot 适配器因需 GitHub 凭据，仅做 checkHealth 健康探测。
  */
 
 const SEP = '═'.repeat(72);
@@ -234,20 +232,8 @@ async function main() {
     // const stillExists = sessionsAfter.some(s => s.id === sessionId);
     // console.log(`\n  ${stillExists ? '⚠️ Session 仍存在' : '✅ Session 已成功删除'}`);
 
-    // ─── Copilot 适配器健康探测 ────────────────────────────────────────────
-    sub('16. Copilot 适配器 checkHealth() 探测');
-
-    try {
-        const copilotCli = new CLIController('copilot');
-        console.log(`  type    = ${copilotCli.getType()}`);
-        console.log(`  adapter = ${copilotCli.getAdapter().constructor.name}`);
-        const copilotHealth = await copilotCli.checkHealth();
-    } catch (err) {
-        printError('Copilot 适配器不可用（需 GitHub 凭据，属预期情况）', err);
-    }
-
-    // ─── 不支持的类型 ─────────────────────────────────────────────────────
-    sub('17. 不支持的 CLI 类型');
+    // ─── 不支持的类型 ───────────────────────────────────────────────────────
+    sub('14. 不支持的 CLI 类型');
 
     try {
         new CLIController('unknown-type');

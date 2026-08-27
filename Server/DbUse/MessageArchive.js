@@ -5,7 +5,7 @@ import SessionStore from './stores/SessionStore.js';
  * MessageArchive —— Session 对话消息存档服务（兼容门面）
  *
  * ⚠️ 本类现为 SessionStore 的薄代理，保留原构造签名与方法，使现有 CLI 适配器
- *    （OpenCodeCLI / CopilotCLI）的 `new MessageArchive()` 与 `this.archive.*`
+ *    （OpenCodeCLI）的 `new MessageArchive()` 与 `this.archive.*`
  *    调用无需任何改动即可工作。
  *
  * 实际逻辑已迁入 stores/SessionStore.js，存储细节下沉到 adapters/ 层。
