@@ -185,9 +185,28 @@ function extractDocFromLines(lines, idx, maxLookback = 8) {
 // ── 入口文件定位 ────────────────────────────────────────────
 
 /**
+ * 大小写校准：macOS/Windows 文件系统大小写不敏感，fs.existsSync('Index.ets')
+ * 对磁盘上实际名为 index.ets 的文件同样返回 true，导致返回的路径大小写可能与
+ * 磁盘真实大小写不一致；后续以该路径为 key 的精确匹配（Map/对象查找、TS 虚拟
+ * 路径解析）会静默失败。用 readdirSync 返回的真实文件名回写。
+ */
+function toRealCase(filePath) {
+  try {
+    const dir = path.dirname(filePath);
+    const base = path.basename(filePath);
+    const entries = fs.readdirSync(dir);
+    if (entries.includes(base)) return filePath;
+    const real = entries.find((e) => e.toLowerCase() === base.toLowerCase());
+    if (real) return path.join(dir, real);
+  } catch (e) { /* ignore */ }
+  return filePath;
+}
+
+/**
  * 定位入口 Index.ets（多级自适应搜索）
  * 优先级: library/Index.ets > library/src/main/ets/Index.ets > {repoDir}/Index.ets
  * Fallback: 深度递归搜索模块根目录（≤4 层）
+ * 注意：返回路径统一经 toRealCase 校准为磁盘真实大小写（Index.ets vs index.ets）
  */
 function locateEntryFile(repoDir) {
   const candidates = [
@@ -196,7 +215,7 @@ function locateEntryFile(repoDir) {
     path.join(repoDir, 'Index.ets'),
   ];
   let entryFile = candidates.find((f) => fs.existsSync(f));
-  if (entryFile) return entryFile;
+  if (entryFile) return toRealCase(entryFile);
 
   // 深度递归搜索
   const deep = [];
@@ -211,7 +230,7 @@ function locateEntryFile(repoDir) {
       if (stat.isDirectory()) {
         walkIndex(full, depth + 1);
         const idx = fs.existsSync(path.join(full, 'Index.ets'));
-        if (idx) deep.push(path.join(full, 'Index.ets'));
+        if (idx) deep.push(toRealCase(path.join(full, 'Index.ets')));
       }
     }
   };
@@ -220,7 +239,7 @@ function locateEntryFile(repoDir) {
     deep.sort((a, b) => a.length - b.length);
     entryFile = deep.find((p) => fs.existsSync(path.join(path.dirname(p), 'oh-package.json5'))) || deep[0];
   }
-  return entryFile || null;
+  return entryFile ? toRealCase(entryFile) : null;
 }
 
 // ── 库名提取 ──────────────────────────────────────────────

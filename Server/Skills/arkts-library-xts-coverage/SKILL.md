@@ -4,7 +4,7 @@ description: 分析鸿蒙ArkTs原生库现有 XTS 测试用例对接口的覆盖
 license: Apache-2.0
 compatibility: 需要Node.js运行环境
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   category: ohos-testing
   language: ArkTS/ETS
 ---
@@ -52,7 +52,7 @@ node "{{workspaceRoot}}/MCP/scripts/analyze-xts-coverage.cjs" --spec "{{spec}}" 
 
 1. 从 `library/` 源码提取接口规格（或读取 `--spec` 指定的 JSON）
 2. 递归扫描 `entry/src/ohosTest/` 下所有 `.ets` 和 `.ts` 测试文件
-3. 提取 `import { ... } from 'lib'` 语句（单行/多行/别名/混合导入）
+3. 提取 `import { ... } from 'lib'` 语句（单行/多行/别名/混合导入，兼容深层路径导入 `@pkg/name/src/main/ets/.../ClassName`）
 4. AST/正则双层匹配：静态方法、实例方法（追踪变量声明）、链式调用、对象字面量属性
 5. 直接渲染输出 Markdown 覆盖率报告
 
@@ -91,3 +91,7 @@ node "{{workspaceRoot}}/MCP/scripts/analyze-xts-coverage.cjs" --spec "{{spec}}" 
 3. **构造函数和枚举**：已在接口提取阶段排除
 4. **动态调用限制**：`obj[methodName]()` 无法识别
 5. **模式选择**：`auto` 优先 AST 匹配（需 TypeScript 模块），失败时降级正则；`ast` 强制 AST；`regex` 强制正则
+6. **深层路径导入**：测试文件可能通过深层路径导入类（`import { X } from '@ohos/pkg/src/main/ets/.../X'`）而非包名导入，AST/正则匹配引擎与 AST 模块解析均已兼容
+7. **入口文件大小写**：macOS/Windows 大小写不敏感文件系统上库入口文件可能为 `Index.ets` 或 `index.ets`，脚本已做大小写归一；否则模块解析会静默失败，导致类型推断全面失效、实例方法类覆盖率全部为 0
+8. **结果合理性检查**：覆盖率 <5% 且测试代码总量 >500 行时脚本输出告警；此时必须先用 grep 盘点实例方法调用（`变量名.方法名(`）与静态方法调用（`类名.方法名(`）并按类对账，确认无匹配缺陷后再写入正式报告
+9. **`--lib` 慎用**：传入短名（如 `mp3agic`）会覆盖 spec/oh-package.json5 推断的真实包名（`@ohos/mp3agic`），导致 import 匹配条件全部失效；无特殊需要不要覆盖库名

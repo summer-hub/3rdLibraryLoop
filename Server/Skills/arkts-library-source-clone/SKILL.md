@@ -4,7 +4,7 @@ description: 克隆鸿蒙 ArkTS 三方库 Git 仓库源码到工作目录的固�
 license: Apache-2.0
 compatibility: 需要 git 命令行工具和网络访问（Gitee/GitCode/GitHub）。
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   category: harmonyos-development
   language: ArkTS/ETS
   useWhen: ArkTS 仓库检视流程第一步，克隆仓库源码到 {outputDir}/source/ 固定路径
@@ -55,7 +55,7 @@ metadata:
 
 ### 步骤 2：克隆源码到固定路径
 
-若 `sourceDir`（`outputDir/source`）已存在且含有效仓库源码（存在 `.git` 目录或 `oh-package.json5` / `Index.ets`），直接复用，跳过克隆。
+若 `sourceDir`（`outputDir/source`）已存在且含有效仓库源码（存在 `.git` 目录或 `oh-package.json5` / 入口文件，入口文件名大小写不敏感），直接复用，跳过克隆。
 
 否则执行克隆：
 
@@ -71,11 +71,17 @@ git clone --depth=1 {baseUrl} {outputDir}/source
 1. 去掉 `--depth=1` 改为完整克隆
 2. 去掉 `-b {branch}`（克隆默认分支后 `git checkout {branch}`，失败则使用默认分支）
 
+> ⚠️ 判定克隆失败以**命令退出码非 0 或目标目录无仓库内容**为准。GitCode 仓库克隆时输出"警告：重定向到 .../xxx.git/"属**正常行为**（GitCode 自动补全 `.git` 后缀重定向），不代表克隆失败，**不应**因此触发降级重试。
+
 > ⚠️ 克隆目标必须是 `{outputDir}/source`（目录本身即仓库根），**不要**克隆成 `{outputDir}/source/{repoName}`。
 
 ### 步骤 3：验证与记录元信息
 
-1. **验证**：用 `list_dir` 确认 `sourceDir` 下存在源码文件（`.ets` / `oh-package.json5` / `Index.ets` / `module.json5` 任一即可）
+1. **验证**：用 `list_dir` 确认 `sourceDir` 下存在源码文件（`.ets` / `.ts` / `oh-package.json5` / 入口文件 / `module.json5` 任一即可）
+
+   > ⚠️ **验证注意事项**：
+   > - **入口文件大小写不敏感**：ArkTS 库入口文件可能是 `index.ets`（小写，如 mp3agic）或 `Index.ets`（大写），两者均视为有效。macOS（大小写不敏感文件系统）上按字面匹配可偶然命中，但在 Linux（大小写敏感文件系统）上按字面匹配会漏判，匹配时必须显式做大小写不敏感处理。
+   > - **源码文件可能是 `.ts` 扩展名**：部分 ArkTS 库（如 mp3agic，`src/main/ets/` 下 48 个源文件全部为 `.ts`）的实现源码是 `.ts` 文件，`library/` 下仅入口 `index.ets` 一个 `.ets` 文件。**禁止以 `.ets` 文件数量作为源码存在的唯一判据**，应以 `oh-package.json5` / `module.json5` / 入口文件的存在为准。
 
 2. **记录元信息**：将克隆信息写入 `{outputDir}/clone-info.json`：
 
@@ -101,5 +107,7 @@ git clone --depth=1 {baseUrl} {outputDir}/source
 |------|--------|------|
 | 仓库源码 | `{outputDir}/source/` | 固定路径，后续所有检视 SKILL 的源码输入 |
 | 克隆元信息 | `{outputDir}/clone-info.json` | baseUrl / branch / commit / repoName |
+
+> ⚠️ **下游消费提示**：库实现源码文件可能为 `.ts` 扩展名（如 mp3agic），下游 SKILL 扫描源码时应同时包含 `*.ets` 与 `*.ts`（路径限定在 `src/main/ets/` 下），入口统一从 `index.ets` 解析导出。
 
 所有产物写入 `{outputDir}` 目录。本 SKILL 无评分，无需输出结构化指标文件。

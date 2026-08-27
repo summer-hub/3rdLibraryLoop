@@ -4,7 +4,7 @@ description: 分析鸿蒙ArkTs原生库现有 Demo 对接口的覆盖情况。�
 license: Apache-2.0
 compatibility: 需要 Node.js 运行环境
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   category: harmonyos-development
   language: ArkTS/ETS
   useWhen: 分析鸿蒙原生库 Demo 对接口的覆盖情况
@@ -63,7 +63,7 @@ metadata:
 ## 工作流程概览
 
 ```
-Phase 1: 运行 analyze-demo-coverage.cjs → Phase 2: 确认报告输出
+Phase 1: 运行 analyze-demo-coverage.cjs → Phase 2: 确认报告输出 → Phase 3: 结果合理性校验
 ```
 
 > 全程只有一条 `node` 命令，脚本直接输出最终 Markdown 报告，无中间文件，无需清理。
@@ -100,8 +100,8 @@ node "{{skillDir}}/../../../MCP/scripts/analyze-demo-coverage.cjs" \
 **脚本自动完成**：
 1. 获取接口规格（从 `spec` JSON 读取，或从 `libroot` 源码自动提取）
 2. 递归扫描 `entry/src/main/ets/` 下的 `.ets` 文件（排除 `entryability/`、`entrybackupability/`、`model/`、`util/`、`ohosTest/` 等非 demo 目录）
-3. 提取 import（单行+多行+默认+混合+别名）并追踪实例变量
-4. AST 优先匹配（TS Compiler API 语义分析），失败自动降级正则匹配
+3. 提取 import（单行+多行+默认+混合+别名，兼容尾斜杠与子路径写法）并追踪实例变量
+4. AST 优先匹配（TS Compiler API 语义分析，含库入口文件大小写校准），失败自动降级正则匹配
 5. 匹配方法调用、检测对象字面量属性、默认导入命名空间宽松兜底
 6. **直接生成最终 Markdown 报告**（含覆盖率统计、按类/按类型分组、已覆盖/未覆盖清单、文件覆盖详情、提升建议）
 
@@ -110,6 +110,7 @@ node "{{skillDir}}/../../../MCP/scripts/analyze-demo-coverage.cjs" \
 **退出码处理**：
 - `0` → 成功
 - 其他 → 失败，终止流程并标注 `状态: 失败`
+- 脚本输出的 `⚠️ [警告]/[提示]`（stderr）不改变退出码，但指示结果可信度问题，必须在 Phase 3 处理
 
 ---
 
@@ -129,6 +130,34 @@ node "{{skillDir}}/../../../MCP/scripts/analyze-demo-coverage.cjs" \
 
 ---
 
+## Phase 3：结果合理性校验
+
+> ⚠️ 覆盖率脚本曾有静默失败历史（import 尾斜杠曾导致 0% 误报、入口文件大小写曾导致 ~11 个百分点低估），即使脚本已内置防护，交付前仍须完成本环节校验，禁止直接采信首轮结果。
+
+### 3.1 检查脚本告警
+
+- 控制台出现 `⚠️ [警告]/[提示]/[分析可信度警告]`，或报告头部出现「⚠️ 分析可信度警告」章节时，先按提示排查再采信结果
+- 库模块解析失败时脚本会自动放弃 AST 结果、降级正则模式（控制台有明确提示）。正则模式精度低于 AST，交付时应在报告中注明实际匹配模式
+
+### 3.2 覆盖率异常时交叉验证
+
+覆盖率 < 10% 或为 0%，且 Demo 源码确实存在 `import ... from '<库名>'` 时：
+
+1. **抽样 grep 交叉验证**：对报告中「未覆盖」的接口，在 Demo 源码目录统计真实调用数，与报告比对：
+   ```bash
+   grep -rh "\.方法名(" entry/src/main/ets/ --include="*.ets" | wc -l
+   ```
+2. **快速诊断口诀**："import 有、覆盖无 → 查 import 尾斜杠；部分漏、变量 any → 查入口文件大小写"
+3. **已知历史缺陷与 workaround**（脚本 v1.1 已修复，旧版本脚本仍会触发）：
+   - **import 尾斜杠**：Demo 写 `from '@ohos/xxx/'`（尾部带 `/`）曾被全部静默跳过 → 0% 误报。Workaround：复制 `entry/src/main/ets` 到临时目录，sed 去除尾斜杠后通过 `--src` 指向副本
+   - **入口文件大小写**：仓库入口为小写 `index.ets` 时，macOS（大小写不敏感文件系统）上 AST 模块解析曾静默失败、库类型坍缩为 `any` → 部分接口漏判。Workaround：复制 libroot（排除 .git）将 `library/index.ets` 重命名为 `Index.ets`，`--libroot` 指向副本。Linux（大小写敏感）上症状不同（existsSync 直接失败走降级逻辑），两者同源
+
+### 3.3 统计口径说明
+
+报告默认排除 `entryability/` 等非 Demo 目录（见 Phase 1 扫描范围）。`EntryAbility` 中的库调用（如 `GlobalContext.setValue` 在 `EntryAbility` 中触发）计入「未覆盖」属口径内合理行为，交付报告时应主动注明，避免读者误判为功能缺失。
+
+---
+
 ## 注意事项
 
 核心要点：
@@ -139,3 +168,4 @@ node "{{skillDir}}/../../../MCP/scripts/analyze-demo-coverage.cjs" \
 5. **无中间文件** — 脚本直接输出最终 Markdown 报告，无需清理
 6. **接口规格来源灵活** — 可通过 `--spec` 参数传入已有 JSON，也可不传 `--spec` 让脚本自动从源码提取
 7. **库名自动提取** — 默认从 `oh-package.json5` 或 spec JSON 读取，无需手工指定
+8. **结果合理性校验** — 覆盖率异常低/为 0 时先做 grep 抽样交叉验证再采信（见 Phase 3）；关注脚本 `⚠️` 告警与报告「分析可信度警告」章节

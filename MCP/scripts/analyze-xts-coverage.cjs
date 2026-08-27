@@ -161,7 +161,9 @@ function extractImportsRegex(content, libName) {
   while ((match = importRegex.exec(content)) !== null) {
     const symbolsStr = match[1];
     const fromLib = match[2];
-    if (fromLib === libName || fromLib.endsWith('/' + libName.split('/').pop())) {
+    // 归一化：兼容尾部斜杠写法（如 '@ohos/xxx/'）与深层路径导入（如 '@ohos/xxx/src/...'）
+    const fromNorm = fromLib.replace(/\/+$/, '');
+    if (fromNorm === libName || fromNorm.endsWith('/' + libName.split('/').pop()) || fromNorm.startsWith(libName + '/')) {
       const symbols = symbolsStr.split(',').map(s => {
         const trimmed = s.trim().replace(/\n/g, '').replace(/\s+/g, ' ');
         const aliasMatch = trimmed.match(/(\w+)\s+as\s+(\w+)/);
@@ -178,7 +180,7 @@ function extractImportsRegex(content, libName) {
 function extractDefaultImportRegex(content, libName) {
   const libSuffix = libName.split('/').pop();
   const defaultRegex = new RegExp(
-    `import\\s+(?:type\\s+)?([A-Za-z_$][\\w$]*)\\s+from\\s*['"](?:${escapeRegex(libName)}|[^'"]*${escapeRegex(libSuffix)})['"]`,
+    `import\\s+(?:type\\s+)?([A-Za-z_$][\\w$]*)\\s+from\\s*['"](?:${escapeRegex(libName)}|[^'"]*${escapeRegex(libSuffix)})(?:/[^'"]*)?['"]`,
     'g'
   );
   let match;
@@ -240,6 +242,7 @@ function matchCoverageRegex(interfaces, files, libName) {
   const fileCoverageMap = {};
   const demoFileCount = files.length;
   const allClassNames = [...new Set(interfaces.map(i => i.className).filter(n => n !== null))];
+  let importedFileCount = 0;
 
   for (const filePath of files) {
     const content = fs.readFileSync(filePath, 'utf-8');
@@ -248,6 +251,7 @@ function matchCoverageRegex(interfaces, files, libName) {
     const defaultAlias = extractDefaultImportRegex(content, libName);
 
     if (importedSymbols.length === 0 && !defaultAlias) continue;
+    importedFileCount++;
 
     const varMap = trackInstanceVariablesRegex(content, importedSymbols, defaultAlias, allClassNames);
     const fileCovered = [];
@@ -389,7 +393,9 @@ function matchCoverageRegex(interfaces, files, libName) {
     }
   }
 
-  return aggregateResults(interfaces, fileCoverageMap, {}, libName, demoFileCount);
+  const regexResult = aggregateResults(interfaces, fileCoverageMap, {}, libName, demoFileCount);
+  regexResult.importedFileCount = importedFileCount;
+  return regexResult;
 }
 
 // ════════════════════════════════════════════════════════════
@@ -403,7 +409,10 @@ function extractImportedSymbolsAST(sourceFile, libName) {
     const moduleSpec = stmt.moduleSpecifier;
     if (!moduleSpec || !ts.isStringLiteral(moduleSpec)) continue;
     const fromLib = moduleSpec.text;
-    if (fromLib !== libName && !fromLib.endsWith('/' + libName.split('/').pop())) continue;
+    // 归一化：兼容尾部斜杠写法（如 '@ohos/xxx/'，既不等于库名也不以 '/xxx' 结尾，
+    // 原样比较会导致所有 import 被静默跳过 → 0% 误报）与深层路径导入
+    const fromNorm = fromLib.replace(/\/+$/, '');
+    if (fromNorm !== libName && !fromNorm.endsWith('/' + libName.split('/').pop()) && !fromNorm.startsWith(libName + '/')) continue;
     const importClause = stmt.importClause;
     if (!importClause) continue;
     if (importClause.name) {
@@ -426,6 +435,16 @@ function trackInstanceVariablesAST(sourceFile, checker, importedSymbols) {
   function visit(node) {
     if (ts.isVariableDeclaration(node) && node.name && ts.isIdentifier(node.name)) {
       trackVar(node.name.text, node);
+      // 语法级兜底：不依赖 checker 类型推断，直接从 new 表达式的 callee 解析类名
+      // 覆盖 new X<...>() 泛型构造与 let x: ESObject = new X() 声明类型非类名的场景
+      if (node.initializer && ts.isNewExpression(node.initializer)) {
+        const callee = node.initializer.expression;
+        if (callee && ts.isIdentifier(callee) && importedSymbols.has(callee.text)) {
+          const displayName = importedSymbols.get(callee.text) || callee.text;
+          if (!varMap[node.name.text]) varMap[node.name.text] = [];
+          if (!varMap[node.name.text].includes(displayName)) varMap[node.name.text].push(displayName);
+        }
+      }
     }
     if (ts.isPropertyDeclaration(node) && node.name && ts.isIdentifier(node.name)) {
       trackVar(node.name.text, node);
@@ -671,7 +690,10 @@ function matchCoverageAST(interfaces, testFiles, libName, libRoot) {
     readFile: function(fileName) { return fileContents[fileName] || fileContents[toPosix(fileName)] || ts.sys.readFile(fileName); },
     resolveModuleNames: function(moduleNames, containingFile) {
       const resolved = [];
-      for (const moduleName of moduleNames) {
+      for (const rawModuleName of moduleNames) {
+        // 归一化：去除模块说明符尾部斜杠（Demo/测试源码存在 from '@ohos/xxx/' 写法，
+        // 否则 moduleName === libName 与深层路径解析分支均失配，模块解析静默失败）
+        const moduleName = rawModuleName.replace(/\/+$/, '');
         let resolvedPath = null;
         const baseDir = path.dirname(containingFile);
         if (moduleName.startsWith('.')) {
@@ -687,9 +709,32 @@ function matchCoverageAST(interfaces, testFiles, libName, libRoot) {
           }
         }
         if (moduleName === libName && !resolvedPath) {
-          const indexEts = entryFile || path.join(libraryDir, 'Index.ets');
-          const indexVirtual = toPosix(indexEts.replace(/\.ets$/, '.ts'));
-          if (fileContents[indexVirtual]) resolvedPath = indexVirtual;
+          // 大小写兼容：大小写不敏感文件系统（macOS/Windows）上 entryFile 可能与
+          // readdirSync 真实文件名大小写不一致，导致虚拟路径在 fileContents 中查不到（模块解析静默失败）
+          const indexCandidates = [];
+          if (entryFile) indexCandidates.push(entryFile);
+          indexCandidates.push(path.join(libraryDir, 'Index.ets'), path.join(libraryDir, 'index.ets'));
+          for (const cand of indexCandidates) {
+            const v = toPosix(cand.replace(/\.ets$/, '.ts'));
+            if (fileContents[v]) { resolvedPath = v; break; }
+          }
+          if (!resolvedPath) {
+            const lowerIndexMap = new Map(Object.keys(fileContents).map(k => [k.toLowerCase(), k]));
+            for (const cand of indexCandidates) {
+              const v = toPosix(cand.replace(/\.ets$/, '.ts')).toLowerCase();
+              if (lowerIndexMap.has(v)) { resolvedPath = lowerIndexMap.get(v); break; }
+            }
+          }
+        }
+        // 深层路径导入解析：'@ohos/mp3agic/src/main/ets/...' → library/src/main/ets/...
+        if (moduleName.startsWith(libName + '/') && !resolvedPath) {
+          const rest = moduleName.substring(libName.length + 1);
+          const base = toPosix(path.join(libraryDir, rest));
+          const lowerDeepMap = new Map(Object.keys(fileContents).map(k => [k.toLowerCase(), k]));
+          for (const cand of [base + '.ts', base]) {
+            if (fileContents[cand]) { resolvedPath = cand; break; }
+            if (lowerDeepMap.has(cand.toLowerCase())) { resolvedPath = lowerDeepMap.get(cand.toLowerCase()); break; }
+          }
         }
         resolved.push(resolvedPath ? { resolvedFileName: resolvedPath, extension: '.ts' } : undefined);
       }
@@ -700,20 +745,69 @@ function matchCoverageAST(interfaces, testFiles, libName, libRoot) {
   const program = ts.createProgram(Array.from(virtualPaths.keys()), compilerOptions, host);
   const checker = program.getTypeChecker();
 
+  // ── 静默失败检测：库模块解析失败 ──────────────────────────
+  // 若测试代码 import 了库但 TS 编译器报 Cannot find module '<库名>'，
+  // 库类型将坍缩为 any，基于类型的匹配会严重低估覆盖率。此时放弃 AST
+  // 结果并返回 null，由上层降级正则模式，避免静默输出错误报告。
+  let libModuleNotFound = false;
+  try {
+    const libSeg = libName.split('/').pop();
+    for (const diag of program.getSemanticDiagnostics()) {
+      if (diag.code !== 2307) continue; // TS 2307 = Cannot find module
+      const msg = ts.flattenDiagnosticMessageText(diag.messageText, ' ');
+      const m = msg.match(/Cannot find module '([^']+)'/);
+      if (!m) continue;
+      const mod = m[1].replace(/\/+$/, '');
+      if (mod === libName || mod.endsWith('/' + libSeg)) { libModuleNotFound = true; break; }
+    }
+  } catch (e) { /* ignore */ }
+  if (libModuleNotFound) {
+    console.error(`⚠️ [警告] AST 模式下库模块 '${libName}' 解析失败（Cannot find module），类型推断将坍缩为 any，` +
+      `匹配结果会被严重低估。请检查库入口文件大小写（Index.ets vs index.ets）与测试代码 import 写法。放弃 AST 结果，降级正则模式。`);
+    return null;
+  }
+
   const fileCoverageMap = {};
+  const importOnlyFiles = []; // import 了库但匹配数为 0 的文件（疑似匹配遗漏）
   for (const testFile of testFiles) {
     const virtualTestPath = toPosix(testFile.replace(/\.ets$/, '.ts'));
     const sourceFile = program.getSourceFile(virtualTestPath);
     if (!sourceFile) continue;
     const fileName = path.basename(testFile);
     const importedSymbols = extractImportedSymbolsAST(sourceFile, libName);
-    if (importedSymbols.size === 0) continue;
+    if (importedSymbols.size === 0) {
+      // 降级告警：文件存在 import 语句但均未被识别（可能为未兼容的导入风格）
+      const importSpecs = [];
+      for (const stmt of sourceFile.statements) {
+        if (ts.isImportDeclaration(stmt) && stmt.moduleSpecifier && ts.isStringLiteral(stmt.moduleSpecifier)) {
+          importSpecs.push(stmt.moduleSpecifier.text);
+        }
+      }
+      if (importSpecs.length > 0) {
+        console.warn(`[告警] 测试文件 ${fileName} 存在 import 语句但均未被识别，已跳过（模块说明符: ${importSpecs.join(', ')}）`);
+      }
+      continue;
+    }
     const varMap = trackInstanceVariablesAST(sourceFile, checker, importedSymbols);
+    // 降级告警：导入符号非空但实例变量追踪为空，提示 checker 类型推断可能失效
+    if (Object.keys(varMap).length === 0) {
+      console.warn(`[告警] 测试文件 ${fileName} 已识别 ${importedSymbols.size} 个导入符号但实例变量追踪结果为空，类型推断可能失效`);
+    }
     const fileCovered = collectCoverageAST(sourceFile, checker, interfaces, importedSymbols, varMap);
     fileCoverageMap[fileName] = { count: fileCovered.size, interfaces: Array.from(fileCovered) };
+    if (fileCovered.size === 0) importOnlyFiles.push(fileName);
   }
 
-  return aggregateResults(interfaces, fileCoverageMap, {}, libName, testFiles.length);
+  if (importOnlyFiles.length > 0) {
+    console.warn(`⚠️ [提示] 以下 ${importOnlyFiles.length} 个测试文件 import 了库但未匹配到任何接口` +
+      `（可能为纯类型引用，也可能存在匹配遗漏，建议 grep 抽样核验）: ${importOnlyFiles.slice(0, 5).join(', ')}` +
+      `${importOnlyFiles.length > 5 ? ' ...' : ''}`);
+  }
+
+  const astResult = aggregateResults(interfaces, fileCoverageMap, {}, libName, testFiles.length);
+  astResult.importedFileCount = Object.keys(fileCoverageMap).length;
+  astResult.importOnlyFiles = importOnlyFiles;
+  return astResult;
 }
 
 // ════════════════════════════════════════════════════════════
@@ -794,6 +888,17 @@ function aggregateResults(interfaces, fileCoverageMap, classCoverageMap, libName
 // ════════════════════════════════════════════════════════════
 // Part D: Markdown 渲染
 // ════════════════════════════════════════════════════════════
+
+function renderAnalysisWarnings(result) {
+  const warnings = result.analysisWarnings || [];
+  if (warnings.length === 0) return '';
+  const lines = [];
+  lines.push('## ⚠️ 分析可信度警告');
+  lines.push('');
+  lines.push(warnings.map((w) => `> ⚠️ ${w}`).join('\n>\n'));
+  lines.push('');
+  return lines.join('\n');
+}
 
 function renderHeader(result, title) {
   const lines = [];
@@ -1083,12 +1188,49 @@ result.specSummary = specData.summary;
 result.filteredLowValueCount = filteredLowValueCount;
 result.filteredTypeCount = filteredTypeCount;
 
+// ── 结果合理性校验（静默失败防线）──────────────────────────
+// 有测试文件 import 了库、但匹配数异常低/为 0 时，大概率是匹配缺陷
+// 而非测试完全未使用库，在控制台与报告中显著告警，避免误报被直接采信。
+const analysisWarnings = [];
+const importedFileCount = result.importedFileCount || 0;
+const coveredCount = result.coveredMethodCount || 0;
+const rateNum = parseFloat(result.coverageRateMethodLevel) || 0;
+if (importedFileCount > 0 && coveredCount === 0) {
+  analysisWarnings.push(
+    `检测到 ${importedFileCount} 个测试文件 import 了库 \`${resolvedLibName}\`，但匹配到的接口数为 0。` +
+    `这通常意味着存在匹配缺陷（如 import 路径写法、库模块解析问题），而非测试完全未使用库，请勿直接采信本报告。`
+  );
+} else if (importedFileCount > 0 && rateNum < 10) {
+  analysisWarnings.push(
+    `覆盖率异常低（${result.coverageRateMethodLevel}%）：有 ${importedFileCount} 个测试文件 import 了库 \`${resolvedLibName}\`。` +
+    `建议对"未覆盖"接口抽样 grep 真实调用数进行交叉验证。`
+  );
+}
+if (result.importOnlyFiles && result.importOnlyFiles.length > 0) {
+  analysisWarnings.push(
+    `以下文件 import 了库但未匹配到任何接口（可能为纯类型引用，也可能存在匹配遗漏，建议 grep 抽样核验）：` +
+    result.importOnlyFiles.map((f) => `\`${f}\``).join('、')
+  );
+}
+result.analysisWarnings = analysisWarnings;
+for (const w of analysisWarnings) console.error(`⚠️ [分析可信度警告] ${w}`);
+
 console.log(`XTS 匹配完成: ${result.coveredMethodCount}/${result.totalInterfacesMethodLevel} (${result.coverageRateMethodLevel}%)`);
+
+// 合理性检查：覆盖率异常低但测试代码量大时提示人工复核（静态匹配可能存在盲区）
+const totalTestLines = testFiles.reduce((sum, f) => {
+  try { return sum + fs.readFileSync(f, 'utf-8').split('\n').length; } catch (e) { return sum; }
+}, 0);
+if ((parseFloat(result.coverageRateMethodLevel) || 0) < 5 && totalTestLines > 500) {
+  console.warn(`[告警] 覆盖率 ${result.coverageRateMethodLevel}% 异常低但测试代码共 ${totalTestLines} 行，匹配结果可能失真，建议人工 grep 盘点实例/静态方法调用并按类对账复核`);
+}
 
 // 渲染 Markdown
 const resolvedTitle = title || `${resolvedLibName} XTS 覆盖率分析报告`;
 const parts = [];
 parts.push(renderHeader(result, resolvedTitle));
+const warnSection = renderAnalysisWarnings(result);
+if (warnSection) parts.push(warnSection);
 parts.push(renderOverview(result));
 parts.push(renderByKind(result));
 parts.push(renderClassCoverage(result));
