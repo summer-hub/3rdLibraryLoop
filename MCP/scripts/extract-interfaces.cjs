@@ -1232,22 +1232,12 @@ function parseLibraryWithTS(repoDir, entryFile, nativeSoInfo, libraryName) {
   const exports = indexSymbol ? checker.getExportsOfModule(indexSymbol) : [];
   const indexExportedNames = new Set(exports.map(e => e.name));
 
-  // 收集 .so 模块 .d.ts 文件自身的导出
-  const nativeExportedNames = new Set();
-  for (const sourceFile of program.getSourceFiles()) {
-    if (!virtualPaths.has(sourceFile.fileName)) continue;
-    if (!sourceFile.fileName.endsWith('.d.ts')) continue;
-    const dtsSymbol = checker.getSymbolAtLocation(sourceFile);
-    if (dtsSymbol) {
-      const dtsExports = checker.getExportsOfModule(dtsSymbol);
-      for (const exp of dtsExports) {
-        nativeExportedNames.add(exp.name);
-      }
-    }
-  }
-
-  // 合并导出名
-  const exportedNames = new Set([...indexExportedNames, ...nativeExportedNames, ...nativeSoInfo.nativeSoExportNames]);
+  // 公开 API 判据：仅「Index.ets 实际导出（getExportsOfModule 已解析 export * 转发链）」
+  // 或「Index.ets 显式从 .so 再导出（export { X } from 'xxx.so'）」。
+  // 注意：不能把所有 .d.ts（含 cpp/types 内部 NAPI 类型声明）的导出计入，
+  // 否则未导出的内部实现类（如门面类私有持有的 .so 包装类）会被误统计。
+  const nativeSoExportNames = nativeSoInfo.nativeSoExportNames;
+  const exportedNames = new Set([...indexExportedNames, ...nativeSoExportNames]);
   const exportedTypeNames = indexExportedNames; // 类型（类/接口/type）仅从 Index.ets 导出
 
   const interfaces = [];
@@ -1265,7 +1255,7 @@ function parseLibraryWithTS(repoDir, entryFile, nativeSoInfo, libraryName) {
       if (ts.isClassDeclaration(node) && node.name) {
         const className = node.name.text;
         if (visitedClassNames.has(className)) return;
-        if (!exportedTypeNames.has(className) && !nativeExportedNames.has(className)) return;
+        if (!exportedTypeNames.has(className) && !nativeSoExportNames.has(className)) return;
         visitedClassNames.add(className);
 
         const isStruct = isStructComponent(node);
@@ -1276,7 +1266,7 @@ function parseLibraryWithTS(repoDir, entryFile, nativeSoInfo, libraryName) {
       if (ts.isInterfaceDeclaration(node) && node.name) {
         const ifaceName = node.name.text;
         if (visitedClassNames.has(ifaceName)) return;
-        if (!exportedTypeNames.has(ifaceName) && !nativeExportedNames.has(ifaceName)) return;
+        if (!exportedTypeNames.has(ifaceName) && !nativeSoExportNames.has(ifaceName)) return;
         visitedClassNames.add(ifaceName);
 
         interfaces.push(...extractInterfaceFields(node, checker, ifaceName, sourceFile, realPath, repoDir));
@@ -1313,7 +1303,7 @@ function parseLibraryWithTS(repoDir, entryFile, nativeSoInfo, libraryName) {
       if (ts.isEnumDeclaration(node) && node.name) {
         const enumName = node.name.text;
         if (visitedClassNames.has(enumName)) return;
-        if (!exportedTypeNames.has(enumName) && !nativeExportedNames.has(enumName)) return;
+        if (!exportedTypeNames.has(enumName) && !nativeSoExportNames.has(enumName)) return;
         visitedClassNames.add(enumName);
 
         interfaces.push(...extractEnumMembers(node, checker, enumName, realPath, repoDir));
@@ -1345,7 +1335,7 @@ function parseLibraryWithTS(repoDir, entryFile, nativeSoInfo, libraryName) {
             }
           }
           if (hasPrototype) {
-            if (!exportedTypeNames.has(varName) && !nativeExportedNames.has(varName)) continue;
+            if (!exportedTypeNames.has(varName) && !nativeSoExportNames.has(varName)) continue;
             visitedClassNames.add(varName);
             interfaces.push(...extractDeclareVarStatics(decl, checker, varName, sourceFile, realPath, repoDir));
           }
