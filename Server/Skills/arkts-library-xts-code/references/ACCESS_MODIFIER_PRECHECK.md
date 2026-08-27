@@ -1,6 +1,6 @@
 # 访问修饰符预检指南
 
-> Phase 1.5 的详细参考文档。接口规格文档列出所有类的方法和属性，但**不包含访问修饰符信息**（`private`/`protected`/`public`）。若测试代码直接调用 `private`/`protected` 成员，ArkTS 编译会报 `Property 'X' is private and only accessible within class` 错误。
+> Phase 1 条件性子步骤（1.5）的详细参考文档。`private`/`protected` 成员属于非对外 API，已从覆盖率口径剔除，黑盒 XTS 测试无法直接引用。若测试代码直接调用 `private`/`protected` 成员，ArkTS 编译会报 `Property 'X' is private and only accessible within class` 错误。本预检用于建立禁止直接调用清单，生成代码时跳过这些成员。标准链路（interface-spec/xts-doc）已剔除 private/protected 时本子步骤可跳过。
 
 ---
 
@@ -39,31 +39,19 @@ node {{skillDir}}/scripts/precheck-access-modifiers.cjs --source {{sourcePath}}
 
 ## 3. 代码生成规则（强制）
 
-对清单中的每个 `private`/`protected` 成员，在 Phase 3 生成代码时遵守以下规则：
+对清单中的每个 `private`/`protected` 成员，在 Phase 5 生成代码时遵守以下规则：
 
 | 场景 | 处理方式 | 示例 |
 |------|---------|------|
-| 测试用例**仅**涉及 private/protected 成员 | 生成桩断言 + 注释说明间接覆盖路径 | 见下方模板 |
-| 测试用例**混合** public 和 private 成员 | 保留 public 部分测试，private 部分替换为桩 | — |
-| private 成员有对应的 public 入口方法 | 通过 public 方法间接覆盖，注释说明调用链 | `insert()` 内部调用 `attachEntity()` |
+| 测试用例**仅**涉及 private/protected 成员 | 跳过，不生成用例 | — |
+| 测试用例**混合** public 和 private 成员 | 仅保留 public 部分，private 部分跳过 | — |
+| private 成员有对应的 public 入口方法 | 通过 public 方法测试，注释说明调用链 | `insert()` 内部调用 `attachEntity()` |
 
 ---
 
-## 4. 桩断言模板
+## 4. 跳过规则
 
-```typescript
-/**
- * 用例 {SEQ}: {用例名称}
- *
- * 涉及接口：{private/protected 成员列表}
- * 预期结果：通过公共 API 间接覆盖
- */
-it('test_name_{SEQ}', 0, () => {
-  // Private/protected member - covered indirectly via public API
-  // {成员名} is {modifier} in {ClassName}, tested via {publicMethodName}
-  expect(true).assertTrue();
-});
-```
+`private`/`protected` 成员属于非对外 API，已从覆盖率口径剔除，不生成 XTS 用例。若一个用例涉及的所有接口均为 private/protected 成员，则该用例整体跳过；若混合 public 成员，则仅保留 public 成员对应的测试逻辑，删除对 private/protected 成员的引用。
 
 ---
 
@@ -78,7 +66,7 @@ it('test_name_{SEQ}', 0, () => {
 以下成员为 private/protected，禁止直接调用：
 - AbstractDao: config, db, statements, loadAllFromCursor, readEntity, bindValues, ...
 - QueryBuilder: LOG_SQL, isDistinct, values, joins, checkOrderBuilder, ...
-对这些成员的测试，使用桩断言 expect(true).assertTrue() + 注释说明间接覆盖。
+跳过这些成员的测试，不生成用例。
 ```
 
 ---
@@ -89,6 +77,6 @@ it('test_name_{SEQ}', 0, () => {
 |--------|----------|
 | 预检脚本已执行 | `precheck-access-modifiers.json` 已生成 |
 | 排除清单已建立 | 所有 `private`/`protected` 成员已记录 |
-| 桩断言已生成 | 对 private/protected 成员的测试使用 `expect(true).assertTrue()` |
+| private 成员用例已跳过 | 未为 private/protected 成员生成任何用例 |
 | 并行 Agent 规则已注入 | 每个 Agent 的 prompt 包含排除清单 |
 | 无 private 编译错误残留 | 编译阶段无 `Property 'X' is private` 错误 |

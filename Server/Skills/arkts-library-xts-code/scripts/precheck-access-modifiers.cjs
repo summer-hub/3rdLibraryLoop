@@ -7,7 +7,7 @@
  *   （private/protected/public）。代码生成时若直接调用 private/protected 成员，
  *   ArkTS 编译会报 "Property 'X' is private and only accessible within class" 错误。
  *   本脚本在代码生成之前扫描库源码，提取 private/protected 成员列表，供生成阶段
- *   预先排除直接调用，改用间接覆盖策略。
+ *   预先排除直接调用，跳过这些成员的用例。
  *
  * 用法:
  *   node precheck-access-modifiers.cjs --source <工程根> [--libDir <库源码相对路径>]
@@ -95,7 +95,7 @@ function parseAccessModifiers(filePath) {
     // 匹配 private/protected 属性
     // 格式: private static readonly X: type = value;
     // 格式: protected config: DaoConfig;
-    const propMatch = trimmed.match(/^(private|protected)\s+(?:static\s+)?(?:readonly\s+)?(\w+)\s*[:?]/);
+    const propMatch = trimmed.match(/^(private|protected)\s+(?:static\s+)?(?:readonly\s+)?(\w+)\s*(?:[:?]|=)/);
     if (propMatch && currentClass) {
       members.push({
         class: currentClass,

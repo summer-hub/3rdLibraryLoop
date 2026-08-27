@@ -1,6 +1,6 @@
 # XTS 代码生成报告模板
 
-> Phase 6 输出时使用此模板生成最终报告文件 `{{outputDir}}/arktscoverage-xts-code-report.md`。
+> Phase 8 输出时使用此模板生成最终报告文件 `{{outputDir}}/arktscoverage-xts-code-report.md`。
 
 ---
 
@@ -20,13 +20,22 @@
 - 可测试接口数：M
 - 降级/跳过接口数：D（需标注原因）
 
+### 分批模式说明
+{分批模式：Subagent 分批（N 批） / 直接生成模式}
+- Subagent 分批模式下：批次总数 N、每批用例数、dispatch 并行度
+- 各批次 subagent 自检结果：{批次 1: ✓；批次 2: ✓；批次 3: ✗ → Orchestrator 回退补写；...}
+- 回退情况：{无 / 批次 X 回退，原因：...}
+
 ### Code Linter 检查
-{结果：通过（0 Error / N Warning）/ 有 Error（已修复，见编译验证）/ 环境不可用跳过}
+{结果：通过（0 Error）/ 有 Error（已修复）/ 环境不可用跳过}
 - 引用 `{{sourcePath}}/code-linter-report.json`
 - 关键 Warning 需人工确认：{如 @hw-stylistic/file-naming-convention 等，不阻塞编译}
 
 ### 编译验证
 {编译结果：通过 / 失败（X 轮修复后）}
+- （若跳过编译验证必须注明）跳过原因：{宿主机无 devecocli/ohpm/hvigor 编译环境 / 其他原因}
+- 编译修复轮数：{第 X 轮通过；失败则标注最终剩余错误数与原因}
+- 编译输出引用：`{{sourcePath}}/build.log`（如保留）
 
 （若已执行 ohpm 线上版本替换，需附加：）
 - 源库本地原生编译失败：{原因简述}
@@ -40,8 +49,12 @@
 | interfaceA | 001 | 正向功能 | — |
 | ... | ... | ... | ... |
 
-### 验证步骤
-1. 在 DevEco Studio 中打开工程，构建完成后右键运行entry/src/ohosTest/ets/test
-2. 检查测试执行日志
-3. 查看测试文件末尾的覆盖率统计注释
+### 验证步骤（已执行动作核对清单）
+> 🔴 以下逐项必须真实勾选，防止"跳过编译仍报成功"。
+- [ ] 工程迁移执行：`migrate.cjs` → {结果：成功 / 跳过 + 原因}
+- [ ] Code Linter 执行：`code-linter.cjs` → {0 Error / 已修复 / 环境不可用跳过}
+- [ ] 编译验证执行：`build.ps1` → {通过 / 失败（X 轮修复后）/ 无法执行 + 原因}
+- [ ] 测试套件已在 `List.test.ets` 注册
+- [ ] 运行验证：{已在 DevEco Studio 构建运行 / 未运行 + 原因}
+- 若勾选"未运行"或任一项跳过，必须在对应字段说明原因，否则视为跳过关键步骤，报告结论不可标记为"成功"。
 ```

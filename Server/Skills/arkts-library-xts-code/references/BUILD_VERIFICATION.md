@@ -1,6 +1,6 @@
 # 编译与运行验证详细指南
 
-> Phase 5 的详细参考文档。涵盖工程迁移、静态检查、编译修复循环、ohpm 线上版本替换等完整流程。
+> Phase 7 的详细参考文档。涵盖工程迁移、静态检查、编译修复循环、ohpm 线上版本替换等完整流程。
 
 ---
 
@@ -13,15 +13,33 @@
 
 ArkTS原生库源码多为历史工程，`build-profile.json5` 的 SDK 版本配置、hvigor 文件、oh-package.json5 等经常不兼容当前构建环境。使用 `migrate.cjs` 脚本一次性完成华为官方 Manual Migration 全流程迁移。
 
+0. **预迁移设备探测**：
+
+   ```powershell
+   cmd /c "hdc list targets"
+   ```
+   - 若有设备输出，探测设备 API 版本：
+     ```powershell
+     cmd /c "hdc shell param get const.ohos.apiversion"
+     ```
+     记录设备 API 版本（如 `23`），作为 `--compatible-api` 参数传入迁移脚本。
+   - 若无设备，跳过此步（迁移脚本将自动探测已安装 SDK API 版本）。
+
 1. 执行迁移脚本：
 
-```powershell
-node {{skillDir}}/scripts/migrate.cjs --source {{sourcePath}}
-```
+   ```powershell
+   # 有设备时（deviceApi 从步骤 0 获取）
+   node {{skillDir}}/scripts/migrate.cjs --source {{sourcePath}} --compatible-api {deviceApi}
+
+   # 无设备时
+   node {{skillDir}}/scripts/migrate.cjs --source {{sourcePath}}
+   ```
 
 2. **执行后强制校验（未通过不得进入编译验证）**：
-   - 迁移脚本必须正常执行完成，输出以 `[migrate] 迁移完成。` 结尾，且包含 `强制 N 个 product compatibleSdkVersion/targetSdkVersion=6.1.1(24) + runtimeOS=HarmonyOS` 日志（N≥1）
-   - 校验 `{{sourcePath}}/build-profile.json5`：每个 product 的 `runtimeOS` 已为 `HarmonyOS`、`compatibleSdkVersion` 已为 `6.1.1(24)`
+   - 迁移脚本必须正常执行完成，输出以 `[migrate] 迁移完成。` 结尾
+   - 迁移日志包含 `[migrate] SDK版本: compatibleSdkVersion=..., targetSdkVersion=...` 行
+   - 校验 `{{sourcePath}}/build-profile.json5`：每个 product 的 `runtimeOS` 已为 `HarmonyOS`
+   - `compatibleSdkVersion` 的 API 版本 ≤ 设备 API 版本（有设备时）或 = 已安装 SDK API 版本（无设备时）
    - 任一项不满足 → 重新执行迁移脚本，直至校验通过后方可进入编译验证
 
 ---
@@ -81,7 +99,7 @@ powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -JavaH
 
 | 优先级 | 错误类型 | 识别特征 | 批量修复方式 | 预计解决数 |
 |--------|---------|---------|-------------|-----------|
-| P0 | private/protected 访问 | `Property 'X' is private/protected` | Phase 1.5 预检已排除；若残留，批量替换为桩断言 | ~35% |
+| P0 | private/protected 访问 | `Property 'X' is private/protected` | Phase 1.5 预检已排除（已执行时）；若残留，删除直接访问或跳过该用例 | ~35% |
 | P1 | `any`/`unknown` 残留 | `arkts-no-any-unknown` | `sed -i '' 's/as any/as Object/g'`；逐个替换 `: any` → `: Object` | ~15% |
 | P2 | catch 类型注解 | `arkts-no-types-in-catch` | `sed -i '' 's/catch (e: Object)/catch (e)/g'` | ~5% |
 | P3 | `null as Object` 转型 | `Type 'null' is not assignable to type 'Object'` | `sed -i '' 's/null as Object/null/g'` | ~8% |
@@ -171,7 +189,7 @@ powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -JavaH
 
 | 错误类型 | 错误标识 | 解决方法 |
 |---------|---------|---------|
-| private/protected 访问 | `Property 'X' is private` | Phase 1.5 预检排除；残留的替换为桩断言 |
+| private/protected 访问 | `Property 'X' is private` | Phase 1.5 预检排除（已执行时）；残留的删除直接访问或跳过该用例 |
 | any 类型 | `arkts-no-any` | 定义具体类型或 interface |
 | unknown 关键字 | `arkts-no-any-unknown` | `unknown` 被完全禁止。改用空但合法的对象、构造最小字段对象字面量 `as Type`、或 `{} as Type` |
 | catch 类型注解 | `arkts-no-types-in-catch` | `catch (e)` 不带类型注解，e 默认为 Object 类型 |
