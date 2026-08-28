@@ -92,8 +92,9 @@ Phase 8: 输出与总结（报告含分批方式 / Linter / 编译结论）
 | 异常/边界值测试 | 验证非法参数、NaN/Infinity/负值 | 异常断言策略 + 边界值模板 | [XTS_TEMPLATE.md 五](references/XTS_TEMPLATE.md) |
 | 大数据量测试 | 验证大数组/深度嵌套处理 | 大数据断言策略 + 大数据模板 | [XTS_TEMPLATE.md 七](references/XTS_TEMPLATE.md) |
 | 异步测试 | 接口返回 Promise | async/await 模板 | [XTS_TEMPLATE.md 八](references/XTS_TEMPLATE.md) |
+| 外部硬件/服务依赖 | 接口依赖真实 BLE/NFC/传感器/定位等硬件或外部服务 | try-catch 不崩溃 + 可选状态预检 + 链式返回判空 | [XTS_TEMPLATE.md 十五](references/XTS_TEMPLATE.md) |
 
-> 各类型的断言设计策略详见 [CODE_STANDARDS.md 七](references/CODE_STANDARDS.md)。
+> 各类型的断言设计策略详见 [CODE_STANDARDS.md 七](references/CODE_STANDARDS.md)。外部硬件/服务依赖接口的断言策略详见 [XTS_TEMPLATE.md 十五](references/XTS_TEMPLATE.md)。
 
 ### 1.3 探查鸿蒙工程结构
 
@@ -214,7 +215,7 @@ Phase 8: 输出与总结（报告含分批方式 / Linter / 编译结论）
 
 #### 4.3 失败回退
 
-若某个 subagent 返回失败或标注"API 未预检"：
+若某个 subagent 返回失败、标注"API 未预检"、**或返回成功但未写入文件**：
 - Orchestrator 接管该批，按 Phase 5 直接生成模式补写
 - 不影响其他批的输出
 - 在最终报告中标注哪些批次走了回退
@@ -310,6 +311,8 @@ Phase 8: 输出与总结（报告含分批方式 / Linter / 编译结论）
 - 断言单例"初始状态"时，必须在断言前显式重置该状态
 - 优先使用 `beforeEach`（而非 `beforeAll`）重置单例状态
 - 若无法重置（库未提供 reset 方法），改为断言"调用某方法后的状态"而非"初始状态"
+
+> 单例状态隔离测试模板参见 [XTS_TEMPLATE.md 十六](references/XTS_TEMPLATE.md)。
 
 ---
 
