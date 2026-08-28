@@ -1,0 +1,33 @@
+{
+  "orgHome": "https://gitcode.com/CPF-RN",
+  "defaultLibOrg": "CPF-RN",
+  "deprecatedOrgPatterns": [
+    "gitcode.com/openharmony-sig/",
+    "gitcode.com/OpenHarmony-sig/",
+    "gitee.com/openharmony-sig/"
+  ],
+  "frameworkDocs": {
+    "autolinkingZh": "https://gitcode.com/CPF-RN/ohos_react_native/blob/master/docs/zh-cn/Autolinking.md"
+  },
+  "usageDocs": {
+    "base": "https://gitcode.com/CPF-RN/usage-docs",
+    "branch": "master",
+    "linkSourceCodeZh": "https://gitcode.com/CPF-RN/usage-docs/blob/master/zh-cn/link-source-code.md",
+    "linkSourceCodeEn": "https://gitcode.com/CPF-RN/usage-docs/blob/master/en/link-source-code.md"
+  },
+  "libRepoNamePattern": "rntpc_{alias}",
+  "allowedRelativeTargetsInLibReadme": [
+    "./README.md",
+    "./README_EN.md",
+    "README.md",
+    "README_EN.md"
+  ],
+  "linkVerify": {
+    "method": "curl",
+    "followRedirects": true,
+    "timeoutSec": 15,
+    "acceptStatusMin": 200,
+    "acceptStatusMax": 399,
+    "note": "Org migration must pass HTTP check before replacing URLs"
+  }
+}
