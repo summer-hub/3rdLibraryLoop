@@ -874,6 +874,11 @@ function renderHeader(result, title) {
   lines.push(`| 库名 | \`${result.libraryName}\` |`);
   lines.push(`| 源文件数 | ${result.demoFileCount || '-'} |`);
   lines.push(`| 生成时间 | ${new Date(Date.now() + 8 * 3600 * 1000).toISOString().replace('T', ' ').replace('Z', '+08:00')} |`);
+  if ((result.filteredLowValueCount || 0) > 0 || (result.filteredTypeCount || 0) > 0) {
+    lines.push(`| 过滤低价值常量 | ${result.filteredLowValueCount || 0} |`);
+    lines.push(`| 过滤类型声明 | ${result.filteredTypeCount || 0} |`);
+    lines.push(`| 实际统计接口 | ${result.totalInterfacesMethodLevel} |`);
+  }
   lines.push('');
   return lines.join('\n');
 }
@@ -1104,11 +1109,21 @@ const libName = args.lib || '';
 // 输出路径默认取 spec 同目录下的 02-xxx-Demo覆盖率报告.md
 const outputPath = args.output || path.join(path.dirname(specPath || __dirname), `02-${specBasename}-Demo覆盖率报告.md`);
 
-const interfaces = specData.interfaces || [];
+let filteredLowValueCount = 0, filteredTypeCount = 0;
+const interfaces = (specData.interfaces || []).filter(i => {
+  if (i.lowValue === true) { filteredLowValueCount++; return false; }
+  if (i.kind === 'type') { filteredTypeCount++; return false; }
+  return true;
+});
 const resolvedLibName = libName || specData.libraryName || specBasename;
 
 console.log(`库名: ${resolvedLibName}`);
 console.log(`Demo 源码目录: ${srcDir}`);
+
+if (filteredLowValueCount > 0 || filteredTypeCount > 0) {
+  const totalRaw = specData.interfaces ? specData.interfaces.length : 0;
+  console.log(`过滤低价值常量 ${filteredLowValueCount} 个 + 类型声明 ${filteredTypeCount} 个，实际统计 ${interfaces.length}/${totalRaw} 个接口`);
+}
 
 if (!fs.existsSync(srcDir)) {
   console.error(`Demo 源码目录不存在: ${srcDir}`);
@@ -1136,6 +1151,8 @@ if (!result) {
 }
 
 result.specSummary = specData.summary;
+result.filteredLowValueCount = filteredLowValueCount;
+result.filteredTypeCount = filteredTypeCount;
 
 // ── 结果合理性校验（静默失败防线）──────────────────────────
 // 有 Demo 文件 import 了库、但匹配数异常低/为 0 时，大概率是匹配缺陷
