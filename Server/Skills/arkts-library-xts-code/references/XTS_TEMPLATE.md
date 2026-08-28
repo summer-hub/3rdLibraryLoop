@@ -630,3 +630,138 @@ export default function testsuite() {
  *   - 大数据量测试：{X} 个（{%}）
  */
 ```
+
+---
+
+## 十五、外部硬件/服务依赖接口测试模板
+
+适用于接口依赖真实硬件（BLE/NFC/传感器/定位等）或外部服务，测试环境无法提供真实设备的场景。
+核心策略：try-catch 验证不崩溃 + 可选状态预检 + 链式返回判空。
+
+```typescript
+    /**
+     * 用例 {SEQ}: {用例名称}
+     *
+     * 用例描述：验证 {接口名} 在无真实硬件环境下的健壮性，确保不崩溃
+     * 涉及接口：{接口签名}（依赖 BLE/NFC/传感器等硬件）
+     * 预期结果：
+     *   1. 无硬件时调用应安全失败或返回默认值，不崩溃
+     *   2. 返回值若为 null/false 属于预期行为（硬件不可用）
+     */
+    it('{hardware_func}_{SEQ}', 0, () => {
+      hilog.info(DOMAIN, TAG, 'Test {SEQ}: {用例名称} started');
+
+      // ─── 可选：硬件状态预检 ────────────────────────────────────────────
+      // 若库提供 isXxxEnabled() 方法，先查询当前硬件状态
+      // let hardwareAvailable: boolean = false;
+      // try {
+      //   hardwareAvailable = SomeManager.getInstance().isBlueEnable();
+      // } catch (e) { /* 硬件查询失败也视为不可用 */ }
+      // hilog.debug(DOMAIN, TAG, 'Hardware available: %{public}s', String(hardwareAvailable));
+
+      // ─── 硬件依赖调用（try-catch 验证不崩溃）────────────────────────────
+      let caught: boolean = false;
+      let result: boolean = false;
+      try {
+        // 调用依赖硬件的接口（如 scan/connect/enableBluetooth）
+        result = SomeManager.getInstance().startScan();
+      } catch (e) {
+        caught = true;
+      }
+
+      // 断言：不崩溃即通过（caught 为 true 或 false 均可接受）
+      // 若返回值为 boolean，额外验证类型正确
+      expect(typeof result === 'boolean').assertTrue();
+      hilog.debug(DOMAIN, TAG, 'Hardware call result: caught=%{public}s, result=%{public}s', String(caught), String(result));
+
+      hilog.info(DOMAIN, TAG, 'Test {SEQ} passed');
+    });
+```
+
+> **适用场景分类**：
+> - 纯硬件操作（scan/connect/enable）：try-catch + 布尔标记验证不崩溃
+> - 回调透传：注入 Mock 实现验证回调标志（见 XTS_TEMPLATE.md 十二 implements 模板）
+> - 链式返回：验证返回值非 null（`expect(result !== null).assertTrue()`）+ instanceof 判断
+> - 状态查询：先 reset 再断言状态值（见 XTS_TEMPLATE.md 十六 单例状态隔离）
+
+---
+
+## 十六、单例状态隔离模板（beforeEach 重置）
+
+适用于库使用单例模式（含 `getInstance()` 静态方法）且实例状态跨用例持久化的场景。
+在 `beforeEach` 中调用 reset/stop 方法重置单例状态，防止前序用例污染后续断言。
+
+```typescript
+export default function {LibraryName}XtsTest() {
+  describe('{LibraryName}XtsTest', () => {
+
+    beforeAll(() => {
+      // 全局初始化（仅执行一次）
+      const delegator = abilityDelegatorRegistry.getAbilityDelegator();
+      const appContext: common.Context = delegator.getAppContext();
+      tempDir = appContext.tempDir;
+      hilog.info(DOMAIN, TAG, 'XTS test suite started, tempDir=%{public}s', tempDir);
+    });
+
+    // ─── 单例状态重置（每个用例前执行）──────────────────────────────────
+    beforeEach(() => {
+      // 调用库提供的 reset/stop 方法将单例恢复到已知初始状态
+      // 用 try-catch 包裹：若单例尚未初始化或 reset 方法抛异常，不影响后续用例
+      try { SomeManager.getInstance().stopScan() } catch (e) {}
+      try { SomeManager.getInstance().stopLeScan() } catch (e) {}
+      // 可选：重置其他单例
+      // try { OtherManager.getInstance().reset() } catch (e) {}
+    });
+
+    afterEach(() => {
+      hilog.info(DOMAIN, TAG, 'Test case finished');
+    });
+
+    // ─── 测试用例 ────────────────────────────────────────────────────────
+
+    /**
+     * 用例 {SEQ}: 单例初始状态验证
+     *
+     * 用例描述：验证单例在 beforeEach 重置后处于初始状态
+     * 涉及接口：SomeManager.getInstance().getScanState()
+     * 预期结果：
+     *   1. beforeEach 重置后 getScanState() 返回 STATE_IDLE
+     */
+    it('singleton_initial_state_{SEQ}', 0, () => {
+      hilog.info(DOMAIN, TAG, 'Test {SEQ}: singleton initial state started');
+
+      // beforeEach 已调用 stopScan()，此时状态应为 IDLE
+      const state: number = SomeManager.getInstance().getScanState();
+      expect(state).assertEqual(0); // STATE_IDLE = 0
+      hilog.debug(DOMAIN, TAG, 'Singleton state after reset: %{public}d', state);
+
+      hilog.info(DOMAIN, TAG, 'Test {SEQ} passed');
+    });
+
+    /**
+     * 用例 {SEQ}: 单例状态变更后验证
+     *
+     * 用例描述：验证调用 startScan() 后状态变更为 SCANNING
+     * 涉及接口：SomeManager.getInstance().startScan() / getScanState()
+     * 预期结果：
+     *   1. startScan() 后 getScanState() 返回 STATE_SCANNING
+     */
+    it('singleton_after_start_{SEQ}', 0, () => {
+      hilog.info(DOMAIN, TAG, 'Test {SEQ}: singleton state after start started');
+
+      // beforeEach 已重置，从已知初始状态开始
+      try { SomeManager.getInstance().startScan() } catch (e) {}
+      const state: number = SomeManager.getInstance().getScanState();
+      expect(state).assertEqual(1); // STATE_SCANNING = 1
+      hilog.debug(DOMAIN, TAG, 'Singleton state after start: %{public}d', state);
+
+      hilog.info(DOMAIN, TAG, 'Test {SEQ} passed');
+    });
+
+  });
+}
+```
+
+> **降级策略**：若库未提供 reset/stop 方法（无法重置单例状态），改为断言"调用某方法后的状态"而非"初始状态"。
+> 例如，不验证 `getScanState() == STATE_IDLE`，改为验证 `startScan()` 后 `getScanState() == STATE_SCANNING`，
+> 避免因前序用例已修改状态而导致"初始状态"断言不稳定。

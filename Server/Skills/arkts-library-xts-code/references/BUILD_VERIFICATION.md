@@ -89,6 +89,8 @@ node {{skillDir}}/scripts/code-linter.cjs --source {{sourcePath}} --target entry
 > cd {{sourcePath}} && devecocli build --modules entry@ohosTest
 > ```
 
+> 🔴 **结果判定以构建日志为准，不依赖 exit code**：build.ps1 内嵌 PowerShell 超时（默认 300s，见下）若先于 devecocli 返回，exit code 可能为 1 但 hvigor 实际已 `BUILD SUCCESSFUL`。每轮编译后先 grep 日志中的 `BUILD SUCCESSFUL` / `BUILD FAILED` 字样判断真实结果；仅当两者都没有（超时截断）才视为失败并进入修复循环。
+
 ```powershell
 # 首次编译
 powershell -ExecutionPolicy Bypass -File "{{skillDir}}/scripts/build.ps1" -Cmd "cd /d {{sourcePath}} && devecocli build clean"
