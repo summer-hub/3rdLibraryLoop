@@ -141,6 +141,8 @@ export class Brain {
      * @param {string} [options.skillDirectory] - 覆盖默认 SKILL 目录
      * @param {string} [options.planId]   - 指定 planId（不传则自动生成）
      * @param {string} [options.acceptanceCriteria] - 用户提供的验收标准（自然语言，可选）
+     * @param {() => boolean} [options.isAborted] - 终止信号回调（返回 true 时 SKILL 轮询抛终止退出）
+     * @param {(sessionId: string) => void} [options.onSessionCreated] - Session 创建回调（供上层登记远程中止）
      * @returns {Promise<BrainPlan>}
      */
     async planTask(taskDescription, options = {}) {
@@ -154,6 +156,11 @@ export class Brain {
         const taskDir = options.taskDir ||
             path.resolve(this.storage.manager.rootDir, 'task', taskId);
         const userCriteria = options.acceptanceCriteria || '';
+        // 终止信号 + Session 登记（由 LoopEngine 注入，拆解轮询期间感知终止）
+        const abortSignal = {
+            isAborted: typeof options.isAborted === 'function' ? options.isAborted : null,
+            onSessionCreated: typeof options.onSessionCreated === 'function' ? options.onSessionCreated : null
+        };
 
         // 确保任务工作目录存在（opencode promptAsync 会 realPath 检查目录）
         fs.mkdirSync(taskDir, { recursive: true });
@@ -164,7 +171,7 @@ export class Brain {
         try {
             // ─── 步骤 1：分析任务意图 + 提取/生成验收标准 ───
             const { analysis, sessionId: analysisSessionId } = await this._analysis.analyzeTask(taskDescription, userCriteria, {
-                taskId, taskDir, skillDir, loopCount: 0
+                taskId, taskDir, skillDir, loopCount: 0, abortSignal
             });
             this._emit(planId, 'brain:analyze:done', { planId, analysis, sessionId: analysisSessionId });
 
@@ -172,7 +179,7 @@ export class Brain {
             this._status = BrainStatus.PLANNING;
             const { steps: rawSteps, sessionId: decompositionSessionId } = await this._decomposition.decomposeTask(
                 taskDescription, analysis, skillDir, userCriteria,
-                { taskId, taskDir, loopCount: 0 }
+                { taskId, taskDir, loopCount: 0, abortSignal }
             );
             this._emit(planId, 'brain:plan:done', {
                 planId,
@@ -290,8 +297,8 @@ export class Brain {
      * @param {string} [options.acceptanceCriteria] - 用户提供的验收标准
      * @param {object} [options.previousCheckResult] - 上轮 TestCheck 结果
      * @param {object} [options.previousOrchestratorResult] - 上轮 Orchestrator 结果
-     * @param {number} [options.loopCount]     - 当前循环轮次
-     * @returns {Promise<BrainPlan>}
+     * @param {number} [options.loopCount]     - 当前循环轮次     * @param {() => boolean} [options.isAborted] - 终止信号回调（返回 true 时 SKILL 轮询抛终止退出）
+     * @param {(sessionId: string) => void} [options.onSessionCreated] - Session 创建回调（供上层登记远程中止）     * @returns {Promise<BrainPlan>}
      */
     async replanTask(taskDescription, options = {}) {
         if (!taskDescription || typeof taskDescription !== 'string') {
@@ -308,6 +315,11 @@ export class Brain {
             path.resolve(this.storage.manager.rootDir, 'task', taskId);
         const userCriteria = options.acceptanceCriteria || '';
         const loopCount = options.loopCount || 1;
+        // 终止信号 + Session 登记（由 LoopEngine 注入，重规划轮询期间感知终止）
+        const abortSignal = {
+            isAborted: typeof options.isAborted === 'function' ? options.isAborted : null,
+            onSessionCreated: typeof options.onSessionCreated === 'function' ? options.onSessionCreated : null
+        };
 
         // 确保任务工作目录存在（opencode promptAsync 会 realPath 检查目录）
         fs.mkdirSync(taskDir, { recursive: true });
@@ -375,7 +387,7 @@ export class Brain {
                     pendingSteps,
                     satisfiedCriteria
                 },
-                { taskId, taskDir, skillDir }
+                { taskId, taskDir, skillDir, abortSignal }
             );
             this._emit(taskId, 'brain:replan:analyze:done', { planId, analysis, sessionId: analysisSessionId });
 
@@ -392,7 +404,7 @@ export class Brain {
                     pendingSteps,
                     satisfiedCriteria
                 },
-                { taskId, taskDir, skillDir }
+                { taskId, taskDir, skillDir, abortSignal }
             );
             this._emit(taskId, 'brain:replan:decompose:done', {
                 planId,

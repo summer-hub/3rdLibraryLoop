@@ -639,6 +639,15 @@ textarea.large { min-height: 100px; font-size: 13px; line-height: 1.6; }
 .status-badge.planning  { background: var(--purple-light); color: var(--purple); }
 .status-badge.executing { background: var(--orange-light); color: var(--orange); }
 .status-badge.checking  { background: var(--yellow-light); color: var(--badge-yellow-text); }
+.status-badge.aborting  { background: var(--orange-light); color: var(--orange); position: relative; }
+.status-badge.aborting::after {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--orange);
+    animation: aborting-blink 1s ease-in-out infinite;
+}
+@keyframes aborting-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
 .status-badge.passed    { background: var(--green-light); color: var(--badge-green-text); }
 .status-badge.failed    { background: var(--red-light); color: var(--badge-red-text); }
 .status-badge.aborted   { background: var(--gray-light); color: var(--gray); }

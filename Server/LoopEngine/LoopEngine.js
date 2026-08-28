@@ -47,6 +47,7 @@ export const LoopStatus = Object.freeze({
     PLANNING: 'planning',       // Brain 拆解/重规划中
     EXECUTING: 'executing',     // Orchestrator 执行中
     CHECKING: 'checking',       // TestCheck 准出审核中
+    ABORTING: 'aborting',       // 终止已请求，等待各阶段轮询退出（过渡态）
     PASSED: 'passed',           // 准出通过，循环结束
     FAILED: 'failed',           // 达到最大循环次数仍未通过
     ABORTED: 'aborted',         // 被手动终止
@@ -63,11 +64,29 @@ const SSE_EVENT = Object.freeze({
     LOOP_ROUND_END: 'loop:round:end',
     LOOP_COMPLETE: 'loop:complete',
     LOOP_ERROR: 'loop:error',
+    LOOP_ABORTING: 'loop:aborting',
     LOOP_ABORTED: 'loop:aborted'
 });
 
 /** 默认最大循环次数 */
 const DEFAULT_MAX_LOOPS = 3;
+
+/**
+ * ABORTED_ERROR —— 大循环终止专用错误。
+ *
+ * 由各阶段（Brain 拆解 / Orchestrator 等待 / TestCheck 审核）检测到终止请求后抛出，
+ * startLoop 的 catch 分支识别本错误后立即跳出循环（不再进入后续阶段），
+ * 区别于普通的轮次执行异常（后者会继续下一轮）。
+ */
+class ABORTED_ERROR extends Error {
+    /**
+     * @param {string} [message]
+     */
+    constructor(message = '大循环已终止') {
+        super(message);
+        this.name = 'AbortError';
+    }
+}
 
 // ─── LoopEngine 类 ───────────────────────────────────────────────────────────
 
@@ -104,6 +123,15 @@ class LoopEngine {
 
         // TestCheck 实例（懒初始化）
         this._testCheck = deps.testCheck || null;
+
+        /**
+         * AbortState —— 大循环终止状态（由 abortLoop 驱动，各阶段轮询检查）。
+         *
+         * 场景：setAbortFlag 置位后，正在运行的 Brain/TestCheck SKILL 轮询
+         * 需要在下一个轮询周期感知并退出；同时记录活跃 sessionId 供 abortLoop
+         * 远程中止 opencode session（否则 session 会在后台继续跑到自然完成）。
+         */
+        this._abortStates = new Map();
 
         /** @type {Map<string, LoopContext>} key = taskId */
         this._loops = new Map();
@@ -142,6 +170,103 @@ class LoopEngine {
      */
     getLoops() {
         return Array.from(this._loops.values());
+    }
+
+    // ─── 终止状态管理 ──────────────────────────────────────────────────
+
+    /**
+     * 获取（或惰性创建）任务的 AbortState。
+     * @param {string} taskId
+     * @returns {{ aborted: boolean, sessionId: string|null }}
+     * @private
+     */
+    _getAbortState(taskId) {
+        let st = this._abortStates.get(taskId);
+        if (!st) {
+            st = { aborted: false, sessionId: null };
+            this._abortStates.set(taskId, st);
+        }
+        return st;
+    }
+
+    /**
+     * 判断任务是否已被请求终止。
+     * @param {string} taskId
+     * @returns {boolean}
+     */
+    isAborted(taskId) {
+        const st = this._abortStates.get(taskId);
+        return Boolean(st && st.aborted);
+    }
+
+    /**
+     * 登记当前阶段正在运行的 opencode sessionId（Brain 拆解 / TestCheck 审核）。
+     *
+     * 供 abortLoop 远程中止 session；sessionId 更新时若已请求终止则立即中止新 session。
+     *
+     * @param {string} taskId
+     * @param {string|null} sessionId - null 表示清除
+     * @private
+     */
+    _trackSession(taskId, sessionId) {
+        const st = this._getAbortState(taskId);
+
+        // 终止已请求：新登记的 session 直接远程中止，防止 Brain/审核
+        // 轮询间隙里新建的 session 继续在后台运行
+        if (st.aborted && sessionId) {
+            this._abortSessions([sessionId]);
+        }
+
+        if (sessionId) {
+            st.pendingSessionId = sessionId;   // 尚未被消费的 session
+            delete st.abortedSessionIds?.[sessionId];
+        } else {
+            st.pendingSessionId = null;
+        }
+    }
+
+    /**
+     * 消费未中止的 pending session（轮询线程检测到终止时调用，返回应立即远程中止的 sessionId）。
+     * @param {string} taskId
+     * @returns {string|null}
+     * @private
+     */
+    _consumePendingSession(taskId) {
+        const st = this._abortStates.get(taskId);
+        if (!st || !st.pendingSessionId) return null;
+        const sid = st.pendingSessionId;
+        st.pendingSessionId = null;
+        return sid;
+    }
+
+    /**
+     * 远程中止 opencode sessions（尽力而为，失败仅记日志）。
+     * @param {string[]} sessionIds
+     * @returns {Promise<void>}
+     * @private
+     */
+    async _abortSessions(sessionIds) {
+        if (!sessionIds || sessionIds.length === 0) return;
+
+        let cli = null;
+        try {
+            const mod = await import('../CLI/cli.js');
+            cli = new mod.CLIController('opencode', {});
+        } catch (err) {
+            this._log('warn', `_abortSessions: 加载 CLIController 失败: ${err.message}`);
+            return;
+        }
+
+        for (const sid of sessionIds) {
+            if (!sid) continue;
+            try {
+                await cli.abortSession(sid);
+                this._log('info', `_abortSessions: 已远程中止 session ${sid}`);
+            } catch (err) {
+                // session 可能已自然结束，中止失败不阻断终止流程
+                this._log('warn', `_abortSessions: 中止 session ${sid} 失败: ${err.message}`);
+            }
+        }
     }
 
     // ─── SSE 推送 ──────────────────────────────────────────────────────
@@ -221,6 +346,11 @@ class LoopEngine {
 
         this._loops.set(taskId, ctx);
 
+        // 重置终止状态（同 taskId 重新启动场景）
+        const abortState = this._getAbortState(taskId);
+        abortState.aborted = false;
+        abortState.pendingSessionId = null;
+
         // 立即持久化 loop.json，确保大循环启动后任务即可在列表中可见
         // 防止系统重启时因 loop.json 未写入导致任务丢失
         await this._persistLoopState(ctx);
@@ -265,6 +395,14 @@ class LoopEngine {
                     const planningResult = await this._runBrain(ctx, params);
                     round.planningResult = planningResult;
 
+                    // ── 终止检查点：Brain 拆解期间收到终止请求 → 不进入编排阶段 ──
+                    // （Brain 内部的 SKILL 轮询会因 abort 提前退出并抛 ABORTED 错误，
+                    //  此检查兜底处理 Brain 自然完成但终止已请求的场景）
+                    if (this.isAborted(taskId)) {
+                        ctx.aborted = true;
+                        throw new ABORTED_ERROR('Brain 拆解完成前收到终止请求');
+                    }
+
                     // ── 阶段 2：Orchestrator 编排执行 ──
                     ctx.status = LoopStatus.EXECUTING;
                     await this._persistLoopState(ctx);
@@ -274,6 +412,12 @@ class LoopEngine {
 
                     const orchestratorResult = await this._runOrchestrator(ctx, planningResult);
                     round.orchestratorResult = orchestratorResult;
+
+                    // ── 终止检查点：编排期间收到终止请求（waitFor 检测到后提前返回）→ 不进入审核阶段 ──
+                    if (this.isAborted(taskId)) {
+                        ctx.aborted = true;
+                        throw new ABORTED_ERROR('编排执行终止，跳过准出审核');
+                    }
 
                     // ── 阶段 3：TestCheck 准出审核 ──
                     ctx.status = LoopStatus.CHECKING;
@@ -299,6 +443,16 @@ class LoopEngine {
 
                 } catch (err) {
                     round.error = err.message;
+                    // 终止请求识别：ABORTED_ERROR（引擎检查点）或 SkillAbortedError
+                    // （Brain/TestCheck 的 SKILL 轮询检测到 abortSignal 抛出）。
+                    // 两者都必须跳出循环，不能当作普通轮次异常进入下一轮重规划。
+                    if (err instanceof ABORTED_ERROR || err?.name === 'SkillAbortedError' || this.isAborted(taskId)) {
+                        // 终止请求：同步 ctx.aborted 标志，直接跳出循环
+                        ctx.aborted = true;
+                        this._log('warn', `第 ${loopNum + 1} 轮被终止: ${err.message}`);
+                        round.endTime = nowCST();
+                        break;
+                    }
                     this._log('error', `第 ${loopNum + 1} 轮执行异常: ${err.message}`);
                     // 单轮异常不中断整个大循环，继续下一轮（除非是 abort）
                     if (ctx.aborted) {
@@ -358,8 +512,17 @@ class LoopEngine {
 
     /**
      * 终止大循环。
+     *
+     * 终止语义（同步返回，异步生效）：
+     *   1. 置位终止标志（isAborted 立即为 true，供各阶段轮询检查点退出）
+     *   2. 终止 Orchestrator（通知运行中的 FlexRunner abortSession）
+     *   3. 远程中止 Brain / TestCheck 正在运行的 opencode session（尽力而为）
+     *
+     * 各阶段的 SKILL 轮询（FlexRunner._pollSession / SkillExecutor.pollSession /
+     * TestCheck._pollSession）在下一个轮询周期检测到标志后抛出终止并退出。
+     *
      * @param {string} taskId
-     * @returns {Promise<boolean>}
+     * @returns {Promise<boolean>} 是否找到了运行中的循环（true = 终止请求已受理）
      */
     async abortLoop(taskId) {
         const ctx = this._loops.get(taskId);
@@ -367,9 +530,23 @@ class LoopEngine {
             return false;
         }
 
+        // 1. 置位终止标志（各阶段轮询检查点据此退出）
         ctx.aborted = true;
+        const abortState = this._getAbortState(taskId);
+        abortState.aborted = true;
 
-        // 终止 Orchestrator
+        // 1b. 进入"中止中"过渡态：前端据此显示「任务中止中」，终止按钮置灰。
+        //     各阶段轮询周期（秒级）检测到标志后退出，startLoop 收尾时置为终态 ABORTED。
+        //     仅在仍处于活跃阶段时切换（已 PASSED/FAILED 的循环不回退状态）。
+        const ACTIVE_STATES = [LoopStatus.PLANNING, LoopStatus.EXECUTING, LoopStatus.CHECKING];
+        if (ACTIVE_STATES.includes(ctx.status)) {
+            ctx.status = LoopStatus.ABORTING;
+            this._emit(taskId, SSE_EVENT.LOOP_ABORTING, { taskId });
+            // 立即落盘，防止重启后过渡态丢失（恢复流程会把 aborting 视为活跃态）
+            await this._persistLoopState(ctx).catch(() => {});
+        }
+
+        // 2. 终止 Orchestrator（运行中的步骤由 FlexRunner abortSession 远程中止）
         try {
             const orch = this.orchestratorController._getOrchestrator(taskId);
             if (orch) {
@@ -379,7 +556,14 @@ class LoopEngine {
             // Orchestrator 可能不存在或已结束
         }
 
-        this._log('warn', `⏹  大循环已终止: taskId=${taskId}`);
+        // 3. 远程中止 Brain / TestCheck 阶段正在运行的 opencode session
+        //    （否则 session 会在 opencode serve 后台继续跑到自然完成）
+        const pendingSession = this._consumePendingSession(taskId);
+        if (pendingSession) {
+            await this._abortSessions([pendingSession]);
+        }
+
+        this._log('warn', `⏹  大循环终止已请求: taskId=${taskId}`);
         return true;
     }
 
@@ -448,6 +632,11 @@ class LoopEngine {
     async _runBrain(ctx, originalParams) {
         const brain = this.brainController._getBrain();
 
+        // 入口终止检查：拆解开始前已请求终止 → 不启动 Brain 的 opencode session
+        if (this.isAborted(ctx.taskId)) {
+            throw new ABORTED_ERROR('Brain 拆解前已请求终止');
+        }
+
         if (ctx.currentLoop === 0) {
             // ── 首轮：初始拆解 ──
             this._log('info', `Brain 初始拆解: taskId=${ctx.taskId}`);
@@ -456,8 +645,19 @@ class LoopEngine {
                 taskId: ctx.taskId,
                 taskDir: ctx.taskDir,
                 skillDirectory: ctx.skillDirectory,
-                acceptanceCriteria: ctx.userAcceptanceCriteria
+                acceptanceCriteria: ctx.userAcceptanceCriteria,
+                // 终止信号回调：Brain 内部 SKILL 轮询定期检查，置 true 时抛终止退出
+                isAborted: () => this.isAborted(ctx.taskId),
+                // Session 创建回调：登记到 AbortState 供 abortLoop 远程中止
+                onSessionCreated: (sessionId) => this._trackSession(ctx.taskId, sessionId)
             });
+
+            // 拆解期间收到终止请求（Session 已被远程中止，Brain 自然失败/退出）
+            if (this.isAborted(ctx.taskId)) {
+                throw new ABORTED_ERROR('Brain 拆解被终止');
+            }
+
+            this._trackSession(ctx.taskId, null);
 
             return { plan, taskDef: plan.taskDef, isReplan: false };
 
@@ -476,8 +676,18 @@ class LoopEngine {
                 acceptanceCriteria: ctx.userAcceptanceCriteria,
                 previousCheckResult: lastCheckResult,
                 previousOrchestratorResult: lastOrchResult,
-                loopCount: ctx.currentLoop
+                loopCount: ctx.currentLoop,
+                // 终止信号回调：重规划轮同样接入终止检查
+                isAborted: () => this.isAborted(ctx.taskId),
+                onSessionCreated: (sessionId) => this._trackSession(ctx.taskId, sessionId)
             });
+
+            // 拆解期间收到终止请求（Session 已被远程中止，Brain 自然失败/退出）
+            if (this.isAborted(ctx.taskId)) {
+                throw new ABORTED_ERROR('Brain 重规划被终止');
+            }
+
+            this._trackSession(ctx.taskId, null);
 
             return { plan, taskDef: plan.taskDef, isReplan: true };
         }
@@ -500,6 +710,11 @@ class LoopEngine {
         const { taskDef } = planningResult;
         const orchController = this.orchestratorController;
 
+        // 入口终止检查：Brain 完成后终止请求已到位 → 不加载编排（否则会完整跑一轮新编排）
+        if (this.isAborted(ctx.taskId)) {
+            throw new ABORTED_ERROR('编排执行前已请求终止');
+        }
+
         // ── 加载任务 ──
         const loadReq = { body: taskDef };
         const loadRes = this._createMockResponse();
@@ -507,6 +722,11 @@ class LoopEngine {
 
         if (loadRes._status >= 400) {
             throw new Error(`Orchestrator 加载失败: ${loadRes._data?.error || loadRes._data?.message}`);
+        }
+
+        // 加载后终止检查：终止请求在 load 过程中到达 → 不启动编排
+        if (this.isAborted(ctx.taskId)) {
+            throw new ABORTED_ERROR('编排启动前已请求终止');
         }
 
         // ── 启动编排 ──
@@ -587,6 +807,11 @@ class LoopEngine {
     async _runTestCheck(ctx, orchestratorResult) {
         const testCheck = this._getTestCheck();
 
+        // 入口终止检查：编排结束后终止请求已到位 → 不启动审核 session
+        if (this.isAborted(ctx.taskId)) {
+            throw new ABORTED_ERROR('准出审核前已请求终止');
+        }
+
         // 从 Brain plan 中提取验收标准
         const lastPlan = ctx.rounds.length > 0
             ? ctx.rounds[ctx.rounds.length - 1].planningResult?.plan
@@ -616,8 +841,20 @@ class LoopEngine {
             acceptanceCriteria,
             orchestratorResult,
             loopCount: ctx.currentLoop,
-            skillDirectory: ctx.skillDirectory
+            skillDirectory: ctx.skillDirectory,
+            // 终止信号回调：审核 SKILL 轮询定期检查，置 true 时抛终止退出
+            isAborted: () => this.isAborted(ctx.taskId),
+            // Session 创建回调：登记到 AbortState 供 abortLoop 远程中止
+            onSessionCreated: (sessionId) => this._trackSession(ctx.taskId, sessionId)
         });
+
+        // 审核期间收到终止请求（session 已被远程中止）
+        if (this.isAborted(ctx.taskId)) {
+            this._trackSession(ctx.taskId, null);
+            throw new ABORTED_ERROR('准出审核被终止');
+        }
+
+        this._trackSession(ctx.taskId, null);
 
         return result;
     }
@@ -722,7 +959,11 @@ class LoopEngine {
                 skillDirectory: state.skillDirectory || '',
                 maxLoops: state.maxLoops || DEFAULT_MAX_LOOPS,
                 currentLoop: state.currentLoop || 0,
-                status: state.status || LoopStatus.IDLE,
+                // 恢复时 aborting（中止中的过渡态）归一化为 aborted：
+                // 重启后循环执行体已不存在，无法也不应继续"等待中止完成"
+                status: state.status === LoopStatus.ABORTING
+                    ? LoopStatus.ABORTED
+                    : (state.status || LoopStatus.IDLE),
                 startTime: state.startTime || null,
                 endTime: state.endTime || null,
                 rounds: Array.isArray(state.rounds) ? state.rounds.map(r => ({
@@ -888,5 +1129,5 @@ function _generateTaskId() {
     return `task_${ts}${rand}`;
 }
 
-export { LoopEngine };
+export { LoopEngine, ABORTED_ERROR };
 export default LoopEngine;

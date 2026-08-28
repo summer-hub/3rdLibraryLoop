@@ -395,6 +395,16 @@ class Orchestrator {
             throw new Error(`Orchestrator.start: 当前状态为 ${this._status}，需先 loadTask`);
         }
 
+        // 启动前终止检查：load 与 start 之间的窗口期内收到 abort → 不执行任何步骤
+        if (this._aborted) {
+            this._status = OrchestratorStatus.ABORTED;
+            this._endTime = nowCST();
+            this._log('warn', 'start: 任务在启动前已被终止，不执行任何步骤');
+            this._emit(SSE_EVENT.TASK_ABORTED, this.getProgress());
+            await this._persistState();
+            return { status: this._status, summary: this.getProgress() };
+        }
+
         this._status = OrchestratorStatus.RUNNING;
         this._startTime = nowCST();
         this._emit(SSE_EVENT.TASK_START, this.getProgress());
@@ -563,6 +573,13 @@ class Orchestrator {
      * @private
      */
     async _executeNode(node) {
+        // 调度前终止检查：终止已请求 → 不创建 FlexRunner、不启动 session，直接跳过
+        if (this._aborted) {
+            node.markSkipped('编排已终止');
+            this._emitStepStatus(node);
+            return;
+        }
+
         this._globalExecCount++;
         this._currentStepId = node.stepId;
 
@@ -584,6 +601,11 @@ class Orchestrator {
             const runner = await this._createFlexRunner(node, inputReport);
             node._runner = runner;
 
+            // Runner 创建期间收到终止请求 → 不执行（session 将不会被创建）
+            if (this._aborted) {
+                throw new Error('步骤被终止（Runner 初始化期间收到终止请求）');
+            }
+
             // 单次执行（不再原地重试）。
             // 失败后由 _activateNextStep 跳转 failStepId（未达 maxRetries），
             // 或终止流程（已达 maxRetries）。每次调用 markRunning() 递增 retryCount，
@@ -604,6 +626,13 @@ class Orchestrator {
             const semWaited = Date.now() - semWaitStart;
             if (semWaited > 100) {
                 this._log('info', `步骤 ${node.stepId} 等待并发槽位 ${semWaited}ms（active=${this.sessionSemaphore.active}/${this.sessionSemaphore.limit}）`);
+            }
+
+            // 等待槽位期间收到终止请求 → 不启动 executeStart（session 将不会被创建）
+            if (this._aborted) {
+                this.sessionSemaphore.release();
+                this._log('warn', `步骤 ${node.stepId} 在等待并发槽位时被终止，跳过执行`);
+                throw new Error('步骤被终止（等待并发槽位期间收到终止请求）');
             }
 
             let result;
@@ -872,11 +901,14 @@ class Orchestrator {
      * abort — 终止编排执行。
      *
      * 标记终止标志，正在执行的步骤会在步骤边界检测后退出。
+     * LOADED 状态（已加载未启动）同样受理终止：防止 start 前的终止请求
+     * 被吞掉导致随后 start() 照常执行整个编排。
      *
      * @returns {Promise<boolean>}
      */
     async abort() {
-        if (this._status !== OrchestratorStatus.RUNNING) {
+        if (this._status !== OrchestratorStatus.RUNNING &&
+            this._status !== OrchestratorStatus.LOADED) {
             this._log('warn', `abort: 当前状态为 ${this._status}，无需终止`);
             return false;
         }
@@ -1048,7 +1080,11 @@ class Orchestrator {
         return {
             taskId: this._taskId,
             loopCount: this._loopCount,
-            status: this._status,
+            // 终止已请求但仍未收尾（RUNNING + _aborted）→ 投影为 aborting，
+            // 供前端展示「任务中止中」过渡态（不改变内部状态机，收尾时仍按 ABORTED 判定）
+            status: (this._aborted && this._status === OrchestratorStatus.RUNNING)
+                ? 'aborting'
+                : this._status,
             startTime: this._startTime,
             endTime: this._endTime,
             error: this._error,
