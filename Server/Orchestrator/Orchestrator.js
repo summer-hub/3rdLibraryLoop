@@ -194,6 +194,10 @@ class Orchestrator {
         /** @type {Set<string>} 修复步骤集合：被其它步骤 failStepId 指向的 stepId。
          *  这些节点语义上"仅由某步骤失败时经 failStepId 进入"，不应被 dependId fan-out 并行激活。 */
         this._fixStepIds = new Set();
+        /** @type {Map<string, Promise<void>>} 在途执行追踪：key = stepId，value = _executeNode 的 Promise。
+         *  流水线式调度：步骤完成的尾部级联立即启动新就绪节点，
+         *  _scheduleLoop 通过 Promise.race 感知任意节点完成，无需等整批结束。 */
+        this._inFlight = new Map();
 
         // ── 持久化串行化 ──
         // _persistState 可能被并发调用（如步骤状态变更回调中 fire-and-forget 触发）。
@@ -474,15 +478,18 @@ class Orchestrator {
     }
 
     /**
-     * 主调度循环。
+     * 主调度循环（流水线式事件驱动）。
      *
-     * 每轮：
-     *   1. 收集所有 READY 状态的步骤
-     *   2. 并行执行（无依赖或依赖已完成）
-     *   3. 等待执行完成
-     *   4. 根据成功/失败更新后续步骤的就绪状态
-     *   5. 全局执行上限 GLOBAL_EXEC_LIMIT 兜底
-     *   6. 若无 READY 也无 RUNNING → 结束
+     * 与旧的"轮次式"（每轮收集一批 READY → Promise.all → 等整批完成）不同：
+     * 任一在途步骤完成时，其尾部级联已把新就绪的后续步骤投入执行（见 _executeNode 尾部 / _kick），
+     * 因此这里只需：
+     *   1. 首轮把全部 READY 节点 _kick
+     *   2. Promise.race 任意在途完成即重新扫描（此时尾部队列已注入新节点）
+     *   3. 无在途也无 READY → 调度结束
+     *
+     * 效果：步骤完成即刻启动依赖它的下一步骤（如步骤4 完成 → 步骤6 立即启动），
+     * 不再被同批次慢步骤（如步骤5）拖累；总耗时趋近 DAG 关键路径而非批次累计。
+     * fan-in 聚合、execPath 循环检测、GLOBAL_EXEC_LIMIT、abort 语义均不变。
      *
      * @private
      */
@@ -495,33 +502,51 @@ class Orchestrator {
                 return;
             }
 
-            // 收集可执行步骤（READY 状态）
-            const readyNodes = Array.from(this._nodes.values())
-                .filter(n => n.status === NodeStatus.READY);
-
-            if (readyNodes.length === 0) {
-                // 检查是否有正在执行的步骤
-                const runningNodes = Array.from(this._nodes.values())
-                    .filter(n => n.isRunning);
-                if (runningNodes.length === 0) {
-                    // 无可执行也无运行中 → 调度结束
-                    this._log('info', '调度循环结束：无可执行步骤');
-                    return;
+            // 启动所有就绪节点
+            for (const node of this._nodes.values()) {
+                if (node.status === NodeStatus.READY) {
+                    this._kick(node);
                 }
-                // 等待运行中的步骤完成（不应发生，因为 _executeStep 是同步等待的）
-                await this._sleep(1000);
-                continue;
             }
 
-            // 并行执行所有就绪步骤
-            this._log('info', `本轮执行 ${readyNodes.length} 个步骤: ${readyNodes.map(n => n.stepId).join(', ')}`);
+            // 无可执行也无在途 → 调度结束
+            if (this._inFlight.size === 0) {
+                this._log('info', '调度循环结束：无可执行步骤');
+                return;
+            }
 
-            const promises = readyNodes.map(node => this._executeNode(node));
-            await Promise.all(promises);
-
-            // 执行完成后，处理后续步骤的就绪状态
-            // （已在 _executeNode 内部处理）
+            // 等待任意在途完成（其尾部级联会把新 READY 节点立刻变为在途），
+            // 完成后再回到循环顶部重新扫描。
+            await Promise.race(this._inFlight.values());
         }
+    }
+
+    /**
+     * 启动一个就绪步骤（幂等，防重入）。
+     *
+     * - 仅当节点状态为 READY 且未超 GLOBAL_EXEC_LIMIT 时才真正执行；
+     * - 执行 Promise 记入 _inFlight（stepId → Promise），完成后移除；
+     * - _scheduleLoop 与 _executeNode 尾部级联均通过此方法启动节点，
+     *   READY → RUNNING 状态转换保证同一节点不会被重复启动。
+     *
+     * @param {StepNode} node
+     * @private
+     */
+    _kick(node) {
+        const stepId = node.stepId;
+        // 幂等：仅启动 READY 节点；RUNNING/PENDING/终态节点不重复入队
+        if (node.status !== NodeStatus.READY) return;
+        // 全局执行上限兜底（含尾部级联触发的启动）
+        if (this._globalExecCount >= GLOBAL_EXEC_LIMIT) return;
+        if (this._inFlight.has(stepId)) return;
+
+        const promise = this._executeNode(node);
+        this._inFlight.set(stepId, promise);
+        promise.finally(() => {
+            this._inFlight.delete(stepId);
+        }).catch(err => {
+            this._log('error', `步骤 ${stepId} 调度异常: ${err.message}`);
+        });
     }
 
     /**
@@ -644,6 +669,16 @@ class Orchestrator {
 
         // 本步骤完成，可能满足 fan-out/fan-in 依赖条件：扫描所有依赖它的后续步骤尝试激活
         this._activateDependents(node);
+
+        // 级联启动：本步骤完成激活的新就绪节点应立即投入执行（流水线式），
+        // 无需等 _scheduleLoop 下一轮扫描（同一批次中其他慢步骤可能仍在运行）。
+        // 步骤4 完成 → 步骤6 即刻启动，不再被步骤5 拖累。
+        // 幂等由 _kick 的 READY→RUNNING 转换保证；abort 分支在尾部级联前已 return。
+        for (const candid of this._nodes.values()) {
+            if (candid.status === NodeStatus.READY) {
+                this._kick(candid);
+            }
+        }
 
         this._currentStepId = null;
     }
@@ -1313,16 +1348,6 @@ class Orchestrator {
         if (this.sseHub && typeof this.sseHub.emit === 'function') {
             this.sseHub.emit(this._taskId, eventType, data);
         }
-    }
-
-    /**
-     * Promise 版 sleep。
-     * @param {number} ms
-     * @returns {Promise<void>}
-     * @private
-     */
-    _sleep(ms) {
-        return new Promise((resolve) => setTimeout(resolve, ms));
     }
 
     /**
