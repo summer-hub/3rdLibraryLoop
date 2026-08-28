@@ -35,9 +35,12 @@ Base: `https://gitcode.com/api/v5`
 
 **验证方法**：检查响应 `target_project.path_with_namespace` 是否等于原仓库路径；不等则关闭该 PR 重试。
 
-### 2. Issue 必须先于 PR 创建
+### 2. Issue 必须先于 CHANGELOG 提交与 PR 创建
 
-PR body 需在创建时就包含 `Closes #{issue_number}` 才能自动绑定；创建后再 PATCH 原仓库 PR 补写可能因权限不足返回 400。
+两处都需要在"落盘/创建时"引用 Issue：
+
+- CHANGELOG 条目末尾附 Issue 链接 —— 条目随分支提交，必须在 commit/push 前拿到 issue_number
+- PR body 需在创建时就包含 `Closes #{issue_number}` 才能自动绑定；创建后再 PATCH 原仓库 PR 补写可能因权限不足返回 400
 
 ### 3. 中文 body 的编码问题
 
@@ -73,11 +76,12 @@ Fork API 在 fork 已存在时可能报错。策略：
 1. POST /repos/{owner}/{repo}/forks            # Fork
 2. git remote add fork https://{token}@gitcode.com/{currentUser}/{repo}.git
 3. git config user.name/email                   # Token 用户身份
-4. git push -u fork {branchName}
-5. GET  /repos/{owner}/{repo}                   # 记 id、default_branch
-6. POST /repos/{owner}/{repo}/issues            # 先建 Issue
-7. POST /repos/{currentUser}/{repo}/pulls       # 跨仓库 PR（带 fork_repo + target_project_id）
-8. POST /repos/{owner}/{repo}/pulls/{n}/comments  # body: Start build
+4. GET  /repos/{owner}/{repo}                   # 记 id、default_branch
+5. POST /repos/{owner}/{repo}/issues            # 先建 Issue（CHANGELOG 与 PR 均需引用）
+6. 更新 CHANGELOG.md                            # 仅当库本身有修改，条目带 Issue 链接
+7. git add -A && git commit && git push -u fork {branchName}
+8. POST /repos/{currentUser}/{repo}/pulls       # 跨仓库 PR（带 fork_repo + target_project_id）
+9. POST /repos/{owner}/{repo}/pulls/{n}/comments  # body: Start build
 ```
 
 > Token 出现在 clone URL 中属于正常用法，但**不得**写入报告、日志正文或 issue/PR 内容。
