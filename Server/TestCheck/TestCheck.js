@@ -177,6 +177,8 @@ class TestCheck {
      * @param {object} [params.orchestratorResult] - Orchestrator 执行结果摘要
      * @param {number} [params.loopCount=0]    - 当前大循环次数
      * @param {string} [params.skillDirectory] - 覆盖 SKILL 目录
+     * @param {() => boolean} [params.isAborted] - 终止信号回调（返回 true 时审核轮询抛终止退出）
+     * @param {(sessionId: string) => void} [params.onSessionCreated] - Session 创建回调（供上层登记远程中止）
      * @returns {Promise<CheckResult>}
      */
     async runCheck(params = {}) {
@@ -186,8 +188,16 @@ class TestCheck {
             taskDescription = '',
             acceptanceCriteria = [],
             orchestratorResult = null,
-            loopCount = 0
+            loopCount = 0,
+            isAborted = null,
+            onSessionCreated = null
         } = params;
+
+        // 终止信号：审核过程中各环节检查，置位时抛终止退出
+        const abortSignal = {
+            isAborted: typeof isAborted === 'function' ? isAborted : null,
+            onSessionCreated: typeof onSessionCreated === 'function' ? onSessionCreated : null
+        };
 
         if (!taskId) {
             throw new Error('TestCheck.runCheck: taskId 为必填项');
@@ -249,7 +259,8 @@ class TestCheck {
                 reportPath,
                 summaryPath,
                 workDir,
-                loopCount
+                loopCount,
+                abortSignal
             });
 
             result.sessionId = sessionId;
@@ -394,10 +405,11 @@ class TestCheck {
      * @param {string} opts.summaryPath
      * @param {string} opts.workDir
      * @param {number} opts.loopCount
+     * @param {object} [opts.abortSignal] - 终止信号 { isAborted, onSessionCreated }（LoopEngine 注入）
      * @returns {Promise<{sessionId: string, executed: boolean}>}
      * @private
      */
-    async _invokeSkill({ taskDescription, skillDir, reportPath, summaryPath, workDir, loopCount }) {
+    async _invokeSkill({ taskDescription, skillDir, reportPath, summaryPath, workDir, loopCount, abortSignal }) {
         const cli = await this._getCli();
 
         this._log('info', `invokeSkill 开始 — skillDir: ${skillDir}`);
@@ -418,8 +430,23 @@ class TestCheck {
         const { sessionId } = await cli.startSession(title, prompt);
         this._log('info', `审核 Session 已创建: ${sessionId}`);
 
+        // 通知上层登记 sessionId（abortLoop 可据此远程中止）
+        if (abortSignal && typeof abortSignal.onSessionCreated === 'function') {
+            try {
+                abortSignal.onSessionCreated(sessionId);
+            } catch { /* 回调异常不影响主流程 */ }
+        }
+
+        // Session 创建后终止标志已置位 → 立即中止并退出
+        if (abortSignal && typeof abortSignal.isAborted === 'function' && abortSignal.isAborted()) {
+            try {
+                await cli.abortSession(sessionId);
+            } catch { /* 已自然结束 */ }
+            throw new Error('审核被终止（Session 创建后即中止）');
+        }
+
         // 轮询等待完成
-        const completed = await this._pollSession(cli, sessionId);
+        const completed = await this._pollSession(cli, sessionId, abortSignal);
         if (!completed) {
             this._log('warn', `审核 Session ${sessionId} 未在超时时间内完成`);
         }
@@ -459,13 +486,24 @@ class TestCheck {
      *
      * @param {object} cli       - CLIController 实例
      * @param {string} sessionId - 会话 ID
+     * @param {object} [abortSignal] - 终止信号 { isAborted: () => boolean }；
+     *                                  置位时在下一轮询周期远程中止 session 并抛终止退出
      * @returns {Promise<boolean>}
      * @private
      */
-    async _pollSession(cli, sessionId) {
+    async _pollSession(cli, sessionId, abortSignal = null) {
         const deadline = Date.now() + POLL_TIMEOUT_MS;
 
         while (Date.now() < deadline) {
+            // 终止检查：比超时检查优先，确保终止请求即时生效
+            if (abortSignal && typeof abortSignal.isAborted === 'function' && abortSignal.isAborted()) {
+                try {
+                    await cli.abortSession(sessionId);
+                } catch { /* 已自然结束 */ }
+                this._log('warn', `审核 Session ${sessionId} 被终止`);
+                throw new Error('审核被终止');
+            }
+
             await this._sleep(POLL_INTERVAL_MS);
             try {
                 const { status } = await cli.checkSessionStatus(sessionId);

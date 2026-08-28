@@ -31,6 +31,17 @@ const POLL_INTERVAL_MS = 5000;
 /** 轮询超时（ms），单次 SKILL 执行最多等待 10 分钟 */
 const POLL_TIMEOUT_MS = 30 * 60 * 1000;
 
+/** SKILL 轮询终止专用错误（由 abortSignal.isAborted 检测触发） */
+export class SKILL_ABORTED_ERROR extends Error {
+    /**
+     * @param {string} [message]
+     */
+    constructor(message = 'SKILL 执行被终止') {
+        super(message);
+        this.name = 'SkillAbortedError';
+    }
+}
+
 export { POLL_INTERVAL_MS, POLL_TIMEOUT_MS };
 
 export class SkillExecutor {
@@ -70,9 +81,10 @@ export class SkillExecutor {
      * @param {string} resultFilePath  - 结果文件输出路径
      * @param {string} title           - Session 标题
      * @param {Array<string>} contextSections - prompt 中的上下文段落列表
+     * @param {object} [abortSignal]   - 终止信号 { isAborted: () => boolean, onSessionCreated: (sid) => void }
      * @returns {Promise<{success: boolean, json: object|null, raw: string, sessionId: string}>}
      */
-    async invokeSkill(skillDir, workDir, resultFilePath, title, contextSections) {
+    async invokeSkill(skillDir, workDir, resultFilePath, title, contextSections, abortSignal = null) {
         const cli = await this.getCLI();
 
         // ── 1. 健康检查 ──
@@ -101,8 +113,23 @@ export class SkillExecutor {
         // const { sessionId } = await cli.startSession(title, prompt, { cwd: workDir });
         const { sessionId } = await cli.startSession(title, prompt);
 
+        // 通知上层登记 sessionId（abortLoop 可据此远程中止 opencode session）
+        if (abortSignal && typeof abortSignal.onSessionCreated === 'function') {
+            try {
+                abortSignal.onSessionCreated(sessionId);
+            } catch { /* 回调异常不影响主流程 */ }
+        }
+
+        // Session 创建后终止标志已置位（终止发生在 startSession 过程中）→ 立即中止并退出
+        if (abortSignal && typeof abortSignal.isAborted === 'function' && abortSignal.isAborted()) {
+            try {
+                await cli.abortSession(sessionId);
+            } catch { /* 已自然结束 */ }
+            throw new SKILL_ABORTED_ERROR(`SKILL 执行被终止（session ${sessionId} 创建后即中止）`);
+        }
+
         // ── 4. 轮询等待完成 ──
-        const completed = await this.pollSession(cli, sessionId);
+        const completed = await this.pollSession(cli, sessionId, abortSignal);
         if (!completed) {
             throw new Error(`SKILL 执行超时（Session ${sessionId} 未在 ${POLL_TIMEOUT_MS / 1000}s 内完成）`);
         }
@@ -154,12 +181,23 @@ export class SkillExecutor {
      *
      * @param {object} cli       - CLIController 实例
      * @param {string} sessionId - Session ID
+     * @param {object} [abortSignal] - 终止信号 { isAborted: () => boolean }；
+     *                                  置位时在下一轮询周期抛 SKILL_ABORTED_ERROR 退出
      * @returns {Promise<boolean>} 是否完成
      */
-    async pollSession(cli, sessionId) {
+    async pollSession(cli, sessionId, abortSignal = null) {
         const deadline = Date.now() + POLL_TIMEOUT_MS;
 
         while (Date.now() < deadline) {
+            // 终止检查：比超时检查优先，确保终止请求即时生效
+            if (abortSignal && typeof abortSignal.isAborted === 'function' && abortSignal.isAborted()) {
+                // 远程中止 opencode session（尽力而为），阻止其继续在后台运行
+                try {
+                    await cli.abortSession(sessionId);
+                } catch { /* 已自然结束 */ }
+                throw new SKILL_ABORTED_ERROR(`SKILL 执行被终止（session ${sessionId}）`);
+            }
+
             await this.sleep(POLL_INTERVAL_MS);
 
             try {

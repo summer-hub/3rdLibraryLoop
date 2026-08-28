@@ -96,19 +96,21 @@ export class DecompositionStrategies {
      * @param {object} analysis - analyzeTask 的返回值
      * @param {string} skillDir - SKILL 目录路径
      * @param {string} [userCriteria] - 用户提供的验收标准
-     * @param {object} [execCtx] - CLI 执行上下文 { taskId, taskDir, loopCount }
+     * @param {object} [execCtx] - CLI 执行上下文 { taskId, taskDir, loopCount, abortSignal }
      * @returns {Promise<{steps: Array, sessionId: string|null}>} steps 为步骤数组，sessionId 为 opencode 会话 ID（LLM fallback 时为 null）
      */
     async decomposeTask(taskDescription, analysis, skillDir, userCriteria = '', execCtx = {}) {
-        const { taskId, taskDir, loopCount = 0 } = execCtx;
+        const { taskId, taskDir, loopCount = 0, abortSignal } = execCtx;
 
         // ── 尝试通过 CLI 执行 task-decomposition SKILL ──
         if (taskId && taskDir) {
             try {
                 return await this._decomposeViaCLI(taskDescription, analysis, skillDir, userCriteria, {
-                    taskId, taskDir, loopCount
+                    taskId, taskDir, loopCount, abortSignal
                 });
             } catch (err) {
+                // 终止错误必须向上抛（降级为 LLM 会绕过终止语义，继续消耗 LLM 调用）
+                if (err && err.name === 'SkillAbortedError') throw err;
                 console.warn(`[Brain] CLI 执行 task-decomposition SKILL 失败，降级为 LLM 直接调用: ${err.message}`);
             }
         }
@@ -130,7 +132,7 @@ export class DecompositionStrategies {
      * @private
      */
     async _decomposeViaCLI(taskDescription, analysis, skillDir, userCriteria, ctx) {
-        const { taskId, taskDir, loopCount } = ctx;
+        const { taskId, taskDir, loopCount, abortSignal } = ctx;
         const decompSkillDir = path.join(skillDir, 'task-decomposition');
         const resultFilePath = path.join(taskDir, `brain_decomposition_loop${loopCount}.json`);
 
@@ -151,7 +153,7 @@ export class DecompositionStrategies {
 
         const title = `brain|task=${taskId}|decompose|loop=${loopCount}`;
         const { success, json, sessionId } = await this.skillExecutor.invokeSkill(
-            decompSkillDir, taskDir, resultFilePath, title, contextSections
+            decompSkillDir, taskDir, resultFilePath, title, contextSections, abortSignal
         );
 
         if (!success || !json || !json.steps) {
@@ -287,20 +289,22 @@ ${skillInstructions}
      * @param {string} skillDir - SKILL 目录路径
      * @param {string} userCriteria
      * @param {object} context - 重规划上下文 { failedCriteria, improvementSuggestions, prevCheckSummary, loopCount }
-     * @param {object} [execCtx] - CLI 执行上下文 { taskId, taskDir, skillDir }
+     * @param {object} [execCtx] - CLI 执行上下文 { taskId, taskDir, skillDir, abortSignal }
      * @returns {Promise<{steps: Array, sessionId: string|null}>}
      */
     async decomposeTaskWithContext(taskDescription, analysis, skillDir, userCriteria, context, execCtx = {}) {
-        const { taskId, taskDir } = execCtx;
+        const { taskId, taskDir, abortSignal } = execCtx;
         const { loopCount } = context;
 
         // ── 尝试通过 CLI 执行 task-decomposition SKILL（带重规划上下文）──
         if (taskId && taskDir) {
             try {
                 return await this._decomposeWithContextViaCLI(
-                    taskDescription, analysis, skillDir, userCriteria, context, { taskId, taskDir, loopCount }
+                    taskDescription, analysis, skillDir, userCriteria, context, { taskId, taskDir, loopCount, abortSignal }
                 );
             } catch (err) {
+                // 终止错误必须向上抛（降级为 LLM 会绕过终止语义）
+                if (err && err.name === 'SkillAbortedError') throw err;
                 console.warn(`[Brain] CLI 执行 task-decomposition SKILL（重规划）失败，降级为 LLM 直接调用: ${err.message}`);
             }
         }
@@ -323,7 +327,7 @@ ${skillInstructions}
      * @private
      */
     async _decomposeWithContextViaCLI(taskDescription, analysis, skillDir, userCriteria, context, ctx) {
-        const { taskId, taskDir, loopCount } = ctx;
+        const { taskId, taskDir, loopCount, abortSignal } = ctx;
         const { failedCriteria, improvementSuggestions, prevCheckSummary } = context;
         const decompSkillDir = path.join(skillDir, 'task-decomposition');
         const resultFilePath = path.join(taskDir, `brain_decomposition_loop${loopCount}.json`);
@@ -357,7 +361,7 @@ ${skillInstructions}
 
         const title = `brain|task=${taskId}|decompose|replan|loop=${loopCount}`;
         const { success, json, sessionId } = await this.skillExecutor.invokeSkill(
-            decompSkillDir, taskDir, resultFilePath, title, contextSections
+            decompSkillDir, taskDir, resultFilePath, title, contextSections, abortSignal
         );
 
         if (!success || !json || !json.steps) {

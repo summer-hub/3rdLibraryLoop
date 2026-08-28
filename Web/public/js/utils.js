@@ -107,7 +107,7 @@ async function apiFetch(method, path, body, timeoutMs) {
 function statusLabel(s) {
     var m = {
         idle: '空闲', planning: '拆解中', executing: '执行中',
-        checking: '审核中', passed: '已通过', failed: '未通过',
+        checking: '审核中', aborting: '任务中止中', passed: '已通过', failed: '未通过',
         aborted: '已终止', error: '错误', loaded: '已加载',
         running: '运行中', completed: '已完成', pending: '待执行',
         ready: '就绪', skipped: '已跳过', blocked: '已阻塞', deadlocked: '死锁'

@@ -213,7 +213,7 @@ class LoopEngineController {
                     if (ctx) {
                         const terminalStates = [
                             LoopStatus.PASSED, LoopStatus.FAILED,
-                            LoopStatus.ABORTED, LoopStatus.ERROR
+                            LoopStatus.ABORTED, LoopStatus.ABORTING, LoopStatus.ERROR
                         ];
                         if (terminalStates.includes(ctx.status)) {
                             await this._registerTask({
@@ -249,7 +249,7 @@ class LoopEngineController {
                 if (engine) {
                     const terminalStates = [
                         LoopStatus.PASSED, LoopStatus.FAILED,
-                        LoopStatus.ABORTED, LoopStatus.ERROR
+                        LoopStatus.ABORTED, LoopStatus.ABORTING, LoopStatus.ERROR
                     ];
                     const ctx = engine.getLoop(taskId);
                     if (ctx && terminalStates.includes(ctx.status)) {
@@ -318,9 +318,10 @@ class LoopEngineController {
                         const loopProgress = {
                             taskId,
                             status: orchProgress.status === 'running' ? 'executing'
+                                : (orchProgress.status === 'aborting' ? 'aborting'
                                 : (orchProgress.status === 'completed' ? 'passed'
                                 : (orchProgress.status === 'aborted' ? 'aborted'
-                                : (orchProgress.status === 'failed' ? 'failed' : orchProgress.status))),
+                                : (orchProgress.status === 'failed' ? 'failed' : orchProgress.status)))),
                             currentLoop: 1,
                             maxLoops: 1,
                             startTime: orchProgress.startTime,
@@ -606,7 +607,9 @@ class LoopEngineController {
                     const ok = await orch.abort();
                     res.json({
                         status: ok ? 'ok' : 'error',
-                        message: ok ? '单次执行已终止' : '终止失败（可能已结束）',
+                        message: ok
+                            ? '终止请求已发出，正在终止运行中的会话...'
+                            : '终止失败（可能已结束）',
                         taskId
                     });
                     return;
@@ -616,19 +619,15 @@ class LoopEngineController {
 
             const ok = await engine.abortLoop(taskId);
 
-            // 终止后释放重型引用（Orchestrator 的 FlexRunner/LLM/CLI 等），防止内存泄露。
-            // restore/progress 仍可从磁盘恢复查看历史。
-            if (this.orchestratorController) {
-                try {
-                    this.orchestratorController.disposeOrchestrator(taskId);
-                } catch (err) {
-                    console.warn(`[LoopEngineController] abort 释放 Orchestrator 失败: taskId=${taskId}, error=${err.message}`);
-                }
-            }
+            // 注意：不在此处 disposeOrchestrator —— 终止是异步生效的：
+            // Orchestrator._scheduleLoop / FlexRunner 轮询需要继续运行才能感知终止标志
+            // 并完成收尾（markFinished + persistState + 远程 abortSession）。
+            // Orchestrator 的重型引用由 startLoop 的 finally 收尾统一释放。
 
+            // 响应只表示"终止请求已受理"，真正的终态以 getProgress / SSE loop:aborted 为准
             res.json({
                 status: ok ? 'ok' : 'error',
-                message: ok ? '大循环已终止' : '终止失败（可能已结束）',
+                message: ok ? '终止请求已发出，正在终止运行中的会话...' : '终止失败（可能已结束）',
                 taskId
             });
         } catch (err) {
@@ -767,7 +766,8 @@ class LoopEngineController {
             return loops.filter(ctx =>
                 ctx.status === LoopStatus.PLANNING ||
                 ctx.status === LoopStatus.EXECUTING ||
-                ctx.status === LoopStatus.CHECKING
+                ctx.status === LoopStatus.CHECKING ||
+                ctx.status === LoopStatus.ABORTING
             ).map(ctx => ({
                 taskId: ctx.taskId,
                 status: ctx.status,
