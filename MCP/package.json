@@ -14,12 +14,10 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "chokidar": "^4.0.0"
+    "chokidar": "^4.0.0",
+    "typescript": "^5.5.4"
   },
   "optionalDependencies": {
     "jieba-wasm": "^2.4.0"
-  },
-  "devDependencies": {
-    "typescript": "^5.5.4"
   }
 }

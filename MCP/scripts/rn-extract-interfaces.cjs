@@ -349,7 +349,7 @@ function extractInterfaceMethods(content, interfaceName) {
 
 function extractClassMethods(content, className) {
   const cleaned = stripComments(content);
-  const regex = new RegExp(`(?:export\\s+)?(?:abstract\\s+)?class\\s+${className}\\s*(?:extends\\s+[^{]+)?\\s*\\{`);
+  const regex = new RegExp(`(?:export\\s+)?(?:declare\\s+)?(?:abstract\\s+)?class\\s+${className}\\s*(?:extends\\s+[^{]+)?\\s*\\{`);
   const match = regex.exec(cleaned);
   if (!match) return [];
   const body = extractBalancedBraces(cleaned, match.index + match[0].length);

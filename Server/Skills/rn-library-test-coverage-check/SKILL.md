@@ -2,7 +2,7 @@
 name: rn-library-test-coverage-check
 description: 通过脚本自动化分析 RN 三方库鸿蒙化代码的用例覆盖度，执行接口提取、测试覆盖率分析、Demo 覆盖率分析三步脚本流水线，AI 基于脚本输出解读评分规则并生成严苛评分报告（0-100分）。作为 RN 仓库检视流程的第七阶段（最终阶段）。Use when 需要评估 RN 鸿蒙化库的测试用例覆盖情况、测试质量或生成覆盖度评分报告。
 license: Apache-2.0
-compatibility: 需要Node.js环境、Git ≥ 2.25.0（Sparse Checkout）、访问鸿蒙化仓库源码目录。AST 匹配模式需 TypeScript 模块，首次使用前须在 SKILL 目录执行 `npm install`（参见 Phase 0）
+compatibility: 需要Node.js环境、Git ≥ 2.25.0（Sparse Checkout）、访问鸿蒙化仓库源码目录。AST 匹配模式需 TypeScript 模块（由 MCP 目录的 node_modules 提供，缺失时在 MCP 目录执行 `npm install`，参见 Phase 0）。脚本统一使用相对路径引用 `{SKILL_DIR}/../../../MCP/scripts/` 下的共享脚本，本 SKILL 不维护脚本副本
 metadata:
   version: "1.0.0"
 ---
@@ -67,7 +67,7 @@ metadata:
 ## 工作流程概览
 
 ```
-Phase 0: 环境准备（npm install 安装 TypeScript 依赖）
+Phase 0: 环境准备（检查 MCP 目录的 TypeScript 依赖）
     ↓
 Phase 1: 仓库获取与 demo 代码定位
     ↓
@@ -84,26 +84,32 @@ Phase 6: 报告生成
 
 ---
 
-## Phase 0：环境准备（TypeScript 依赖安装）
+## Phase 0：环境准备（TypeScript 依赖检查）
 
-> 覆盖率分析脚本默认使用 AST 模式（基于 TypeScript Compiler API 语义分析），精度远高于正则降级模式。首次使用或更换环境时须先安装依赖。
+> 覆盖率分析脚本默认使用 AST 模式（基于 TypeScript Compiler API 语义分析），精度远高于正则降级模式。脚本统一从 `{SKILL_DIR}/../../../MCP/scripts/` 引用（本 SKILL 不维护脚本副本，与 MCP Gateway 共享同一份脚本）。
 
-### 0.1 检查并安装依赖
+### 0.1 检查 TypeScript 模块
 
-在 SKILL 目录（`{SKILL_DIR}` 的上级目录，即包含 `package.json` 的目录）执行：
+脚本中的 `loadTypeScript()` 按以下顺序查找 TypeScript 模块（相对于**脚本所在目录**，即 `MCP/scripts/`）：
+
+1. 环境变量 `TYPESCRIPT_PATH` 指定的路径
+2. `MCP/node_modules/typescript`（`npm install` 安装位置，默认命中）
+3. `MCP/scripts/node_modules/typescript`
+4. 全局 `require('typescript')`
+
+检查默认位置是否存在：
+
+```bash
+ls {SKILL_DIR}/../../../MCP/node_modules/typescript/package.json
+```
+
+若不存在，在 MCP 目录执行安装：
 
 ```bash
 npm install
 ```
 
-> `workdir: "{SKILL_DIR}/.."`（即 `RNLibraryTestCoverageCheckSkill/` 目录）
-
-脚本中的 `loadTypeScript()` 按以下顺序查找 TypeScript 模块：
-
-1. 环境变量 `TYPESCRIPT_PATH` 指定的路径
-2. `{SKILL_DIR}/../node_modules/typescript`（`npm install` 安装位置）
-3. `{SKILL_DIR}/node_modules/typescript`
-4. 全局 `require('typescript')`
+> `workdir: "{SKILL_DIR}/../../../MCP"`
 
 若以上路径均未找到，脚本自动降级为正则模式并输出警告 `TypeScript 模块不可用，降级到正则模式`。
 
@@ -170,7 +176,7 @@ git checkout {branch}
 ### 2.1 执行脚本
 
 ```bash
-node {SKILL_DIR}/scripts/rn-extract-interfaces.cjs \
+node {SKILL_DIR}/../../../MCP/scripts/rn-extract-interfaces.cjs \
   --repoDir {outputDir}/source/ohos \
   --output {outputDir}/interface-spec.json \
   --version {upstreamVersion}
@@ -208,7 +214,7 @@ node {SKILL_DIR}/scripts/rn-extract-interfaces.cjs \
 ### 3.1 执行脚本
 
 ```bash
-node {SKILL_DIR}/scripts/rn-analyze-test-coverage.cjs \
+node {SKILL_DIR}/../../../MCP/scripts/rn-analyze-test-coverage.cjs \
   --spec {outputDir}/interface-spec.json \
   --libroot {outputDir}/source/ohos \
   --output {outputDir}/test-coverage-report.md \
@@ -240,7 +246,7 @@ node {SKILL_DIR}/scripts/rn-analyze-test-coverage.cjs \
 |------|------|
 | 测试目录不存在 | 脚本输出空报告（0%覆盖率），标注"无测试目录"，触发归零规则 3 |
 | 无测试文件 | 覆盖率 0%，触发归零规则 3 |
-| TypeScript 模块不可用 | 在 SKILL 目录执行 `npm install` 安装依赖后重新运行；若仍失败则降级正则模式，报告中标注 |
+| TypeScript 模块不可用 | 在 MCP 目录（`{SKILL_DIR}/../../../MCP`）执行 `npm install` 安装依赖后重新运行；若仍失败则降级正则模式，报告中标注 |
 
 ---
 
@@ -253,7 +259,7 @@ node {SKILL_DIR}/scripts/rn-analyze-test-coverage.cjs \
 **情况 A（demoRoot 为 RNTDEMO 目录）**：
 
 ```bash
-node {SKILL_DIR}/scripts/rn-analyze-demo-coverage.cjs \
+node {SKILL_DIR}/../../../MCP/scripts/rn-analyze-demo-coverage.cjs \
   --spec {outputDir}/interface-spec.json \
   --libroot {outputDir}/source/ohos \
   --src {demoRoot} \
@@ -264,7 +270,7 @@ node {SKILL_DIR}/scripts/rn-analyze-demo-coverage.cjs \
 **情况 B（demoRoot 为仓库内 demo 目录）**：
 
 ```bash
-node {SKILL_DIR}/scripts/rn-analyze-demo-coverage.cjs \
+node {SKILL_DIR}/../../../MCP/scripts/rn-analyze-demo-coverage.cjs \
   --spec {outputDir}/interface-spec.json \
   --libroot {outputDir}/source/ohos \
   --output {outputDir}/demo-coverage-report.md \
@@ -437,7 +443,7 @@ AI 通过以下特征识别平台特有接口（满足任一即判定）：
 | 有效覆盖率 < 100%（排除平台特有后） | 标注"有效接口覆盖率未达 100%" | 0 分（归零 6） |
 | 未覆盖列表全部为平台特有接口 | 标注"未覆盖接口均为平台特有，已排除"，有效覆盖率 100% | 正常评分（不触发归零 6） |
 | rnRntUrl 格式不正确 | 停止检查，标注错误 | 0 分 |
-| TypeScript 模块不可用 | 在 SKILL 目录执行 `npm install` 后重新运行；若仍失败则降级正则模式，报告中标注（正则模式存在假阳性，评分可能偏高） |
+| TypeScript 模块不可用 | 在 MCP 目录（`{SKILL_DIR}/../../../MCP`）执行 `npm install` 后重新运行；若仍失败则降级正则模式，报告中标注（正则模式存在假阳性，评分可能偏高） |
 | 仅原平台测试无鸿蒙测试 | 标注"仅有原平台测试" | 0-30 分 |
 
 ---

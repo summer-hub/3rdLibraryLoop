@@ -191,77 +191,88 @@ function scanDirectory(dir, explicitEntry = '') {
 
   // 2. 提取入口文件的 exports
   let exports = { defaultExport: null, named: [], types: [], reExports: [] };
+  const interfaceDefs = [];
+  const seenDefNames = new Set();
+
+  /**
+   * 添加接口/类定义 (按名称去重, 先到先得)。
+   * @param {string} name 定义名称
+   * @param {string} sourceFile 相对源码根目录的文件路径
+   * @param {Array} methods 方法签名列表 (为空则不添加)
+   */
+  const addInterfaceDef = (name, sourceFile, methods) => {
+    if (!methods || methods.length === 0 || seenDefNames.has(name)) return;
+    interfaceDefs.push({ name, sourceFile, methods });
+    seenDefNames.add(name);
+  };
+
+  /**
+   * 从文件中提取类与类型定义的方法签名:
+   *   - default export class (如 export default class JPush {...})
+   *   - 命名导出的 class
+   *   - 文件内声明的 interface/type
+   * @param {string} filePath 文件绝对路径
+   * @param {Object} exportsObj 该文件的 exports 提取结果
+   * @param {string} content 文件内容
+   */
+  const collectClassAndTypeDefs = (filePath, exportsObj, content) => {
+    const relSource = path.relative(absDir, filePath);
+    const defaultName = exportsObj.defaultExport;
+    if (defaultName && /^[A-Za-z_$][\w$]*$/.test(defaultName)) {
+      addInterfaceDef(defaultName, relSource, extractClassMethods(content, defaultName));
+    }
+    for (const name of exportsObj.named) {
+      addInterfaceDef(name, relSource, extractClassMethods(content, name));
+    }
+    for (const typeName of exportsObj.types) {
+      addInterfaceDef(typeName, relSource, extractInterfaceMethods(content, typeName));
+    }
+  };
+
   if (entryFile) {
     const content = fs.readFileSync(entryFile, 'utf-8');
     exports = extractExports(content);
+
+    // 2b. 入口同名 .d.ts 类型声明 — 类型契约的权威来源, 优先提取
+    //     (index.js → index.d.ts; 包含 default export class / 接口 / 类型的完整签名)
+    const dtsFile = entryFile.replace(/\.jsx?$/i, '.d.ts');
+    if (dtsFile !== entryFile && fs.existsSync(dtsFile)) {
+      const dtsContent = fs.readFileSync(dtsFile, 'utf-8');
+      collectClassAndTypeDefs(dtsFile, extractExports(dtsContent), dtsContent);
+    }
+
+    // 2c. 入口文件自身定义的类与类型
+    //     典型场景: export default class JPush { static getPushStatus() {} }
+    //     此前仅跟踪 re-export 的类, 入口自身 class 的方法签名变更
+    //     (如新增静态方法) 无法被检测, 导致"无接口变更"误报
+    collectClassAndTypeDefs(entryFile, exports, content);
   }
 
   // 3. 跟踪 re-export 的类型定义
   // 如果入口文件 re-export 了 type/interface, 跟踪到源文件提取方法签名
-  const interfaceDefs = [];
   if (entryFile) {
     for (const re of exports.reExports) {
       // 跟踪 type re-export 和 named re-export (可能是 class/function)
       const sourceFile = resolveRelativePath(entryFile, re.from);
       if (sourceFile && fs.existsSync(sourceFile)) {
         const sourceContent = fs.readFileSync(sourceFile, 'utf-8');
+        const relSource = path.relative(absDir, sourceFile);
 
         // 提取 re-export 指定的 interface/type 方法签名
         if (re.name && re.name !== '*') {
-          const methods = extractInterfaceMethods(sourceContent, re.name);
-          if (methods.length > 0) {
-            interfaceDefs.push({
-              name: re.name,
-              sourceFile: path.relative(absDir, sourceFile),
-              methods,
-            });
-          }
+          addInterfaceDef(re.name, relSource, extractInterfaceMethods(sourceContent, re.name));
           // 也尝试 class 方法
-          const classMethods = extractClassMethods(sourceContent, re.name);
-          if (classMethods.length > 0) {
-            interfaceDefs.push({
-              name: re.name,
-              sourceFile: path.relative(absDir, sourceFile),
-              methods: classMethods,
-            });
-          }
+          addInterfaceDef(re.name, relSource, extractClassMethods(sourceContent, re.name));
         } else if (re.isWildcard) {
           // wildcard: 提取源文件的所有 interface/type/class
           const sourceExports = extractExports(sourceContent);
           for (const typeName of sourceExports.types) {
-            const methods = extractInterfaceMethods(sourceContent, typeName);
-            if (methods.length > 0) {
-              interfaceDefs.push({
-                name: typeName,
-                sourceFile: path.relative(absDir, sourceFile),
-                methods,
-              });
-            }
+            addInterfaceDef(typeName, relSource, extractInterfaceMethods(sourceContent, typeName));
           }
           for (const namedExport of sourceExports.named) {
-            const methods = extractClassMethods(sourceContent, namedExport);
-            if (methods.length > 0) {
-              interfaceDefs.push({
-                name: namedExport,
-                sourceFile: path.relative(absDir, sourceFile),
-                methods,
-              });
-            }
+            addInterfaceDef(namedExport, relSource, extractClassMethods(sourceContent, namedExport));
           }
         }
-      }
-    }
-
-    // 也直接从入口文件提取 export interface/type
-    for (const typeName of exports.types) {
-      const content = fs.readFileSync(entryFile, 'utf-8');
-      const methods = extractInterfaceMethods(content, typeName);
-      if (methods.length > 0) {
-        interfaceDefs.push({
-          name: typeName,
-          sourceFile: path.relative(absDir, entryFile),
-          methods,
-        });
       }
     }
   }

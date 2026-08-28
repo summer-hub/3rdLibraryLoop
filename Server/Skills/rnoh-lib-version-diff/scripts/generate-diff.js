@@ -198,6 +198,11 @@ RNOH 三方库版本对比脚本 (tgz 模式)
   --verbose              显示详细调试信息
   --help, -h             显示帮助
 
+环境变量:
+  DIFF_BIN <path>        指定 diff 二进制绝对路径 (默认自动探测: /usr/bin/diff 优先,
+                         所有候选须通过行为验证 — PATH 中 DevEco toolchains 等不兼容
+                         实现会被跳过)
+
 默认排除的路径 (除非使用 --full):
   yarn.lock, package-lock.json, *.lock
   .yarn/, .github/, example/, examples/, docs/
@@ -288,6 +293,101 @@ function formatSize(bytes) {
   if (bytes < 1024) return `${bytes}B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
+
+// ── diff 二进制解析 (规避 PATH 中不兼容的 diff 实现) ──────
+// 部分工具链会向 PATH 注入行为不兼容的 diff (如 DevEco Studio 的
+// openharmony toolchains diff: 对不同文件输出为空且退出码为 0,
+// 且不支持 -u 选项仍返回 0), 会静默吞掉所有文件差异,
+// 导致版本对比报告误判为"零变更"。
+// 这里对候选 diff 做行为验证 (smoke test), 只使用验证通过的实现。
+
+let DIFF_BIN = null;
+
+/**
+ * 验证 diff 二进制行为是否可靠。
+ * 必须满足: 对内容不同的两个文件, 以 unified 格式产出非空输出。
+ * @param {string} bin diff 二进制路径
+ * @returns {boolean} 是否通过验证
+ */
+function isReliableDiff(bin) {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'diff-smoke-'));
+  try {
+    const f1 = path.join(tmpDir, 'a.txt');
+    const f2 = path.join(tmpDir, 'b.txt');
+    fs.writeFileSync(f1, 'line1\n');
+    fs.writeFileSync(f2, 'line1\nline2\n');
+    let out = '';
+    try {
+      out = execFileSync(bin, ['-u', '-L', 'a/x', '-L', 'b/x', f1, f2], {
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+    } catch (err) {
+      // BSD/GNU diff 对不同文件返回退出码 1, 输出在 err.stdout
+      out = (err.stdout || '').toString('utf-8');
+    }
+    return out.includes('line2');
+  } catch {
+    return false;
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+}
+
+/**
+ * 解析可用的 diff 二进制 (带缓存)。
+ * 优先级: 环境变量 DIFF_BIN > /usr/bin/diff > PATH 中的 diff。
+ * 每个候选都必须通过行为验证, 全部失败则报错退出。
+ * @returns {string} 验证过的 diff 二进制路径
+ */
+function resolveDiffBinary() {
+  if (DIFF_BIN) return DIFF_BIN;
+  const candidates = [];
+  if (process.env.DIFF_BIN) candidates.push(process.env.DIFF_BIN);
+  candidates.push('/usr/bin/diff');
+  candidates.push('diff');
+  for (const candidate of candidates) {
+    try {
+      if (isReliableDiff(candidate)) {
+        DIFF_BIN = candidate;
+        debug(`diff 二进制 (已通过行为验证): ${candidate}`);
+        return DIFF_BIN;
+      }
+      warn(`diff 候选未通过行为验证 (对不同文件无输出或缺少 -u/-L 支持), 跳过: ${candidate}`);
+    } catch (err) {
+      debug(`diff 候选不可用: ${candidate} (${err.message})`);
+    }
+  }
+  error(
+    '未找到可靠的 diff 二进制。PATH 中的 diff 行为异常 ' +
+    '(可能被 DevEco Studio toolchains 等劫持, 对不同文件静默返回无差异), ' +
+    '可通过环境变量 DIFF_BIN 指定绝对路径 (如 /usr/bin/diff)'
+  );
+}
+
+/**
+ * 用已验证的 diff 二进制执行 diff。
+ * 退出码约定: 0 = 相同, 1 = 有差异 (输出在 stdout), 其他 = 错误。
+ * @param {string[]} args diff 参数 (不含二进制名)
+ * @returns {string} diff 输出 (无差异返回空串)
+ */
+function runDiff(args) {
+  const bin = resolveDiffBinary();
+  try {
+    return execFileSync(bin, args, {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+      maxBuffer: 50 * 1024 * 1024,
+    });
+  } catch (err) {
+    const stdout = (err.stdout || '').toString('utf-8');
+    if (stdout) return stdout;        // 退出码 1: 有差异
+    if (err.status === 1) return '';  // 有差异但无输出 (异常实现, 视为无差异)
+    throw new Error(
+      `diff 执行失败 (退出码 ${err.status}): ${(err.stderr || '').toString('utf-8').trim()}`
+    );
+  }
 }
 
 /**
@@ -484,22 +584,16 @@ function diffDirsWithFs(dir1, dir2, excludePatterns) {
 
     if (in1 && in2) {
       // 两边都有: 用 diff 对比内容
+      // 注意: 必须使用 runDiff (行为验证过的 diff 二进制),
+      // 不能裸调 PATH 中的 diff — 部分 toolchains 的 diff 对不同文件静默无输出
       try {
-        const output = execSync(
-          `diff -u --label "a/${file}" --label "b/${file}" "${path1}" "${path2}"`,
-          { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 50 * 1024 * 1024 }
-        );
-        // diff 返回 0=相同, 1=有差异(输出到stdout), 2=错误
+        const output = runDiff(['-u', '-L', `a/${file}`, '-L', `b/${file}`, path1, path2]);
         if (output) {
           lines.push(`diff --git a/${file} b/${file}`);
           lines.push(output);
         }
       } catch (err) {
-        // diff 返回 1 时 execSync 抛异常但 stdout 有内容
-        if (err.stdout) {
-          lines.push(`diff --git a/${file} b/${file}`);
-          lines.push(err.stdout.toString('utf-8'));
-        }
+        warn(`diff 失败 (${file}): ${err.message}`);
       }
     } else if (in1 && !in2) {
       // 仅在 dir1: 删除
@@ -565,9 +659,7 @@ function fetchNumstatWithFs(dir1, dir2, excludePatterns) {
 
     if (in1 && in2) {
       try {
-        const output = execSync(`diff "${path1}" "${path2}"`, {
-          encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 50 * 1024 * 1024,
-        });
+        const output = runDiff([path1, path2]);
         if (output) {
           for (const line of output.split('\n')) {
             if (line.startsWith('> ')) added++;
@@ -575,12 +667,7 @@ function fetchNumstatWithFs(dir1, dir2, excludePatterns) {
           }
         }
       } catch (err) {
-        if (err.stdout) {
-          for (const line of err.stdout.toString('utf-8').split('\n')) {
-            if (line.startsWith('> ')) added++;
-            if (line.startsWith('< ')) deleted++;
-          }
-        }
+        warn(`diff 统计失败 (${file}): ${err.message}`);
       }
     } else if (!in1 && in2) {
       // 新文件: 全部为新增行
@@ -1390,11 +1477,9 @@ function main() {
   } catch {
     error('未找到 tar, 请先安装');
   }
-  try {
-    execFileSync('diff', ['--version'], { stdio: 'pipe' });
-  } catch {
-    error('未找到 diff, 请先安装');
-  }
+  // diff: 必须通过行为验证 — PATH 中可能存在不兼容实现
+  // (如 DevEco Studio toolchains 的 diff 对不同文件静默返回无差异, 会吞掉全部变更)
+  resolveDiffBinary();
   try {
     execFileSync('npm', ['--version'], { stdio: 'pipe' });
   } catch {
@@ -1513,19 +1598,13 @@ function main() {
 
       if (exists1 && exists2) {
         try {
-          const output = execSync(
-            `diff -u --label "a/${file}" --label "b/${file}" "${path1}" "${path2}"`,
-            { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 50 * 1024 * 1024 }
-          );
+          const output = runDiff(['-u', '-L', `a/${file}`, '-L', `b/${file}`, path1, path2]);
           if (output) {
             lines.push(`diff --git a/${file} b/${file}`);
             lines.push(output);
           }
         } catch (err) {
-          if (err.stdout) {
-            lines.push(`diff --git a/${file} b/${file}`);
-            lines.push(err.stdout.toString('utf-8'));
-          }
+          warn(`diff 失败 (${file}): ${err.message}`);
         }
       } else if (!exists1 && exists2) {
         lines.push(`diff --git a/${file} b/${file}`);

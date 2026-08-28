@@ -12,7 +12,7 @@
 | Phase 3 | `rn-analyze-test-coverage.cjs` | 扫描测试目录，分析测试覆盖率 | spec + libroot | test-coverage-report.md |
 | Phase 4 | `rn-analyze-demo-coverage.cjs` | 扫描 Demo 目录，分析 Demo 覆盖率 | spec + libroot + src | demo-coverage-report.md |
 
-> 脚本位于 SKILL 的 `scripts/` 目录，通过 `node` 执行。三个脚本共享 `rn-extract-interfaces.cjs` 中的工具函数（loadSpec、walkDir、parseArgs 等）。
+> 脚本位于 `MCP/scripts/` 共享目录（相对 SKILL 目录为 `{SKILL_DIR}/../../../MCP/scripts/`），通过 `node` 执行，本 SKILL 不维护脚本副本。三个脚本共享 `rn-extract-interfaces.cjs` 中的工具函数（loadSpec、walkDir、parseArgs 等）。
 
 ---
 
@@ -38,7 +38,7 @@
 ### 执行示例
 
 ```bash
-node scripts/rn-extract-interfaces.cjs \
+node ../../../MCP/scripts/rn-extract-interfaces.cjs \
   --repoDir /path/to/outputDir/source/ohos \
   --output /path/to/outputDir/interface-spec.json \
   --version 2.2.0
@@ -143,7 +143,7 @@ node scripts/rn-extract-interfaces.cjs \
 ### 执行示例
 
 ```bash
-node scripts/rn-analyze-test-coverage.cjs \
+node ../../../MCP/scripts/rn-analyze-test-coverage.cjs \
   --spec /path/to/outputDir/interface-spec.json \
   --libroot /path/to/outputDir/source/ohos \
   --output /path/to/outputDir/test-coverage-report.md \
@@ -213,7 +213,7 @@ AST 模式使用 TypeScript Compiler API 进行语义级匹配：
 **情况 A（demo 在 RNTDEMO 目录）**：
 
 ```bash
-node scripts/rn-analyze-demo-coverage.cjs \
+node ../../../MCP/scripts/rn-analyze-demo-coverage.cjs \
   --spec /path/to/outputDir/interface-spec.json \
   --libroot /path/to/outputDir/source/ohos \
   --src /path/to/outputDir/source/RNTDEMO/{projectPath}/{demoPath} \
@@ -224,7 +224,7 @@ node scripts/rn-analyze-demo-coverage.cjs \
 **情况 B（demo 在仓库内，自动检测）**：
 
 ```bash
-node scripts/rn-analyze-demo-coverage.cjs \
+node ../../../MCP/scripts/rn-analyze-demo-coverage.cjs \
   --spec /path/to/outputDir/interface-spec.json \
   --libroot /path/to/outputDir/source/ohos \
   --output /path/to/outputDir/demo-coverage-report.md \

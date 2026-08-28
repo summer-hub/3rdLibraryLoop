@@ -11,7 +11,7 @@ description: >-
   也适用于：使用 devecocli docs search 核查鸿蒙 API 可行性、生成版本对比报告
   供后续代码适配阶段使用。
 license: MIT
-compatibility: 需要 node、npm、tar、diff；仅需 npm registry 访问；鸿蒙 API 核查需 devecocli CLI
+compatibility: 需要 node、npm、tar、diff；仅需 npm registry 访问；鸿蒙 API 核查需 devecocli CLI。注意：脚本会对 diff 做行为验证（PATH 中 DevEco toolchains 等不兼容 diff 会被自动跳过），可用环境变量 DIFF_BIN 指定绝对路径
 allowed-tools: Bash Read Grep Glob Write
 metadata:
   version: "1.0.0"
