@@ -100,18 +100,21 @@ export class AnalysisStrategies {
      * @param {string} [execCtx.taskDir]   - 工作目录（Session cwd）
      * @param {string} [execCtx.skillDir]  - SKILL 根目录
      * @param {number} [execCtx.loopCount] - 循环轮次（默认 0）
+     * @param {object} [execCtx.abortSignal] - 终止信号 { isAborted, onSessionCreated }（LoopEngine 注入）
      * @returns {Promise<{analysis: object, sessionId: string|null}>} analysis 包含 intent/domain/keywords 等，sessionId 为 opencode 会话 ID（LLM fallback 时为 null）
      */
     async analyzeTask(taskDescription, userCriteria = '', execCtx = {}) {
-        const { taskId, taskDir, skillDir, loopCount = 0 } = execCtx;
+        const { taskId, taskDir, skillDir, loopCount = 0, abortSignal } = execCtx;
 
         // ── 尝试通过 CLI 执行 task-analysis SKILL ──
         if (taskId && taskDir && skillDir) {
             try {
                 return await this._analyzeViaCLI(taskDescription, userCriteria, {
-                    taskId, taskDir, skillDir, loopCount
+                    taskId, taskDir, skillDir, loopCount, abortSignal
                 });
             } catch (err) {
+                // 终止错误必须向上抛（降级为 LLM 会绕过终止语义，继续消耗 LLM 调用）
+                if (err && err.name === 'SkillAbortedError') throw err;
                 console.warn(`[Brain] CLI 执行 task-analysis SKILL 失败，降级为 LLM 直接调用: ${err.message}`);
             }
         }
@@ -131,7 +134,7 @@ export class AnalysisStrategies {
      * @private
      */
     async _analyzeViaCLI(taskDescription, userCriteria, ctx) {
-        const { taskId, taskDir, skillDir, loopCount } = ctx;
+        const { taskId, taskDir, skillDir, loopCount, abortSignal } = ctx;
         const analysisSkillDir = path.join(skillDir, 'task-analysis');
         const resultFilePath = path.join(taskDir, `brain_analysis_loop${loopCount}.json`);
 
@@ -145,7 +148,7 @@ export class AnalysisStrategies {
 
         const title = `brain|task=${taskId}|analyze|loop=${loopCount}`;
         const { success, json, sessionId } = await this.skillExecutor.invokeSkill(
-            analysisSkillDir, taskDir, resultFilePath, title, contextSections
+            analysisSkillDir, taskDir, resultFilePath, title, contextSections, abortSignal
         );
 
         if (!success || !json) {
@@ -222,19 +225,21 @@ ${criteriaSection}
      * @param {string} context.prevCheckSummary - 上轮审核摘要
      * @param {string} context.prevOrchStatus - 上轮编排状态
      * @param {number} context.loopCount - 当前循环轮次
-     * @param {object} [execCtx] - CLI 执行上下文 { taskId, taskDir, skillDir }
+     * @param {object} [execCtx] - CLI 执行上下文 { taskId, taskDir, skillDir, abortSignal }
      * @returns {Promise<{analysis: object, sessionId: string|null}>}
      */
     async analyzeTaskWithContext(taskDescription, userCriteria, context, execCtx = {}) {
-        const { taskId, taskDir, skillDir } = execCtx;
+        const { taskId, taskDir, skillDir, abortSignal } = execCtx;
 
         // ── 尝试通过 CLI 执行 task-analysis SKILL（带重规划上下文） ──
         if (taskId && taskDir && skillDir) {
             try {
                 return await this._analyzeWithContextViaCLI(
-                    taskDescription, userCriteria, context, { taskId, taskDir, skillDir }
+                    taskDescription, userCriteria, context, { taskId, taskDir, skillDir, abortSignal }
                 );
             } catch (err) {
+                // 终止错误必须向上抛（降级为 LLM 会绕过终止语义）
+                if (err && err.name === 'SkillAbortedError') throw err;
                 console.warn(`[Brain] CLI 执行 task-analysis SKILL（重规划）失败，降级为 LLM 直接调用: ${err.message}`);
             }
         }
@@ -255,7 +260,7 @@ ${criteriaSection}
      * @private
      */
     async _analyzeWithContextViaCLI(taskDescription, userCriteria, context, ctx) {
-        const { taskId, taskDir, skillDir } = ctx;
+        const { taskId, taskDir, skillDir, abortSignal } = ctx;
         const { failedCriteria, improvementSuggestions, prevCheckSummary, prevOrchStatus, loopCount } = context;
         const analysisSkillDir = path.join(skillDir, 'task-analysis');
         const resultFilePath = path.join(taskDir, `brain_analysis_loop${loopCount}.json`);
@@ -287,7 +292,7 @@ ${criteriaSection}
 
         const title = `brain|task=${taskId}|reanalyze|loop=${loopCount}`;
         const { success, json, sessionId } = await this.skillExecutor.invokeSkill(
-            analysisSkillDir, taskDir, resultFilePath, title, contextSections
+            analysisSkillDir, taskDir, resultFilePath, title, contextSections, abortSignal
         );
 
         if (!success || !json) {

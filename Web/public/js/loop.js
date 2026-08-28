@@ -100,7 +100,7 @@ async function loadLoopProgress(taskId, opts) {
             renderLoopOverview();
             if (!silent) renderRounds(); else refreshRoundCardBadges();
             var s = d.progress.status;
-            if (s === 'planning' || s === 'executing' || s === 'checking') startPolling(taskId);
+            if (s === 'planning' || s === 'executing' || s === 'checking' || s === 'aborting') startPolling(taskId);
         }
     } catch(err) { toast('error', '加载进度失败: ' + err.message); }
 }
@@ -150,15 +150,22 @@ function renderLoopOverview() {
     if (p.endTime) stats.push('<span class="stat-item">结束: <strong>' + formatTime(p.endTime) + '</strong></span>');
     if (p.error) stats.push('<span class="stat-item" style="color:var(--red);">错误: <strong>' + escapeHtml(p.error) + '</strong></span>');
     $('ovStats').innerHTML = stats.join('');
-    var act = p.status==='planning'||p.status==='executing'||p.status==='checking';
-    $('btnLoopAbort').disabled = !act;
+    // 终止中：保持终止按钮可见但置灰（终止请求已受理，等待循环收尾）
+    if (p.status==='aborting') {
+        $('btnLoopAbort').disabled = true;
+        $('btnLoopAbort').textContent = '⏳ 任务中止中...';
+    } else {
+        var act = p.status==='planning'||p.status==='executing'||p.status==='checking';
+        $('btnLoopAbort').disabled = !act;
+        $('btnLoopAbort').textContent = '⏹ 终止循环';
+    }
 }
 
 /* ─── 轮次时间线渲染 ────────────────────────────────────────────────── */
 function renderRounds() {
     var p = State.currentProgress;
     if (!p || !p.rounds || p.rounds.length === 0) {
-        if (p && (p.status==='planning'||p.status==='executing'||p.status==='checking')) {
+        if (p && (p.status==='planning'||p.status==='executing'||p.status==='checking'||p.status==='aborting')) {
             $('roundsSection').innerHTML = '<h3>🔄 循环轮次时间线</h3>' +
                 '<div class="round-card running"><div class="round-header"><div class="round-num">1</div>' +
                 '<div class="round-title">第 1 轮 (' + statusLabel(p.status) + '...)</div>' +
@@ -168,7 +175,7 @@ function renderRounds() {
         return;
     }
     var rounds = p.rounds.slice();
-    var act = p.status==='planning'||p.status==='executing'||p.status==='checking';
+    var act = p.status==='planning'||p.status==='executing'||p.status==='checking'||p.status==='aborting';
     if (act && (rounds.length===0 || rounds[rounds.length-1].endTime)) {
         rounds.push({ loop: p.currentLoop||0, passed:false, startTime:null, endTime:null, error:null, _inProgress:true, _currentPhase:p.status });
     }
@@ -813,7 +820,23 @@ async function loadCheckSession(tid, loop) {
 
 async function abortLoop() {
     var tid=State.selectedTaskId; if(!tid) return;
-    try { var d=await API.post('/api/loopengine/abort',{taskId:tid}); toast(d.status==='ok'?'warn':'error',d.message||'终止完成'); await loadLoopProgress(tid); loadLoopList(); } catch(err){ toast('error',err.message); }
+    var btn=$('btnLoopAbort');
+    // 立即置灰防重复点击；请求返回由后端 aborting 状态接管按钮文案与置灰
+    if (btn) { btn.disabled=true; btn.textContent='⏳ 任务中止中...'; }
+    try {
+        var d=await API.post('/api/loopengine/abort',{taskId:tid});
+        // 后端仅受理终止请求（异步生效），随后状态转为 aborting → aborted；
+        // toast 只提示受理结果，终态由轮询/SSE 驱动的界面更新呈现
+        toast(d.status==='ok'?'warn':'error',d.message||'终止请求已发出');
+        await loadLoopProgress(tid);
+        loadLoopList();
+    } catch(err){
+        toast('error',err.message);
+        if (btn) { btn.disabled=false; btn.textContent='⏹ 终止循环'; }
+    }
+    // 注意：成功受理后不在 finally 里恢复按钮 —
+    // renderLoopOverview 会依据后端 aborting/终态持续接管按钮显示，
+    // 直到循环真正结束（aborted 等）才由状态渲染恢复为「终止循环」
 }
 
 /* ─── 轮询 & SSE ────────────────────────────────────────────────────── */
@@ -828,7 +851,9 @@ function startPolling(tid) {
             await loadOrchestratorProgress(tid);
         }
         loadLoopList();
-        if(State.currentProgress){var s=State.currentProgress.status;if(s!=='planning'&&s!=='executing'&&s!=='checking')stopPolling();}
+        // 终止中（aborting）也持续轮询：等待循环真正收尾转为终态（aborted），
+        // 期间状态栏保持「任务中止中」、终止按钮保持置灰
+        if(State.currentProgress){var s=State.currentProgress.status;if(s!=='planning'&&s!=='executing'&&s!=='checking'&&s!=='aborting')stopPolling();}
     },3000);
 }
 
@@ -856,7 +881,15 @@ function connectSSE(tid) {
         es.addEventListener('loop:checking',function(e){try{var d=JSON.parse(e.data);toast('info','第 '+(d.loop+1)+' 轮: TestCheck 审核中...');loadLoopProgress(tid,{silent:State.selectedLoop!=null});}catch(x){}});
         es.addEventListener('loop:round:end',function(e){try{var d=JSON.parse(e.data);if(d.passed)toast('success','第 '+(d.loop+1)+' 轮: ✅ 准出通过');else toast('warn','第 '+(d.loop+1)+' 轮: ❌ 准出未通过，进入下一轮');loadLoopProgress(tid,{silent:State.selectedLoop!=null});if(State.selectedLoop==null)loadBrainPlan(tid);loadLoopList();}catch(x){}});
         es.addEventListener('loop:complete',function(e){try{var d=JSON.parse(e.data);if(d.passed)toast('success','🎉 大循环完成: 准出通过! 共 '+d.totalRounds+' 轮');else toast('error','大循环结束: '+d.status+', 共 '+d.totalRounds+' 轮');stopPolling();loadLoopProgress(tid);loadLoopList();}catch(x){}});
-        es.addEventListener('loop:aborted',function(){toast('warn','大循环已终止');stopPolling();loadLoopProgress(tid);loadLoopList();});
+        es.addEventListener('loop:aborting',function(){
+            // 终止请求受理 → 进入「任务中止中」过渡态，立即刷新状态栏与按钮
+            toast('info','任务中止中，等待运行中的会话结束...');
+            loadLoopProgress(tid,{silent:State.selectedLoop!=null});
+        });
+        es.addEventListener('loop:aborted',function(){toast('warn','大循环已终止');
+            var btn=$('btnLoopAbort');
+            if (btn) { btn.disabled=false; btn.textContent='⏹ 终止循环'; }
+            stopPolling();loadLoopProgress(tid);loadLoopList();});
         es.addEventListener('loop:error',function(e){try{var d=JSON.parse(e.data);toast('error','大循环出错: '+(d.error||''));}catch(x){}stopPolling();loadLoopProgress(tid);loadLoopList();});
         es.addEventListener('orch:step:status',function(e){try{var d=JSON.parse(e.data);toast('info','步骤 '+d.stepId+': '+statusLabel(d.status));if(State.selectedLoop==null)loadOrchestratorProgress(tid);}catch(x){}});
         es.addEventListener('orch:task:complete',function(){toast('success','编排任务完成');if(State.selectedLoop==null)loadOrchestratorProgress(tid);loadLoopProgress(tid);loadLoopList();});

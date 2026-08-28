@@ -1506,6 +1506,11 @@ class FlexRunner {
      * @private
      */
     async _summarizeAndPersist(summaryFilePath, skillDir, sessionId) {
+        // 终止已请求 → 不再向 session 追加经验总结 prompt（避免终止后又触发新的 AI 生成）
+        if (this.#aborted) {
+            this._log('info', '_summarizeAndPersist: 已终止，跳过后台经验总结');
+            return;
+        }
         try {
             const summarized = await this._summarizeExperience(summaryFilePath, skillDir, sessionId);
             if (!summarized) {
@@ -1551,6 +1556,12 @@ class FlexRunner {
         this._log('info', `经验总结开始 — session: ${sessionId}`);
 
         try {
+            // 终止检查：总结开始前已终止 → 跳过（不再向 session 发送新 prompt）
+            if (this.#aborted) {
+                this._log('info', '_summarizeExperience: 已终止，跳过经验总结');
+                return false;
+            }
+
             // 构建经验总结 prompt
             const summaryPrompt = this._buildSummaryPrompt(summaryFilePath, skillDir);
 
@@ -1562,6 +1573,12 @@ class FlexRunner {
             }
 
             const result = await this.#cli.sendAndWaitMessage(sessionId, summaryPrompt);
+
+            // 等待 AI 回复期间收到终止请求 → 不再等待文件生成（session 已被远程中止）
+            if (this.#aborted) {
+                this._log('info', '_summarizeExperience: 等待回复期间被终止，放弃经验总结');
+                return false;
+            }
 
             if (!result || !result.success) {
                 this._log('warn', '_summarizeExperience: sendAndWaitMessage 返回失败，经验总结未完成');
