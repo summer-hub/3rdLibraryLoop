@@ -7,7 +7,8 @@
  * @param repo: string - 仓库名
  * 子命令:
  *   get-user                                  获取 Token 用户信息
- *   get-repo --owner x --repo y               获取仓库信息（id、default_branch）
+ *   get-repo --owner x --repo y               获取仓库信息（id、default_branch；fork 仓库含 parent 源仓库）
+ *   get-branch --owner x --repo y --branch b  探测分支是否存在（用于 PR base 同名分支探测）
  *   create-issue --title t --body-file f      创建 Issue，返回 number
  *   create-pr --head b --base m --title t --body-file f
  *            [--fork-repo o/r --target-project-id id]  创建 PR（跨仓库时传后两项）
@@ -120,12 +121,29 @@ async function main() {
     case 'get-repo': {
       requireParam(args, ['owner', 'repo']);
       const r = await api('GET', `/repos/${args.owner}/${args.repo}`, {}, token);
+      const parent = r.parent && (r.parent.path_with_namespace || r.parent.full_path) || null;
       console.log(JSON.stringify({
         ok: true,
         id: r.id,
         pathWithNamespace: r.full_path || r.path_with_namespace || `${args.owner}/${args.repo}`,
         defaultBranch: r.default_branch || 'master',
+        parent: parent, // fork 仓库的源仓库（上游），用于 upstream 推断
       }, null, 2));
+      break;
+    }
+    case 'get-branch': {
+      requireParam(args, ['owner', 'repo', 'branch']);
+      // 探测分支是否存在：200 存在 / 404 不存在（不作为错误退出）
+      try {
+        const b = await api('GET', `/repos/${args.owner}/${args.repo}/branches/${encodeURIComponent(args.branch)}`, {}, token);
+        console.log(JSON.stringify({ ok: true, exists: true, branch: b.name || args.branch }, null, 2));
+      } catch (e) {
+        if (/HTTP 404/.test(e.message)) {
+          console.log(JSON.stringify({ ok: true, exists: false, branch: args.branch }, null, 2));
+        } else {
+          throw e;
+        }
+      }
       break;
     }
     case 'create-issue': {
@@ -177,7 +195,7 @@ async function main() {
       break;
     }
     default:
-      die(`未知子命令: ${cmd}（可用: get-user | get-repo | create-issue | create-pr | comment-pr）`);
+      die(`未知子命令: ${cmd}（可用: get-user | get-repo | get-branch | create-issue | create-pr | comment-pr）`);
   }
 }
 

@@ -2,6 +2,8 @@
 
 本文件包含三段模板：Issue body、PR body、最终报告。`{占位符}` 由执行时填充。
 
+> 约定：Issue 标题格式为 `{分类}：{摘要}`，分类只能是 `Demo 需求` / `bug` / `咨询` 三选一，禁止 `[auto]` 等无意义前缀；PR 标题直接用 commitMessage 摘要（无前缀）；所有 body 临时文件写入 `/tmp`，流程结束后删除——工作目录只产出最终报告一个文档。
+
 ---
 
 ## 一、Issue Body 模板
@@ -67,10 +69,11 @@ Closes #{issue_number}
 
 | 项目 | 内容 |
 |------|------|
-| 目标仓库 | {repoUrl} |
-| 提交模式 | 直推 / Fork |
-| 工作分支 | {branchName} |
-| 目标分支 | {defaultBranch} |
+| 源仓库（上游） | {upstreamUrl} |
+| fork 仓库 | {forkRepoUrl} |
+| 提交模式 | fork → 源仓库跨仓 PR |
+| 工作分支（PR head） | {当前分支}（未切换分支） |
+| PR 目标分支（base） | {上游同名分支 / default_branch（回退时标注）} |
 | 执行时间 | {currentTime} |
 
 ## 执行结果
@@ -81,10 +84,10 @@ Closes #{issue_number}
 | PR 地址 | {prUrl} |
 | PR 编号 | !{prNumber} |
 | Issue 地址 | {issueUrl} |
-| Issue 编号 | #{issueNumber} |
+| Issue 编号 | #{issueNumber}（标题分类：{Demo 需求/bug/咨询}） |
 | Issue 绑定 | 是 / 否（PR body 含 `Closes #{issueNumber}`） |
 | CI 触发 | 是 / 否（评论 `Start build` 于原仓库 PR） |
-| CHANGELOG | 已更新（条目含 Issue 链接）/ 跳过（未修改三方库本身内容） |
+| CHANGELOG | 已更新（英文条目含 Issue 链接）/ 跳过（未修改三方库内部源码） |
 
 ## 修改文件清单
 
@@ -94,7 +97,7 @@ Closes #{issue_number}
 
 ## CHANGELOG 更新
 
-{判定为"需要"时：写入 CHANGELOG.md 的条目原文（含 Issue 链接）；判定为"不需要"时：跳过原因，如"本次仅修改文档，未修改三方库本身内容"}
+{判定为"需要"时：写入 CHANGELOG.md 的英文条目原文（含 Issue 链接）；判定为"不需要"时：跳过原因，如"本次仅涉及 demo 页面与测试用例，未修改三方库内部源码"}
 
 ## 错误信息
 
