@@ -67,7 +67,7 @@ const {
   detectEntryFile, findTurboModuleSpecFiles,
   getLibraryAlias, resolveRelativePath,
   stripComments, extractBalancedBraces, findSignatureEnd, normalizeSignature,
-  extractMethodsFromInterfaceBody, extractExports, extractTurboModuleSpec,
+  extractMethodsFromInterfaceBody, extractExports, extractCJSExportNames, extractTurboModuleSpec,
   extractInterfaceMethods, extractClassMethods,
 } = require('./rn-extract-interfaces.cjs');
 
@@ -171,6 +171,44 @@ rn-scan-exports.cjs
 // ── 扫描主流程 ───────────────────────────────────────────
 
 /**
+ * 当 package.json 的 types/typings 路径不存在时, 在该路径的父目录树下搜索 index.d.ts。
+ * 修复场景: cos-sdk v1.2.1 声明 types=lib/typescript/index.d.ts,
+ * 但实际文件在 lib/typescript/src/index.d.ts (打包路径错误)。
+ *
+ * @param {string} pkgDir 包根目录
+ * @param {string} typesPath package.json 中声明的 types 路径
+ * @returns {string|null} 找到的 .d.ts 绝对路径, 或 null
+ */
+function findDtsFallback(pkgDir, typesPath) {
+  const typesDir = path.dirname(path.resolve(pkgDir, typesPath));
+  if (!fs.existsSync(typesDir) || !fs.statSync(typesDir).isDirectory()) return null;
+  // 快速候选: 常见子目录模式
+  const quick = [
+    path.join(typesDir, 'src', 'index.d.ts'),
+    path.join(typesDir, 'index.d.ts'),
+  ];
+  for (const c of quick) {
+    if (fs.existsSync(c) && fs.statSync(c).isFile()) return c;
+  }
+  // 递归搜索 (深度 ≤ 3)
+  const walk = (dir, depth) => {
+    if (depth > 3) return null;
+    let entries;
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return null; }
+    for (const e of entries) {
+      if (e.isDirectory()) {
+        const candidate = path.join(dir, e.name, 'index.d.ts');
+        if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) return candidate;
+        const found = walk(path.join(dir, e.name), depth + 1);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  return walk(typesDir, 0);
+}
+
+/**
  * 扫描一个源码目录的导出接口。
  *
  * @param {string} dir 源码目录
@@ -229,16 +267,60 @@ function scanDirectory(dir, explicitEntry = '') {
     }
   };
 
+  let exportsBaseFile = entryFile;
+
   if (entryFile) {
     const content = fs.readFileSync(entryFile, 'utf-8');
     exports = extractExports(content);
 
-    // 2b. 入口同名 .d.ts 类型声明 — 类型契约的权威来源, 优先提取
-    //     (index.js → index.d.ts; 包含 default export class / 接口 / 类型的完整签名)
-    const dtsFile = entryFile.replace(/\.jsx?$/i, '.d.ts');
-    if (dtsFile !== entryFile && fs.existsSync(dtsFile)) {
+    // 2b. 入口 .d.ts 类型声明 — 类型契约的权威来源
+    //     优先检查同名 .d.ts (index.js -> index.d.ts)
+    //     其次检查 package.json 的 types/typings 字段
+    //     最后回退搜索 types 目录树 (修复打包路径错误, 如 cos-sdk v1.2.1)
+    let dtsFile = entryFile.replace(/\.jsx?$/i, '.d.ts');
+    if (dtsFile === entryFile || !fs.existsSync(dtsFile)) {
+      const pkg = readPackageJson(absDir);
+      if (pkg) {
+        const typesPath = pkg.types || pkg.typings;
+        if (typesPath) {
+          const resolved = path.resolve(absDir, typesPath);
+          if (fs.existsSync(resolved)) {
+            dtsFile = resolved;
+          } else {
+            // types 路径不存在, 回退搜索 types 目录树
+            dtsFile = findDtsFallback(absDir, typesPath);
+          }
+        } else {
+          dtsFile = null;
+        }
+      } else {
+        dtsFile = null;
+      }
+    }
+
+    if (dtsFile) {
       const dtsContent = fs.readFileSync(dtsFile, 'utf-8');
-      collectClassAndTypeDefs(dtsFile, extractExports(dtsContent), dtsContent);
+      const dtsExports = extractExports(dtsContent);
+      // 当入口是编译后的 .js/.jsx (CommonJS) 且 .d.ts 有导出信息时,
+      // 使用 .d.ts 的导出作为权威 API 表面 (CommonJS 的 module.exports 无法被正则解析)
+      if (/\.(jsx?)$/i.test(entryFile) &&
+          (dtsExports.named.length > 0 || dtsExports.types.length > 0 ||
+           dtsExports.reExports.length > 0 || dtsExports.defaultExport)) {
+        exports = dtsExports;
+        exportsBaseFile = dtsFile;
+      }
+      collectClassAndTypeDefs(dtsFile, dtsExports, dtsContent);
+    }
+
+    // 2d. 无 .d.ts 或 .d.ts 导出为空时, 从 CommonJS 编译代码提取导出名 (最后手段)
+    //     防止因缺少 .d.ts 或 .d.ts 使用 export = 等未解析模式 导致一侧导出为空, 对比时产生假阳性
+    if (/\.(jsx?)$/i.test(entryFile) &&
+        !exports.named.length && !exports.types.length &&
+        !exports.reExports.length && !exports.defaultExport) {
+      const cjsExports = extractCJSExportNames(content);
+      if (cjsExports.named.length > 0 || cjsExports.reExports.length > 0 || cjsExports.defaultExport) {
+        exports = cjsExports;
+      }
     }
 
     // 2c. 入口文件自身定义的类与类型
@@ -250,10 +332,11 @@ function scanDirectory(dir, explicitEntry = '') {
 
   // 3. 跟踪 re-export 的类型定义
   // 如果入口文件 re-export 了 type/interface, 跟踪到源文件提取方法签名
+  // 使用 exportsBaseFile (可能是 .d.ts) 作为相对路径基准
   if (entryFile) {
     for (const re of exports.reExports) {
       // 跟踪 type re-export 和 named re-export (可能是 class/function)
-      const sourceFile = resolveRelativePath(entryFile, re.from);
+      const sourceFile = resolveRelativePath(exportsBaseFile, re.from);
       if (sourceFile && fs.existsSync(sourceFile)) {
         const sourceContent = fs.readFileSync(sourceFile, 'utf-8');
         const relSource = path.relative(absDir, sourceFile);
@@ -324,6 +407,8 @@ function compareScans(scan1, scan2) {
       removed: [],
       typesAdded: [],
       typesRemoved: [],
+      reExportsAdded: [],
+      reExportsRemoved: [],
     },
     interfaceDefsDiff: [],
     turboModuleDiff: [],
@@ -363,6 +448,18 @@ function compareScans(scan1, scan2) {
   }
   for (const t of types1) {
     if (!types2.has(t)) result.exportsDiff.typesRemoved.push(t);
+  }
+
+  // re-exports (export { X } from './...')
+  // 以 name + isType 作为唯一标识, 检测新增/移除的再导出
+  const reKey = re => `${re.isType ? 'type:' : 'value:'}${re.name}`;
+  const reKeys1 = new Set(e1.reExports.map(reKey));
+  const reKeys2 = new Set(e2.reExports.map(reKey));
+  for (const re of e2.reExports) {
+    if (!reKeys1.has(reKey(re))) result.exportsDiff.reExportsAdded.push(re);
+  }
+  for (const re of e1.reExports) {
+    if (!reKeys2.has(reKey(re))) result.exportsDiff.reExportsRemoved.push(re);
   }
 
   // ── 2. 对比 interface/type 定义的方法 ──
@@ -509,6 +606,8 @@ function compareScans(scan1, scan2) {
     || result.exportsDiff.removed.length > 0
     || result.exportsDiff.typesAdded.length > 0
     || result.exportsDiff.typesRemoved.length > 0
+    || result.exportsDiff.reExportsAdded.length > 0
+    || result.exportsDiff.reExportsRemoved.length > 0
     || result.exportsDiff.defaultChanged;
 
   const hasInterfaceChanges = result.interfaceDefsDiff.length > 0;
@@ -617,7 +716,7 @@ function formatDiffResult(scan1, scan2, diff) {
 
   // exports diff
   const e = diff.exportsDiff;
-  if (e.defaultChanged || e.added.length > 0 || e.removed.length > 0 || e.typesAdded.length > 0 || e.typesRemoved.length > 0) {
+  if (e.defaultChanged || e.added.length > 0 || e.removed.length > 0 || e.typesAdded.length > 0 || e.typesRemoved.length > 0 || e.reExportsAdded.length > 0 || e.reExportsRemoved.length > 0) {
     lines.push('## JS 导出变更');
     lines.push('');
     if (e.defaultChanged) {
@@ -627,6 +726,12 @@ function formatDiffResult(scan1, scan2, diff) {
     if (e.removed.length > 0) lines.push(`- 移除导出: ${e.removed.join(', ')}`);
     if (e.typesAdded.length > 0) lines.push(`- 新增类型导出: ${e.typesAdded.join(', ')}`);
     if (e.typesRemoved.length > 0) lines.push(`- 移除类型导出: ${e.typesRemoved.join(', ')}`);
+    if (e.reExportsAdded.length > 0) {
+      lines.push(`- 新增再导出: ${e.reExportsAdded.map(re => `\`${re.isType ? 'type ' : ''}${re.name}\` (from '${re.from}')`).join(', ')}`);
+    }
+    if (e.reExportsRemoved.length > 0) {
+      lines.push(`- 移除再导出: ${e.reExportsRemoved.map(re => `\`${re.isType ? 'type ' : ''}${re.name}\` (from '${re.from}')`).join(', ')}`);
+    }
     lines.push('');
   }
 
@@ -899,7 +1004,7 @@ function generateMarkdownReport(scan1, scan2, diff, meta = {}) {
 
   // ── 2c. JS 导出变更 ──
   const e = diff.exportsDiff;
-  if (e.defaultChanged || e.added.length > 0 || e.removed.length > 0 || e.typesAdded.length > 0 || e.typesRemoved.length > 0) {
+  if (e.defaultChanged || e.added.length > 0 || e.removed.length > 0 || e.typesAdded.length > 0 || e.typesRemoved.length > 0 || e.reExportsAdded.length > 0 || e.reExportsRemoved.length > 0) {
     lines.push('### JS 导出变更');
     lines.push('');
     lines.push('> 入口文件的导出变更, 影响包的对外 API。');
@@ -939,6 +1044,24 @@ function generateMarkdownReport(scan1, scan2, diff, meta = {}) {
       lines.push(`- [ ] **#${itemNum} 移除 type 导出**`);
       lines.push(`  - 类型: ${e.typesRemoved.map(n => `\`${n}\``).join(', ')}`);
       lines.push(`  - 动作: 从鸿蒙化仓库中移除对应类型导出`);
+      lines.push('');
+    }
+    if (e.reExportsAdded.length > 0) {
+      itemNum++;
+      lines.push(`- [ ] **#${itemNum} 新增再导出 (re-export)**`);
+      lines.push(`  - 动作: 确保新增的再导出在鸿蒙化仓库入口文件中可用`);
+      for (const re of e.reExportsAdded) {
+        lines.push(`    - \`${re.isType ? 'type ' : ''}${re.name}\` (from \`${re.from}\`)`);
+      }
+      lines.push('');
+    }
+    if (e.reExportsRemoved.length > 0) {
+      itemNum++;
+      lines.push(`- [ ] **#${itemNum} 移除再导出 (re-export)**`);
+      lines.push(`  - 动作: 从鸿蒙化仓库入口文件中移除对应再导出`);
+      for (const re of e.reExportsRemoved) {
+        lines.push(`    - \`${re.isType ? 'type ' : ''}${re.name}\` (was from \`${re.from}\`)`);
+      }
       lines.push('');
     }
   }
@@ -994,6 +1117,14 @@ function generateMarkdownReport(scan1, scan2, diff, meta = {}) {
   if (scan1.exports.types.length > 0) {
     lines.push(`- types: ${scan1.exports.types.map(n => `\`${n}\``).join(', ')}`);
   }
+  if (scan1.exports.reExports.length > 0) {
+    lines.push(`- re-exports:`);
+    for (const re of scan1.exports.reExports) {
+      const typeMark = re.isType ? 'type ' : '';
+      const wildMark = re.isWildcard ? '* ' : '';
+      lines.push(`  - ${typeMark}${wildMark}\`${re.name}\` from \`${re.from}\``);
+    }
+  }
   for (const def of scan1.interfaceDefs) {
     lines.push(`- **${def.name}** (${def.sourceFile}):`);
     for (const m of def.methods) {
@@ -1021,6 +1152,14 @@ function generateMarkdownReport(scan1, scan2, diff, meta = {}) {
   }
   if (scan2.exports.types.length > 0) {
     lines.push(`- types: ${scan2.exports.types.map(n => `\`${n}\``).join(', ')}`);
+  }
+  if (scan2.exports.reExports.length > 0) {
+    lines.push(`- re-exports:`);
+    for (const re of scan2.exports.reExports) {
+      const typeMark = re.isType ? 'type ' : '';
+      const wildMark = re.isWildcard ? '* ' : '';
+      lines.push(`  - ${typeMark}${wildMark}\`${re.name}\` from \`${re.from}\``);
+    }
   }
   for (const def of scan2.interfaceDefs) {
     lines.push(`- **${def.name}** (${def.sourceFile}):`);

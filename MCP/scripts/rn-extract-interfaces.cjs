@@ -44,9 +44,13 @@ function warn(msg)  { console.log(`${COLORS.YELLOW}[WARN]${COLORS.NC} ${msg}`); 
 function error(msg) { console.error(`${COLORS.RED}[ERROR]${COLORS.NC} ${msg}`); process.exit(1); }
 
 function readText(file) {
-  let c = fs.readFileSync(file, 'utf-8');
-  if (c.charCodeAt(0) === 0xFEFF) c = c.slice(1);
-  return c;
+  try {
+    let c = fs.readFileSync(file, 'utf-8');
+    if (c.charCodeAt(0) === 0xFEFF) c = c.slice(1);
+    return c;
+  } catch (e) {
+    return '';
+  }
 }
 
 function rel(filePath, repoDir) {
@@ -99,19 +103,31 @@ function detectEntryFile(dir, explicitEntry) {
     for (const field of fields) {
       const val = pkg[field];
       if (val && typeof val === 'string') {
-        const variants = [val, val.replace(/^lib\//, 'src/'), val.replace(/^lib\/commonjs\//, 'src/'), val.replace(/^lib\/module\//, 'src/'), val.replace(/\.js$/, '.ts'), val.replace(/\.jsx$/, '.tsx'), val.replace(/^lib\//, 'src/').replace(/\.js$/, '.ts'), val.replace(/^lib\//, 'src/').replace(/\.js$/, '.tsx'), val.replace(/^lib\/module\//, 'src/').replace(/\.js$/, '.ts'), val.replace(/^lib\/module\//, 'src/').replace(/\.js$/, '.tsx')];
+        const variants = [val.replace(/^lib\//, 'src/'), val.replace(/^lib\/commonjs\//, 'src/'), val.replace(/^lib\/module\//, 'src/'), val.replace(/^lib\//, 'src/').replace(/\.js$/, '.ts'), val.replace(/^lib\//, 'src/').replace(/\.js$/, '.tsx'), val.replace(/^lib\/module\//, 'src/').replace(/\.js$/, '.ts'), val.replace(/^lib\/module\//, 'src/').replace(/\.js$/, '.tsx'), val, val.replace(/\.js$/, '.ts'), val.replace(/\.jsx$/, '.tsx')];
         for (const v of variants) {
           const p = path.resolve(dir, v);
           if (fs.existsSync(p) && (p.endsWith('.ts') || p.endsWith('.tsx') || p.endsWith('.js') || p.endsWith('.jsx'))) return p;
         }
         const p = path.resolve(dir, val);
-        if (fs.existsSync(p)) return p;
+        if (fs.existsSync(p) && fs.statSync(p).isFile()) return p;
+        // Try with extensions appended (e.g., main: "dist/CheckBox" -> "dist/CheckBox.js")
+        for (const ext of ['.ts', '.tsx', '.js', '.jsx']) {
+          const pe = path.resolve(dir, val + ext);
+          if (fs.existsSync(pe) && fs.statSync(pe).isFile()) return pe;
+        }
+        // If it's a directory, try index files
+        if (fs.existsSync(p) && fs.statSync(p).isDirectory()) {
+          for (const idx of ['index.ts', 'index.tsx', 'index.js', 'index.jsx', 'index.d.ts']) {
+            const idxPath = path.join(p, idx);
+            if (fs.existsSync(idxPath) && fs.statSync(idxPath).isFile()) return idxPath;
+          }
+        }
       }
     }
   }
   for (const conv of ['src/index.ts', 'src/index.tsx', 'index.ts', 'index.tsx', 'index.js', 'index.jsx']) {
     const p = path.resolve(dir, conv);
-    if (fs.existsSync(p)) return p;
+    if (fs.existsSync(p) && fs.statSync(p).isFile()) return p;
   }
   return null;
 }
@@ -263,12 +279,12 @@ function extractExports(content) {
   const starRegex = /export\s+\*\s*(?:as\s+(\w+)\s+)?from\s*['"]([^'"]+)['"]/g;
   while ((m = starRegex.exec(cleaned)) !== null) reExports.push({ name: m[1] || '*', original: '*', from: m[2], isType: false, isWildcard: true });
   const patterns = [
-    { regex: /export\s+(?:async\s+)?function\s+(\w+)/g, kind: 'named' },
-    { regex: /export\s+(?:abstract\s+)?class\s+(\w+)/g, kind: 'named' },
-    { regex: /export\s+(?:const|let|var)\s+(\w+)/g, kind: 'named' },
-    { regex: /export\s+interface\s+(\w+)/g, kind: 'types' },
-    { regex: /export\s+type\s+(\w+)\s*[=<]/g, kind: 'types' },
-    { regex: /export\s+(?:const\s+)?enum\s+(\w+)/g, kind: 'types' },
+    { regex: /export\s+(?:declare\s+)?(?:async\s+)?function\s+(\w+)/g, kind: 'named' },
+    { regex: /export\s+(?:declare\s+)?(?:abstract\s+)?class\s+(\w+)/g, kind: 'named' },
+    { regex: /export\s+(?:declare\s+)?(?:const|let|var)\s+(\w+)/g, kind: 'named' },
+    { regex: /export\s+(?:declare\s+)?interface\s+(\w+)/g, kind: 'types' },
+    { regex: /export\s+(?:declare\s+)?type\s+(\w+)\s*[=<]/g, kind: 'types' },
+    { regex: /export\s+(?:declare\s+)?(?:const\s+)?enum\s+(\w+)/g, kind: 'types' },
   ];
   for (const { regex, kind } of patterns) {
     while ((m = regex.exec(cleaned)) !== null) {
@@ -276,7 +292,81 @@ function extractExports(content) {
       else { if (!types.includes(m[1])) types.push(m[1]); }
     }
   }
+  // export = Name (TypeScript CommonJS export pattern)
+  const exportEqMatch = cleaned.match(/export\s*=\s*(\w+)\s*;?/);
+  if (exportEqMatch) {
+    const nsName = exportEqMatch[1];
+    const nsMatch = cleaned.match(new RegExp('(?:declare\\s+)?namespace\\s+' + nsName + '\\s*\\{'));
+    if (nsMatch) {
+      const nsBody = extractBalancedBraces(cleaned, nsMatch.index + nsMatch[0].length);
+      if (nsBody) {
+        const funcRegex = /function\s+(\w+)\s*\(/g;
+        let fm;
+        while ((fm = funcRegex.exec(nsBody)) !== null) {
+          if (!named.includes(fm[1])) named.push(fm[1]);
+        }
+      }
+    }
+  }
   return { defaultExport: defaultExportDesc, named, types, reExports };
+}
+
+function extractCJSExportNames(content) {
+  const named = [], reExports = [];
+  let defaultExport = null;
+
+  const isReExportName = (n) => reExports.some(r => r.name === n);
+  const addNamed = (n) => { if (n !== '__esModule' && !named.includes(n) && !isReExportName(n)) named.push(n); };
+  const addDefault = () => { if (!defaultExport) defaultExport = 'default'; };
+  const addReExport = (n, from, isWild) => {
+    if (n === '__esModule') return;
+    if (n === 'default') { addDefault(); return; }
+    if (named.includes(n)) return;
+    if (isReExportName(n)) return;
+    reExports.push({ name: n, original: n, from: from, isType: false, isWildcard: !!isWild });
+  };
+
+  // 1. Build require map: var _xxx = require("./module")
+  const requireMap = {};
+  const requireRegex = /(?:var|let|const)\s+(\w+)\s*=\s*require\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
+  let m;
+  while ((m = requireRegex.exec(content)) !== null) requireMap[m[1]] = m[2];
+
+  // 2. Object.defineProperty(exports, "NAME", { ... }) — detect re-exports via "return _var."
+  const definePropRegex = /Object\.defineProperty\s*\(\s*exports\s*,\s*['"]([^'"]+)['"]\s*,/g;
+  while ((m = definePropRegex.exec(content)) !== null) {
+    const name = m[1];
+    if (name === '__esModule') continue;
+    const after = content.substring(m.index, m.index + 300);
+    const returnMatch = after.match(/return\s+(\w+)\s*\./);
+    if (returnMatch && requireMap[returnMatch[1]]) {
+      addReExport(name, requireMap[returnMatch[1]]);
+    } else if (name === 'default') { addDefault(); }
+    else { addNamed(name); }
+  }
+
+  // 3. Direct assignments: exports.NAME = ... (skip if already categorized in step 2)
+  const directRegex = /(?:^|[\n;])exports\.(\w+)\s*=/gm;
+  while ((m = directRegex.exec(content)) !== null) {
+    const name = m[1];
+    if (name === '__esModule') continue;
+    if (name === 'default') { addDefault(); }
+    else { addNamed(name); }
+  }
+
+  // 3b. module.exports.NAME = ... (another CommonJS pattern, e.g. idle-timer)
+  const moduleExportRegex = /module\.exports\.(\w+)\s*=/gm;
+  while ((m = moduleExportRegex.exec(content)) !== null) {
+    addNamed(m[1]);
+  }
+
+  // 4. __exportStar(require("./module"), exports) → wildcard re-export
+  const exportStarRegex = /__exportStar\s*\(\s*require\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
+  while ((m = exportStarRegex.exec(content)) !== null) {
+    reExports.push({ name: '*', original: '*', from: m[1], isType: false, isWildcard: true });
+  }
+
+  return { defaultExport, named, types: [], reExports };
 }
 
 function extractTurboModuleSpec(content) {
@@ -331,6 +421,22 @@ function extractMethodsFromInterfaceBody(body) {
       } else { i = sigEnd + 1; }
       continue;
     }
+    // Assignment: `name = value` (e.g. static propTypes = {...}, static defaultProps = {...}).
+    // Skip the whole value — including balanced object/array/call literals — so its
+    // inner members are not mis-parsed as class members.
+    if (body[i] === '=') {
+      i++;
+      while (i < body.length && /\s/.test(body[i])) i++;
+      if (i < body.length && '{[('.includes(body[i])) {
+        const open = body[i], close = open === '{' ? '}' : (open === '[' ? ']' : ')');
+        let bd = 1, j = i + 1;
+        while (j < body.length && bd > 0) { if (body[j] === open) bd++; else if (body[j] === close) bd--; if (bd === 0) break; j++; }
+        i = (j < body.length && bd === 0) ? j + 1 : j;
+      }
+      while (i < body.length && body[i] !== ';' && body[i] !== '\n') i++;
+      if (body[i] === ';') i++;
+      continue;
+    }
     while (i < body.length && body[i] !== ';' && body[i] !== '\n') i++;
     i++;
   }
@@ -349,11 +455,37 @@ function extractInterfaceMethods(content, interfaceName) {
 
 function extractClassMethods(content, className) {
   const cleaned = stripComments(content);
-  const regex = new RegExp(`(?:export\\s+)?(?:declare\\s+)?(?:abstract\\s+)?class\\s+${className}\\s*(?:extends\\s+[^{]+)?\\s*\\{`);
+  const regex = new RegExp(`(?:export\\s+)?(?:default\\s+)?(?:declare\\s+)?(?:abstract\\s+)?class\\s+${className}\\s*(?:extends\\s+[^{]+)?\\s*\\{`);
   const match = regex.exec(cleaned);
   if (!match) return [];
   const body = extractBalancedBraces(cleaned, match.index + match[0].length);
   return body ? extractMethodsFromInterfaceBody(body) : [];
+}
+
+// Parse the body of an object/type-literal `{ name(): ret; name?: type; ... }`
+// (comma- or semicolon-separated) into member descriptors. Handles both
+// method signatures (name(params): ret) and fields (name?: type).
+function parseTypeLiteralMembers(body) {
+  const members = [];
+  const parts = [];
+  let depth = 0, current = '';
+  for (const ch of body) {
+    if (ch === '{' || ch === '(' || ch === '[') depth++;
+    else if (ch === '}' || ch === ')' || ch === ']') depth--;
+    if ((ch === ',' || ch === ';') && depth === 0) { if (current.trim()) parts.push(current.trim()); current = ''; }
+    else current += ch;
+  }
+  if (current.trim()) parts.push(current.trim());
+  for (const part of parts) {
+    if (!part) continue;
+    if (/^\w+\??\s*\(/.test(part)) {
+      const nm = part.match(/^(\w+)/);
+      if (nm) { members.push({ name: nm[1], signature: part }); continue; }
+    }
+    const fm = part.match(/^(\w+)\s*\??\s*:\s*([\s\S]+)$/);
+    if (fm) { members.push({ name: fm[1], signature: part }); continue; }
+  }
+  return members;
 }
 
 function extractClassAndInterfaceDefs(content) {
@@ -361,7 +493,7 @@ function extractClassAndInterfaceDefs(content) {
   const defs = [];
 
   // Classes: use simple regex to find class name, then manually skip generic params to find body
-  const classRegex = /(?:export\s+)?(?:declare\s+)?(?:abstract\s+)?class\s+(\w+)\b/g;
+  const classRegex = /(?:export\s+)?(?:default\s+)?(?:declare\s+)?(?:abstract\s+)?class\s+(\w+)\b/g;
   let m;
   while ((m = classRegex.exec(cleaned)) !== null) {
     const className = m[1];
@@ -391,11 +523,41 @@ function extractClassAndInterfaceDefs(content) {
     defs.push({ typeKind: 'interface', name: ifaceName, members });
   }
 
-  // Type aliases
+  // Type aliases — capture inline object-literal members when present
+  // (e.g. `export type XProps = ViewProps & { field?: type; ... }`)
   const typeRegex = /(?:export\s+)?type\s+(\w+)\s*=/g;
   while ((m = typeRegex.exec(cleaned)) !== null) {
     const typeName = m[1];
-    defs.push({ typeKind: 'type-alias', name: typeName, members: [] });
+    let members = [];
+    let p = m.index + m[0].length;
+    // scan for the first inline object literal, stopping at statement end / ASI
+    while (p < cleaned.length) {
+      const ch = cleaned[p];
+      if (ch === '{') break;
+      if (ch === ';') { p = -1; break; }
+      if (ch === '\n') {
+        let k = p + 1;
+        while (k < cleaned.length && /[ \t\r]/.test(cleaned[k])) k++;
+        if (/^(export|type|interface|class|declare|const|function|let|var|\})\b/.test(cleaned.substring(k))) { p = -1; break; }
+      }
+      p++;
+    }
+    if (p >= 0 && p < cleaned.length && cleaned[p] === '{') {
+      const body = extractBalancedBraces(cleaned, p + 1);
+      if (body) members = parseTypeLiteralMembers(body);
+    }
+    defs.push({ typeKind: 'type-alias', name: typeName, members });
+  }
+
+  // `declare const X: { ... }` / `export declare const X: { ... }` — object-literal
+  // API surface (e.g. `export declare const Clipboard: { getString(): ...; ... }`)
+  const declConstRegex = /(?:export\s+)?declare\s+const\s+(\w+)\s*:\s*\{/g;
+  while ((m = declConstRegex.exec(cleaned)) !== null) {
+    const constName = m[1];
+    const body = extractBalancedBraces(cleaned, m.index + m[0].length);
+    if (!body) continue;
+    const members = parseTypeLiteralMembers(body);
+    if (members.length > 0) defs.push({ typeKind: 'const', name: constName, members });
   }
 
   return defs;
@@ -408,7 +570,9 @@ function defsToInterfaces(defs, repoDir, sourceFile, typeLabel, layerLabel, cont
   const sourceRel = rel(sourceFile, repoDir);
   for (const def of defs) {
     for (const member of def.members) {
-      const isField = member.signature.includes(':') && !member.signature.includes('(') && !member.signature.includes('=>');
+      // A real method starts with `name(`; otherwise a `:` annotation (incl.
+      // function-type fields like `name: (args) => ret`) is a field.
+      const isField = !/^\w+\??\s*\(/.test(member.signature) && member.signature.includes(':');
       const isDeprecated = content ? isDeprecatedMember(content, member.name) : false;
       if (isField) {
         const typeMatch = member.signature.match(/^\w+\??\s*:\s*(.+)$/);
@@ -542,6 +706,8 @@ function fetchUpstream(repoDir, opts = {}) {
 function detectExportStyle(content) {
   const cleaned = stripComments(content);
   if (/module\.exports\s*=/.test(cleaned)) return 'commonjs';
+  if (/Object\.defineProperty\(exports,\s*['"]__esModule['"]/.test(cleaned)) return 'commonjs';
+  if (/exports\.default\s*=/.test(cleaned)) return 'commonjs';
   if (/export\s+(default|{|function|class|const|interface|type|\*)/.test(cleaned)) return 'es-module';
   if (/global\.\w+/.test(cleaned)) return 'side-effect';
   return 'unknown';
@@ -577,6 +743,89 @@ function parseParamList(paramStr) {
     else params.push({ name: part, type: 'any', optional: false, description: '-' });
   }
   return params;
+}
+
+function extractPropTypesFields(content, componentName) {
+  const cleaned = stripComments(content);
+  const fields = [];
+  const patterns = [
+    /static\s+propTypes\s*=\s*\{/g,
+    new RegExp(`\\b${escapeRegex(componentName)}\\.propTypes\\s*=\\s*\\{`, 'g'),
+  ];
+  for (const pat of patterns) {
+    let m;
+    while ((m = pat.exec(cleaned)) !== null) {
+      const body = extractBalancedBraces(cleaned, m.index + m[0].length);
+      if (!body) continue;
+      for (const p of parseParamList(body)) {
+        fields.push({ name: p.name, optional: p.optional, type: p.type });
+      }
+    }
+  }
+  return fields;
+}
+
+// Follow HOC / indirect component imports for a named const export such as
+// `export const Comp = connectToState(Inner)` or `export const Comp = Inner`,
+// where `Inner` is imported from another file. Reads the source file of the
+// imported identifier and extracts the underlying component class's methods +
+// propTypes, attributing them to the exported name.
+function followHocImports(content, repoDir, fromFile, exportedName) {
+  const cleaned = stripComments(content);
+  const interfaces = [];
+  const importMap = {};
+  let im;
+  const defaultImportRe = /import\s+(\w+)\s+from\s+['"]([^'"]+)['"]/g;
+  const namedImportRe = /import\s+\{\s*([^}]+?)\s*\}\s+from\s+['"]([^'"]+)['"]/g;
+  while ((im = defaultImportRe.exec(cleaned)) !== null) importMap[im[1]] = { from: im[2], original: null };
+  while ((im = namedImportRe.exec(cleaned)) !== null) {
+    for (let part of im[1].split(',')) {
+      part = part.trim(); if (!part) continue;
+      const asM = part.match(/^(\w+)\s+as\s+(\w+)/);
+      if (asM) importMap[asM[2]] = { from: im[2], original: asM[1] };
+      else importMap[part] = { from: im[2], original: part };
+    }
+  }
+  const constRe = new RegExp(`export\\s+(?:const|let|var)\\s+${escapeRegex(exportedName)}\\s*=\\s*([^;\\n]+)`);
+  const cm = constRe.exec(cleaned);
+  if (!cm) return interfaces;
+  const expr = cm[1];
+  const referenced = Object.keys(importMap).filter(local => new RegExp(`\\b${escapeRegex(local)}\\b`).test(expr));
+  for (const local of referenced) {
+    const { from: modPath, original: origName } = importMap[local];
+    const targetFile = resolveRelativePath(fromFile, modPath);
+    if (!targetFile) continue;
+    let tc;
+    try { tc = readText(targetFile); } catch { continue; }
+    const tCleaned = stripComments(tc);
+    let className = null;
+    const defClass = tCleaned.match(/export\s+default\s+(?:abstract\s+)?class\s+(\w+)/);
+    if (defClass) className = defClass[1];
+    if (!className && origName) {
+      if (new RegExp(`(?:export\\s+)?(?:default\\s+)?(?:abstract\\s+)?class\\s+${escapeRegex(origName)}\\b`).test(tCleaned)) className = origName;
+    }
+    if (!className) continue;
+    const targetRel = rel(targetFile, repoDir);
+    for (const method of extractClassMethods(tc, className)) {
+      const parsed = parseMethodSignature(method.signature);
+      interfaces.push({
+        className: exportedName, memberName: method.name, fullName: `${exportedName}.${method.name}`, kind: 'method',
+        isStatic: /\bstatic\b/.test(method.signature), isReadonly: false, isOptional: false, isEvent: false,
+        type: 'es-export', layer: 'js', signature: method.signature,
+        params: parsed.params, returnType: parsed.returnType, description: extractMethodJSDoc(tc, method.name),
+        source: targetRel, startLine: 0,
+      });
+    }
+    for (const p of extractPropTypesFields(tc, className)) {
+      interfaces.push({
+        className: exportedName, memberName: p.name, fullName: `${exportedName}.${p.name}`, kind: 'field',
+        isStatic: true, isReadonly: false, isOptional: p.optional, isEvent: /^on[A-Z]/.test(p.name),
+        type: 'es-export', layer: 'js', signature: `${p.name}: ${p.type}`,
+        params: [], returnType: p.type, description: '-', source: targetRel, startLine: 0,
+      });
+    }
+  }
+  return interfaces;
 }
 
 function extractMethodJSDoc(content, methodName) {
@@ -667,8 +916,9 @@ function extractFabricComponentSpecs(repoDir) {
     const allFabricInterfaces = defsToInterfaces(defs, repoDir, specFile, 'fabric-spec', 'fabric', content);
 
     for (const iface of allFabricInterfaces) {
-      if (isFabric && iface.className === 'NativeProps') {
-        if (iface.signature && /DirectEventHandler/.test(iface.signature)) continue;
+      // Capture component props interfaces regardless of exact name
+      // (covers NativeProps, VLCNativeProps, *Props, etc.)
+      if (/Props$/.test(iface.className)) {
         if (iface.memberName === 'isFirstRefresh') continue;
         interfaces.push(iface);
       }
@@ -678,13 +928,8 @@ function extractFabricComponentSpecs(repoDir) {
   return { files, interfaces };
 }
 
-function extractCommonJSExports(content, repoDir, entryFile) {
-  const cleaned = stripComments(content);
+function extractMethodsFromCjsObject(body, content, sourceFile, repoDir) {
   const interfaces = [];
-  const match = cleaned.match(/module\.exports\s*=\s*\{/);
-  if (!match) return interfaces;
-  const body = extractBalancedBraces(cleaned, match.index + match[0].length);
-  if (!body) return interfaces;
   const funcRegex = /(?:^|\n)\s*(?:async\s+)?(\w+)\s*\(([^)]*)\)\s*\{/g;
   const seen = new Set();
   let m;
@@ -699,7 +944,7 @@ function extractCommonJSExports(content, repoDir, entryFile) {
       isEvent: /(?:add|remove)\w*Listener/.test(name),
       type: 'commonjs-export', layer: 'js', signature: `${name}(${paramStr})`,
       params: parseParamList(paramStr), returnType: 'void',
-      description: extractMethodJSDoc(content, name), source: rel(entryFile, repoDir), startLine: findMethodLineNumber(content, name),
+      description: extractMethodJSDoc(content, name), source: rel(sourceFile, repoDir), startLine: findMethodLineNumber(content, name),
     });
   }
   const namedFuncRegex = /(\w+)\s*:\s*(?:async\s+)?function\s*\(([^)]*)\)/g;
@@ -714,8 +959,40 @@ function extractCommonJSExports(content, repoDir, entryFile) {
       isEvent: /(?:add|remove)\w*Listener/.test(name),
       type: 'commonjs-export', layer: 'js', signature: `${name}(${paramStr})`,
       params: parseParamList(paramStr), returnType: 'void',
-      description: extractMethodJSDoc(content, name), source: rel(entryFile, repoDir), startLine: findMethodLineNumber(content, name),
+      description: extractMethodJSDoc(content, name), source: rel(sourceFile, repoDir), startLine: findMethodLineNumber(content, name),
     });
+  }
+  return interfaces;
+}
+
+function extractCommonJSExports(content, repoDir, entryFile) {
+  const cleaned = stripComments(content);
+  const interfaces = [];
+  const match = cleaned.match(/module\.exports\s*=\s*\{/);
+  if (match) {
+    const body = extractBalancedBraces(cleaned, match.index + match[0].length);
+    if (body) interfaces.push(...extractMethodsFromCjsObject(body, content, entryFile, repoDir));
+    return interfaces;
+  }
+  // Follow `module.exports = <identifier>` (re-export of an imported binding)
+  const reMatch = cleaned.match(/module\.exports\s*=\s*([A-Za-z_$][\w$]*)\s*;?\s*$/m);
+  if (reMatch) {
+    const identifier = reMatch[1];
+    const importMatch = cleaned.match(new RegExp(`import\\s+${escapeRegex(identifier)}\\s+from\\s+['"]([^'"]+)['"]`));
+    const requireMatch = !importMatch ? cleaned.match(new RegExp(`(?:const|let|var)\\s+${escapeRegex(identifier)}\\s*=\\s*require\\(\\s*['"]([^'"]+)['"]\\s*\\)`)) : null;
+    const fromPath = importMatch ? importMatch[1] : (requireMatch ? requireMatch[1] : null);
+    if (fromPath) {
+      const targetFile = resolveRelativePath(entryFile, fromPath);
+      if (targetFile && fs.existsSync(targetFile) && fs.statSync(targetFile).isFile()) {
+        const srcContent = readText(targetFile);
+        const srcCleaned = stripComments(srcContent);
+        const objMatch = srcCleaned.match(new RegExp(`(?:let|const|var)\\s+${escapeRegex(identifier)}\\s*=\\s*\\{`));
+        if (objMatch) {
+          const objBody = extractBalancedBraces(srcCleaned, objMatch.index + objMatch[0].length);
+          if (objBody) interfaces.push(...extractMethodsFromCjsObject(objBody, srcContent, targetFile, repoDir));
+        }
+      }
+    }
   }
   return interfaces;
 }
@@ -739,7 +1016,7 @@ function processNamedExportsFromContent(content, repoDir, sourceFile, namedExpor
       });
       continue;
     }
-    const classMatch = cleaned.match(new RegExp(`export\\s+(?:abstract\\s+)?class\\s+${name}\\b`));
+    const classMatch = cleaned.match(new RegExp(`export\\s+(?:default\\s+)?(?:abstract\\s+)?class\\s+${name}\\b`));
     if (classMatch) {
       const classMethods = extractClassMethods(content, name);
       for (const method of classMethods) {
@@ -751,6 +1028,14 @@ function processNamedExportsFromContent(content, repoDir, sourceFile, namedExpor
           isDeprecated: methodDeprecated, type: 'es-export', layer: 'js', signature: method.signature,
           params: parsed.params, returnType: parsed.returnType, description: '-',
           source: sourceRel, startLine: 0,
+        });
+      }
+      for (const p of extractPropTypesFields(content, name)) {
+        interfaces.push({
+          className: name, memberName: p.name, fullName: `${name}.${p.name}`, kind: 'field',
+          isStatic: true, isReadonly: false, isOptional: p.optional, isEvent: /^on[A-Z]/.test(p.name),
+          isDeprecated, type: 'es-export', layer: 'js', signature: `${p.name}: ${p.type}`,
+          params: [], returnType: p.type, description: '-', source: sourceRel, startLine: 0,
         });
       }
       continue;
@@ -765,6 +1050,9 @@ function processNamedExportsFromContent(content, repoDir, sourceFile, namedExpor
         type: 'es-export', layer: 'js', signature: `${name}${varType !== '-' ? ': ' + varType : ''} = ${varValue}`,
         params: [], returnType: varType, description: '-', source: sourceRel, startLine: 0,
       });
+      // Follow HOC / indirect imports (e.g. `export const X = connectToState(Inner)`)
+      // to capture the underlying component's methods + propTypes.
+      interfaces.push(...followHocImports(content, repoDir, sourceFile, name));
     }
   }
   return interfaces;
@@ -831,7 +1119,7 @@ function extractESModuleExports(content, repoDir, entryFile) {
 
   // 3. Default export import tracking (import { LottieView } from './LottieView'; export default LottieView)
   if (exports.defaultExport && !exports.named.includes(exports.defaultExport)) {
-    const importRegex = new RegExp(`import\\s+\\{[^}]*\\b${escapeRegex(exports.defaultExport)}\\b[^}]*\\}\\s+from\\s+['"]([^'"]+)['"]`);
+    const importRegex = new RegExp(`import\\s+(?:type\\s+)?\\{[^}]*\\b${escapeRegex(exports.defaultExport)}\\b[^}]*\\}\\s+from\\s+['"]([^'"]+)['"]`);
     const importMatch = cleaned.match(importRegex);
     if (importMatch) {
       const targetFile = resolveRelativePath(entryFile, importMatch[1]);
@@ -840,6 +1128,65 @@ function extractESModuleExports(content, repoDir, entryFile) {
         const defs = extractClassAndInterfaceDefs(targetContent);
         const filteredDefs = defs.filter(d => d.name === exports.defaultExport);
         interfaces.push(...defsToInterfaces(filteredDefs, repoDir, targetFile, undefined, undefined, targetContent));
+      }
+    } else {
+      // Inline `export default class X` / `export default function X` defined in this file
+      const dn = exports.defaultExport;
+      const inlineClassRe = new RegExp(`export\\s+default\\s+(?:abstract\\s+)?class\\s+${escapeRegex(dn)}\\b`);
+      const inlineFuncRe = new RegExp(`export\\s+default\\s+(?:async\\s+)?function\\s+${escapeRegex(dn)}\\b`);
+      if (inlineClassRe.test(cleaned)) {
+        const members = extractClassMethods(content, dn);
+        const sourceRel = rel(entryFile, repoDir);
+        for (const method of members) {
+          const parsed = parseMethodSignature(method.signature);
+          interfaces.push({
+            className: dn, memberName: method.name, fullName: `${dn}.${method.name}`, kind: 'method',
+            isStatic: /\bstatic\b/.test(method.signature), isReadonly: false, isOptional: false, isEvent: false,
+            type: 'es-export', layer: 'js', signature: method.signature,
+            params: parsed.params, returnType: parsed.returnType, description: extractMethodJSDoc(content, method.name),
+            source: sourceRel, startLine: findMethodLineNumber(content, method.name),
+          });
+        }
+        for (const p of extractPropTypesFields(content, dn)) {
+          interfaces.push({
+            className: dn, memberName: p.name, fullName: `${dn}.${p.name}`, kind: 'field',
+            isStatic: true, isReadonly: false, isOptional: p.optional, isEvent: /^on[A-Z]/.test(p.name),
+            type: 'es-export', layer: 'js', signature: `${p.name}: ${p.type}`,
+            params: [], returnType: p.type, description: '-', source: sourceRel, startLine: 0,
+          });
+        }
+      } else if (inlineFuncRe.test(cleaned)) {
+        const sourceRel = rel(entryFile, repoDir);
+        const sigMatch = cleaned.match(new RegExp(`export\\s+default\\s+(?:async\\s+)?function\\s+${escapeRegex(dn)}\\s*\\(([^)]*)\\)`));
+        const paramStr = sigMatch ? sigMatch[1] : '';
+        interfaces.push({
+          className: null, memberName: dn, fullName: dn, kind: 'function',
+          isStatic: false, isReadonly: false, isOptional: false, isEvent: false,
+          type: 'es-export', layer: 'js', signature: `${dn}(${paramStr})`,
+          params: parseParamList(paramStr), returnType: '-',
+          description: extractMethodJSDoc(content, dn), source: sourceRel, startLine: findMethodLineNumber(content, dn),
+        });
+      } else {
+        // `export default new ClassName()` — find the local class and extract methods
+        const newClassMatch = cleaned.match(/export\s+default\s+new\s+(\w+)\s*\(/);
+        if (newClassMatch) {
+          const className = newClassMatch[1];
+          const classDefRe = new RegExp(`(?:^|\\n)\\s*class\\s+${escapeRegex(className)}\\b`);
+          if (classDefRe.test(cleaned)) {
+            const members = extractClassMethods(content, className);
+            const sourceRel = rel(entryFile, repoDir);
+            for (const method of members) {
+              const parsed = parseMethodSignature(method.signature);
+              interfaces.push({
+                className, memberName: method.name, fullName: `${className}.${method.name}`, kind: 'method',
+                isStatic: /\bstatic\b/.test(method.signature), isReadonly: false, isOptional: false, isEvent: false,
+                type: 'es-export', layer: 'js', signature: method.signature,
+                params: parsed.params, returnType: parsed.returnType, description: extractMethodJSDoc(content, method.name),
+                source: sourceRel, startLine: findMethodLineNumber(content, method.name),
+              });
+            }
+          }
+        }
       }
     }
   }
@@ -884,10 +1231,19 @@ function extractTypeDefinitions(repoDir) {
   ];
   if (pkg && pkg.types) candidates.unshift(path.resolve(repoDir, pkg.types));
   if (pkg && pkg.typings) candidates.unshift(path.resolve(repoDir, pkg.typings));
+  // Derive d.ts location from the main/source/module entry (handles dirs like
+  // `main: "lib/js"` -> `lib/js/index.d.ts`, and `main: "lib/index.js"` -> `lib/index.d.ts`).
+  for (const field of ['source', 'react-native', 'main', 'module']) {
+    if (pkg && pkg[field] && typeof pkg[field] === 'string') {
+      const entry = path.resolve(repoDir, pkg[field]);
+      candidates.unshift(entry.replace(/\.jsx?$/, '.d.ts'));
+      candidates.unshift(path.join(entry, 'index.d.ts'));
+    }
+  }
 
   let dtsPath = null;
   for (const c of candidates) {
-    if (fs.existsSync(c)) { dtsPath = c; break; }
+    if (fs.existsSync(c) && fs.statSync(c).isFile()) { dtsPath = c; break; }
   }
   if (!dtsPath) return { found: false, interfaces: [], source: null, allSources: [] };
 
@@ -898,6 +1254,8 @@ function extractTypeDefinitions(repoDir) {
   function processDts(filePath) {
     if (visited.has(filePath)) return;
     visited.add(filePath);
+    // Skip directories (can happen when a re-export resolves to a folder).
+    try { if (fs.statSync(filePath).isDirectory()) return; } catch (e) { return; }
     allSources.push(rel(filePath, repoDir));
 
     const content = readText(filePath);
@@ -913,7 +1271,7 @@ function extractTypeDefinitions(repoDir) {
 
     // Track default export import source
     if (exports.defaultExport) {
-      const importRegex = new RegExp(`import\\s+\\{[^}]*\\b${escapeRegex(exports.defaultExport)}\\b[^}]*\\}\\s+from\\s+['"]([^'"]+)['"]`);
+      const importRegex = new RegExp(`import\\s+(?:type\\s+)?\\{[^}]*\\b${escapeRegex(exports.defaultExport)}\\b[^}]*\\}\\s+from\\s+['"]([^'"]+)['"]`);
       const cleaned = stripComments(content);
       const importMatch = cleaned.match(importRegex);
       if (importMatch) {
@@ -922,12 +1280,12 @@ function extractTypeDefinitions(repoDir) {
       }
     }
 
-    // Track named export import sources
-    for (const namedExport of exports.named) {
-      const importRegex = new RegExp(`import\\s+\\{[^}]*\\b${escapeRegex(namedExport)}\\b[^}]*\\}\\s+from\\s+['"]([^'"]+)['"]`);
-      const cleaned = stripComments(content);
-      const importMatch = cleaned.match(importRegex);
-      if (importMatch) {
+    // Track named export import sources (including type exports) — follow ALL matches
+    const cleanedDts = stripComments(content);
+    for (const namedExport of [...exports.named, ...exports.types]) {
+      const importRegex = new RegExp(`import\\s+(?:type\\s+)?\\{[^}]*\\b${escapeRegex(namedExport)}\\b[^}]*\\}\\s+from\\s+['"]([^'"]+)['"]`, 'g');
+      let importMatch;
+      while ((importMatch = importRegex.exec(cleanedDts)) !== null) {
         const targetFile = resolveRelativePathDts(filePath, importMatch[1]);
         if (targetFile) processDts(targetFile);
       }
@@ -1015,8 +1373,21 @@ function generateRNSpec(repoDir, opts = {}) {
     }
     for (const i of fabricSpecs.interfaces) { i.source = `ohos:${i.source}`; }
     interfaces.push(...fabricSpecs.interfaces);
-    ok(`Fabric/TurboModule Spec: ${fabricSpecs.interfaces.length} 个接口`);
-  } else { info('未找到 Fabric/TurboModule Spec 文件'); }
+    ok(`Fabric Component Spec: ${fabricSpecs.interfaces.length} 个接口`);
+  } else { info('未找到 Fabric Component Spec 文件'); }
+
+  // TurboModule Spec 方法 — 从鸿蒙化仓库提取 (interface Spec extends TurboModule)
+  info('提取 TurboModule Spec 方法 (来源: 鸿蒙化仓库)...');
+  const turboSpecs = extractTurboModuleSpecs(absDir);
+  if (turboSpecs.files.length > 0) {
+    for (const f of turboSpecs.files) {
+      const fullSrc = `ohos:${f}`;
+      if (!sources.includes(fullSrc)) sources.push(fullSrc);
+    }
+    for (const i of turboSpecs.interfaces) { i.source = `ohos:${i.source}`; }
+    interfaces.push(...turboSpecs.interfaces);
+    ok(`TurboModule Spec: ${turboSpecs.interfaces.length} 个接口`);
+  } else { info('未找到 TurboModule Spec 方法'); }
 
   const seen = new Set();
   const deduped = interfaces.filter(i => {
@@ -1070,7 +1441,7 @@ module.exports = {
   readText, rel, walkDir, readPackageJson, getLibraryAlias,
   detectEntryFile, findTurboModuleSpecFiles, resolveRelativePath, resolveRelativePathDts,
   stripComments, extractBalancedBraces, findSignatureEnd, normalizeSignature,
-  extractMethodsFromInterfaceBody, extractExports, extractTurboModuleSpec,
+  extractMethodsFromInterfaceBody, extractExports, extractCJSExportNames, extractTurboModuleSpec,
   extractInterfaceMethods, extractClassMethods,
   extractClassAndInterfaceDefs, defsToInterfaces,
   extractFabricComponentSpecs,
