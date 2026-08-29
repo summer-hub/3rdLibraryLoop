@@ -574,12 +574,11 @@ async function renderConversationTab(step) {
     var tid=State.selectedTaskId, sid=step.stepId, loop=State.selectedLoop;
     $('detailContent').innerHTML='<div class="detail-section"><h4>会话交互</h4>'+
         '<div class="form-group"><textarea id="convInput" placeholder="输入要发送的消息..." style="min-height:60px;"></textarea></div>'+
-        '<div class="detail-actions"><button class="secondary sm" id="btnInject">📥 注入提示词</button><button class="primary sm" id="btnSendWait">📨 发送并等待</button></div></div>'+
+        '<div class="detail-actions"><button class="primary sm" id="btnSend">📨 发送</button></div></div>'+
         '<div class="detail-section"><h4>消息列表</h4>'+
         '<div class="detail-actions" style="margin-bottom:8px;"><button class="secondary sm" id="btnGetLive">获取实时消息</button><button class="secondary sm" id="btnGetSession">获取会话归档</button></div>'+
         '<div class="msg-list" id="msgList"><div class="muted" style="font-size:12px;">点击按钮获取消息...</div></div></div>';
-    $('btnInject').onclick=function(){injectPromptMsg(tid,sid,loop);};
-    $('btnSendWait').onclick=function(){sendAndWaitMsg(tid,sid,loop);};
+    $('btnSend').onclick=function(){sendMsg(tid,sid,loop);};
     $('btnGetLive').onclick=function(){getLiveMsgs(tid,sid,loop);};
     $('btnGetSession').onclick=function(){getSessionArchive(tid,sid,loop);};
 }
@@ -602,26 +601,16 @@ async function getSessionArchive(tid,sid,loop) {
     catch(err){ toast('error','获取归档失败: '+err.message); }
 }
 
-async function injectPromptMsg(tid,sid,loop) {
+async function sendMsg(tid,sid,loop) {
     var m=$('convInput').value.trim(); if(!m){toast('warn','请先输入消息');return;}
+    var btn=$('btnSend'); btn.disabled=true; btn.textContent='⏳ 发送中...';
     try {
         var body={taskId:tid,stepId:sid,message:m};
         if(loop!=null) body.loop=loop;
-        var d=await API.post('/api/flexrunner/inject-prompt',body); if(d.status==='ok'){toast('success','提示词已注入');$('convInput').value='';getLiveMsgs(tid,sid,loop);} else toast('warn',d.message||'注入失败');
+        var d=await API.post('/api/flexrunner/inject-prompt',body); if(d.status==='ok'){toast('success','消息已发送');$('convInput').value='';getLiveMsgs(tid,sid,loop);} else toast('warn',d.message||'发送失败');
     }
     catch(err){ toast('error','请求失败: '+err.message); }
-}
-
-async function sendAndWaitMsg(tid,sid,loop) {
-    var m=$('convInput').value.trim(); if(!m){toast('warn','请先输入消息');return;}
-    var btn=$('btnSendWait'); btn.disabled=true; btn.textContent='⏳ 等待中...';
-    try {
-        var body={taskId:tid,stepId:sid,message:m};
-        if(loop!=null) body.loop=loop;
-        var d=await API.post('/api/flexrunner/send-and-wait',body); if(d.status==='ok'){toast('success','已收到回复');$('convInput').value='';getLiveMsgs(tid,sid,loop);} else toast('warn',d.message||'发送失败');
-    }
-    catch(err){ toast('error','请求失败: '+err.message); }
-    finally { btn.disabled=false; btn.textContent='📨 发送并等待'; }
+    finally { btn.disabled=false; btn.textContent='📨 发送'; }
 }
 
 function renderMessages(msgs) {
