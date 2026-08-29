@@ -17,6 +17,31 @@ function escapeHtml(t) {
     return d.innerHTML;
 }
 
+/**
+ * 内联事件处理器参数转义（兼容 Windows / Mac 路径）。
+ *
+ * 将任意字符串安全转义后，可嵌入 onclick="fn('...')" 形式的内联处理器：
+ *   - 位于双引号 HTML 属性内 → " 与 & 需转义为 HTML 实体；
+ *   - 位于单引号 JS 字符串字面量内 → \ 与 ' 需 JS 转义。
+ *
+ * 关键点：Windows 路径以反斜杠 \ 作分隔符（如 D:\dir\file.md），直接嵌入
+ * JS 字符串字面量时，\t 会被解析为 Tab、\d/\s 等会吞掉反斜杠，导致路径
+ * 损坏（ENOENT: no such file or directory）。本函数通过转义反斜杠修复之；
+ * Mac/Linux 路径以 / 作分隔符，不受影响。
+ */
+function escapeAttr(s) {
+    if (s == null) return '';
+    return String(s)
+        .replace(/\\/g, '\\\\')   // \ → \\ （修复 Windows 路径反斜杠被吞）
+        .replace(/'/g, "\\'")     // ' → \' （闭合单引号 JS 字符串）
+        .replace(/\r/g, '\\r')    // 控制符 → JS 转义
+        .replace(/\n/g, '\\n')
+        .replace(/&/g, '&amp;')   // & 必须先于 " 转义，避免实体被二次转义
+        .replace(/"/g, '&quot;')  // " → &quot; （闭合双引号 HTML 属性）
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
 /** 截断字符串 */
 function truncate(s, n) {
     if (!s) return '';

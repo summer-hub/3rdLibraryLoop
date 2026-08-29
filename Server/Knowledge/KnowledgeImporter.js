@@ -264,6 +264,7 @@ class KnowledgeImporter {
         let resultContent = '';
         try {
             resultContent = await fs.readFile(resultFilePath, 'utf-8');
+            if (resultContent.charCodeAt(0) === 0xFEFF) resultContent = resultContent.slice(1);
         } catch {
             this._log(importId, 'warn', `结果文件不存在: ${resultFilePath}`);
         }

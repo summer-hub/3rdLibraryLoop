@@ -583,6 +583,7 @@ class FlexRunnerController {
         let success = false;
         try {
             content = await fs.readFile(filePath, 'utf-8');
+            if (content.charCodeAt(0) === 0xFEFF) content = content.slice(1);
             const match = content.match(/##\s*执行状态\s*\n\s*(成功|失败)/i);
             success = match ? match[1] === '成功' : false;
         } catch {
@@ -690,7 +691,8 @@ class FlexRunnerController {
         }
 
         try {
-            const content = await fs.readFile(filePath, 'utf-8');
+            let content = await fs.readFile(filePath, 'utf-8');
+            if (content.charCodeAt(0) === 0xFEFF) content = content.slice(1);
             res.json({
                 status: 'ok',
                 path: filePath,

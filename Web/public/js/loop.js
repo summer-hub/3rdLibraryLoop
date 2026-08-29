@@ -695,7 +695,7 @@ async function renderFilesTab(step) {
                 (files.length===0?'<div class="muted" style="font-size:12px;">暂无文件</div>':
                 '<div class="msg-list">'+files.map(function(f){
                     var label=f.loop!=null?('L'+f.loop+' — '):'';
-                    return '<div class="history-item" style="cursor:pointer;" onclick="viewFile(\''+escapeHtml(f.path)+'\')"><span>📄 '+label+escapeHtml(f.filename)+'</span><span class="muted">'+f.size+' bytes</span></div>';
+                    return '<div class="history-item" style="cursor:pointer;" onclick="viewFile(\''+escapeAttr(f.path)+'\')"><span>📄 '+label+escapeHtml(f.filename)+'</span><span class="muted">'+f.size+' bytes</span></div>';
                 }).join('')+'</div>')+'</div>'+
                 '<div class="detail-section"><h4>所有任务文件</h4><button class="secondary sm" id="btnListAllFiles">查看全部文件</button><div class="msg-list" id="allFilesList" style="margin-top:8px;"></div></div>';
             $('btnListAllFiles').onclick=function(){listAllFiles(tid,loop);};
@@ -712,7 +712,7 @@ async function listAllFiles(tid,loop) {
             var files=d.files||[];
             $('allFilesList').innerHTML=files.map(function(f){
                 var label=f.loop!=null?('L'+f.loop+' — '):'';
-                return '<div class="history-item" style="cursor:pointer;" onclick="viewFile(\''+escapeHtml(f.path)+'\')"><span>📄 '+label+'步骤'+escapeHtml(f.stepId)+'/'+escapeHtml(f.filename)+'</span><span class="muted">'+f.size+'B</span></div>';
+                return '<div class="history-item" style="cursor:pointer;" onclick="viewFile(\''+escapeAttr(f.path)+'\')"><span>📄 '+label+'步骤'+escapeHtml(f.stepId)+'/'+escapeHtml(f.filename)+'</span><span class="muted">'+f.size+'B</span></div>';
             }).join('');
         }
     } catch(err){ toast('error',err.message); }

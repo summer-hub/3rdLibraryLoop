@@ -47,6 +47,8 @@ function extractImportsRegex(content, libName, fullLibName) {
   let m;
   const esDefaultRegex = new RegExp(`import\\s+(?:type\\s+)?([A-Za-z_$][\\w$]*)(?:\\s*,\\s*\\{[^}]*\\})?\\s+from\\s*['"](?:${libRegexStr})['"]`, 'g');
   while ((m = esDefaultRegex.exec(content)) !== null) { defaultAlias = m[1]; hasImport = true; }
+  const esNamespaceRegex = new RegExp(`import\s+\*\s+as\s+([A-Za-z_$][\w$]*)\s+from\s*['"](?:${libRegexStr})['"]`, 'g');
+  while ((m = esNamespaceRegex.exec(content)) !== null) { defaultAlias = m[1]; hasImport = true; }
   const esNamedRegex = new RegExp(`import\\s+(?:type\\s+)?\\{([^}]*)\\}\\s*from\\s*['"](?:${libRegexStr})['"]`, 'g');
   while ((m = esNamedRegex.exec(content)) !== null) {
     hasImport = true;
@@ -168,6 +170,7 @@ function extractImportedSymbolsAST(sourceFile, libName, fullLibName) {
       const ic = stmt.importClause;
       if (!ic) { symbols.set('__sideEffect__', true); continue; }
       if (ic.name) symbols.set('default', ic.name.text);
+      if (ic.namedBindings && ts.isNamespaceImport(ic.namedBindings) && ic.namedBindings.name) symbols.set('default', ic.namedBindings.name.text);
       if (ic.namedBindings && ts.isNamedImports(ic.namedBindings)) for (const el of ic.namedBindings.elements) { const n = el.propertyName ? el.propertyName.text : el.name.text; symbols.set(n, el.name.text); }
     }
     if (ts.isVariableStatement(stmt)) {

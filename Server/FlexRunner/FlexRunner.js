@@ -759,7 +759,8 @@ class FlexRunner {
     async _harvestMetrics(metaFilePath) {
         if (!metaFilePath) return null;
         try {
-            const raw = await fs.readFile(metaFilePath, 'utf-8');
+            let raw = await fs.readFile(metaFilePath, 'utf-8');
+            if (raw.charCodeAt(0) === 0xFEFF) raw = raw.slice(1);
             const parsed = JSON.parse(raw);
             if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
                 this._log('info', `metrics 已收割 — ${Object.keys(parsed).join(', ')}`);
@@ -1055,7 +1056,8 @@ class FlexRunner {
         }
 
         try {
-            const content = await fs.readFile(resultFilePath, 'utf-8');
+            let content = await fs.readFile(resultFilePath, 'utf-8');
+            if (content.charCodeAt(0) === 0xFEFF) content = content.slice(1);
 
             // 1. 标题下独立行：`## 执行状态` 下一行为状态值（可能带 - / * / > 列表前缀）
             let match = content.match(/^#{1,6}\s*执行状态\s*$\n\s*(.+)$/m);

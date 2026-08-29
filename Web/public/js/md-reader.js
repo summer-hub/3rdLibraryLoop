@@ -116,6 +116,9 @@ var MarkdownReader = (function() {
     function _renderMarkdown(md) {
         if (!md) return '<p class="md-muted">暂无内容</p>';
         md = String(md);
+        // 行尾归一化：CRLF / 单独 CR 统一为 LF，避免 split('\n') 后行尾残留 \r
+        // 导致无序列表项正则 ^(\s*)([-*+])\s+(.*)$ 匹配失败（. 不匹配 \r）而死循环
+        md = md.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
         // 1. 提取代码块（保护内容不被后续处理破坏）
         var codeBlocks = [];
