@@ -4,7 +4,7 @@ description: 分析 RN 鸿蒙三方库现有测试用例对接口的覆盖情况
 license: Apache-2.0
 compatibility: 需要 Node.js 运行环境
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   category: rn-testing
   language: JavaScript/TypeScript
   useWhen: 分析 RN 鸿蒙三方库测试用例对接口的覆盖情况
@@ -40,8 +40,9 @@ metadata:
 | `output` | string | ❌ | 输出 Markdown 报告路径，默认 `03-{库名}-Test覆盖率报告.md` |
 | `title` | string | ❌ | 报告标题 |
 | `mode` | string | ❌ | 匹配模式: `auto`(默认) \| `ast` \| `regex` |
-| `version` | string | ❌ | 上游 npm 版本号（如 `2.2.0`），未指定时自动从 dependencies/README 推断 |
+| `version` | string | ❌ | 上游 npm 版本号（如 `4.7.3`），未指定时自动从 dependencies/README 推断；⚠️ 勿用库自身 `package.json.version`（RNOH 库 version 常为团队自编版本号，非上游版本） |
 | `src` | string | ❌ | 测试源码目录覆盖，默认自动检测 |
+| `local-spec` | boolean | ❌ | 启用本地 `src/` 作为接口规格来源（默认从上游 npm 提取），用于 RNOH 扩展型库避免本地独有 API 盲区 |
 
 > `libroot` 与 `spec` 至少提供一个。提供 `spec` 时跳过接口提取步骤直接使用；仅提供 `libroot` 时脚本自动从源码提取接口（必要时拉取上游 npm 源码）。
 
@@ -56,7 +57,7 @@ metadata:
 ```bash
 node "{{skillDir}}/../../../MCP/scripts/rn-analyze-test-coverage.cjs" \
   --libroot "{{libroot}}" \
-  [--output "{{output}}"] [--title "{{title}}"] [--mode auto|ast|regex] [--version "{{上游版本}}"]
+  [--output "{{output}}"] [--title "{{title}}"] [--mode auto|ast|regex] [--version "{{上游版本}}"] [--src "{{测试源码目录}}"] [--local-spec]
 ```
 
 或从已有 interface-spec.json 生成：
@@ -78,6 +79,7 @@ node "{{skillDir}}/../../../MCP/scripts/rn-analyze-test-coverage.cjs" \
 1. 获取接口规格（从 `--spec` 指定的 JSON 读取，或从 `libroot` 源码自动提取，必要时拉取上游 npm 源码 `index.js`/`index.d.ts` 及本地 TurboModule Spec `Native*.ts`）
 2. 自动检测测试源码目录（按优先级查找）：
    - `example/src/test`、`example/src/tests`、`example/__tests__`
+   - `example/src/`（递归）、`example/src/*/`（RN3rdTemplate RNTesterList 模式 A：`example/src/<LibName>/`）
    - `demo/__tests__`、`demo/src/test`、`demo/src/tests`
    - `__tests__`、`test`、`tests`
 3. 递归扫描测试源码目录下所有 `.ts`、`.tsx`、`.js`、`.jsx`、`.ets` 文件（排除 `node_modules`、`harmony`、`android`、`ios`、`__mocks__`）
@@ -102,6 +104,7 @@ node "{{skillDir}}/../../../MCP/scripts/rn-analyze-test-coverage.cjs" \
 ```
 
 > 脚本自动检测测试目录，无需手动指定 `--src`；如自动检测失败或多目录共存，可用 `--src` 显式指定。
+> ⚠️ 使用 `rn-lib-add-example`（RN3rdTemplate 模板）创建的 example 工程，其 demo 位于 `example/src/<LibName>/`，需显式 `--src example/src`（或 `--src example/src/<LibName>`）。
 
 ---
 
@@ -134,6 +137,9 @@ node "{{skillDir}}/../../../MCP/scripts/rn-analyze-test-coverage.cjs" \
 1. **确定性**：所有计数和匹配由脚本完成，同一组输入必定产生相同输出
 2. **子目录排除**：自动排除 `node_modules`、`harmony`、`android`、`ios`、`__mocks__` 等目录
 3. **构造函数和枚举**：已在接口提取阶段排除
-4. **动态调用限制**：`obj[methodName]()` 无法识别
+4. **动态调用限制**：`obj[methodName]()` 无法识别；**命令式组件**（`forwardRef` + `useImperativeHandle` + `ref.current.method()`）的 ref 调用同样无法被 AST 归因，覆盖率会被低估。对这类库应更看重 field/props 层与 Hook 层指标，方法层覆盖率仅供参考
 5. **模式选择**：`auto` 优先 AST 匹配（需 TypeScript 模块），失败时降级正则；`ast` 强制 AST；`regex` 强制正则
 6. **版本推断**：未传 `--version` 时，脚本从 `package.json` 的 `dependencies` 或 README 自动推断上游 npm 版本号
+   > ⚠️ **版本核对**：RNOH 库的 `package.json.version` 常为团队自编版本号（非上游 npm 版本），勿直接用作 `--version`。执行前应先 `npm view <上游包名> versions --json` 核对真实可用版本，选择与本地 `src/` API 风格匹配的主版本线（看标志性导出符号，如 v4 的 `useCameraDevice`/`takePhoto` vs v5 的 `useCamera`/`CameraController`）。
+   > ⚠️ **降级风险**：若指定 `--version` 在 npm 不存在而脚本自动降级到 `latest`，且 `latest` 主版本号与指定版本不同（跨 major），可能导致拉取到重构后完全不兼容的 API 面（如 vision-camera 4.x→5.x）。务必核对降级后的 API 一致性，必要时显式指定同主版本最大号。
+7. **本地扩展 API 盲区**：接口规格默认取自上游 npm，本地 RNOH 扩展 API（未出现在上游导出中）不计入分母，覆盖率被轻微高估且扩展 API 不会出现在未覆盖清单中。使用 `--local-spec` 以本地 `src/index.tsx` 导出为规格来源可缓解此盲区。
