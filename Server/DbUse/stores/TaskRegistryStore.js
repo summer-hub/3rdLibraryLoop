@@ -188,6 +188,42 @@ class TaskRegistryStore {
     }
 
     /**
+     * 查询符合条件的全部 task_id（不分页），供跨页去重判断使用。
+     *
+     * listPage 只返回当前页的 ID，无法判断某 taskId 是否出现在其他页，
+     * 因此提供本方法返回全量 ID 集合（与 listPage 使用相同的 where 过滤条件）。
+     *
+     * @param {object} [opts]
+     * @param {string} [opts.status]
+     * @param {string} [opts.taskType]
+     * @param {string} [opts.taskIdPrefix]
+     * @returns {Promise<string[]>}
+     */
+    async listIds(opts = {}) {
+        await this._init();
+        const where = [];
+        const params = [];
+        if (opts.status) {
+            where.push('status = ?');
+            params.push(opts.status);
+        }
+        if (opts.taskType) {
+            where.push('task_type = ?');
+            params.push(opts.taskType);
+        }
+        if (opts.taskIdPrefix) {
+            where.push("task_id LIKE ? ESCAPE '\\'");
+            params.push(String(opts.taskIdPrefix).replace(/([%_\\])/g, '\\$1') + '%');
+        }
+        const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+        const rows = await this.sqlite.all(
+            `SELECT task_id FROM task_registry ${whereSql}`,
+            params
+        );
+        return rows.map(r => r.task_id);
+    }
+
+    /**
      * 删除一条任务摘要。
      * @param {string} taskId
      * @returns {Promise<boolean>}

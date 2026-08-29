@@ -604,24 +604,30 @@ class OrchestratorController {
                     return { ...t, taskId: t.task_id };
                 });
 
-                // 第一页补充活跃但注册表未同步的任务（同样遵守前缀过滤）
+                // 第一页补充「活跃但尚未落库」的任务：
+                // 仅当任务处于非终态（active: idle/loaded/running）且不在注册表全量 ID 集合中时
+                // 才补全。此前用「不在本页 existingIds 中」判断会误把 OFFSET 之外的其他页历史
+                // 终态任务（restoreFromDisk 常驻内存）补进首页，导致跨页重复 + 最早任务置顶。
                 if (page === 1) {
-                    const existingIds = new Set(result.tasks.map(t => t.task_id));
+                    const registryIds = new Set(
+                        await registry.listIds({ taskType: 'orchestrator', taskIdPrefix })
+                    );
+                    const activeStatuses = ['idle', 'loaded', 'running'];
                     for (const [taskId, orch] of this._orchestrators) {
                         if (taskIdPrefix && !taskId.startsWith(taskIdPrefix)) continue;
-                        if (!existingIds.has(taskId)) {
-                            const progress = orch.getProgress();
-                            mergedTasks.unshift({
-                                task_id: taskId,
-                                task_type: 'orchestrator',
-                                status: progress.status || 'loaded',
-                                title: (progress.taskDescription || '').slice(0, 200),
-                                description: progress.taskDescription || '',
-                                created_at: progress.startTime || new Date().toISOString(),
-                                metadata: null,
-                                taskId
-                            });
-                        }
+                        const progress = orch.getProgress();
+                        if (!activeStatuses.includes(progress.status)) continue;
+                        if (registryIds.has(taskId)) continue;
+                        mergedTasks.unshift({
+                            task_id: taskId,
+                            task_type: 'orchestrator',
+                            status: progress.status || 'loaded',
+                            title: (progress.taskDescription || '').slice(0, 200),
+                            description: progress.taskDescription || '',
+                            created_at: progress.startTime || new Date().toISOString(),
+                            metadata: null,
+                            taskId
+                        });
                     }
                 }
 
