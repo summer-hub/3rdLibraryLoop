@@ -134,6 +134,7 @@
     cursor: pointer;
     user-select: none;
     transition: background 0.15s;
+    flex-wrap: wrap;
 }
 .cc-card-header:hover { background: rgba(0,113,227,0.04); }
 [data-theme="dark"] .cc-card-header:hover { background: rgba(77,140,247,0.05); }
@@ -173,10 +174,15 @@
     font-size: 12px;
     color: var(--text);
     font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 200px;
+    /* 保证标题完整显示：不截断、不省略，过长时自动换行 */
+    white-space: normal;
+    word-break: break-all;
+    overflow-wrap: anywhere;
+    max-width: 100%;
+    min-width: 0;
+    flex: 1 1 auto;
+    align-self: center;
+    line-height: 1.5;
 }
 
 .cc-type-badge {
@@ -188,7 +194,7 @@
     flex-shrink: 0;
 }
 
-.cc-spacer { flex: 1; }
+.cc-spacer { flex: 1 1 0; }
 
 .cc-time {
     font-size: 11px;
