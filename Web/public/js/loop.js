@@ -68,9 +68,11 @@ function renderLoopList() {
 /* ─── 任务选择 & 数据加载 ────────────────────────────────────────────── */
 async function selectLoop(taskId) {
     State.selectedTaskId = taskId; State.selectedStepId = null; State.selectedLoop = null; State._convRenderedStep=null;
-    // 从列表数据缓存该任务的初始描述（用户最初输入的内容）
+    // 从列表数据缓存该任务的初始描述（用户最初输入的内容）。
+    // 启动新任务时列表可能尚未刷新，selectLoop 会在 loadLoopList 完成后被再次
+    // 调用或由调用方直接回填 selectedTaskDesc，避免概览/轮次显示空描述。
     var item = State.loops.filter(function(l){ return l.taskId === taskId; })[0];
-    State.selectedTaskDesc = item && item.taskDescription || '';
+    if (item && item.taskDescription) State.selectedTaskDesc = item.taskDescription;
     stopPolling(); renderLoopList();
     await loadAllData(taskId); connectSSE(taskId);
 }
@@ -166,11 +168,22 @@ function renderRounds() {
     var p = State.currentProgress;
     if (!p || !p.rounds || p.rounds.length === 0) {
         if (p && (p.status==='planning'||p.status==='executing'||p.status==='checking'||p.status==='aborting')) {
+            // 后端刚启动 startLoop（异步）但 round[0] 尚未 push 到 ctx.rounds 的瞬态：
+            // 即便 rounds 为空也要展示初始任务描述，避免首屏空窗需手动重选任务才出现内容
+            var init0 = State.selectedTaskDesc || p.taskDescription || '';
+            var bodyHtml = '';
+            if (init0) {
+                bodyHtml = '<div class="round-body">' +
+                    '<div class="phase-block"><div class="phase-header"><span class="phase-icon">📝</span> 初始任务描述</div>' +
+                    '<div class="phase-content" style="font-size:12px;line-height:1.6;background:var(--code-bg);padding:10px;border-radius:6px;white-space:pre-wrap;word-break:break-all;">' + escapeHtml(init0) + '</div></div>' +
+                    '<div class="phase-block"><div class="phase-header"><span class="phase-icon">🧠</span> Brain 初始拆解</div><div class="phase-content"><span class="muted">拆解中...</span></div></div>' +
+                    '</div>';
+            }
             $('roundsSection').innerHTML = '<h3>🔄 循环轮次时间线</h3>' +
-                '<div class="round-card running"><div class="round-header"><div class="round-num">1</div>' +
+                '<div class="round-card running expanded" data-loop="' + (p.currentLoop||0) + '"><div class="round-header"><div class="round-num">1</div>' +
                 '<div class="round-title">第 1 轮 (' + statusLabel(p.status) + '...)</div>' +
                 '<span class="status-badge ' + p.status + '">' + statusLabel(p.status) + '</span>' +
-                '<span class="round-time">进行中</span></div></div>';
+                '<span class="round-time">进行中</span></div>' + bodyHtml + '</div>';
         } else { $('roundsSection').innerHTML = '<div class="rounds-empty">暂无轮次记录</div>'; }
         return;
     }
@@ -946,7 +959,31 @@ async function submitNewLoop() {
     var body={taskDescription:desc,maxLoops:ml};
     if(cr)body.acceptanceCriteria=cr; if(tid)body.taskId=tid; if(sd)body.skillDirectory=sd; if(td)body.taskDir=td;
     var btn=$('btnNewLoopSubmit'); btn.disabled=true; btn.textContent='⏳ 启动中...';
-    try { var d=await API.post('/api/loopengine/start',body); btn.disabled=false; btn.textContent='🚀 启动大循环'; if(d.status==='ok'){toast('success','大循环已启动: '+d.taskId);closeNewLoopModal();loadLoopList();selectLoop(d.taskId);} else toast('error',d.error||d.message||'启动失败'); }
+    try {
+        var d=await API.post('/api/loopengine/start',body);
+        btn.disabled=false; btn.textContent='🚀 启动大循环';
+        if(d.status!=='ok'){toast('error',d.error||d.message||'启动失败');return;}
+        toast('success','大循环已启动: '+d.taskId);
+        closeNewLoopModal();
+        // 立即回填初始描述（不依赖列表是否已刷新），保证概览/轮次有内容可渲染
+        State.selectedTaskDesc = desc;
+        // await 侧栏刷新，确保新任务出现在列表中且高亮选中
+        await loadLoopList();
+        await selectLoop(d.taskId);
+        // 启动后立即触发 SSE/轮询后端状态可能仍为 idle（startLoop 异步未推进到 planning）。
+        // 短延迟重试一次拉取，让首屏尽快显示真实进度（轮次/状态）。
+        setTimeout(function(){
+            if (State.selectedTaskId === d.taskId) {
+                loadLoopProgress(d.taskId).then(function(){
+                    // 仍无轮次数据时再等一轮：Brain 拆解刚启动，round[0] 可能尚未 push
+                    if (!State.currentProgress ||
+                        (!State.currentProgress.rounds || State.currentProgress.rounds.length===0)) {
+                        setTimeout(function(){ if (State.selectedTaskId===d.taskId) loadLoopProgress(d.taskId); }, 2500);
+                    }
+                });
+            }
+        }, 1500);
+    }
     catch(err){ btn.disabled=false; btn.textContent='🚀 启动大循环'; toast('error','请求失败: '+err.message); }
 }
 
@@ -972,8 +1009,23 @@ async function submitNewSingle() {
     try {
         var d=await API.post('/api/flexrunner/start-single',body);
         btn.disabled=false; btn.textContent='⚡ 启动单次执行';
-        if(d.status==='ok'){toast('success','单次执行已启动: '+d.taskId);closeNewSingleModal();loadLoopList();selectLoop(d.taskId);}
-        else toast('error',d.error||d.message||'启动失败');
+        if(d.status!=='ok'){toast('error',d.error||d.message||'启动失败');return;}
+        toast('success','单次执行已启动: '+d.taskId);
+        closeNewSingleModal();
+        State.selectedTaskDesc = desc;
+        await loadLoopList();
+        await selectLoop(d.taskId);
+        // 单次执行同样在 start 返回后可能还未落 progress，短延迟重试补全首屏
+        setTimeout(function(){
+            if (State.selectedTaskId === d.taskId) {
+                loadOrchestratorProgress(d.taskId).then(function(){
+                    if (!State.orchProgress ||
+                        (!State.orchProgress.steps || State.orchProgress.steps.length===0)) {
+                        setTimeout(function(){ if (State.selectedTaskId===d.taskId) loadOrchestratorProgress(d.taskId); }, 2500);
+                    }
+                });
+            }
+        }, 1500);
     }
     catch(err){ btn.disabled=false; btn.textContent='⚡ 启动单次执行'; toast('error','请求失败: '+err.message); }
 }
