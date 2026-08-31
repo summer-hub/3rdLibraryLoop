@@ -103,7 +103,8 @@ node "{{skillDir}}/../../../MCP/scripts/analyze-demo-coverage.cjs" \
 3. 提取 import（单行+多行+默认+混合+别名，兼容尾斜杠与子路径写法）并追踪实例变量
 4. AST 优先匹配（TS Compiler API 语义分析，含库入口文件大小写校准），失败自动降级正则匹配
 5. 匹配方法调用、检测对象字面量属性、默认导入命名空间宽松兜底
-6. **直接生成最终 Markdown 报告**（含覆盖率统计、按类/按类型分组、已覆盖/未覆盖清单、文件覆盖详情、提升建议）
+6. **过滤低价值常量与类型声明**（对齐 XTS 覆盖率口径）：跳过 `lowValue === true` 的静态只读常量与 `kind === 'type'` 的类型别名，不计入统计分母，报告中标注过滤数量
+7. **直接生成最终 Markdown 报告**（含覆盖率统计、按类/按类型分组、已覆盖/未覆盖清单、文件覆盖详情、提升建议）
 
 > ⚠️ **Demo 范围界定**：扫描范围默认 `entry/src/main/ets/`，仅指主工程 demo 页面代码。绝不扩展到 `ohosTest/`、`test/`、`tests/`、`__tests__/`、`testability/` 等测试目录。
 
@@ -119,7 +120,7 @@ node "{{skillDir}}/../../../MCP/scripts/analyze-demo-coverage.cjs" \
 脚本执行完毕后，Markdown 报告已直接生成在 `output` 指定路径（默认为 `02-{库名}-Demo覆盖率报告.md`）。
 
 报告包含以下章节：
-1. **基本信息** — 库名、源文件数、生成时间
+1. **基本信息** — 库名、源文件数、生成时间；若存在过滤，额外标注「过滤低价值常量」「过滤类型声明」「实际统计接口」三项（与 XTS 覆盖率报告口径一致）
 2. **覆盖率总览** — 方法级覆盖率百分比 + 进度条 + S/N/M 统计
 3. **按接口类型统计** — method/property/field/function/variable/enumValue/constructor 分组覆盖率
 4. **类级覆盖率** — 每个类/接口的覆盖统计（按覆盖率升序排列）
@@ -155,6 +156,8 @@ node "{{skillDir}}/../../../MCP/scripts/analyze-demo-coverage.cjs" \
 ### 3.3 统计口径说明
 
 报告默认排除 `entryability/` 等非 Demo 目录（见 Phase 1 扫描范围）。`EntryAbility` 中的库调用（如 `GlobalContext.setValue` 在 `EntryAbility` 中触发）计入「未覆盖」属口径内合理行为，交付报告时应主动注明，避免读者误判为功能缺失。
+
+**低价值常量与类型声明过滤**：脚本自动过滤 `public static readonly` 常量（`lowValue === true`）与类型别名（`kind === 'type'`），不计入覆盖率分母，与 `analyze-xts-coverage.cjs` 口径完全一致。报告「基本信息」章节标注过滤数量与实际统计接口数。下游 Demo 场景规划 SKILL 消费的未覆盖清单中不会出现这些低价值常量，避免为纯常量类生成无意义的「常量展示页」。
 
 ---
 
