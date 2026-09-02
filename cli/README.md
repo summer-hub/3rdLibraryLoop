@@ -171,6 +171,52 @@ LLM 凭据变量（`DASHSCOPE_API_KEY` / `LLM_MODEL` 等）：按上面的 `.env
 - `3LIB_ROOT` / `3LIB_HOME` 为系统环境变量专用，`config set` 会拒绝，请用 `setx` / `export`
 - `--data-dir` / `--skill-dir` 命令行 flag 仍是最高的单次覆盖
 
+### 配置项逐项设置命令（可复制）
+
+绝大多数配置项都有内置默认值，**无需设置**（如 `LLM_MODEL=glm-5.2`、`OPENCODE_PORT=4096`、`SELECTOR_TOP_K=5` 等，完整清单执行 `3rdloop config list` 查看）。只有以下无默认值的项需要按需配置（`<>` 为占位符，替换后去掉尖括号）。
+
+**必配（LLM 凭据）：**
+
+```bash
+# 百炼 API Key（从 https://bailian.console.aliyun.com/ 获取，get/list 脱敏显示）
+3rdloop config set DASHSCOPE_API_KEY <sk-xxxxxxxx>
+```
+
+**按需可选（不设置即关闭/自动）：**
+
+```bash
+# GitCode Token（仅访问私有仓库时需要，get/list 脱敏显示）
+3rdloop config set GIT_TOKEN <your-gitcode-token>
+
+# SKILL 目录覆盖（等效 --skill-dir，不设置则自动解析）
+3rdloop config set 3LIB_SKILL_DIR </path/to/Skills>
+```
+
+**有默认值、一般无需改（调整时参考）：**
+
+```bash
+# LLM 端点（默认百炼 OpenAI 兼容端点，仅切换其他 LLM 服务时修改）
+3rdloop config set LLM_BASE_URL https://dashscope.aliyuncs.com/compatible-mode/v1
+
+# LLM 模型 id
+3rdloop config set LLM_MODEL glm-5.2
+
+# 默认 CLI 类型（opencode | deveco-code，HarmonyOS 场景切 deveco-code）
+3rdloop config set CLI_TYPE deveco-code
+
+# 设置数据存储目录
+3rdloop config set 3LIB_DATA_DIR xxxxx
+```
+
+> 其余配置项（`LLM_MAX_TOKENS` / `LLM_ENABLE_THINKING` / `SELECTOR_*` / `MAX_CONCURRENT_SESSIONS` / `OPENCODE_*` / `DEVECO_*` / `3LIB_DATA_DIR`）均有内置默认值，开箱即用；如需调整再按相同格式 `config set`。`3LIB_ROOT` / `3LIB_HOME` 仅支持系统环境变量（`export` / `setx`），`config set` 会拒绝写入。
+
+设置完成后可统一验证：
+
+```bash
+3rdloop config list      # 查看全部配置项及当前生效值
+3rdloop doctor           # 环境自检
+```
+
 
 
 ### 环境加载细节

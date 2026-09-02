@@ -73,7 +73,7 @@ export const ENV_KEYS = [
     // ── LLM（百炼 / DashScope）───────────────────────────────────────
     { key: 'DASHSCOPE_API_KEY', label: '百炼 API Key', description: '从 https://bailian.console.aliyun.com/ 获取', default: '', validate: validators.nonEmpty, secret: true },
     { key: 'LLM_BASE_URL', label: 'LLM 端点', description: '百炼 OpenAI 兼容端点（不要随意修改）', default: 'https://dashscope.aliyuncs.com/compatible-mode/v1', validate: validators.urlOrEmpty },
-    { key: 'LLM_MODEL', label: '模型名', description: '经百炼调用的模型名（如 glm-5-1 / glm-5-2）', default: 'glm-5-1', validate: validators.nonEmpty },
+    { key: 'LLM_MODEL', label: '模型名', description: '经百炼调用的模型名（如 glm-5.2）', default: 'glm-5.2', validate: validators.nonEmpty },
     { key: 'LLM_TEMPERATURE', label: 'LLM 采样温度', description: '采样温度（可选）', default: '0.1', validate: validators.temperature },
     { key: 'LLM_MAX_TOKENS', label: 'LLM 最大输出 tokens', description: '单次生成上限（可选）', default: '2048', validate: validators.intPositive },
     { key: 'LLM_ENABLE_THINKING', label: 'GLM 思考模式', description: 'true=开启思考（慢，质量高）false=关闭（快，推荐）', default: 'false', validate: validators.bool },

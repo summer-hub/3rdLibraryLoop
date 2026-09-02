@@ -152,7 +152,7 @@ DASHSCOPE_API_KEY=your_api_key_here
 
 # LLM 端点与模型（OpenAI 兼容模式）
 LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-LLM_MODEL=glm-5-2
+LLM_MODEL=glm-5.2
 
 # 采样参数（可选）
 LLM_TEMPERATURE=0.1

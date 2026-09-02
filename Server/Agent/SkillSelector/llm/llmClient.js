@@ -2,7 +2,7 @@
  * llmClient.js — LLM 客户端封装（百炼 / DashScope OpenAI 兼容模式）
  *
  * 职责：
- *   - 封装对 glm-5.1（经百炼兼容端点）的调用
+ *   - 封装对 glm-5.2（经百炼兼容端点）的调用
  *   - 统一强制 JSON 输出，并对返回做容错解析（剥离 code fence / try-catch）
  *   - 从环境变量读取配置（DASHSCOPE_API_KEY / LLM_BASE_URL / LLM_MODEL）
  *   - 429/529/网络抖动 错误恢复：指数退避 + 抖动重试，连续 529 切换备用模型
@@ -34,7 +34,7 @@ export class LLMClient {
    * @param {object} [options]
    * @param {string} [options.apiKey]         - 百炼 API Key，默认读 process.env.DASHSCOPE_API_KEY
    * @param {string} [options.baseURL]        - 兼容端点，默认读 process.env.LLM_BASE_URL
-   * @param {string} [options.model]          - 模型名，默认读 process.env.LLM_MODEL 或 'glm-5.1'
+   * @param {string} [options.model]          - 模型名，默认读 process.env.LLM_MODEL 或 'glm-5.2'
    * @param {number} [options.temperature]    - 默认读 process.env.LLM_TEMPERATURE 或 0.2
    * @param {number} [options.maxTokens]      - 默认读 process.env.LLM_MAX_TOKENS 或 2048
    * @param {string} [options.fallbackModel]  - 备用模型名，默认读 process.env.FALLBACK_MODEL
@@ -49,7 +49,7 @@ export class LLMClient {
       console.warn('[LLMClient] 未配置 DASHSCOPE_API_KEY，LLM 调用将失败');
     }
 
-    this.model = options.model || process.env.LLM_MODEL || 'glm-5.1';
+    this.model = options.model || process.env.LLM_MODEL || 'glm-5.2';
     this.fallbackModel = options.fallbackModel || process.env.FALLBACK_MODEL || '';
     this.temperature = options.temperature ?? _envFloat('LLM_TEMPERATURE', 0.2);
     this.maxTokens = options.maxTokens ?? _envInt('LLM_MAX_TOKENS', 2048);

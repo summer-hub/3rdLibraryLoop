@@ -10,7 +10,7 @@
 
 采用 **ReAct（Reason + Act）** 设计模式，分三步完成：
 
-1. **Reason #1 — 任务拆解**：LLM（百炼 / glm-5-1）分析任务，产出 `keywords / intent / constraints / techStack / whenToUse`，作为模糊匹配的输入。prompt 强制保留"准出审核/验收测试"等动作类型词，避免被技术细节淹没。
+1. **Reason #1 — 任务拆解**：LLM（百炼 / glm-5.2）分析任务，产出 `keywords / intent / constraints / techStack / whenToUse`，作为模糊匹配的输入。prompt 强制保留"准出审核/验收测试"等动作类型词，避免被技术细节淹没。
 2. **Act — 模糊匹配**：本地模糊匹配工具根据上一步输出，采用**双通道多路召回融合**（动作通道 + 领域通道 + 原文兜底通道），在候选 SKILL 池中召回最匹配的 topK。SKILL 文档索引 = metadata×3 + 正文前 2500 字符 + useWhen。
 3. **Reason #2 — 排序筛选**：LLM 对 topK 候选 SKILL 评分排序，选出最佳 SKILL。
 
@@ -23,7 +23,7 @@ flowchart TD
     Scan -->|SkillMeta[]| R1
 
     subgraph R1["Reason #1 — 任务拆解"]
-        R1a["llmClient 调用 glm-5-1"]
+        R1a["llmClient 调用 glm-5.2"]
         R1b["输出 TaskAnalysis: keywords / intent / constraints / techStack / whenToUse"]
         R1a --> R1b
     end
@@ -34,7 +34,7 @@ flowchart TD
     TopK --> R2
 
     subgraph R2["Reason #2 — 排序筛选"]
-        R2a["llmClient 调用 glm-5-1"]
+        R2a["llmClient 调用 glm-5.2"]
         R2b["输出 ranked: 每项含 score + reason"]
         R2a --> R2b
     end
@@ -51,7 +51,7 @@ SkillSelector/
 ├── core/
 │   └── Agent.js          # 对外导出的 Agent 类，selectSkill(task, skillDirectory) 主入口
 ├── llm/
-│   ├── llmClient.js      # LLM 客户端（百炼 OpenAI 兼容，glm-5-1），提供 chat() / chatJSON()
+│   ├── llmClient.js      # LLM 客户端（百炼 OpenAI 兼容，glm-5.2），提供 chat() / chatJSON()
 │   ├── prompts.js        # prompt 模板 + renderTemplate（TASK_ANALYSIS_PROMPT 含动作词/领域词约束）
 │   └── reactSteps.js     # 两个 Reason 步骤封装（analyzeTask / rankSkills）
 ├── matcher/
@@ -74,7 +74,7 @@ SkillSelector/
 |------|------|
 | [core/Agent.js](core/Agent.js) | 对外导出的 `Agent` 类，`selectSkill(task, skillDirectory)` 主入口，编排 ReAct 流程 |
 | [index.js](index.js) | 模块统一导出 |
-| [llm/llmClient.js](llm/llmClient.js) | LLM 客户端（百炼 OpenAI 兼容，glm-5-1），提供 `chat()` / `chatJSON()` |
+| [llm/llmClient.js](llm/llmClient.js) | LLM 客户端（百炼 OpenAI 兼容，glm-5.2），提供 `chat()` / `chatJSON()` |
 | [scanner/skillScanner.js](scanner/skillScanner.js) | 扫描 SKILL 目录，解析 `SKILL.md` frontmatter，产出 `SkillMeta[]` |
 | [matcher/fuzzyMatcher.js](matcher/fuzzyMatcher.js) | 模糊匹配工具（合并模块）：分词器 + 纯 JS BM25 + 双通道多路召回融合 + legacy fallback |
 | [utils/actionWords.js](utils/actionWords.js) | 动作词表 + 领域词表（`ACTION_WORDS` / `DOMAIN_WORDS`），供 fuzzyMatcher 加权与 prompts 示例共用 |
@@ -91,7 +91,7 @@ SkillSelector/
 
 ### Reason #1：LLM 拆解任务
 
-`reactSteps.analyzeTask(llm, task)` 调用 glm-5-1，将具体事项拆解为结构化的 `TaskAnalysis`。`TASK_ANALYSIS_PROMPT` 通过规则化约束 + few-shot 示例，强制 LLM 保留**动作类型词**（如"准出审核/验收测试/可行性分析/代码生成"）与**领域/产出物特征词**（如"接口规格/接口签名/方法签名/导出链"），并让 `intent` 以动词开头点明动作类型：
+`reactSteps.analyzeTask(llm, task)` 调用 glm-5.2，将具体事项拆解为结构化的 `TaskAnalysis`。`TASK_ANALYSIS_PROMPT` 通过规则化约束 + few-shot 示例，强制 LLM 保留**动作类型词**（如"准出审核/验收测试/可行性分析/代码生成"）与**领域/产出物特征词**（如"接口规格/接口签名/方法签名/导出链"），并让 `intent` 以动词开头点明动作类型：
 
 ```json
 {
@@ -125,7 +125,7 @@ SkillSelector/
 
 ### Reason #2：LLM 排序筛选
 
-`reactSteps.rankSkills(llm, task, analysis, candidates)` 把 topK 候选的简表（id / name / description / category / language / useWhen）发给 glm-5-1，让 LLM 按规则化评分（意图 40 / 技术栈 30 / 约束 20 / 关键词 10 + 硬否决规则）打分排序，选出最佳 SKILL。`Agent` 会对返回结果做稳定降序排序，确保 `topScore` 判定不依赖 LLM 的返回顺序。
+`reactSteps.rankSkills(llm, task, analysis, candidates)` 把 topK 候选的简表（id / name / description / category / language / useWhen）发给 glm-5.2，让 LLM 按规则化评分（意图 40 / 技术栈 30 / 约束 20 / 关键词 10 + 硬否决规则）打分排序，选出最佳 SKILL。`Agent` 会对返回结果做稳定降序排序，确保 `topScore` 判定不依赖 LLM 的返回顺序。
 
 ### 返回结果
 
@@ -153,7 +153,7 @@ SkillSelector/
 ```env
 DASHSCOPE_API_KEY=your_api_key_here
 LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-LLM_MODEL=glm-5-1
+LLM_MODEL=glm-5.2
 ```
 
 ### 2. 安装依赖
@@ -217,7 +217,7 @@ console.log(result.trace);           // ReAct 每步留痕
 
 ```js
 new Agent({
-  llm: new LLMClient({ model: 'glm-5-1' }),  // 注入自定义 LLM 客户端
+  llm: new LLMClient({ model: 'glm-5.2' }),  // 注入自定义 LLM 客户端
   matcher: customMatcher,                      // 注入自定义模糊匹配实现
   topK: 5,                                     // 召回候选数量
   hitThreshold: 60,                            // 命中阈值
@@ -264,7 +264,7 @@ compatibility: 适用于任意托管在 Git 仓库的 C/C++ 开源库。
 import { Agent, LLMClient } from './Agent/SkillSelector/index.js';
 
 const customLLM = new LLMClient({
-  model: 'glm-5-1',
+  model: 'glm-5.2',
   temperature: 0.1,
 });
 const agent = new Agent({ llm: customLLM });
@@ -303,7 +303,7 @@ SELECTOR_TOP_K=10
 |------|------|--------|
 | `DASHSCOPE_API_KEY` | 百炼平台 API Key（必填） | — |
 | `LLM_BASE_URL` | OpenAI 兼容端点 | `https://dashscope.aliyuncs.com/compatible-mode/v1` |
-| `LLM_MODEL` | 模型名 | `glm-5-1` |
+| `LLM_MODEL` | 模型名 | `glm-5.2` |
 | `LLM_TEMPERATURE` | 采样温度 | `0.2` |
 | `LLM_MAX_TOKENS` | 最大 token 数 | `2048` |
 | `LLM_ENABLE_THINKING` | 是否开启 GLM 思考模式 | `false` |
