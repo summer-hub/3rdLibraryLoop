@@ -93,6 +93,7 @@ npm i -g @ohos-cpf/3rdloop
 | `3rdloop workflows`                                                                                                                                        | 列出已注册的固定编排工作流                                |
 | `3rdloop run <工作流名> [--flag <值> ...]`                                                                                                                      | 以固定编排执行工作流（阻塞到终态）                            |
 | `3rdloop run pr-check --pr-url <URL> [--library-type <arkts|flutter|rn|tpccplus>]`                                                                         | PR 代码检视                                      |
+| `3rdloop run pr-push [--workspace-dir <p>] [--upstream-url <URL>] [--base-branch <b>] [--changelog <auto|true|false>] [--dry-run <true|false>]`            | 三方库自动提 PR（fork 工作区修改 → 源仓库 Issue/PR + 触发 CI） |
 | `3rdloop config list|get|set|unset`                                                                                                                        | 命令配置 `.env` 配置项（默认读写 `~/.3lib/.env`）         |
 | `3rdloop update [--check] [--yes] [--force] [--registry <url>]`                                                                                            | 自更新到 npm 最新版（尊重用户镜像源）                        |
 | `3rdloop doctor`                                                                                                                                           | 环境自检（Node/opencode/.env/SKILL/数据目录）          |

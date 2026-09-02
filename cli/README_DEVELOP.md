@@ -249,6 +249,42 @@ TestCheck 审核）。适合已经把任务拆成步骤、且步骤之间存在 
   （供前端历史恢复解析）。
 - **参数校验**：`--pr-url` 必填；`--library-type` 非法值（非上述四种）在 dry-run 阶段即报错退出。
 
+- **`pr-push` —— 三方库自动提 PR**（绑定 `Server/Skills/ohos-lib-pr-push` SKILL）：
+
+```bash
+# 最常用：workspace-dir 缺省取 CLI 命令执行目录（须为 fork 仓库克隆的 git 根）
+3rdloop run pr-push
+
+# 显式指定工作区 / 可选参数
+3rdloop run pr-push --workspace-dir D:\work\fork-repo --upstream-url https://gitcode.com/CPF-RN/lib
+
+# dry-run：只构造 taskDef 核对（不触碰引擎；SKILL 级 dry-run 用 --dry-run true）
+3rdloop run pr-push --workspace-dir D:\work\fork-repo --print-taskdef
+```
+
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--workspace-dir` | 否（默认 CLI 执行目录） | 本地 fork 仓库克隆的 git 根目录；未传时取 `process.cwd()`，仍须为 git 仓库 |
+| `--upstream-url` | 否 | 源仓库（上游）URL；缺省按 SKILL Phase 1.1 推断 |
+| `--base-branch` | 否 | PR 目标（上游）分支；缺省先探测上游同名分支，否则上游默认分支 |
+| `--branch-name` | 否 | 提交分支名；SKILL 默认使用当前分支，不自动建/切分支 |
+| `--commit-message` | 否 | 提交信息；缺省由修改点总结自动生成 |
+| `--changelog` | 否 | `auto`(默认)/`true`/`false`，决定是否更新 CHANGELOG |
+| `--dry-run` | 否 | SKILL 级 dry-run：`true` 只总结修改点与生成报告，不执行发布 |
+
+与 `pr-check` 的关键差异：
+
+- **`specifiedSkill: 'ohos-lib-pr-push'`，`maxRetries: 0`**：提 PR 是**非幂等**发布操作，
+  自动重试可能重复创建 Issue/PR，故恰好执行一次、绝不自动重试（失败恢复由 SKILL 的
+  "保留已完成产物编号/链接写入报告"逻辑承担）。
+- **`--workspace-dir` 默认 = CLI 执行目录**：未传时对 `process.cwd()` 做 git 仓库校验，
+  非 git 仓库报错退出码 1。
+- **报告复制（`afterRun` 钩子）**：SKILL 最终报告生成在
+  `{workspaceDir}/ohos-lib-pr-push-report.md`；编排**成功后**由 CLI 自动复制到
+  执行目录同名文件（目标已存在时先改名备份 `.bak_<ts>`），脚本可在执行目录稳定取报告。
+  失败时保留报告在工作区供人工查看。
+- **taskId 前缀 `prpush_`**：格式 `prpush_{ts36}{rand8}`，无前端协同页面，仅便于 `list` 过滤。
+
 ### 如何新增一个工作流
 
 在 `cli/workflows/` 目录下新增一个 `.js`/`.mjs` 文件，默认导出一个工作流声明对象 **即可自动注册**，
@@ -277,10 +313,20 @@ export default {
       }],
     };
   },
+  // afterRun 可选：编排结束后执行的后置动作（成功/失败均调用；入参含 result.passed；
+  // 抛错只记录不改变退出码）。典型场景：把 SKILL 产出的报告复制到 CLI 执行目录。
+  async afterRun({ params, taskDef, result, dataDir, cwd }) {
+    // 仅在任务成功时动作，失败时产物保留在工作区
+    if (result.passed !== true) return;
+  },
 };
 ```
 
 约定与细节：
+
+- **周边机制**：`run` 执行分两段——`buildTaskDef`（参数 → taskDef，可 dry-run）与
+  `afterRun`（编排后的后置动作）。后者对**成功与失败都会调用**，由工作流自身按
+  `result.passed` 决定是否动作；抛出的异常仅记录 stderr，不影响退出码。
 
 - **自动注册**：`cli/lib/workflows.js` 启动时扫描 `cli/workflows/*.mjs|*.js`，每文件默认导出一个工作流。
   加载失败 / name 缺失 / 重名的工作流会被跳过并输出警告（不阻断其余工作流）。
@@ -289,15 +335,15 @@ export default {
   （stepId / taskDescription / dependId / nextStepId / failStepId / maxRetries / specifiedSkill / inputReport）。
 - **specifiedSkill 建议**：与核心引擎约定一致——步骤职责能匹配某可用 SKILL 时，把它写入
   `specifiedSkill`（值为 SKILL name 或目录名），执行层将跳过 SkillSelector 自动匹配。
-- **只读环境注入**：`buildTaskDef(params, { dataDir })` 第二参携带运行时环境（数据目录等），
-  需要落盘相对路径时使用。
+- **只读环境注入**：`buildTaskDef(params, { dataDir, cwd })` 第二参携带运行时环境
+  （数据目录、CLI 执行目录等），需要落盘相对路径或"缺省取执行目录"语义时使用。
 
 ### 职责边界
 
-- 工作流注册表只负责"参数 → taskDef"。**业务工作流（如 `pr push`）与所需 SKILL 由其他项目
-  开发者按上述约定注册与维护**，CLI 核心不预置任何业务工作流。
-- 新增业务 SKILL 请放在 `Server/Skills/` 下（沿用既有 SKILL 约定），工作流文件中以
-  `specifiedSkill` 引用即可。
+- 工作流注册表只负责"参数 → taskDef"。**业务工作流（如 `pr-push`）与所需 SKILL 由其他项目
+  开发者按上述约定注册与维护**，CLI 核心不预置通用业务工作流；`pr-check` / `pr-push` 是
+  当前仓库内已注册的业务工作流范本，新增业务 SKILL 请放在 `Server/Skills/` 下（沿用既有
+  SKILL 约定），工作流文件中以 `specifiedSkill` 引用即可。
 
 ## config 配置命令（.env 配置项）
 
