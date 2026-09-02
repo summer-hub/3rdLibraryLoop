@@ -8,6 +8,8 @@
  *   - 复用 runner.js 的 orchLoad / orchStart 链路执行编排，沿用 orch.js 的
  *     信号处理、进度渲染与退出码约定（passed=0 / failed=2 / TIMEOUT=3 / SIGINT=130 / SIGTERM=143）
  *   - --print-taskdef dry-run：只构造并打印/落盘 taskDef，不触碰引擎
+ *   - afterRun 钩子：工作流声明对象上可选的 async 函数，编排结束后执行
+ *     （成功/失败均调用；入参 { params, taskDef, result, dataDir, cwd }；抛错只记录不改退出码）
  *
  * 产品形态与责任边界：
  *   - 本期只提供机制（注册/分发/taskDef 构造/编排执行），不预置业务工作流
@@ -88,7 +90,7 @@ export async function cmdWorkflow({ wf, wfWords, flags, env }) {
     // ── 构造 taskDef ────────────────────────────────────────────────
     let taskDef;
     try {
-        taskDef = await wf.buildTaskDef(params, { dataDir });
+        taskDef = await wf.buildTaskDef(params, { dataDir, cwd: process.cwd() });
     } catch (err) {
         process.stderr.write(`工作流 "${wf.name}" 构造 taskDef 失败: ${err.message}\n`);
         return EXIT.ERROR;
@@ -173,6 +175,22 @@ export async function cmdWorkflow({ wf, wfWords, flags, env }) {
         // load + start（阻塞执行到终态）
         await r.orchLoad(ctx, taskDef);
         const result = await _startAndRender(ctx, r, taskDef.taskId, { jsonMode, quiet, verbose, out, u, started });
+
+        // ── afterRun 钩子：工作流声明的后置动作（如报告复制）────────
+        // 成功/失败均执行（由工作流自身决定是否动作）；抛错只记录，不改变退出码。
+        if (typeof wf.afterRun === 'function') {
+            try {
+                await wf.afterRun({
+                    params,
+                    taskDef,
+                    result,
+                    dataDir,
+                    cwd: process.cwd(),
+                });
+            } catch (hookErr) {
+                process.stderr.write(`[workflow] afterRun 钩子执行失败（忽略）: ${hookErr.message}\n`);
+            }
+        }
 
         if (jsonMode) {
             out({
