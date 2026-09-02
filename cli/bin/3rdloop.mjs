@@ -1,21 +1,21 @@
 #!/usr/bin/env node
 /**
- * loop.mjs —— 3rdLibraryLoop CLI 入口
+ * 3rdloop.mjs —— 3rdLibraryLoop CLI 入口
  *
  * 职责：
  *   - 解析 argv（自研轻量解析，无第三方依赖）
  *   - 命令分发到 lib/ 下各子命令实现
  *
  * 命令总览（v1）：
- *   loop run [taskDescription]     提交并阻塞到终态（submit + wait 组合）
- *   loop submit [taskDescription]  提交任务，返回 taskId 后立即退出
- *   loop wait <taskId>             等待任务到终态（可 --timeout）
- *   loop progress <taskId>         查询进度（--json 输出结构化状态）
- *   loop abort <taskId>            中止任务
- *   loop list                      列出任务（--status / --limit / --older-than）
- *   loop result <taskId>           读取最终结果（--json / --raw）
- *   loop doctor                    环境自检
- *   loop version                   版本信息
+ *   3rdloop run [taskDescription]     提交并阻塞到终态（submit + wait 组合）
+ *   3rdloop submit [taskDescription]  提交任务，返回 taskId 后立即退出
+ *   3rdloop wait <taskId>             等待任务到终态（可 --timeout）
+ *   3rdloop progress <taskId>         查询进度（--json 输出结构化状态）
+ *   3rdloop abort <taskId>            中止任务
+ *   3rdloop list                      列出任务（--status / --limit / --older-than）
+ *   3rdloop result <taskId>           读取最终结果（--json / --raw）
+ *   3rdloop doctor                    环境自检
+ *   3rdloop version                   版本信息
  *
  * 全局选项：
  *   --json        数据走 stdout（结构化），进度/日志走 stderr
@@ -43,6 +43,6 @@ try {
     process.exit(exitCode ?? 0);
 } catch (err) {
     const message = err && err.message ? err.message : String(err);
-    process.stderr.write(`\n[loop] 致命错误: ${message}\n`);
+    process.stderr.write(`\n[3rdloop] 致命错误: ${message}\n`);
     process.exit(1);
 }

@@ -9,7 +9,7 @@
  *   orch abort|pause|resume <taskId>     控制编排（尽力而为）
  *   orch tasks                           列出编排任务（仅统计有 orchestration.json 的任务）
  *
- * 与 loop step 的区别：
+ * 与 3rdloop step 的区别：
  *   - step 是单步 FlexRunner 直连，不经 Orchestrator
  *   - orch 走多步骤依赖编排（loadTask → start），对应 HTTP /api/orchestrator/load|start
  */
@@ -18,7 +18,7 @@ import fs from 'node:fs';
 import { EXIT } from './exit-codes.js';
 
 /**
- * loop orch 命令二段分发。
+ * 3rdloop orch 命令二段分发。
  * @returns {Promise<number>}
  */
 export async function cmdOrch({ flags, rest, projectRoot, dataDir, skillDir, jsonMode, quiet, verbose, out, u }) {
@@ -42,7 +42,7 @@ export async function cmdOrch({ flags, rest, projectRoot, dataDir, skillDir, jso
             return cmdOrchTasks({ flags, rest: subRest, dataDir, jsonMode, out, u });
         default:
             process.stderr.write(`缺少或未知的 orch 子命令: ${sub || '(空)'}\n`);
-            process.stderr.write('用法: loop orch run|load|start|progress|abort|pause|resume|tasks ...\n');
+            process.stderr.write('用法: 3rdloop orch run|load|start|progress|abort|pause|resume|tasks ...\n');
             return EXIT.ERROR;
     }
 }
@@ -95,7 +95,7 @@ function _queries() {
 /** 读取并校验 task-def JSON 文件。 */
 function _readTaskDef(file) {
     if (!file) {
-        throw new Error('缺少任务定义文件。用法: loop orch load <task-def.json>');
+        throw new Error('缺少任务定义文件。用法: 3rdloop orch load <task-def.json>');
     }
     if (!fs.existsSync(file)) {
         throw new Error(`任务定义文件不存在: ${file}`);
@@ -215,8 +215,8 @@ async function cmdOrchStart({ flags, rest, projectRoot, dataDir, skillDir, jsonM
     const positional = _positionalArgs(rest);
     const taskId = positional[0];
     if (!taskId) {
-        if (jsonMode) out({ ok: false, error: '缺少 taskId。用法: loop orch start <taskId>' });
-        else process.stderr.write('缺少 taskId。用法: loop orch start <taskId>\n');
+        if (jsonMode) out({ ok: false, error: '缺少 taskId。用法: 3rdloop orch start <taskId>' });
+        else process.stderr.write('缺少 taskId。用法: 3rdloop orch start <taskId>\n');
         return EXIT.ERROR;
     }
 
@@ -321,8 +321,8 @@ async function cmdOrchProgress({ flags, rest, dataDir, jsonMode, out, u }) {
     const positional = _positionalArgs(rest);
     const taskId = positional[0];
     if (!taskId) {
-        if (jsonMode) out({ ok: false, error: '缺少 taskId。用法: loop orch progress <taskId> [--loop N]' });
-        else process.stderr.write('缺少 taskId。用法: loop orch progress <taskId> [--loop N]\n');
+        if (jsonMode) out({ ok: false, error: '缺少 taskId。用法: 3rdloop orch progress <taskId> [--loop N]' });
+        else process.stderr.write('缺少 taskId。用法: 3rdloop orch progress <taskId> [--loop N]\n');
         return EXIT.ERROR;
     }
 
@@ -359,8 +359,8 @@ async function cmdOrchControl(action, { flags, rest, projectRoot, dataDir, skill
     const positional = _positionalArgs(rest);
     const taskId = positional[0];
     if (!taskId) {
-        if (jsonMode) out({ ok: false, error: `缺少 taskId。用法: loop orch ${action} <taskId>` });
-        else process.stderr.write(`缺少 taskId。用法: loop orch ${action} <taskId>\n`);
+        if (jsonMode) out({ ok: false, error: `缺少 taskId。用法: 3rdloop orch ${action} <taskId>` });
+        else process.stderr.write(`缺少 taskId。用法: 3rdloop orch ${action} <taskId>\n`);
         return EXIT.ERROR;
     }
 

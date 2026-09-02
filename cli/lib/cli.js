@@ -45,7 +45,7 @@ function queries() { return _queries ||= import('./queries.js'); }
 function runner() { return _runner ||= import('./runner.js'); }
 
 /**
- * CLI 入口（由 bin/loop.mjs 调用）。
+ * CLI 入口（由 bin/3rdloop.mjs 调用）。
  * @param {string[]} argv
  * @returns {Promise<number>} 退出码
  */
@@ -78,7 +78,7 @@ export async function runCli(argv) {
     process.env.LOG_FILE_ENABLED = 'false';
 
     // ── 命令日志落盘（C1）────────────────────────────────────────
-    // 用户级统一日志：~/.3lib/logs/loop-<date>.log；仅命令调用（脱敏）落盘。
+    // 用户级统一日志：~/.3lib/logs/3rdloop-<date>.log；仅命令调用（脱敏）落盘。
 
     // 输出开关
     const jsonMode = flags.json;
@@ -117,6 +117,9 @@ export async function runCli(argv) {
         case 'submit':
             return cmdSubmit({ flags, rest, projectRoot, dataDir, skillDir, jsonMode, quiet, out, u });
 
+        case 'workflows':
+            return cmdWorkflows({ jsonMode, out });
+
         case 'wait':
             return cmdWait({ flags, rest, projectRoot, dataDir, skillDir, jsonMode, out, u });
 
@@ -150,9 +153,9 @@ export async function runCli(argv) {
 function cmdVersion(jsonMode) {
     const v = getCliVersion();
     if (jsonMode) {
-        process.stdout.write(JSON.stringify({ name: '@3lib/loop-cli', version: v, node: process.version }, null, 2) + '\n');
+        process.stdout.write(JSON.stringify({ name: '@ohos-cpf/3rdloop', version: v, node: process.version }, null, 2) + '\n');
     } else {
-        process.stdout.write(`@3lib/loop-cli v${v} (node ${process.version})\n`);
+        process.stdout.write(`@ohos-cpf/3rdloop v${v} (node ${process.version})\n`);
     }
     return EXIT.OK;
 }
@@ -163,6 +166,31 @@ async function cmdDoctor({ projectRoot, skillDir, dataDir, quiet }) {
     const { runDoctor } = await import('./doctor.js');
     const { ok } = await runDoctor({ projectRoot, skillDir, dataDir, quiet });
     return ok ? EXIT.OK : EXIT.ERROR;
+}
+
+// ─── workflows（列出已注册工作流） ────────────────────────────────
+
+async function cmdWorkflows({ jsonMode, out }) {
+    const { loadWorkflows, listWorkflows } = await import('./workflows.js');
+    const { workflows, warnings } = await loadWorkflows();
+    for (const w of warnings) process.stderr.write(`${w}\n`);
+
+    const items = listWorkflows(workflows);
+    if (jsonMode) {
+        out({ total: items.length, workflows: items });
+        return EXIT.OK;
+    }
+    if (items.length === 0) {
+        process.stdout.write('（暂无已注册工作流，新增方式见 cli/README.md「工作流机制」章节）\n');
+        return EXIT.OK;
+    }
+    process.stdout.write(`共 ${items.length} 个工作流：\n`);
+    for (const it of items) {
+        const params = it.params.map(p => '--' + p.flag).join(' ');
+        process.stdout.write(`  ${it.name.padEnd(20)} ${it.description || ''}\n`);
+        if (params) process.stdout.write(`     用法: 3rdloop run ${it.name} ${params}\n`);
+    }
+    return EXIT.OK;
 }
 
 // ─── run / submit ──────────────────────────────────────────────────
@@ -179,9 +207,25 @@ async function cmdSubmit({ flags, rest, projectRoot, dataDir, skillDir, jsonMode
  * 提交（并可选等待）任务。
  */
 async function submitAndRunImpl({ flags, rest, projectRoot, dataDir, skillDir, jsonMode, quiet, verbose, out, u, waitForCompletion }) {
+    // ── 工作流识别（固定编排）：3rdloop run <workflow> [--flags] ────────
+    // 命中已注册工作流 → 转发 cmdWorkflow()；未命中 → 保持原"任务描述"语义
+    const { loadWorkflows, resolveWorkflow } = await import('./workflows.js');
+    const { workflows, warnings } = await loadWorkflows();
+    for (const w of warnings) process.stderr.write(`${w}\n`);
+    const matched = resolveWorkflow(workflows, flags.rest);
+    if (matched.wf) {
+        const { cmdWorkflow } = await import('./workflow.js');
+        return cmdWorkflow({
+            wf: matched.wf,
+            wfWords: flags.rest.slice(matched.matchWords),
+            flags,
+            env: { projectRoot, dataDir, skillDir, jsonMode, quiet, verbose, out, u },
+        });
+    }
+
     const description = rest[0];
     if (!description) {
-        process.stderr.write('缺少任务描述。用法: loop run "生成 xxx 的 demo 场景"\n');
+        process.stderr.write('缺少任务描述。用法: 3rdloop run "生成 xxx 的 demo 场景"\n');
         return EXIT.ERROR;
     }
 
@@ -297,7 +341,7 @@ async function submitAndRunImpl({ flags, rest, projectRoot, dataDir, skillDir, j
                 process.stdout.write(`${taskId}\n`);
             }
             // 关键：CLI 进程不能退出，否则任务被中断。等待 completion。
-            process.stderr.write(`\n提示: 任务 ${taskId} 当前进程内运行。若要跨进程运行，请保持此进程存活，或改用 loop run（提交+等待）。\n`);
+            process.stderr.write(`\n提示: 任务 ${taskId} 当前进程内运行。若要跨进程运行，请保持此进程存活，或改用 3rdloop run（提交+等待）。\n`);
             // 保持进程存活直到任务完成
             await new Promise(() => {});
             return EXIT.OK;
@@ -318,7 +362,7 @@ async function submitAndRunImpl({ flags, rest, projectRoot, dataDir, skillDir, j
 async function cmdWait({ flags, rest, projectRoot, dataDir, skillDir, jsonMode, out, u }) {
     const taskId = rest[0];
     if (!taskId) {
-        process.stderr.write('缺少 taskId。用法: loop wait <taskId>\n');
+        process.stderr.write('缺少 taskId。用法: 3rdloop wait <taskId>\n');
         return EXIT.ERROR;
     }
 
@@ -353,7 +397,7 @@ async function cmdWait({ flags, rest, projectRoot, dataDir, skillDir, jsonMode, 
         // 超时判定
         if (timeoutMs && Date.now() - started >= timeoutMs) {
             if (jsonMode) out({ ok: false, timeout: true, taskId, message: '等待超时，任务可能仍在运行' });
-            else process.stderr.write(`等待超时（${Math.round(timeoutMs / 1000)}s），任务可能仍在运行，可用 "loop wait ${taskId} --timeout 0" 继续等待\n`);
+            else process.stderr.write(`等待超时（${Math.round(timeoutMs / 1000)}s），任务可能仍在运行，可用 "3rdloop wait ${taskId} --timeout 0" 继续等待\n`);
             return EXIT.TIMEOUT;
         }
 
@@ -379,7 +423,7 @@ async function cmdProgress({ flags, rest, projectRoot, dataDir, jsonMode, out, u
     const taskId = rest[0];
     const watch = rest.includes('--watch') || rest.includes('-w');
     if (!taskId) {
-        process.stderr.write('缺少 taskId。用法: loop progress <taskId> [--watch]\n');
+        process.stderr.write('缺少 taskId。用法: 3rdloop progress <taskId> [--watch]\n');
         return EXIT.ERROR;
     }
 
@@ -433,7 +477,7 @@ async function cmdProgress({ flags, rest, projectRoot, dataDir, jsonMode, out, u
 async function cmdAbort({ flags, rest, projectRoot, dataDir, skillDir, jsonMode, out, u }) {
     const taskId = rest[0];
     if (!taskId) {
-        process.stderr.write('缺少 taskId。用法: loop abort <taskId>\n');
+        process.stderr.write('缺少 taskId。用法: 3rdloop abort <taskId>\n');
         return EXIT.ERROR;
     }
 
@@ -485,7 +529,7 @@ async function cmdList({ flags, rest, dataDir, jsonMode, out, u }) {
 async function cmdResult({ flags, rest, dataDir, jsonMode, quiet, out, u }) {
     const taskId = rest[0];
     if (!taskId) {
-        process.stderr.write('缺少 taskId。用法: loop result <taskId>\n');
+        process.stderr.write('缺少 taskId。用法: 3rdloop result <taskId>\n');
         return EXIT.ERROR;
     }
 
@@ -524,7 +568,7 @@ async function cmdResult({ flags, rest, dataDir, jsonMode, quiet, out, u }) {
 // ─── step（单步执行）─────────────────────────────────────────────
 
 /**
- * loop step 命令二段分发（转发到 lib/step.js）。
+ * 3rdloop step 命令二段分发（转发到 lib/step.js）。
  */
 async function cmdStep({ flags, rest, projectRoot, dataDir, skillDir, jsonMode, quiet, verbose, out, u }) {
     const { cmdStep: impl } = await import('./step.js');
@@ -534,7 +578,7 @@ async function cmdStep({ flags, rest, projectRoot, dataDir, skillDir, jsonMode, 
 // ─── orch（编排）─────────────────────────────────────────────────
 
 /**
- * loop orch 命令二段分发（转发到 lib/orch.js）。
+ * 3rdloop orch 命令二段分发（转发到 lib/orch.js）。
  */
 async function cmdOrch({ flags, rest, projectRoot, dataDir, skillDir, jsonMode, quiet, verbose, out, u }) {
     const { cmdOrch: impl } = await import('./orch.js');
@@ -545,29 +589,41 @@ async function cmdOrch({ flags, rest, projectRoot, dataDir, skillDir, jsonMode, 
 
 function printHelp() {
     process.stdout.write(`
-@3lib/loop-cli —— 3rdLibraryLoop 三方库自动化检视 CLI
+@ohos-cpf/3rdloop —— 3rdLibraryLoop 三方库自动化检视 CLI
 
 用法:
-  loop run <任务描述>                提交并阻塞到终态
-  loop submit <任务描述>             提交，返回 taskId 后后台运行
-  loop wait <taskId> [--timeout 30m] 等待任务到终态
-  loop progress <taskId> [--watch]   查询进度（--watch 持续轮询到终态）
-  loop abort <taskId>                中止任务
-  loop list [--status <st>] [--limit N] [--older-than 7d]   列出任务
-  loop result <taskId> [--raw]       读取最终结果
-  loop step run "<描述>" [--task-id <id>] [--step-id N] [--input-report <p>]
+  3rdloop run <任务描述>                提交并阻塞到终态
+  3rdloop submit <任务描述>             提交，返回 taskId 后后台运行
+  3rdloop wait <taskId> [--timeout 30m] 等待任务到终态
+  3rdloop progress <taskId> [--watch]   查询进度（--watch 持续轮询到终态）
+  3rdloop abort <taskId>                中止任务
+  3rdloop list [--status <st>] [--limit N] [--older-than 7d]   列出任务
+  3rdloop result <taskId> [--raw]       读取最终结果
+  3rdloop step run "<描述>" [--task-id <id>] [--step-id N] [--input-report <p>]
          [--max-retries N] [--loop N] [--task-dir <p>]
      单步执行（FlexRunner 直连，不经拆解/编排/审核）
-  loop step status <taskId> [--step-id N]  查询单步状态/产物
-  loop step result <taskId> [--step-id N]  读取该步 result.md
-  loop orch run <task-def.json>            加载任务定义 + 启动编排，阻塞到终态
-  loop orch load <task-def.json>           仅加载任务定义（落盘 orchestration.json）
-  loop orch start <taskId>                 从磁盘恢复 LOADED 状态并启动编排，阻塞到终态
-  loop orch progress <taskId> [--loop N]   查询编排进度
-  loop orch abort|pause|resume <taskId>    终止/暂停/恢复编排
-  loop orch tasks                          列出编排任务
-  loop doctor                        环境自检
-  loop version                       版本信息
+  3rdloop step status <taskId> [--step-id N]  查询单步状态/产物
+  3rdloop step result <taskId> [--step-id N]  读取该步 result.md
+  3rdloop orch run <task-def.json>            加载任务定义 + 启动编排，阻塞到终态
+  3rdloop orch load <task-def.json>           仅加载任务定义（落盘 orchestration.json）
+  3rdloop orch start <taskId>                 从磁盘恢复 LOADED 状态并启动编排，阻塞到终态
+  3rdloop orch progress <taskId> [--loop N]   查询编排进度
+  3rdloop orch abort|pause|resume <taskId>    终止/暂停/恢复编排
+  3rdloop orch tasks                          列出编排任务
+  3rdloop workflows                     列出已注册的固定编排工作流
+  3rdloop run <工作流名> [--flag <值> ...]     以固定编排执行工作流（阻塞到终态）
+  3rdloop doctor                        环境自检
+  3rdloop version                       版本信息
+
+工作流机制:
+  固定编排 = 预置 taskDef 定义，支持 CLI flags 参数化后复用 orch 链路执行。
+  - 已注册工作流用 "3rdloop workflows" 查看；参数说明用 "3rdloop run <工作流名> --help"
+  - 新增工作流：在 cli/workflows/ 下新增一个 .js/.mjs 文件（默认导出
+    { name, description, params, buildTaskDef }），自动注册，零改动分发代码
+  - 工作机制详见 cli/README.md「工作流机制」章节
+
+工作流专用选项:
+  --print-taskdef  仅构造并打印/落盘 taskDef（dry-run，不触碰引擎），适合调试新工作流
 
 全局选项:
   --json          结构化输出到 stdout（进度/日志走 stderr）
@@ -611,7 +667,7 @@ orch 专有说明:
 
 /**
  * 命令调用日志落盘（C1）。
- * 用户级统一日志：~/.3lib/logs/loop-<date>.log。
+ * 用户级统一日志：~/.3lib/logs/3rdloop-<date>.log。
  * 不做敏感信息记录（仅命令名，不含描述/凭据）。
  */
 function _logInvocation({ cmd, user3libHome, dataDir, json }) {
@@ -620,7 +676,7 @@ function _logInvocation({ cmd, user3libHome, dataDir, json }) {
         fs.mkdirSync(logsDir, { recursive: true });
         const date = new Date().toISOString().slice(0, 10);
         const line = `[${new Date().toISOString()}] cmd=${cmd || 'help'} dataDir=${dataDir} json=${!!json}\n`;
-        fs.appendFileSync(path.join(logsDir, `loop-${date}.log`), line);
+        fs.appendFileSync(path.join(logsDir, `3rdloop-${date}.log`), line);
     } catch { /* 日志失败不影响主流程 */ }
 }
 

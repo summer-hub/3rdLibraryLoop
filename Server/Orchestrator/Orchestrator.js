@@ -1283,12 +1283,17 @@ class Orchestrator {
      *
      * 恢复后编排器处于对应状态：
      *   - RUNNING → 标记为 FAILED（执行中断，无法自动恢复运行时上下文）
-   *   - LOADED/COMPLETED/FAILED/ABORTED/DEADLOCKED → 原样恢复
+     *   - LOADED/COMPLETED/FAILED/ABORTED/DEADLOCKED → 原样恢复
      *
      * @param {object} state - getPersistableState() 返回的对象
+     * @param {object} [opts]
+     * @param {boolean} [opts.queryOnly=false] - 只读查询模式：RUNNING 状态原样保留（不标记
+     *   FAILED、不写 SQLite）。仅用于「查询另一进程正在执行的任务」的场景——此时任务并未
+     *   中断，标记 FAILED 会让前端误报"检视失败"。真正的中断恢复（服务重启 restoreFromDisk）
+     *   不要传此选项，保持 RUNNING→FAILED 语义。
      * @returns {Promise<void>}
      */
-    async restoreState(state) {
+    async restoreState(state, opts = {}) {
         if (!state || !state.taskId) {
             throw new Error('Orchestrator.restoreState: state.taskId 为必填项');
         }
@@ -1349,25 +1354,31 @@ class Orchestrator {
         // 防御：老持久化状态的 entryStepIds 可能误含修复步骤，恢复时过滤掉
         this._entryStepIds = (this._entryStepIds || []).filter(id => !this._fixStepIds.has(String(id)));
 
-        // RUNNING 状态在重启后无法恢复执行上下文，标记为 FAILED
+        // RUNNING 状态在重启后无法恢复执行上下文，标记为 FAILED。
+        // 例外：queryOnly 只读查询（如 Web 进程查询 CLI 进程正在执行的任务）——
+        // 任务并未中断，原样保留 running 状态，也不写 SQLite。
         if (state.status === OrchestratorStatus.RUNNING) {
-            this._status = OrchestratorStatus.FAILED;
-            this._error = '服务重启导致执行中断';
-            this._endTime = nowCST();
-            // 将运行中的步骤标记为失败（内存态）
-            const interruptedNodes = [];
-            for (const node of this._nodes.values()) {
-                if (node.isRunning) {
-                    node.markFinished({ success: false, resultPath: '', error: '服务重启中断' });
-                    interruptedNodes.push(node);
+            if (opts.queryOnly) {
+                this._status = OrchestratorStatus.RUNNING;
+            } else {
+                this._status = OrchestratorStatus.FAILED;
+                this._error = '服务重启导致执行中断';
+                this._endTime = nowCST();
+                // 将运行中的步骤标记为失败（内存态）
+                const interruptedNodes = [];
+                for (const node of this._nodes.values()) {
+                    if (node.isRunning) {
+                        node.markFinished({ success: false, resultPath: '', error: '服务重启中断' });
+                        interruptedNodes.push(node);
+                    }
                 }
-            }
-            // 注意：不再调用 _persistState() 覆盖 orchestration.json / orchestration_loop{N}.json，
-            // 保留崩溃前的真实快照（running 状态、currentStepId 等）供历史追溯。
-            // 中断事实改记 SQLite（TaskStepStore）—— running 记录更新为 error 是真实发生的执行结果；
-            // 注册表终态由上层 restoreFromDisk 回写。
-            for (const node of interruptedNodes) {
-                await this._persistStepDb(node);
+                // 注意：不再调用 _persistState() 覆盖 orchestration.json / orchestration_loop{N}.json，
+                // 保留崩溃前的真实快照（running 状态、currentStepId 等）供历史追溯。
+                // 中断事实改记 SQLite（TaskStepStore）—— running 记录更新为 error 是真实发生的执行结果；
+                // 注册表终态由上层 restoreFromDisk 回写。
+                for (const node of interruptedNodes) {
+                    await this._persistStepDb(node);
+                }
             }
         } else {
             this._status = state.status || OrchestratorStatus.LOADED;
