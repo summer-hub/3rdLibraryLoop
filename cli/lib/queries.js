@@ -17,7 +17,7 @@ import path from 'node:path';
 
 /**
  * 计算 taskRoot 目录绝对路径。
- * @param {string} dataDir - 数据目录（~/.3lib/<project>/db）
+ * @param {string} dataDir - 数据目录（~/.3lib/3rdloop/db）
  * @returns {string}
  */
 export function taskDir(dataDir) {

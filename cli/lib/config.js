@@ -4,13 +4,13 @@
  * 职责：
  *   - 定位项目根（3LIB_ROOT env > git 仓库根 > cwd 上溯）
  *   - 加载 .env 链：环境变量 > ~/.3lib/.env（用户级） > 项目根 Server/.env（仓库内）
- *   - 定位数据目录（--data-dir > 3LIB_DATA_DIR > ~/.3lib/<project>/db）
+ *   - 定位数据目录（--data-dir > 3LIB_DATA_DIR > ~/.3lib/3rdloop/db）
  *   - 生成 clinic 安全唯一 taskId（随机位 8）
  *   - SKILL 目录优先级链（--skill-dir > 3LIB_SKILL_DIR > vendor/Skills）
  *
- * 数据目录策略（A3）：
- *   每用户隔离 ~/.3lib/<project>/db，多成员各自独立，避免并发冲突。
- *   team 共享审计留待 v2 loop serve + 中央 db。
+ * 数据目录策略：
+ *   用户级统一 ~/.3lib/3rdloop/db（跨平台，由 getUser3libHome 解析），
+ *   不与执行目录耦合（默认不再落在执行目录上级），也不随 npm 卸载包而清空。
  */
 
 import fs from 'node:fs';
@@ -210,24 +210,25 @@ export function getUser3libHome() {
  * 优先级：
  *   1. --data-dir 显式参数
  *   2. 环境变量 3LIB_DATA_DIR
- *   3. <项目根同级>/db （默认，仓库同级共享数据目录，如 D:\code\3rdLibraryLoop → D:\code\db）
+ *   3. <用户 3lib 主目录>/3rdloop/db（默认，跨平台统一，如 Windows:
+ *      C:\Users\<用户>\.3lib\3rdloop\db，macOS/Linux: ~/.3lib/3rdloop/db）
  *
- * 说明：默认从"每用户隔离 ~/.3lib/<项目>/db"调整为"仓库根同级共享 db"，
- * 便于团队在同机共享任务数据（任务写入 <dataDir>/task/{taskId}/）。
- * 如需每用户隔离，仍可用 --data-dir 或 3LIB_DATA_DIR 覆盖（A3 保留覆盖能力）。
+ * 设计说明：默认不随执行目录变化（避免在 D:\tmp 执行时误落 D:\db），
+ * 也不放在 npm 包目录内（避免全局重装/卸载时数据被清空）；各命令通过注入的
+ * dataDir 自动跟随，任务写入 <dataDir>/task/{taskId}/。
+ * 如需团队共享或其他自定义位置，可用 --data-dir 或 3LIB_DATA_DIR 覆盖。
  *
  * @returns {string} 数据根目录绝对路径
  */
-export function resolveDataDir({ dataDirFlag, projectName, user3libHome, projectRoot }) {
+export function resolveDataDir({ dataDirFlag, user3libHome }) {
     let rootDir;
     if (dataDirFlag) {
         rootDir = path.resolve(dataDirFlag);
     } else if (process.env['3LIB_DATA_DIR']) {
         rootDir = path.resolve(process.env['3LIB_DATA_DIR']);
     } else {
-        // 仓库根同级：<项目根>/../db
-        const repoRoot = projectRoot || user3libHome;
-        rootDir = path.join(path.dirname(repoRoot), 'db');
+        // 用户级统一位置（跨平台由 getUser3libHome 解析）
+        rootDir = path.join(user3libHome, '3rdloop', 'db');
     }
     fs.mkdirSync(rootDir, { recursive: true });
     return rootDir;
