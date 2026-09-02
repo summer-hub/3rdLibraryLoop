@@ -9,7 +9,7 @@
  * 与 run（大循环 LoopEngine）的区别：
  *   - 不经 Brain 拆解 / Orchestrator 编排 / TestCheck 审核
  *   - 自定 taskId / stepId / maxRetries，产物落 taskDir
- *   - 写精简 loop.json（isSingleExecution:true），使 loop list/progress/result 可见
+ *   - 写精简 loop.json（isSingleExecution:true），使 3rdloop list/progress/result 可见
  */
 
 import path from 'node:path';
@@ -22,7 +22,7 @@ const RESULT_FILE_PREFIX = (stepId, loop) => `stepId${stepId}_loop${loop}_result
 const STEP_STATE_FILE = (stepId, loop) => `stepid_${stepId}_loop${loop}.json`;
 
 /**
- * loop step 命令二段分发。
+ * 3rdloop step 命令二段分发。
  * @returns {Promise<number>}
  */
 export async function cmdStep({ flags, rest, projectRoot, dataDir, skillDir, jsonMode, quiet, verbose, out, u }) {
@@ -39,7 +39,7 @@ export async function cmdStep({ flags, rest, projectRoot, dataDir, skillDir, jso
             return cmdStepQuery(sub, { flags, rest: subRest, dataDir, jsonMode, quiet, out, u, verbose });
         default:
             process.stderr.write(`缺少或未知的 step 子命令: ${sub || '(空)'}\n`);
-            process.stderr.write('用法: loop step run|status|result ...\n');
+            process.stderr.write('用法: 3rdloop step run|status|result ...\n');
             return EXIT.ERROR;
     }
 }
@@ -48,7 +48,7 @@ export async function cmdStep({ flags, rest, projectRoot, dataDir, skillDir, jso
  * 阻塞执行单个步骤。
  *
  * 参数：
- *   loop step run "<任务描述>" [--task-id <id>] [--step-id N] [--input-report <path>]
+ *   3rdloop step run "<任务描述>" [--task-id <id>] [--step-id N] [--input-report <path>]
  *                      [--max-retries N] [--loop N] [--task-dir <path>]
  *                      [--specified-skill <SKILL name|目录名>]   <!-- 固定执行指定 SKILL，跳过 SkillSelector 匹配 -->
  */
@@ -56,14 +56,14 @@ async function cmdStepRun({ flags, rest, dataDir, skillDir, jsonMode, quiet, ver
     const positional = _positionalArgs(rest);
     const description = positional[0];
     if (!description) {
-        process.stderr.write('缺少任务描述。用法: loop step run "生成 xxx 的 demo 场景"\n');
+        process.stderr.write('缺少任务描述。用法: 3rdloop step run "生成 xxx 的 demo 场景"\n');
         return EXIT.ERROR;
     }
 
     const taskId = _stringFlag(flags, 'task-id') || '';
     const stepId = _parseIntFlag(flags, 'step-id', 1);
     if (!taskId) {
-        process.stderr.write('缺少 --task-id。用法: loop step run "<描述>" --task-id <id>\n');
+        process.stderr.write('缺少 --task-id。用法: 3rdloop step run "<描述>" --task-id <id>\n');
         return EXIT.ERROR;
     }
     if (!Number.isInteger(stepId) || stepId <= 0) {
@@ -178,7 +178,7 @@ async function cmdStepQuery(sub, { flags, rest: subRest, dataDir, jsonMode, quie
     const positional = _positionalArgs(subRest);
     const taskId = positional[0];
     if (!taskId) {
-        process.stderr.write(`缺少 taskId。用法: loop step ${sub} <taskId> [--step-id N]\n`);
+        process.stderr.write(`缺少 taskId。用法: 3rdloop step ${sub} <taskId> [--step-id N]\n`);
         return EXIT.ERROR;
     }
 

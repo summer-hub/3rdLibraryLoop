@@ -1,5 +1,5 @@
 /**
- * doctor.js —— 环境自检（loop doctor）
+ * doctor.js —— 环境自检（3rdloop doctor）
  *
  * 复用 check-env.mjs 的检测维度（轻量版，不耦合启动流程）：
  *   1. Node.js 版本（>=22）
@@ -101,7 +101,7 @@ export async function runDoctor(opts = {}) {
 
     // 打印
     if (!opts.quiet) {
-        process.stderr.write(`\n${C.bold}loop doctor 环境自检${C.reset}\n`);
+        process.stderr.write(`\n${C.bold}3rdloop doctor 环境自检${C.reset}\n`);
         for (const c of checks) {
             const icon = c.passed ? `${C.green}✓${C.reset}` : `${C.red}✗${C.reset}`;
             process.stderr.write(`  ${icon} ${c.name}`);

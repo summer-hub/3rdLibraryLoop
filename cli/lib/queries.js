@@ -112,7 +112,7 @@ export function listTasks(dataDir, opts = {}) {
  *
  * 与 readTaskState 的区别：
  *   - readTaskState 面向大循环任务快照（loop.json 优先）
- *   - readOrchestrationState 面向纯编排任务（loop orch load/start 产物），
+ *   - readOrchestrationState 面向纯编排任务（3rdloop orch load/start 产物），
  *     可指定轮次读取历史快照
  *
  * @param {string} dataDir - 数据目录
@@ -146,7 +146,7 @@ export function readOrchestrationState(dataDir, taskId, loop) {
 /**
  * 列出所有编排任务（扫描 db/task 下各目录的 orchestration.json）。
  *
- * 供 loop orch tasks 使用：只统计存在 orchestration.json 的目录，
+ * 供 3rdloop orch tasks 使用：只统计存在 orchestration.json 的目录，
  * 不掺入仅有大循环 loop.json 的任务。
  *
  * @param {string} dataDir - 数据目录

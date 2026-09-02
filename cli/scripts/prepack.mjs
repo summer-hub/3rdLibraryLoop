@@ -59,6 +59,12 @@ function shouldExclude(rel) {
     if (base === '.env' || base.startsWith('.env.')) return true;
     if (base === '.signing') return true;
     if (base === 'node_modules' || base === 'db' || base === '.git') return true;
+    // 开发测试产物
+    if (base === '__tests__') return true;
+    if (base === 'test.js' || base.startsWith('test-')) return true;
+    if (base.startsWith('repro_')) return true;
+    // 内部 AI 文档
+    if (base === 'AGENTS.md') return true;
     return false;
 }
 
@@ -121,6 +127,17 @@ async function main() {
             fs.copyFileSync(srcFile, path.join(VENDOR_SERVER, f));
             console.log(`[prepack] 复制 ${f}`);
         }
+    }
+
+    // 覆写 vendor/Server/package.json：对齐 cli 依赖版本，避免版本冲突误导消费者
+    const vendorPkgPath = path.join(VENDOR_SERVER, 'package.json');
+    if (fs.existsSync(vendorPkgPath)) {
+        const cliPkg = JSON.parse(fs.readFileSync(path.join(CLI_ROOT, 'package.json'), 'utf8'));
+        const vendorPkg = JSON.parse(fs.readFileSync(vendorPkgPath, 'utf8'));
+        vendorPkg.dependencies = { ...cliPkg.dependencies };
+        vendorPkg._comment = 'vendored from Server/; dependencies aligned with cli package.json by prepack';
+        fs.writeFileSync(vendorPkgPath, JSON.stringify(vendorPkg, null, 2) + '\n');
+        console.log('[prepack] 覆写 vendor/Server/package.json dependencies（对齐 cli）');
     }
 
     // 写入 VERSION

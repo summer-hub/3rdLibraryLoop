@@ -1,8 +1,8 @@
-# @3lib/loop-cli
+# @ohos-cpf/3rdloop
 
 3rdLibraryLoop 三方库自动化检视命令行工具（嵌入式模式）。
 
-`loop` CLI 直接复用 3rdLibraryLoop 的**核心引擎**（LoopEngine / Brain / Orchestrator /
+`3rdloop` CLI 直接复用 3rdLibraryLoop 的**核心引擎**（LoopEngine / Brain / Orchestrator /
 FlexRunner / TestCheck / Knowledge），无需启动 HTTP 服务，即可从终端完整跑一遍
 "任务拆解 → 编排执行 → 准出审核"的大循环。
 
@@ -10,44 +10,47 @@ FlexRunner / TestCheck / Knowledge），无需启动 HTTP 服务，即可从终�
 
 ```bash
 # 环境自检
-loop doctor
+3rdloop doctor
 
 # 提交并阻塞到准出终态（最常用）
-loop run "为 libcurl 生成鸿蒙 demo 场景并跑通编译"
+3rdloop run "为 libcurl 生成鸿蒙 demo 场景并跑通编译"
 
 # 提交并立即返回 taskId（进程内继续跑，需保持进程存活）
-loop submit "分析 sqlite3 的鸿蒙化可行性"
+3rdloop submit "分析 sqlite3 的鸿蒙化可行性"
 
 # 等待到终态 / 查询进度 / 中止 / 列表 / 结果
-loop wait <taskId> --timeout 30m
-loop progress <taskId> --watch
-loop abort <taskId>
-loop list --status running
-loop result <taskId> --json
+3rdloop wait <taskId> --timeout 30m
+3rdloop progress <taskId> --watch
+3rdloop abort <taskId>
+3rdloop list --status running
+3rdloop result <taskId> --json
 ```
 
 ## 命令一览
 
 | 命令 | 说明 |
 |------|------|
-| `loop run <desc>` | 提交任务并阻塞到准出终态（默认行为） |
-| `loop submit <desc>` | 提交任务，打印 taskId 后进程内继续执行 |
-| `loop wait <taskId> [--timeout 30m]` | 等待任务到终态 |
-| `loop progress <taskId> [--watch]` | 查询进度；`--watch` 持续轮询到终态 |
-| `loop abort <taskId>` | 中止任务 |
-| `loop list [--status st] [--limit N] [--older-than 7d]` | 列出任务 |
-| `loop result <taskId> [--raw]` | 读取最终结果 |
-| `loop step run <desc> [--task-id id] [--step-id N] [--input-report p] [--max-retries N] [--loop N] [--task-dir p] [--specified-skill <SKILL name\|目录名>]` | 单步执行（FlexRunner 直连，不经拆解/编排/审核） |
-| `loop step status <taskId> [--step-id N]` | 查询单步状态/产物/会话 |
-| `loop step result <taskId> [--step-id N]` | 读取该步 result.md 内容 |
-| `loop orch run <task-def.json>` | 加载任务定义 + 启动编排，阻塞到终态 |
-| `loop orch load <task-def.json>` | 仅加载任务定义（落盘 orchestration.json） |
-| `loop orch start <taskId>` | 从磁盘恢复 LOADED 状态并启动编排，阻塞到终态 |
-| `loop orch progress <taskId> [--loop N]` | 查询编排进度 |
-| `loop orch abort|pause|resume <taskId>` | 终止/暂停/恢复编排 |
-| `loop orch tasks` | 列出编排任务 |
-| `loop doctor` | 环境自检（Node/opencode/.env/SKILL/数据目录） |
-| `loop version` | 版本信息 |
+| `3rdloop run <desc>` | 提交任务并阻塞到准出终态（默认行为） |
+| `3rdloop submit <desc>` | 提交任务，打印 taskId 后进程内继续执行 |
+| `3rdloop wait <taskId> [--timeout 30m]` | 等待任务到终态 |
+| `3rdloop progress <taskId> [--watch]` | 查询进度；`--watch` 持续轮询到终态 |
+| `3rdloop abort <taskId>` | 中止任务 |
+| `3rdloop list [--status st] [--limit N] [--older-than 7d]` | 列出任务 |
+| `3rdloop result <taskId> [--raw]` | 读取最终结果 |
+| `3rdloop step run <desc> [--task-id id] [--step-id N] [--input-report p] [--max-retries N] [--loop N] [--task-dir p] [--specified-skill <SKILL name\|目录名>]` | 单步执行（FlexRunner 直连，不经拆解/编排/审核） |
+| `3rdloop step status <taskId> [--step-id N]` | 查询单步状态/产物/会话 |
+| `3rdloop step result <taskId> [--step-id N]` | 读取该步 result.md 内容 |
+| `3rdloop orch run <task-def.json>` | 加载任务定义 + 启动编排，阻塞到终态 |
+| `3rdloop orch load <task-def.json>` | 仅加载任务定义（落盘 orchestration.json） |
+| `3rdloop orch start <taskId>` | 从磁盘恢复 LOADED 状态并启动编排，阻塞到终态 |
+| `3rdloop orch progress <taskId> [--loop N]` | 查询编排进度 |
+| `3rdloop orch abort|pause|resume <taskId>` | 终止/暂停/恢复编排 |
+| `3rdloop orch tasks` | 列出编排任务 |
+| `3rdloop workflows` | 列出已注册的固定编排工作流 |
+| `3rd3rdloop run <工作流名> [--flag <值> ...]` | 以固定编排执行工作流（阻塞到终态） |
+| `3rdloop run pr-check --pr-url <URL> [--library-type <arkts\|flutter\|rn\|tpccplus>]` | PR 代码检视（等价前端 PR 检视面板，taskId 带 `codecheck_` 前缀） |
+| `3rdloop doctor` | 环境自检（Node/opencode/.env/SKILL/数据目录） |
+| `3rdloop version` | 版本信息 |
 
 ## 全局选项
 
@@ -74,25 +77,25 @@ loop result <taskId> --json
 
 ## 单步执行（FlexRunner）
 
-`loop step` 直接复用通用单步执行器 **FlexRunner**（不经 Brain 拆解 / Orchestrator
+`3rdloop step` 直接复用通用单步执行器 **FlexRunner**（不经 Brain 拆解 / Orchestrator
 编排 / TestCheck 审核），适合"只跑一个步骤"的精确控制场景：
 
 ```bash
 # 阻塞执行单个步骤（成功退出码 0，失败 2）
-loop step run "为 libcurl 的 HTTP 请求生成 ArkTS demo" \
+3rdloop step run "为 libcurl 的 HTTP 请求生成 ArkTS demo" \
   --task-id step_demo_001 --step-id 1 --max-retries 2
 
 # 带输入报告 / 指定产物目录 / 指定大循环轮次
-loop step run "根据检视报告修复 XTS 用例" \
+3rdloop step run "根据检视报告修复 XTS 用例" \
   --task-id step_fix_001 --input-report output/report.md --loop 1
 
 # 固定执行某个 SKILL（跳过 SkillSelector 匹配，直接使用该 SKILL）
-loop step run "为 FastBle 生成 XTS 代码" \
+3rdloop step run "为 FastBle 生成 XTS 代码" \
   --task-id step_skill_001 --specified-skill arkts-library-xts-code
 
 # 查询步骤状态或读取最终产物
-loop step status step_demo_001
-loop step result step_demo_001 --json
+3rdloop step status step_demo_001
+3rdloop step result step_demo_001 --json
 ```
 
 ### 参数
@@ -114,8 +117,8 @@ loop step result step_demo_001 --json
   `stepId{n}_loop{L}_Summary_{R}.md` 经验总结与步骤记录
   `stepid_{stepId}_loop{L}.json`。
 - **loop.json**：写精简状态（`isSingleExecution: true`），因此
-  `loop list` / `loop progress <taskId>` / `loop result <taskId>` 都能看到该任务。
-- **与 `loop run` 的差异**：`run` 走完整大循环（拆解→编排→审核→可重规划，
+  `3rdloop list` / `3rdloop progress <taskId>` / `3rdloop result <taskId>` 都能看到该任务。
+- **与 `3rdloop run` 的差异**：`run` 走完整大循环（拆解→编排→审核→可重规划，
   自动生成 taskId）；`step` 只执行一步，适合把已拆好的任务按步骤手动串联。
 - **中断**：Ctrl+C 会对 FlexRunner 调用 `controlExecution('abort')` 终止当前步骤
   并清理 opencode 子进程，退出码 130。
@@ -124,26 +127,26 @@ loop step result step_demo_001 --json
 
 ## 编排执行（Orchestrator）
 
-`loop orch` 对应 HTTP 层 `POST /api/orchestrator/load` 与 `/api/orchestrator/start`
+`3rdloop orch` 对应 HTTP 层 `POST /api/orchestrator/load` 与 `/api/orchestrator/start`
 接口，直接复用 **Orchestrator** 核心类做多步骤依赖编排（不经 Brain 拆解 /
 TestCheck 审核）。适合已经把任务拆成步骤、且步骤之间存在 `nextStepId` /
 `failStepId` / `dependId` 依赖关系的场景。
 
 ```bash
 # ① 加载任务定义 + 启动编排并阻塞到终态（推荐入口）
-loop orch run task-def-demo.json
+3rdloop orch run task-def-demo.json
 
 # ② 仅加载任务定义（落盘 orchestration.json，进程退出后仍可 start）
-loop orch load task-def-demo.json
+3rdloop orch load task-def-demo.json
 
 # ③ 从磁盘恢复 LOADED 状态并启动（跨进程）
-loop orch start task_xxx
+3rdloop orch start task_xxx
 
 # ④ 查询 / 控制 / 列表
-loop orch progress task_xxx --loop 0
-loop orch abort task_xxx
-loop orch pause task_xxx     # 恢复：loop orch resume task_xxx
-loop orch tasks
+3rdloop orch progress task_xxx --loop 0
+3rdloop orch abort task_xxx
+3rdloop orch pause task_xxx     # 恢复：3rdloop orch resume task_xxx
+3rdloop orch tasks
 ```
 
 ### 任务定义 JSON（task-def.json）
@@ -181,24 +184,124 @@ loop orch tasks
 
 ### 语义与限制
 
-- **load 可跨进程**：`loop orch load` 会立即落盘 `orchestration.json`
-  （状态 `loaded`），之后任何终端/进程都能 `loop orch start <taskId>` 恢复并启动。
+- **load 可跨进程**：`3rdloop orch load` 会立即落盘 `orchestration.json`
+  （状态 `loaded`），之后任何终端/进程都能 `3rdloop orch start <taskId>` 恢复并启动。
 - **start 仅接受 LOADED**：任务处于 `completed`/`failed`/`running` 等状态时
   拒绝启动（与 HTTP `controller.start` 校验一致）。
-- **progress 读磁盘**：`loop orch progress` 直接读 `orchestration.json` /
+- **progress 读磁盘**：`3rdloop orch progress` 直接读 `orchestration.json` /
   `orchestration_loop{N}.json`，不依赖内存实例，历史轮次可用 `--loop N`。
 - **loop.json**：编排结束后写精简状态（`isOrchestration: true`），因此
-  `loop list` / `loop result` 也能看到编排任务。
+  `3rdloop list` / `3rdloop result` 也能看到编排任务。
 - **中断**：Ctrl+C 会对 Orchestrator 调用 `abort()` 并清理 opencode 子进程，
   退出码 130。
 - **跨进程控制限制**：`abort`/`pause`/`resume` 优先作用于**当前进程内**正在
-  运行的编排实例；无法中断另一进程的运行中任务（v1 与 `loop run` 语义一致）。
+  运行的编排实例；无法中断另一进程的运行中任务（v1 与 `3rdloop run` 语义一致）。
+
+## 工作流机制（固定编排）
+
+工作流是将"固定步骤编排"封装为带参数的 CLI 命令入口：`3rd3rdloop run <工作流名>` 会在运行时
+把参数构造为具参 taskDef，并复用 `3rdloop orch` 链路（`orchLoad` + `orchStart`）阻塞执行到终态。
+适合把一组固定的 SKILL 串联（如 `pr push`、`code check` 等）沉淀为可复用命令。
+
+### 使用
+
+```bash
+# 查看已注册工作流
+3rdloop workflows
+
+# 查看某个工作流的参数说明
+3rd3rdloop run <工作流名> --help
+
+# 正式执行（阻塞到终态；退出码 0=通过 / 2=任务失败）
+3rd3rdloop run <工作流名> --flag1 <值> --flag2 <值>
+
+# dry-run：只构造并打印/落盘 taskDef，不触碰引擎（调试新工作流用）
+3rd3rdloop run <工作流名> --flag1 <值> --print-taskdef
+```
+
+- `3rdloop run submit` 同样支持工作流名（命中时走工作流，未命中保持原任务描述语义）
+- 产物落默认 `<数据目录>/task/{taskId}/`；`--print-taskdef` 会额外写
+  `task-def.dry.json` 供人工核对
+- 退出码：`0` 通过 / `1` 参数或环境错误 / `2` 任务执行失败 / `130` Ctrl+C / `143` SIGTERM
+
+### 已注册工作流
+
+- **`pr-check` —— PR 代码检视**（等价封装前端 `Web/public/js/codecheck.js` 的 PR 检视面板）：
+
+```bash
+# 按库类型检视 PR（arkts 为默认，不传 --library-type 即可）
+3rdloop run pr-check --pr-url https://gitcode.com/owner/repo/pulls/123 --library-type rn
+
+# dry-run：核对构造出的 taskDef 与前端是否等价（不触碰引擎）
+3rdloop run pr-check --pr-url https://gitcode.com/owner/repo/pulls/123 --print-taskdef
+```
+
+与前端协同的两个约定：
+
+- **taskId 前缀 `codecheck_`**：格式 `codecheck_{owner}_{repo}_{prNum}_{ts36}`，与前端
+  `codecheck.js` 一致。前端 PR 检视历史页按 `taskIdPrefix=codecheck_` 过滤，故 CLI 提交的
+  检视任务在前端历史页同样可见。
+- **SKILL 映射**：`arkts→arkts-code-check`（默认） / `flutter→flutter-code-check` /
+  `rn→rn-code-check` / `tpccplus→tpc-cpp-check`，与前端 `_CC_SKILL_MAP` 同构；单步骤
+  `specifiedSkill` 固定绑定，`maxRetries: 3`，`title` 格式 `PR检视|{libraryType}|{prUrl}`
+  （供前端历史恢复解析）。
+- **参数校验**：`--pr-url` 必填；`--library-type` 非法值（非上述四种）在 dry-run 阶段即报错退出。
+
+### 如何新增一个工作流
+
+在 `cli/workflows/` 目录下新增一个 `.js`/`.mjs` 文件，默认导出一个工作流声明对象 **即可自动注册**，
+无需改动任何分发代码：
+
+```js
+export default {
+  name: 'demo prep',               // 工作流名，支持多词（空格分隔，分发时最长匹配）
+  description: '示例：构造一个占位固定编排（仅演示注册约定）',
+  params: [                        // CLI flags schema（驱动参数校验 / --help）
+    { flag: 'workspace-dir', required: true,  describe: '本地工作区 git 仓库根目录' },
+    { flag: 'report-name', required: false, describe: '输出报告名（默认 check-report.md）' },
+  ],
+  // params: { 'workspace-dir': <值>, ... } → 返回与 Orchestrator.loadTask 对齐的 taskDef
+  buildTaskDef(params) {
+    return {
+      taskId: '',                  // 缺省时 CLI 自动生成（generateTaskId()）
+      title: 'Demo 固定编排',
+      skillDirectory: '',
+      loopCount: 0,
+      steps: [{
+        stepId: 1,
+        taskDescription: `分析工作区修改并输出 ${params['report-name'] || 'check-report.md'} 报告`,
+        dependId: 0, nextStepId: 0, failStepId: 0, maxRetries: 3,
+        inputReport: '',
+      }],
+    };
+  },
+};
+```
+
+约定与细节：
+
+- **自动注册**：`cli/lib/workflows.js` 启动时扫描 `cli/workflows/*.mjs|*.js`，每文件默认导出一个工作流。
+  加载失败 / name 缺失 / 重名的工作流会被跳过并输出警告（不阻断其余工作流）。
+- **多词名最长匹配**：`3rdloop run pr push ...` 会先试完整 `pr push`，未注册再退 `pr`。
+- **steps 格式**：与 `3rdloop orch run <task-def.json>` 的 [taskDef 格式](#编排执行orchestrator) 完全一致
+  （stepId / taskDescription / dependId / nextStepId / failStepId / maxRetries / specifiedSkill / inputReport）。
+- **specifiedSkill 建议**：与核心引擎约定一致——步骤职责能匹配某可用 SKILL 时，把它写入
+  `specifiedSkill`（值为 SKILL name 或目录名），执行层将跳过 SkillSelector 自动匹配。
+- **只读环境注入**：`buildTaskDef(params, { dataDir })` 第二参携带运行时环境（数据目录等），
+  需要落盘相对路径时使用。
+
+### 职责边界
+
+- 工作流注册表只负责"参数 → taskDef"。**业务工作流（如 `pr push`）与所需 SKILL 由其他项目
+  开发者按上述约定注册与维护**，CLI 核心不预置任何业务工作流。
+- 新增业务 SKILL 请放在 `Server/Skills/` 下（沿用既有 SKILL 约定），工作流文件中以
+  `specifiedSkill` 引用即可。
 
 ## 环境约定
 
 - **`.env`** 加载链：系统环境变量 > `~/.3lib/.env`（用户级） > 项目根 `Server/.env`。
 - **数据目录**：`<项目根同级>/db`（如 `D:\code\3rdLibraryLoop` → `D:\code\db`），与核心引擎默认 workspace 级数据库一致；任务写入 `<数据目录>/task/{taskId}/`。
-- **opencode**：`loop` 会自动拉起 `opencode serve`（需在项目**上一级**目录运行），
+- **opencode**：`3rdloop` 会自动拉起 `opencode serve`（需在项目**上一级**目录运行），
   退出时负责清理进程树。若已存在运行中的 opencode 服务则直接复用。
 
 ## 环境变量
@@ -240,13 +343,13 @@ LLM 凭据变量（`DASHSCOPE_API_KEY` / `LLM_MODEL` 等）：按 `.env` 加载�
 
 ```bash
 # ① 安装 CLI（正式发布后）
-npm i -g @3lib/loop-cli
+npm i -g @ohos-cpf/3rdloop
 
 # 开发期替代：与后端共用仓库时用 npm link（直引 Server/ 源码，无需生成 vendor）
 cd cli && npm install && npm link
 
 # ② 环境自检，缺什么看什么
-loop doctor
+3rdloop doctor
 
 # ③ 配置 LLM 凭据（三选一）
 #   A. 项目级：在仓库 Server/.env 填 key（推荐，跟仓库走）
@@ -254,7 +357,7 @@ loop doctor
 #   C. 系统环境变量：setx DASHSCOPE_API_KEY "sk-xxx"
 
 # ④ 跑一个最小任务验证
-loop run "冒烟：分析一个三方库的鸿蒙化可行性" --max-loops 1
+3rdloop run "冒烟：分析一个三方库的鸿蒙化可行性" --max-loops 1
 ```
 
 数据目录默认在仓库根同级 `<项目根同级>/db`（与核心引擎默认一致，团队同机共享任务数据）；如需每用户隔离，用 `--data-dir` 或 `3LIB_DATA_DIR` 覆盖。
@@ -272,7 +375,7 @@ CLI 在**开发期不生成 `cli/vendor/`**，直接引用仓库 `Server/` 源�
 ```bash
 cd cli
 
-# ① npm link 后全局 loop 与本地一致（直引 Server/ 源码）
+# ① npm link 后全局 3rdloop 与本地一致（直引 Server/ 源码）
 npm link
 
 # ② 校验 Server/ 源码引入的外部依赖都在 package.json 声明
@@ -283,7 +386,7 @@ npm run verify-deps
 npm test
 
 # ④ 确认当前用的引擎来源（vendor 缺失时显示源码回退）
-loop doctor
+3rdloop doctor
 ```
 
 ### 发布期（打包给他人）：临时生成 vendor + 自动清理
@@ -315,7 +418,7 @@ npm publish              # prepack 自动复制 vendor → 打包 → postpack �
 cd cli
 npm install
 npm link              # 直引仓库 Server/ 源码，无需 prepack
-node bin/loop.mjs doctor
+node bin/3rdloop.mjs doctor
 ```
 
 发布前检查：`npm run verify-deps`（有 vendor 扫 vendor，否则回退扫 `Server/` 源码）

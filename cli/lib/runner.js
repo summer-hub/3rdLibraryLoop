@@ -468,7 +468,7 @@ export async function createStandaloneFlexRunner(ctx, params) {
  * 运行单个步骤（阻塞直到成功或重试耗尽）。
  *
  * 流程：createStandaloneFlexRunner → while(canRetry()) executeStart()。
- * 结束后写精简 loop.json（isSingleExecution:true），供 loop list/progress/result 可见。
+ * 结束后写精简 loop.json（isSingleExecution:true），供 3rdloop list/progress/result 可见。
  *
  * @param {RunContext} ctx
  * @param {object} params
@@ -629,6 +629,61 @@ function _nowLocal() {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}+08:00`;
 }
 
+// ═══ 任务注册表（SQLite，db/TaskRegistry/registry.db） ═══
+// 与 OrchestratorController._registerTask / _patchRegistryFinalState 语义对齐：
+// 前端历史列表（如 PR 检视页 taskIdPrefix=codecheck_）从注册表分页查询，
+// CLI 提交的编排任务若不入表，前端将看不到。写入失败只警告、不阻断主流程。
+
+/**
+ * 注册任务摘要到注册表（对齐 OrchestratorController._registerTask）。
+ * @param {import('./runner.js').RunContext} ctx
+ * @param {object} entry - { taskId, taskType, status, title, description, createdAt, metadata }
+ * @private
+ */
+async function _registryUpsert(ctx, entry) {
+    try {
+        const registry = ctx.storage.taskRegistryStore();
+        if (!registry) return;
+        await registry.upsert(entry);
+    } catch (err) {
+        console.warn(`[runner] 注册任务摘要失败: ${err.message}`);
+    }
+}
+
+/**
+ * 任务终态时回写注册表 status + 结构化指标（对齐 _patchRegistryFinalState）。
+ * 多步骤时合并各步骤 metrics（后完成的覆盖同名字段）。
+ * @param {import('./runner.js').RunContext} ctx
+ * @param {string} taskId
+ * @param {object} progress - orch.getProgress() 返回的快照
+ * @private
+ */
+async function _registryPatchFinalState(ctx, taskId, progress) {
+    try {
+        const registry = ctx.storage.taskRegistryStore();
+        if (!registry) return;
+
+        let metrics = null;
+        for (const s of (progress.steps || [])) {
+            if (s.metrics && typeof s.metrics === 'object') {
+                metrics = { ...(metrics || {}), ...s.metrics };
+            }
+        }
+
+        const patch = { status: progress.status || 'completed' };
+        if (metrics) {
+            const existing = await registry.get(taskId);
+            const existingMeta = existing && existing.metadata && typeof existing.metadata === 'object'
+                ? existing.metadata
+                : {};
+            patch.metadata = { ...existingMeta, ...metrics };
+        }
+        await registry.patch(taskId, patch);
+    } catch (err) {
+        console.warn(`[runner] 回写编排终态注册表失败: ${err.message}`);
+    }
+}
+
 // ═══ 编排（Orchestrator 多步骤依赖，对应 POST /api/orchestrator/load|start） ═══
 
 /**
@@ -636,7 +691,7 @@ function _nowLocal() {
  *
  * 提取为独立函数供两类使用方复用：
  *   - RunContext._init 注入 orchestratorController（大循环 LoopEngine 编排）
- *   - loop orch run/start 创建独立 Orchestrator 实例
+ *   - 3rdloop orch run/start 创建独立 Orchestrator 实例
  *
  * 注入共享 cli/storage/knowledgeManager，避免 FlexRunner 内部默认实例
  * 落到 vendor/Server 相对路径（cli/db 数据错位教训）。
@@ -721,6 +776,19 @@ export async function orchLoad(ctx, taskDef) {
         ...taskDef,
         skillDirectory: taskDef.skillDirectory || ctx.skillDir || '',
     });
+
+    // 注册任务摘要到注册表（与 OrchestratorController.load 对齐，供前端历史列表查询）
+    const firstStep = taskDef.steps[0] || {};
+    await _registryUpsert(ctx, {
+        taskId: taskDef.taskId,
+        taskType: 'orchestrator',
+        status: 'loaded',
+        title: (firstStep.taskDescription || taskDef.title || '').slice(0, 200),
+        description: taskDef.title || firstStep.taskDescription || '',
+        createdAt: new Date().toISOString(),
+        metadata: { stepCount: taskDef.steps.length }
+    });
+
     orch.dispose();
 
     return { status: orch.status, progress: orch.getProgress() };
@@ -742,7 +810,7 @@ export async function orchStart(ctx, taskId) {
     const taskDir = path.join(ctx.dataDir, 'task', taskId);
     const orchFile = path.join(taskDir, 'orchestration.json');
     if (!fs.existsSync(orchFile)) {
-        throw new Error(`未找到编排任务: taskId=${taskId}，请先执行 loop orch load`);
+        throw new Error(`未找到编排任务: taskId=${taskId}，请先执行 3rdloop orch load`);
     }
     let state;
     try {
@@ -771,7 +839,7 @@ export async function orchStart(ctx, taskId) {
         const progress = orch.getProgress();
         const status = result.status;
 
-        // 写精简 loop.json，使 loop list/progress/result 可见
+        // 写精简 loop.json，使 3rdloop list/progress/result 可见
         await _writeOrchestrationLoopJson(ctx, {
             taskId,
             taskDescription: state.taskDescription || '',
@@ -783,6 +851,9 @@ export async function orchStart(ctx, taskId) {
             orchestratorStatus: status,
             stats: progress.stats,
         });
+
+        // 回写注册表终态（status + 结构化指标，与 OrchestratorController 终态回写对齐）
+        await _registryPatchFinalState(ctx, taskId, progress);
 
         // 汇总各步产物路径
         const resultPaths = (progress.steps || [])
@@ -808,7 +879,7 @@ export async function orchStart(ctx, taskId) {
  *
  * 嵌入式模式下任务在发起方进程内运行，控制命令先尝试命中当前进程内
  * 正在运行的 _activeOrchestrator；否则从磁盘恢复实例调用对应控制方法。
- * 跨进程无法中断另一进程的运行中任务（v1 与 loop run 语义一致，接受现状）。
+ * 跨进程无法中断另一进程的运行中任务（v1 与 3rdloop run 语义一致，接受现状）。
  *
  * @param {RunContext} ctx
  * @param {string} taskId

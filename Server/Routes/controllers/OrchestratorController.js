@@ -467,13 +467,15 @@ class OrchestratorController {
             orch = this._getOrchestrator(taskId);
         } catch (_) {
             // 内存中不存在，尝试从磁盘恢复（只读响应，不写入内存 Map——
-            // 避免前端翻阅大量历史任务时 Orchestrator 实例无限驻留内存）
+            // 避免前端翻阅大量历史任务时 Orchestrator 实例无限驻留内存）。
+            // queryOnly：任务可能是另一进程（如 CLI）正在执行的编排，RUNNING 状态
+            // 原样返回，不做"重启中断→FAILED"标记，避免前端误报"检视失败"。
             if (this.storage) {
                 try {
                     const state = await this.storage.json('task').read(`${taskId}/orchestration`);
                     if (state) {
                         orch = this._createOrchestrator();
-                        await orch.restoreState(state);
+                        await orch.restoreState(state, { queryOnly: true });
                     }
                 } catch (err) {
                     console.warn(`[OrchestratorController] 恢复失败: ${err.message}`);
