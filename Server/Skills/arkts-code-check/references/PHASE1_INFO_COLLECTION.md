@@ -190,7 +190,12 @@ git diff {targetBranch}..pr{prNumber} -- {targetLibraryDir}/ > {outputDir}/pr-di
 git diff --stat {targetBranch}..pr{prNumber} -- {targetLibraryDir}/
 
 # 重新生成 changed-files.txt（基于过滤后的 diff）
-grep "^diff --git" {outputDir}/pr-diff.txt | sed 's/diff --git a\/.* b\/\//' > {outputDir}/changed-files.txt
+# ⚠️ 禁止使用 sed 's/diff --git a\/.* b\/\//' —— macOS BSD sed 对该转义组合不兼容，
+#    会报 "unterminated substitute in regular expression" 并静默生成 0 字节空文件
+grep "^diff --git" {outputDir}/pr-diff.txt | awk '{print $4}' | sed 's/^b\///' > {outputDir}/changed-files.txt
+
+# 生成后必须校验非空（0 字节空文件 = 提取失败，会导致后续检视范围判断失据，且收尾前不易察觉）
+wc -l {outputDir}/changed-files.txt
 ```
 
 ### 边界情况
@@ -216,7 +221,13 @@ grep "^diff --git" {outputDir}/pr-diff.txt | sed 's/diff --git a\/.* b\/\//' > {
 **生成 changed-files.txt**：
 ```bash
 # 基于范围过滤后的 diff 生成（而非 pr-diff-raw.txt 或 pr.patch）
-grep "^diff --git" {outputDir}/pr-diff.txt | sed 's/diff --git a\/.* b\/\//' > {outputDir}/changed-files.txt
+# ⚠️ 禁止使用 sed 's/diff --git a\/.* b\/\//' —— macOS BSD sed 不兼容该转义组合，
+#    会静默生成 0 字节空文件；改用 awk 提取第 4 列再去掉 b/ 前缀
+grep "^diff --git" {outputDir}/pr-diff.txt | awk '{print $4}' | sed 's/^b\///' > {outputDir}/changed-files.txt
+
+# 生成后必须校验非空（自检步骤：空文件意味着提取失败，必须立即发现而非收尾时）
+wc -l {outputDir}/changed-files.txt
 ```
 
 > **注意**：changed-files.txt 必须基于 `pr-diff.txt`（范围过滤后的累积 diff）生成，而非 `pr-diff-raw.txt`（全量累积 diff）或 `pr.patch`（单次 commit）。
+> **自检要求**：`wc -l` 结果为 0 行时禁止继续后续流程，必须先排查 diff 生成与提取命令是否失败（实际案例：mp3agic PR #53 中 BSD sed 静默失败生成空文件，直至收尾才发现，险些遗漏检视范围）。

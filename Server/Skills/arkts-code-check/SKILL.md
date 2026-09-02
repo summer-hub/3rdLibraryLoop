@@ -4,7 +4,7 @@ description: 自动化检视 ArkTS 三方库 Pull Request，包括获取 PR 差�
 license: Apache-2.0
 compatibility: 需要 git、curl、网络访问代码仓库平台 API
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # ArkTsCodeCheckSkill — ArkTS 三方库 PR 代码检视
@@ -126,7 +126,10 @@ git diff {targetBranch}..pr{prNumber} -- {targetLibraryDir}/ > {outputDir}/pr-di
 git diff --stat {targetBranch}..pr{prNumber} -- {targetLibraryDir}/
 
 # 重新生成 changed-files.txt（基于过滤后的 diff）
-grep "^diff --git" {outputDir}/pr-diff.txt | sed 's/diff --git a\/.* b\/\//' > {outputDir}/changed-files.txt
+# ⚠️ 禁止 sed 's/diff --git a\/.* b\/\//'（macOS BSD sed 不兼容会静默生成空文件），改用 awk 提取
+grep "^diff --git" {outputDir}/pr-diff.txt | awk '{print $4}' | sed 's/^b\///' > {outputDir}/changed-files.txt
+# 生成后必须校验非空（空文件 = 提取失败，禁止继续后续流程）
+wc -l {outputDir}/changed-files.txt
 ```
 
 > **原则**：检视应聚焦于 PR 的意图范围（单次提交涉及的目标库），不应将 fork 分支 divergent master 上的其他变更纳入检视和分级。
@@ -176,6 +179,10 @@ grep "^diff --git" {outputDir}/pr-diff.txt | sed 's/diff --git a\/.* b\/\//' > {
 | 安全性 | 无硬编码密钥、输入校验 |
 
 > 完整检查清单参见 [代码检视指南](references/CODE_CHECK_GUIDE.md)
+
+**专项检查规范**（详见指南 3.14 / 3.15 节）：
+- **静态检查工具（arkts_check）使用规范**：必须以绝对路径调用（相对路径会产生假阴性静默漏检）；`Cannot find module '@ohos/*'` 为 ohpm 本地依赖解析的环境误报，不计入问题统计；采用**基线对照法**（对 master 既有文件跑同样检查）区分"PR 引入"与"历史存量"违规
+- **测试型 PR 检查清单**：纯测试补充型 PR 须执行导入符号核验、构造函数签名比对、夹具数据解码核验、未使用导入检测、新文件 License 头一致性、测试脚手架与库内部契约链路确认
 
 ### 3.2 问题严重程度
 
