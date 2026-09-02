@@ -410,8 +410,6 @@ class Orchestrator {
         this._emit(SSE_EVENT.TASK_START, this.getProgress());
         await this._persistState();
 
-        this._log('info', `── 编排执行开始 ──`);
-
         try {
             // 初始就绪：将所有入口步骤标记为 ready
             for (const stepId of this._entryStepIds) {
@@ -484,7 +482,6 @@ class Orchestrator {
             node.releaseRunner();
         }
         this._disposed = true;
-        this._log('info', '── 编排器已释放重型引用 ──');
     }
 
     /**

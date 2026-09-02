@@ -685,7 +685,7 @@ class FlexRunner {
             return null;
         }
 
-        this._log('info', `specifiedSkill 开始 — 指定 Skill: "${specifiedSkill}"`);
+        this._log('debug', `specifiedSkill 开始 — 指定 Skill: "${specifiedSkill}"`);
 
         try {
             // ── 1. 目录名精确匹配 ──
@@ -694,7 +694,7 @@ class FlexRunner {
             try {
                 const stat = await fs.stat(directSkillMd);
                 if (stat.isFile()) {
-                    this._log('info', `specifiedSkill 完成 — 目录名匹配: ${directDir}`);
+                    this._log('debug', `specifiedSkill 完成 — 目录名匹配: ${directDir}`);
                     return directDir;
                 }
             } catch {
@@ -809,7 +809,7 @@ class FlexRunner {
         // skillDir 允许为 null：未匹配到 SKILL 时以无 SKILL 模式执行
 
         const modeLabel = skillDir ? 'SKILL 模式' : '无 SKILL 模式';
-        this._log('info', `invokeSkill 开始 — ${modeLabel}${skillDir ? `: ${skillDir}` : ''}`);
+        this._log('debug', `invokeSkill 开始 — ${modeLabel}${skillDir ? `: ${skillDir}` : ''}`);
 
         try {
             // ── 1. 健康检查 ──
@@ -828,7 +828,7 @@ class FlexRunner {
             // const { sessionId } = await this.#cli.startSession(title, prompt, { cwd: this.#taskDir });
             const { sessionId } = await this.#cli.startSession(title, prompt);
             this.#sessionId = sessionId
-            this._log('info', `Session 已创建: ${sessionId}`);
+            this._log('debug', `Session 已创建: ${sessionId}`);
 
             // 实时通知编排层（静默失败，不影响主流程）
             if (this.#onSessionCreated) {

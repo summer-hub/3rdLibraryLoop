@@ -9,7 +9,11 @@
  *   get-user                                  获取 Token 用户信息
  *   get-repo --owner x --repo y               获取仓库信息（id、default_branch；fork 仓库含 parent 源仓库）
  *   get-branch --owner x --repo y --branch b  探测分支是否存在（用于 PR base 同名分支探测）
- *   create-issue --title t --body-file f      创建 Issue，返回 number
+ *   get-issue-templates --owner x --repo y    探测 Issue 模板（仓库级 .gitcode/.github → 组织级 {owner}/.gitcode），
+ *                                             返回各模板 yml 原文（source: repo|org|none）
+ *   list-prs --owner x --repo y [--state open] [--head b] [--base m] [--limit n]
+ *                                             列出 PR（默认 open），用于幂等检测：fork 分支是否已有指向源仓库的 open PR
+ *   create-issue --title t --body-file f [--labels a,b]  创建 Issue，返回 number
  *   create-pr --head b --base m --title t --body-file f
  *            [--fork-repo o/r --target-project-id id]  创建 PR（跨仓库时传后两项）
  *   comment-pr --pr n --body "Start build"    在 PR 评论（CI 触发）
@@ -49,7 +53,10 @@ function die(msg, code = 1) {
 }
 
 // ---------- HTTP ----------
-async function api(method, endpoint, params, token) {
+/**
+ * @param opts.allow404 boolean - 404 时返回 null（不 die），用于探测类调用（分支存在性 / Issue 模板探测）
+ */
+async function api(method, endpoint, params, token, opts = {}) {
   const url = new URL(BASE + endpoint);
   const search = new URLSearchParams();
   if (token) search.set('access_token', token);
@@ -70,6 +77,7 @@ async function api(method, endpoint, params, token) {
   let json;
   try { json = JSON.parse(text); } catch { json = { raw: text }; }
   if (!res.ok) {
+    if (opts.allow404 && res.status === 404) return null;
     die(`GitCode API ${method} ${endpoint} -> HTTP ${res.status}: ${text.slice(0, 500)}`);
   }
   return json;
@@ -133,25 +141,126 @@ async function main() {
     }
     case 'get-branch': {
       requireParam(args, ['owner', 'repo', 'branch']);
-      // 探测分支是否存在：200 存在 / 404 不存在（不作为错误退出）
-      try {
-        const b = await api('GET', `/repos/${args.owner}/${args.repo}/branches/${encodeURIComponent(args.branch)}`, {}, token);
-        console.log(JSON.stringify({ ok: true, exists: true, branch: b.name || args.branch }, null, 2));
-      } catch (e) {
-        if (/HTTP 404/.test(e.message)) {
-          console.log(JSON.stringify({ ok: true, exists: false, branch: args.branch }, null, 2));
-        } else {
-          throw e;
+      // 探测分支是否存在：200 存在 / 404 不存在（allow404 返回 null，不作为错误退出）
+      const b = await api('GET', `/repos/${args.owner}/${args.repo}/branches/${encodeURIComponent(args.branch)}`, {}, token, { allow404: true });
+      console.log(JSON.stringify({ ok: true, exists: !!b, branch: (b && b.name) || args.branch }, null, 2));
+      break;
+    }
+    case 'get-issue-templates': {
+      requireParam(args, ['owner', 'repo']);
+      // 探测顺序：仓库级 .gitcode/ISSUE_TEMPLATE → 仓库级 .github/ISSUE_TEMPLATE → 组织级 {owner}/.gitcode 仓库
+      // 实测（CPF-ApplicationTPC/lottie_turbo）：仓库自身无模板目录，模板在组织仓库 {org}/.gitcode 的
+      // .gitcode/ISSUE_TEMPLATE/ 下（GitHub Issue Forms YAML：name/title/labels/type/body[]）。
+      const candidates = [
+        { source: 'repo', owner: args.owner, repo: args.repo, path: '.gitcode/ISSUE_TEMPLATE' },
+        { source: 'repo', owner: args.owner, repo: args.repo, path: '.github/ISSUE_TEMPLATE' },
+        { source: 'org', owner: args.owner, repo: '.gitcode', path: '.gitcode/ISSUE_TEMPLATE' },
+      ];
+      let found = null;
+      for (const c of candidates) {
+        const list = await api('GET', `/repos/${c.owner}/${c.repo}/contents/${c.path}`, {}, token, { allow404: true });
+        if (Array.isArray(list) && list.some((f) => f && f.type === 'file' && /\.ya?ml$/i.test(f.name || ''))) {
+          found = { ...c, list };
+          break;
         }
       }
+      if (!found) {
+        console.log(JSON.stringify({ ok: true, source: 'none', templates: [] }, null, 2));
+        break;
+      }
+      let blankIssuesEnabled = true; // 无 config.yml 时默认允许空白 issue
+      const templates = [];
+      for (const f of found.list) {
+        if (!f || f.type !== 'file' || !/\.ya?ml$/i.test(f.name || '')) continue;
+        const meta = await api('GET', `/repos/${found.owner}/${found.repo}/contents/${found.path}/${encodeURIComponent(f.name)}`, {}, token, { allow404: true });
+        if (!meta) continue;
+        let yaml = '';
+        if (typeof meta.content === 'string' && meta.content) {
+          yaml = Buffer.from(meta.content.replace(/\s/g, ''), 'base64').toString('utf8');
+        } else if (meta.download_url) {
+          const raw = await fetch(meta.download_url);
+          yaml = await raw.text();
+        } else {
+          continue;
+        }
+        if (/^config\.ya?ml$/i.test(f.name)) {
+          blankIssuesEnabled = /blank_issues_enabled:\s*true/i.test(yaml);
+          continue;
+        }
+        const strip = (v) => String(v || '').trim().replace(/^["']|["']$/g, '');
+        const labelsMatch = yaml.match(/^labels:\s*(.+)$/m);
+        let labels = [];
+        if (labelsMatch) {
+          const lv = labelsMatch[1].trim();
+          if (lv.startsWith('[')) {
+            try { labels = JSON.parse(lv.replace(/'/g, '"')); } catch { labels = []; }
+          } else {
+            labels = [strip(lv)];
+          }
+        }
+        templates.push({
+          file: f.name,
+          name: strip((yaml.match(/^name:\s*(.+)$/m) || [])[1]) || f.name,
+          title: strip((yaml.match(/^title:\s*(.+)$/m) || [])[1]),
+          labels,
+          type: strip((yaml.match(/^type:\s*(.+)$/m) || [])[1]),
+          yaml,
+        });
+      }
+      console.log(JSON.stringify({
+        ok: true,
+        source: found.source, // repo=仓库自身模板 | org=组织级 .gitcode 仓库模板
+        templateRepo: `${found.owner}/${found.repo}`,
+        templatePath: found.path,
+        blankIssuesEnabled,
+        count: templates.length,
+        templates,
+      }, null, 2));
+      break;
+    }
+    case 'list-prs': {
+      requireParam(args, ['owner', 'repo']);
+      // 列出 PR：state=open|closed|all（默认 open）；head/base 按分支名过滤（实测支持）
+      // 幂等检测用途：查源仓库 open PR 中是否已有 head 分支来自当前 fork 用户的 PR
+      const params = { state: typeof args.state === 'string' && args.state ? args.state : 'open', per_page: 20 };
+      if (typeof args.head === 'string' && args.head) params.head = args.head;
+      if (typeof args.base === 'string' && args.base) params.base = args.base;
+      if (args.limit && args.limit !== true) params.per_page = parseInt(args.limit, 10) || 20;
+      const list = await api('GET', `/repos/${args.owner}/${args.repo}/pulls`, params, token);
+      const prs = (Array.isArray(list) ? list : []).map((p) => ({
+        number: p.number,
+        iid: p.iid || p.number,
+        state: p.state,
+        title: p.title,
+        head: (p.head && (p.head.ref || p.head.label)) || '',
+        headUser: (p.head && p.head.user && (p.head.user.login || p.head.user.name)) || '',
+        base: (p.base && (p.base.ref || p.base.label)) || '',
+        url: p.html_url || `https://gitcode.com/${args.owner}/${args.repo}/merge_requests/${p.number}`,
+      }));
+      console.log(JSON.stringify({ ok: true, count: prs.length, prs }, null, 2));
       break;
     }
     case 'create-issue': {
       requireParam(args, ['owner', 'repo', 'title']);
-      const iss = await api('POST', `/repos/${args.owner}/${args.repo}/issues`, {
+      const params = {
         title: args.title,
         body: readBody(args),
-      }, token);
+      };
+      // 可选 labels：有模板时传模板声明的 labels（GitCode 不支持或报错时去掉重试）
+      if (typeof args.labels === 'string' && args.labels.trim()) {
+        params.labels = args.labels.split(',').map((s) => s.trim()).filter(Boolean).join(',');
+      }
+      let iss;
+      try {
+        iss = await api('POST', `/repos/${args.owner}/${args.repo}/issues`, params, token);
+      } catch (e) {
+        if (params.labels && /HTTP 4\d\d/.test(e.message)) {
+          delete params.labels; // labels 不被接受时降级重试（标题/body 不受影响）
+          iss = await api('POST', `/repos/${args.owner}/${args.repo}/issues`, params, token);
+        } else {
+          throw e;
+        }
+      }
       console.log(JSON.stringify({ ok: true, number: iss.number, url: `https://gitcode.com/${args.owner}/${args.repo}/issues/${iss.number}` }, null, 2));
       break;
     }
@@ -195,7 +304,7 @@ async function main() {
       break;
     }
     default:
-      die(`未知子命令: ${cmd}（可用: get-user | get-repo | get-branch | create-issue | create-pr | comment-pr）`);
+      die(`未知子命令: ${cmd}（可用: get-user | get-repo | get-branch | get-issue-templates | list-prs | create-issue | create-pr | comment-pr）`);
   }
 }
 

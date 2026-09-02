@@ -52,7 +52,6 @@ class OpenCodeCLI {
     _init() {
         try {
             this.client = createOpencodeClient({ baseUrl: this.baseUrl });
-            this._log('info', `已连接至 ${this.baseUrl}`);
         } catch (error) {
             this._log('error', `初始化失败: ${error.message}`);
             throw error;
@@ -307,7 +306,7 @@ class OpenCodeCLI {
      */
     async startSession(title, prompt, options = {}) {
         const cwd = options.cwd;
-        this._log('info', `startSession title="${title}"${cwd ? ` cwd="${cwd}"` : ''}`);
+        this._log('debug', `startSession title="${title}"${cwd ? ` cwd="${cwd}"` : ''}`);
 
         // 前置检查：如果指定了 cwd，确保目录存在
         // opencode session.create 不会检查目录是否存在，但 promptAsync 时会
@@ -407,7 +406,7 @@ class OpenCodeCLI {
 
                 if (busyDurationMs >= stallThresholdMs) {
                     // busy 停滞超阈值 → 检查消息层，识别是否实际已完成
-                    this._log('warn',
+                    this._log('debug',
                         `checkSessionStatus: session ${sessionId} busy 持续 ${Math.round(busyDurationMs / 1000)}s，降级检查消息层`);
                     const fallback = await this._checkMessageLayer(sessionId);
                     if (fallback) {
@@ -470,7 +469,7 @@ class OpenCodeCLI {
             // 若检测到停滞（running 状态下长时间无新 assistant 消息）
             const finalStatus = checkRes.stalled ? 'stalled' : status;
             if (checkRes.stalled) {
-                this._log('warn',
+                this._log('debug',
                     `checkSessionStatus: 检测到停滞 id=${sessionId}, 已 ${Math.round((checkRes.stallDurationMs || 0) / 1000)}s 无新响应`);
             }
 
