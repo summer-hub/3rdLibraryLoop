@@ -3,10 +3,13 @@
 /**
  * 3rdLibraryLoop 服务启动脚本
  *
- * 先执行环境检测（调用 check-env.mjs），全部通过后启动三个服务：
- *   ① Server 后端 API:  node Server/Routes/server.js --port 3000 --type opencode
+ * 先执行环境检测（调用 check-env.mjs），全部通过后启动服务：
+ *   ① Server 后端 API:  node Server/Routes/server.js --port 3000 --type <CLI_TYPE>
  *   ② Web 前端:         node Web/server.js --port 8080 --backend http://127.0.0.1:3000
- *   ③ opencode 服务:     opencode serve
+ *   ③ CLI serve 服务:   按 CLI_TYPE 启动 opencode serve 或 deveco serve（统一默认 4096）
+ *
+ * CLI_TYPE 解析优先级（与 Server/CLI/cli.js 一致）：
+ *   shell 环境变量 CLI_TYPE > Server/.env 的 CLI_TYPE > 'opencode'
  *
  * 用法:
  *   node start-services.mjs                  # 先检测环境，通过后启动服务
@@ -18,12 +21,18 @@
 import path from 'node:path';
 import { spawn, execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { runChecks } from './check-env.mjs';
+import { runChecks, resolveCliType, resolveCliServePort } from './check-env.mjs';
 
 // ─── 路径常量 ──────────────────────────────────────────────────────────────
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PROJECT_ROOT = __dirname;
+
+// 当前生效的 CLI 后端类型（决定 --type 参数与 serve 服务）
+const CLI_TYPE = resolveCliType();
+const IS_DEVECO = CLI_TYPE === 'deveco-code';
+// CLI serve 应监听的端口（与后端适配器一致：shell env / .env / 默认 4096）
+const CLI_SERVE_PORT = resolveCliServePort(CLI_TYPE);
 
 // ─── ANSI 颜色 ─────────────────────────────────────────────────────────────
 const isTTY = process.stdout.isTTY;
@@ -114,6 +123,35 @@ function isProcessRunning(pattern) {
     }
 }
 
+/**
+ * 检查指定端口是否有进程正在监听
+ */
+function isPortListening(port) {
+    try {
+        if (process.platform === 'win32') {
+            const out = execSync(`netstat -ano | findstr :${port} | findstr LISTENING`, { encoding: 'utf8' });
+            return out.trim().length > 0;
+        } else {
+            execSync(`lsof -ti:${port} -sTCP:LISTEN`, { encoding: 'utf8', stdio: 'pipe' });
+            return true;
+        }
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * 终止匹配指定模式的进程（仅非 Windows；macOS/Linux）
+ */
+function killProcessByPattern(pattern) {
+    try {
+        execSync(`pkill -f "${pattern}"`, { encoding: 'utf8', stdio: 'ignore' });
+        return true;
+    } catch {
+        return false;
+    }
+}
+
 // ─── 环境检测 ──────────────────────────────────────────────────────────────
 
 const skipCheck = process.argv.includes('--skip-check');
@@ -137,11 +175,38 @@ if (!skipCheck) {
 
 // ─── 服务定义 ──────────────────────────────────────────────────────────────
 
+// CLI serve 服务定义（按 CLI_TYPE 选择；显式 --port 与后端适配器同源解析，
+// 避免工具在端口被占时随机分配端口导致后端连不上）
+const cliServeService = IS_DEVECO
+    ? {
+        name: 'deveco serve',
+        cmd: 'deveco',
+        // deveco serve 不指定 --port 时：4096 空闲则监听 4096（默认），被占则随机分配，
+        // 显式指定以杜绝端口漂移（默认 4096，与 opencode 统一）
+        args: ['serve', '--port', CLI_SERVE_PORT],
+        cwd: path.resolve(PROJECT_ROOT, '..'), // 在 3rdLibraryLoop 上一级目录执行
+        color: C.yellow,
+        url: null,
+        processPattern: 'deveco serve',
+        servePort: Number(CLI_SERVE_PORT),
+    }
+    : {
+        name: 'opencode serve',
+        cmd: 'opencode',
+        args: ['serve', '--port', CLI_SERVE_PORT],
+        cwd: path.resolve(PROJECT_ROOT, '..'), // 在 3rdLibraryLoop 上一级目录执行
+        color: C.yellow,
+        url: null,
+        processPattern: 'opencode serve',
+        servePort: Number(CLI_SERVE_PORT),
+    };
+
 const services = [
     {
         name: 'Server 后端 API',
         cmd: 'node',
-        args: [path.join(PROJECT_ROOT, 'Server', 'Routes', 'server.js'), '--port', '3000', '--type', 'opencode'],
+        // --type 跟随 CLI_TYPE（shell 环境变量 > Server/.env），不再硬编码 opencode
+        args: [path.join(PROJECT_ROOT, 'Server', 'Routes', 'server.js'), '--port', '3000', '--type', CLI_TYPE],
         cwd: PROJECT_ROOT,
         color: C.green,
         url: 'http://127.0.0.1:3000',
@@ -169,26 +234,43 @@ const services = [
         url: null,                    // stdio 传输，无 HTTP 端口
         skipIfRunning: 'MCP/src/index.js',  // 已在运行（如 opencode 已 spawn）则跳过
     },
-    {
-        name: 'opencode serve',
-        cmd: 'opencode',
-        args: ['serve'],
-        cwd: path.resolve(PROJECT_ROOT, '..'), // 在 3rdLibraryLoop 上一级目录执行
-        color: C.yellow,
-        url: null,
-        skipIfRunning: 'opencode serve',  // 已在运行则跳过
-    },
+    cliServeService,
 ];
 
 // ─── 启动服务 ──────────────────────────────────────────────────────────────
 
 banner('🚀 启动服务');
 
+// 显示当前生效的 CLI 后端类型，避免 .env 配置被静默忽略
+console.log(`  ${C.bold}CLI 后端类型:${C.reset} ${C.cyan}${CLI_TYPE}${C.reset}` +
+    `${IS_DEVECO ? ` ${C.gray}（来自 shell 环境变量或 Server/.env 的 CLI_TYPE）${C.reset}` : ''}` +
+    `  ${C.bold}serve 端口:${C.reset} ${C.cyan}${CLI_SERVE_PORT}${C.reset}`);
+console.log();
+
 const processes = [];
 const skipped = [];
 
 for (const svc of services) {
-    // opencode serve: 已在运行则跳过
+    // ── CLI serve 服务：按端口判断，而非仅按进程名 ──
+    // 场景：用户手动 `deveco serve`（无 --port）会抢占 4096 或随机端口，
+    // 进程在跑但后端适配器连的 CLI_SERVE_PORT 上没有服务，健康检查必然失败。
+    // 因此：期望端口在监听 → 跳过；进程在跑但端口不对 → 警告并终止后以正确端口重启。
+    if (svc.servePort) {
+        if (isPortListening(svc.servePort)) {
+            console.log(`\n  ${svc.color}○ ${svc.name} 已在运行（端口 ${svc.servePort} 在监听），跳过启动${C.reset}`);
+            skipped.push(svc);
+            continue;
+        }
+        if (isProcessRunning(svc.processPattern)) {
+            console.log(`\n  ${C.yellow}⚠ 检测到 ${svc.processPattern} 进程，但端口 ${svc.servePort} 未监听（可能手动启动时未指定 --port）${C.reset}`);
+            console.log(`  ${C.yellow}  将终止该进程并以正确端口重启...${C.reset}`);
+            killProcessByPattern(svc.processPattern);
+            // 等待端口/进程释放
+            await new Promise(r => setTimeout(r, 1500));
+        }
+    }
+
+    // 其他服务（MCP Gateway 等）：已在运行则跳过
     if (svc.skipIfRunning && isProcessRunning(svc.skipIfRunning)) {
         console.log(`\n  ${svc.color}○ ${svc.name} 已在运行，跳过启动${C.reset}`);
         hint(`检测到进程: ${svc.skipIfRunning}`);

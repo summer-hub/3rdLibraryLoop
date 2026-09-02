@@ -61,7 +61,7 @@ export class SkillExecutor {
     async getCLI() {
         if (!this._cli) {
             const CLIController = await _loadCLIController();
-            this._cli = new CLIController('opencode');
+            this._cli = new CLIController();
         }
         return this._cli;
     }
@@ -90,7 +90,7 @@ export class SkillExecutor {
         // ── 1. 健康检查 ──
         const health = await cli.checkHealth();
         if (health.status !== 'ok') {
-            throw new Error(`opencode 服务不可用: ${health.message || 'health check failed'}`);
+            throw new Error(`CLI(${cli.getType()}) 服务不可用: ${health.message || 'health check failed'}`);
         }
 
         // ── 1b. 确保工作目录存在 ──

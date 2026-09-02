@@ -402,7 +402,7 @@ class FlexRunner {
             this.#cli = cli;
         } else {
             const CLIController = await _loadCLIController();
-            this.#cli = new CLIController('opencode', {});
+            this.#cli = new CLIController();
         }
 
         if (skillSelector) {
@@ -815,7 +815,7 @@ class FlexRunner {
             // ── 1. 健康检查 ──
             const health = await this.#cli.checkHealth();
             if (health.status !== 'ok') {
-                this._log('error', `opencode 服务不可用: ${health.message}`);
+                this._log('error', `CLI(${this.#cli.getType()}) 服务不可用: ${health.message}`);
                 return false;
             }
 

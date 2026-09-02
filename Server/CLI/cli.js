@@ -1,13 +1,35 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import OpenCodeCLI from './opencode/index.js';
+import DevEcoCodeCLI from './deveco-code/index.js';
 import { StatsService } from '../library/StatsService.js';
+
+// 加载 Server/.env（本文件在 CLI/ 下，上一级目录为 Server/）。
+// dotenv 为可选依赖：未安装时跳过（如纯 mock 测试场景）。
+// dotenv 默认不覆盖已存在的环境变量，因此 shell export / --type 参数优先级仍高于 .env。
+try {
+    const dotenv = (await import('dotenv')).default;
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
+} catch {
+    // dotenv 未安装或 .env 不存在，跳过
+}
 
 /**
  * 通用 CLI 控制类
  *
- * 封装 opencode-cli，对外暴露统一的 Session 管理接口。
+ * 封装 AI 编程助手 CLI（opencode / deveco-code），对外暴露统一的 Session 管理接口。
+ *
+ * 默认 CLI 类型可在 Server/.env 中配置 CLI_TYPE=opencode|deveco-code，
+ * 也可通过 shell 环境变量 CLI_TYPE 指定（优先级高于 .env），均未设置时默认 'opencode'。
+ * 显式传入 type 参数优先级最高。
+ *
+ * 连接配置同样支持 .env：OPENCODE_HOST/OPENCODE_PORT、DEVECO_HOST/DEVECO_PORT。
  *
  * @example
- * const cli = new CLIController('opencode', { host: 'localhost', port: '4096' });
+ * const cli = new CLIController('opencode');   // 连接 localhost:4096
+ * const cli = new CLIController('deveco-code'); // 连接 localhost:4096（两者默认端口一致）
+ * const cli = new CLIController();  // 使用 .env / 环境变量 CLI_TYPE 指定的默认类型
  *
  * // 通用接口
  * await cli.checkHealth();
@@ -21,7 +43,8 @@ import { StatsService } from '../library/StatsService.js';
  */
 class CLIController {
     /**
-     * @param {'opencode'} type - CLI 类型
+     * @param {'opencode'|'deveco-code'} [type] - CLI 类型，缺省时取环境变量 CLI_TYPE
+     *   （shell 环境变量 > Server/.env），仍未设置则 'opencode'
      * @param {object} [options={}]       - 传递给对应适配器的配置项
      *
      * opencode 选项：
@@ -29,19 +52,28 @@ class CLIController {
      *   options.port    {string} - 服务端口（默认 4096）
      *   options.baseUrl {string} - 完整 URL，优先级高于 host/port
      *
+     * deveco-code 选项：
+     *   options.host    {string} - 服务主机（默认 localhost）
+     *   options.port    {string} - 服务端口（默认 4096，与 opencode 一致；两者需同时
+     *                              运行时可通过 DEVECO_PORT 指定不同端口）
+     *   options.baseUrl {string} - 完整 URL，优先级高于 host/port
+     *
      * 公共选项：
      *   options.archive    - MessageArchive 实例（消息存档与卡死检测），不传则适配器内部自建
      */
-    constructor(type = 'opencode', options = {}) {
+    constructor(type = process.env.CLI_TYPE || 'opencode', options = {}) {
         this.type = type;
 
         switch (type) {
             case 'opencode':
                 this.adapter = new OpenCodeCLI(options);
                 break;
+            case 'deveco-code':
+                this.adapter = new DevEcoCodeCLI(options);
+                break;
             default:
                 throw new Error(
-                    `不支持的 CLI 类型: "${type}"，可选值为 'opencode'`
+                    `不支持的 CLI 类型: "${type}"，可选值为 'opencode'、'deveco-code'`
                 );
         }
     }
@@ -224,7 +256,7 @@ class CLIController {
 
     /**
      * 返回当前使用的 CLI 类型
-     * @returns {'opencode'}
+     * @returns {'opencode'|'deveco-code'}
      */
     getType() {
         return this.type;
@@ -232,12 +264,12 @@ class CLIController {
 
     /**
      * 返回底层适配器实例（供高级用途）
-     * @returns {OpenCodeCLI}
+     * @returns {OpenCodeCLI|DevEcoCodeCLI}
      */
     getAdapter() {
         return this.adapter;
     }
 }
 
-export { CLIController, OpenCodeCLI };
+export { CLIController, OpenCodeCLI, DevEcoCodeCLI };
 export default CLIController;

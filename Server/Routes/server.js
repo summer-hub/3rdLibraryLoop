@@ -30,14 +30,15 @@ import KnowledgeImportController from './controllers/KnowledgeImportController.j
  *   const server = await createServer({ port: 3000 });
  *
  * 或直接运行：
- *   node server.js --port 3000 --type opencode
+ *   node server.js --port 3000 --type deveco-code
+ *   （也可用环境变量指定默认 CLI：CLI_TYPE=deveco-code node server.js --port 3000）
  */
 
 /**
  * 创建并启动 HTTP 服务
  * @param {object} [options]
  * @param {number} [options.port=3000]          - 监听端口
- * @param {string} [options.cliType='opencode'] - CLI 类型
+ * @param {string} [options.cliType]            - CLI 类型，缺省时取环境变量 CLI_TYPE，仍未设置则 'opencode'
  * @param {object} [options.cliOptions={}]      - CLI 适配器配置
  * @param {CLIController} [options.cli]         - 已存在的 CLI 实例（优先于 cliType/cliOptions）
  * @returns {Promise<http.Server>}
@@ -45,7 +46,7 @@ import KnowledgeImportController from './controllers/KnowledgeImportController.j
 export async function createServer(options = {}) {
     const {
         port = 3000,
-        cliType = 'opencode',
+        cliType = process.env.CLI_TYPE || 'opencode',
         cliOptions = {},
         cli = null
     } = options;
@@ -191,7 +192,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     const portIdx = args.indexOf('--port');
     const typeIdx = args.indexOf('--type');
     const port = portIdx !== -1 ? Number(args[portIdx + 1]) : 3000;
-    const cliType = typeIdx !== -1 ? args[typeIdx + 1] : 'opencode';
+    const cliType = typeIdx !== -1 ? args[typeIdx + 1] : (process.env.CLI_TYPE || 'opencode');
 
     createServer({ port, cliType }).catch(err => {
         console.error('[Server] 启动失败:', err);

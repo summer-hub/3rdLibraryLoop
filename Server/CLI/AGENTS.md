@@ -1,6 +1,6 @@
 # CLI —— AI 编程助手统一控制层
 
-本目录封装 AI 编程助手 CLI（opencode）的对接能力，对外暴露一致的 Session 管理接口。上层（Routes / Agent / Web）只需面向 `CLIController` 编程，无需关心底层适配器差异。
+本目录封装 AI 编程助手 CLI（opencode / deveco-code）的对接能力，对外暴露一致的 Session 管理接口。上层（Routes / Agent / Web）只需面向 `CLIController` 编程，无需关心底层适配器差异。
 
 ## 架构总览
 
@@ -10,15 +10,15 @@
 │  CLIController：统一门面，按 type 委派给对应适配器            │
 ├──────────────────────────────────────────────────────────────┤
 │  适配器层                                                    │
-│  ┌─────────────────────┐                                   │
-│  │ opencode/index.js   │                                   │
-│  │ OpenCodeCLI         │                                   │
-│  │ @opencode-ai/sdk    │                                   │
-│  │ HTTP API            │                                   │
+│  ┌─────────────────────┐   ┌───────────────────────────┐    │
+│  │ opencode/index.js   │   │ deveco-code/index.js      │    │
+│  │ OpenCodeCLI         │←──│ DevEcoCodeCLI（继承）      │    │
+│  │ @opencode-ai/sdk    │   │ 同一 HTTP API，覆盖连接配置│    │
+│  │ HTTP API            │   └───────────────────────────┘    │
 │  └─────────────────────┘                                   │
 ├──────────────────────────────────────────────────────────────┤
 │  快捷导出                                                    │
-│  opencode.js — 单独导出适配器类                              │
+│  opencode.js / deveco-code.js — 单独导出适配器类             │
 ├──────────────────────────────────────────────────────────────┤
 │  公共依赖                                                    │
 │  DbUse/MessageArchive  — 消息归档 + 卡死检测                 │
@@ -36,14 +36,17 @@ Server/CLI/
 ├── opencode.js          # OpenCodeCLI 快捷导出
 ├── opencode/
 │   └── index.js         # OpenCodeCLI 适配器（@opencode-ai/sdk）
-└── test.js              # 接口调用集成测试（连接真实 opencode 服务）
+├── deveco-code.js       # DevEcoCodeCLI 快捷导出
+├── deveco-code/
+│   └── index.js         # DevEcoCodeCLI 适配器（继承 OpenCodeCLI）
+└── test.js              # 接口调用集成测试（连接真实 CLI 服务）
 ```
 
 ## 文件说明
 
 ### cli.js — CLIController 统一控制类
 
-对外默认导出 `CLIController`，具名导出 `OpenCodeCLI`。通过 `type` 参数在构造时选定适配器，此后所有方法委派给该适配器实例。
+对外默认导出 `CLIController`，具名导出 `OpenCodeCLI`、`DevEcoCodeCLI`。通过 `type` 参数在构造时选定适配器，此后所有方法委派给该适配器实例。
 
 **构造：**
 
@@ -53,10 +56,44 @@ new CLIController(type, options)
 
 | 参数 | 说明 |
 |------|------|
-| `type` | `'opencode'`，不支持的值抛异常 |
+| `type` | `'opencode'` 或 `'deveco-code'`，**缺省时取环境变量 `CLI_TYPE`，仍未设置则 `'opencode'`**；不支持的值抛异常 |
 | `options` | 透传给适配器（见下） |
 
-**opencode 选项：** `host` / `port` / `baseUrl` / `archive`
+**默认 CLI 全局指定（Server/.env）：**
+
+`cli.js` 模块加载时会自动加载 `Server/.env`（dotenv 可选依赖，未安装时跳过），在其中配置：
+
+```bash
+# Server/.env
+CLI_TYPE=deveco-code          # 默认 CLI 类型（opencode | deveco-code）
+# OPENCODE_HOST=localhost     # 可选：opencode 连接配置
+# OPENCODE_PORT=4096
+# DEVECO_HOST=localhost       # 可选：deveco-code 连接配置
+# DEVECO_PORT=4096
+```
+
+也可用 shell 环境变量或命令行参数覆盖（优先级从高到低）：
+
+```bash
+node Server/Routes/server.js --port 3000 --type deveco-code   # 命令行参数
+CLI_TYPE=deveco-code node Server/Routes/server.js --port 3000 # shell 环境变量
+```
+
+**优先级：** 显式 `type` 参数 > `--type` 命令行参数 > shell 环境变量 `CLI_TYPE` > `Server/.env` 的 `CLI_TYPE` > `'opencode'`（兜底默认）
+
+**启动脚本联动（start-services.mjs / check-env.mjs）：**
+
+- `start-services.mjs` 启动时通过 `check-env.mjs` 的 `resolveCliType()` / `resolveCliServePort()` 读取同一配置：
+  - Server 后端以 `--type <CLI_TYPE>` 启动（不再硬编码 opencode，避免覆盖 .env）
+  - CLI serve 服务按类型启动，显式 `--port <CLI_SERVE_PORT>`（与适配器同源解析，杜绝端口漂移）
+- `check-env.mjs` 按 CLI_TYPE 动态检测：CLI 工具安装（opencode / deveco 命令）、模型配置文件（`~/.config/opencode/` 或 `~/.config/deveco/`，schema 相同）
+- 若 `CLI_TYPE` 写了无效值，环境检测给出警告并回退 opencode
+
+> dotenv 默认不覆盖已存在的环境变量，因此 shell export 天然优先于 .env。内部模块（SkillExecutor / TestCheck / KnowledgeImporter / FlexRunner / LoopEngine）均以无参 `new CLIController()` 构造，自动跟随以上默认类型。两个适配器默认端口统一为 4096（单后端架构，同一时间只运行一个 serve，切换类型无需改端口配置）；需 opencode 与 deveco serve 并存时，通过 `DEVECO_PORT` 给其一指定其他端口。serve 服务由 start-services.mjs 自动拉起（端口校验：进程在但端口不对时会自动以正确端口重启）。
+
+**opencode 选项：** `host` / `port` / `baseUrl` / `archive`（默认端口 4096，环境变量 `OPENCODE_HOST` / `OPENCODE_PORT`）
+
+**deveco-code 选项：** `host` / `port` / `baseUrl` / `archive`（默认端口 4096，与 opencode 一致；环境变量 `DEVECO_HOST` / `DEVECO_PORT`）
 
 **统一接口方法：**
 
@@ -78,8 +115,8 @@ new CLIController(type, options)
 | `listArchivedSessions()` | `Array<object>` | 列出所有本地已归档 Session |
 | `abortSession(sessionId)` | `object` | 终止正在运行的任务 |
 | `deleteSession(sessionId)` | `object` | 删除 Session |
-| `getType()` | `'opencode'` | 返回当前 CLI 类型 |
-| `getAdapter()` | `OpenCodeCLI` | 返回底层适配器实例 |
+| `getType()` | `'opencode'` \| `'deveco-code'` | 返回当前 CLI 类型 |
+| `getAdapter()` | `OpenCodeCLI` \| `DevEcoCodeCLI` | 返回底层适配器实例 |
 
 > `startSession` 内部会异步调用 `StatsService.incrementSessionCount()` 记录调用次数，统计失败不影响主流程。
 
@@ -108,17 +145,45 @@ new CLIController(type, options)
 - `_toArchiveMessage(msg)` — opencode 原始消息 → 精简归档格式
 - `_toMarkdown(meta, messages)` — 对话消息渲染为 Markdown
 
-### opencode.js — 快捷导出
+### deveco-code/index.js — DevEcoCodeCLI 适配器
+
+对接华为开源的 DevEco Code（[gitcode.com/openharmony-sig/deveco-code](https://gitcode.com/openharmony-sig/deveco-code)，npm 包 `@deveco/deveco-code`），面向 HarmonyOS 开发场景的 AI Agent 工具。
+
+DevEco Code 基于开源项目 OpenCode 扩展开发，其 headless 服务（`deveco serve`）保留与 opencode 完全一致的 HTTP API（`/session`、`/session/{id}/message`、`/session/{id}/prompt_async`、`/session/status` 等）。因此 **DevEcoCodeCLI 直接继承 OpenCodeCLI**，复用其全部 Session 管理 / 归档 / 卡死检测逻辑，仅覆盖：
+
+1. **连接配置** — 环境变量 `DEVECO_HOST` / `DEVECO_PORT`，默认端口 `4096`（与 opencode 一致；两者需同时运行时通过 `DEVECO_PORT` 指定不同端口）
+2. **身份标识** — 存档 `meta.cliType` 写为 `'deveco-code'`（导出 Markdown 时可见），日志器名 `DevEcoCodeCLI`
+3. **健康检查文案** — `checkHealth()` 返回 `DevEco Code CLI is healthy`
+
+OpenCodeCLI 侧为支持继承抽取了两个可覆盖字段：`this.cliType`（写入存档 meta）与 `this._loggerName`（日志器名称）。
+
+**服务启动方式：**
+
+```bash
+deveco serve                  # 默认监听 4096
+# 注意：4096 被占用且未指定 --port 时会随机分配端口；
+# 与 opencode 并存等场景需显式指定：deveco serve --port 4097
+```
+
+### opencode.js / deveco-code.js — 快捷导出
 
 单行 re-export，方便单独引用适配器类：
 
 ```js
 import OpenCodeCLI from './CLI/opencode.js';
+import DevEcoCodeCLI from './CLI/deveco-code.js';
 ```
 
 ### test.js — 集成测试
 
-连接真实运行的 opencode 服务（`localhost:4096`），按真实使用流程依次调用 `CLIController` 全部接口：
+默认连接真实运行的 opencode 服务（`localhost:4096`），按真实使用流程依次调用 `CLIController` 全部接口。可通过环境变量切换目标 CLI（如 deveco-code）：
+
+```bash
+CLI_TYPE=deveco-code node Server/CLI/test.js
+# 环境变量：CLI_TYPE（opencode | deveco-code）/ CLI_HOST / CLI_PORT
+```
+
+流程：
 
 ```
 checkHealth → listSessions → startSession(prompt) →

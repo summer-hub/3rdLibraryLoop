@@ -15,6 +15,17 @@ import { createLogger } from '../../Routes/library/logger.js';
  */
 class OpenCodeCLI {
     /**
+     * CLI 类型标识（写入存档 meta，供导出/审计区分底层 CLI）。
+     * 子类通过 static 字段覆盖，父类构造期间即可生效。
+     */
+    static _cliType = 'opencode';
+
+    /**
+     * 日志器名称。子类通过 static 字段覆盖，父类构造期间即可生效。
+     */
+    static _loggerName = 'OpenCodeCLI';
+
+    /**
      * @param {object} options
      * @param {string} [options.host]    - opencode 服务主机
      * @param {string} [options.port]    - opencode 服务端口
@@ -26,6 +37,9 @@ class OpenCodeCLI {
         this.port = options.port || process.env.OPENCODE_PORT || '4096';
         this.baseUrl = options.baseUrl || `http://${this.host}:${this.port}`;
         this.client = null;
+        // CLI 类型标识 / 日志器名称（经 static 覆盖，子类构造期间即正确）
+        this.cliType = this.constructor._cliType;
+        this._loggerName = this.constructor._loggerName;
         // 消息存档：用于保留对话消息、判断 opencode 是否长时间无新响应（防卡死）
         this.archive = options.archive ?? new MessageArchive();
         // 记录各 session 首次进入 busy/retry 的时间戳（ms），用于"busy 停滞兜底"判定
@@ -329,7 +343,7 @@ class OpenCodeCLI {
             await this.archive.patchMeta(sessionId, {
                 sessionId,
                 title,
-                cliType: 'opencode',
+                cliType: this.cliType,
                 createdAt: nowCST(),
                 status: 'idle'
             }).catch(e => {
@@ -784,7 +798,7 @@ class OpenCodeCLI {
     // ─── 内部方法 ──────────────────────────────────────────────────────────────
 
     _log(level, msg) {
-        const logger = createLogger('OpenCodeCLI');
+        const logger = createLogger(this._loggerName);
         switch (level) {
             case 'error':
                 logger.error(`❌ ${msg}`);

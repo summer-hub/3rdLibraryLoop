@@ -3,13 +3,19 @@ import CLIController, { OpenCodeCLI } from './cli.js';
 /**
  * CLIController 接口调用测试
  *
- * 使用真实运行的 opencode 服务（localhost:4096）逐个调用 CLIController
- * 暴露的全部接口，模拟真实使用流程：
+ * 使用真实运行的 CLI 服务逐个调用 CLIController 暴露的全部接口，
+ * 模拟真实使用流程：
  *
  *   checkHealth → listSessions → startSession → sendMessage →
  *   checkSessionStatus → getSessionMessages → getSession →
  *   getArchivedMessages → getArchiveMeta → listArchivedSessions →
  *   abortSession → deleteSession → getType / getAdapter
+ *
+ * 默认连接 opencode 服务（localhost:4096），可通过环境变量切换：
+ *
+ *   CLI_TYPE=deveco-code node test.js
+ *
+ * deveco-code 服务需先启动：deveco serve（默认 4096，与 opencode 一致）
  */
 
 const SEP = '═'.repeat(72);
@@ -89,11 +95,15 @@ async function main() {
     header('CLIController 接口调用测试');
 
     // ─── 创建 CLIController 实例 ───────────────────────────────────────────
-    sub('1. 创建 CLIController (opencode)');
+    // CLI 类型与连接配置可由环境变量覆盖（CLI_TYPE / CLI_HOST / CLI_PORT）
+    const cliType = process.env.CLI_TYPE || 'opencode';
+    const cliHost = process.env.CLI_HOST || 'localhost';
+    const cliPort = process.env.CLI_PORT || '4096';
+    sub(`1. 创建 CLIController (${cliType})`);
 
-    const cli = new CLIController('opencode', {
-        host: 'localhost',
-        port: '4096'
+    const cli = new CLIController(cliType, {
+        host: cliHost,
+        port: cliPort
     });
 
     // ─── checkHealth ──────────────────────────────────────────────────────
@@ -101,7 +111,7 @@ async function main() {
 
     const health = await cli.checkHealth();
     if (health.status !== 'ok') {
-        console.error('\n🛑 opencode 服务不可用，终止测试');
+        console.error(`\n🛑 ${cliType} 服务不可用，终止测试`);
         process.exit(1);
     }
 

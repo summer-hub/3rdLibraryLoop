@@ -4,11 +4,11 @@
  * 3rdLibraryLoop 环境检测脚本
  *
  * 检测内容：
- *   1. Server/.env 文件是否存在及必要环境变量配置（DASHSCOPE_API_KEY 等）
+ *   1. Server/.env 文件是否存在及必要环境变量配置（DASHSCOPE_API_KEY、CLI_TYPE 等）
  *   2. Node.js 是否已安装（≥ 22）
- *   3. opencode 是否已安装
+ *   3. CLI 工具是否已安装（按 CLI_TYPE 检测 opencode 或 deveco）
  *   4. devecocli 是否已安装
- *   5. opencode 默认模型配置读取（跨平台兼容）
+ *   5. CLI 模型配置读取（按 CLI_TYPE 读 opencode / deveco 配置，跨平台兼容）
  *   6. 项目依赖是否已安装（缺失自动安装）
  *
  * 用法:
@@ -19,7 +19,7 @@
  *   0 — 全部检测通过
  *   1 — 存在致命问题
  *
- * 也可被 start-services.mjs 导入调用: import { runChecks } from './check-env.mjs'
+ * 也可被 start-services.mjs 导入调用: import { runChecks, resolveCliType } from './check-env.mjs'
  */
 
 import fs from 'node:fs';
@@ -122,9 +122,21 @@ function getVersion(cmd) {
     }
 }
 
-// opencode 配置文件候选路径（跨平台兼容，同时支持 .json 和 .jsonc）
-function getOpencodeConfigPaths() {
+// opencode / deveco 配置文件候选路径（跨平台兼容，同时支持 .json 和 .jsonc）
+// deveco-code 与 opencode 使用相同的配置 schema，仅目录不同
+function getCliConfigPaths(cliType) {
     const home = process.env.HOME || process.env.USERPROFILE || '';
+    if (cliType === 'deveco-code') {
+        const configDir = process.platform === 'win32' && process.env.APPDATA
+            ? path.join(process.env.APPDATA, 'deveco')
+            : path.join(home, '.config', 'deveco');
+        // deveco 按以下顺序加载配置
+        return [
+            path.join(configDir, 'config.json'),
+            path.join(configDir, 'deveco.json'),
+            path.join(configDir, 'deveco.jsonc'),
+        ];
+    }
     const configDir = process.env.XDG_CONFIG_HOME
         || (process.platform === 'win32' && process.env.APPDATA
             ? path.join(process.env.APPDATA, 'opencode')
@@ -136,6 +148,51 @@ function getOpencodeConfigPaths() {
         path.join(configDir, 'opencode.json'),
         path.join(configDir, 'opencode.jsonc'),
     ];
+}
+
+/**
+ * 解析当前生效的 CLI 类型
+ *
+ * 优先级（与 Server/CLI/cli.js 保持一致）：
+ *   shell 环境变量 CLI_TYPE > Server/.env 的 CLI_TYPE > 'opencode'
+ *
+ * @returns {'opencode'|'deveco-code'}
+ */
+export function resolveCliType() {
+    const fromShell = (process.env.CLI_TYPE || '').trim();
+    if (fromShell === 'opencode' || fromShell === 'deveco-code') return fromShell;
+    try {
+        const content = fs.readFileSync(ENV_FILE, 'utf-8');
+        const m = content.match(/^\s*CLI_TYPE\s*=\s*(opencode|deveco-code)\s*$/m);
+        if (m) return m[1];
+    } catch { /* .env 不存在或不可读，回退默认 */ }
+    return 'opencode';
+}
+
+/**
+ * 解析 CLI serve 服务应监听的端口
+ *
+ * 优先级（与 Server/CLI 适配器保持一致）：
+ *   shell 环境变量 OPENCODE_PORT/DEVECO_PORT > Server/.env 同名变量 > 默认值
+ *   默认值：opencode 与 deveco-code 统一为 4096（单后端架构，同一时间只运行一个；
+ *   两者需同时运行时通过 DEVECO_PORT 指定不同端口）
+ *
+ * @param {'opencode'|'deveco-code'} [cliType] - 未传时自动调用 resolveCliType()
+ * @returns {string}
+ */
+export function resolveCliServePort(cliType) {
+    const type = cliType || resolveCliType();
+    const envVar = type === 'deveco-code' ? 'DEVECO_PORT' : 'OPENCODE_PORT';
+    const defaultPort = '4096';
+
+    const fromShell = (process.env[envVar] || '').trim();
+    if (/^\d+$/.test(fromShell)) return fromShell;
+    try {
+        const content = fs.readFileSync(ENV_FILE, 'utf-8');
+        const m = content.match(new RegExp(`^\\s*${envVar}\\s*=\\s*(\\d+)\\s*$`, 'm'));
+        if (m) return m[1];
+    } catch { /* .env 不存在或不可读 */ }
+    return defaultPort;
 }
 
 /** 去掉 JSONC 中的注释和尾逗号，返回纯 JSON 字符串 */
@@ -272,6 +329,20 @@ function checkEnvFile() {
         }
     }
 
+    // CLI_TYPE 专项校验（默认 CLI 后端类型，直接决定启动哪个 serve 服务）
+    const cliTypeMatch = content.match(/^\s*CLI_TYPE\s*=\s*(.+)$/m);
+    if (cliTypeMatch) {
+        const val = cliTypeMatch[1].trim();
+        if (val === 'opencode' || val === 'deveco-code') {
+            ok(`CLI_TYPE = ${val}（默认 CLI 后端）`);
+        } else {
+            warn(`CLI_TYPE = "${val}" 无效，可选值: opencode | deveco-code，将回退为 opencode`);
+            hint(`修正 Server/.env 中的 CLI_TYPE 后重试`);
+        }
+    } else {
+        hint(`CLI_TYPE 未设置（默认 opencode；如需切换 DevEco Code 可设置 CLI_TYPE=deveco-code）`);
+    }
+
     result.passed = allValid;
     checks.push(result);
 }
@@ -330,10 +401,36 @@ function checkNodejs() {
 }
 
 /**
- * 检测 3：opencode
+ * 检测 3：CLI 工具（按 CLI_TYPE 检测 opencode 或 deveco）
  */
-function checkOpencode() {
-    const result = { name: 'opencode CLI', passed: false, errors: [] };
+function checkCliTool() {
+    const cliType = resolveCliType();
+    const result = { name: `CLI 工具 (${cliType})`, passed: false, errors: [] };
+
+    if (cliType === 'deveco-code') {
+        // ── deveco-code 模式：检测 deveco 命令 ──
+        const devecoPath = which('deveco');
+        if (!devecoPath) {
+            fail('deveco 未安装（当前 CLI_TYPE=deveco-code，后端将连接 deveco serve）');
+            console.log();
+            hint(`${C.bold}请安装 DevEco Code${C.reset}`);
+            hint(`安装命令: ${C.cyan}npm install -g @deveco/deveco-code${C.reset}`);
+            hint(`安装后首次启动需登录: ${C.cyan}deveco auth login${C.reset}`);
+            hint(`项目地址: ${C.cyan}https://gitcode.com/openharmony-sig/deveco-code${C.reset}`);
+            result.errors.push('deveco 未安装');
+            checks.push(result);
+            return;
+        }
+        const version = getVersion('deveco');
+        ok(`deveco 已安装: ${version}`);
+        hint(`路径: ${devecoPath}`);
+        hint(`启动命令（由 start-services.mjs 自动执行）: ${C.cyan}deveco serve --port ${resolveCliServePort('deveco-code')}${C.reset}`);
+        result.passed = true;
+        checks.push(result);
+        return;
+    }
+
+    // ── opencode 模式（默认）：检测 opencode 命令 ──
     const opencodePath = which('opencode');
 
     if (!opencodePath) {
@@ -381,14 +478,15 @@ function checkDevecocli() {
 }
 
 /**
- * 检测 5：opencode 默认模型配置
+ * 检测 5：CLI 模型配置（按 CLI_TYPE 读 opencode / deveco 配置，schema 相同）
  */
-function checkOpencodeConfig() {
-    const result = { name: 'opencode 模型配置', passed: false, errors: [] };
-    const candidatePaths = getOpencodeConfigPaths();
+function checkCliConfig() {
+    const cliType = resolveCliType();
+    const result = { name: `${cliType} 模型配置`, passed: false, errors: [] };
+    const candidatePaths = getCliConfigPaths(cliType);
 
     console.log();
-    info(`查找 opencode 配置文件...`);
+    info(`查找 ${cliType} 配置文件...`);
     for (const p of candidatePaths) {
         hint(`  候选: ${p}`);
     }
@@ -402,21 +500,21 @@ function checkOpencodeConfig() {
     }
 
     if (!foundPath) {
-        warn(`opencode 配置文件未找到`);
-        hint(`可能原因: opencode 从未运行过，或配置文件在其他位置`);
-        hint(`可运行一次 ${C.cyan}opencode${C.reset} 以生成默认配置`);
+        warn(`${cliType} 配置文件未找到`);
+        hint(`可能原因: ${cliType === 'deveco-code' ? 'deveco' : 'opencode'} 从未运行过，或配置文件在其他位置`);
+        hint(`可运行一次 ${C.cyan}${cliType === 'deveco-code' ? 'deveco' : 'opencode'}${C.reset} 以生成默认配置`);
         // 配置文件不存在不算致命错误，标记为警告
         result.passed = true;
         result.errors.push('配置文件未找到（非致命）');
     } else {
-        _parseOpencodeConfig(foundPath, result);
+        _parseCliConfig(foundPath, result);
     }
 
     checks.push(result);
 }
 
-/** 解析 opencode 配置文件并显示模型信息 */
-function _parseOpencodeConfig(configPath, result) {
+/** 解析 CLI 配置文件并显示模型信息（opencode / deveco schema 相同） */
+function _parseCliConfig(configPath, result) {
     try {
         const raw = fs.readFileSync(configPath, 'utf-8');
         const cleanJson = stripJsonComments(raw);
@@ -426,7 +524,7 @@ function _parseOpencodeConfig(configPath, result) {
         console.log();
 
         // 显示 provider 信息
-        // opencode 配置结构: provider 是对象，key 为 provider 标识
+        // opencode / deveco 配置结构: provider 是对象，key 为 provider 标识
         //   { "myprovider": { name, npm, options: { apiKey, baseURL }, models: { modelId: { name, ... } } } }
         if (config.provider) {
             console.log(`  ${C.bold}── Providers ──${C.reset}`);
@@ -594,10 +692,12 @@ function checkDependencies() {
  * @returns {boolean} true = 全部通过，false = 存在致命问题
  */
 export function runChecks() {
+    const cliType = resolveCliType();
     banner('🔁 3rdLibraryLoop 环境检测');
     console.log(`  ${C.gray}检测时间: ${new Date().toLocaleString()}${C.reset}`);
     console.log(`  ${C.gray}项目路径: ${PROJECT_ROOT}${C.reset}`);
     console.log(`  ${C.gray}操作系统: ${process.platform} ${process.arch}${C.reset}`);
+    console.log(`  ${C.gray}默认 CLI 后端: ${C.bold}${cliType}${C.reset}${cliType === 'deveco-code' ? C.gray + '（Server/.env CLI_TYPE）' + C.reset : ''}`);
     console.log();
 
     // ── 1. .env 配置 ──
@@ -610,19 +710,19 @@ export function runChecks() {
     console.log();
     checkNodejs();
 
-    // ── 3. opencode ──
-    console.log(`\n${C.bold}  [3/6] 检测 opencode${C.reset}`);
+    // ── 3. CLI 工具（按 CLI_TYPE） ──
+    console.log(`\n${C.bold}  [3/6] 检测 CLI 工具 (${cliType})${C.reset}`);
     console.log();
-    checkOpencode();
+    checkCliTool();
 
     // ── 4. devecocli ──
     console.log(`\n${C.bold}  [4/6] 检测 devecocli${C.reset}`);
     console.log();
     checkDevecocli();
 
-    // ── 5. opencode 模型配置 ──
-    console.log(`\n${C.bold}  [5/6] 读取 opencode 模型配置${C.reset}`);
-    checkOpencodeConfig();
+    // ── 5. CLI 模型配置（按 CLI_TYPE） ──
+    console.log(`\n${C.bold}  [5/6] 读取 ${cliType} 模型配置${C.reset}`);
+    checkCliConfig();
 
     // ── 6. 项目依赖 ──
     console.log(`\n${C.bold}  [6/6] 检测项目依赖${C.reset}`);

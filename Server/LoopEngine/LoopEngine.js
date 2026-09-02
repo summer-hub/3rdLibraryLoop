@@ -251,7 +251,7 @@ class LoopEngine {
         let cli = null;
         try {
             const mod = await import('../CLI/cli.js');
-            cli = new mod.CLIController('opencode', {});
+            cli = new mod.CLIController();
         } catch (err) {
             this._log('warn', `_abortSessions: 加载 CLIController 失败: ${err.message}`);
             return;

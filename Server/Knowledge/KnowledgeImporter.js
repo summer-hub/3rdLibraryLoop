@@ -101,7 +101,7 @@ class KnowledgeImporter {
     async _getCLI() {
         if (!this._cli) {
             const CLIController = await _loadCLIController();
-            this._cli = new CLIController('opencode', {});
+            this._cli = new CLIController();
         }
         return this._cli;
     }

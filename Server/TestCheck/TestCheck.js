@@ -140,7 +140,7 @@ class TestCheck {
     async _getCli() {
         if (!this.cli) {
             const CLIController = await _loadCLIController();
-            this.cli = new CLIController('opencode', {});
+            this.cli = new CLIController();
         }
         return this.cli;
     }
@@ -417,7 +417,7 @@ class TestCheck {
         // 健康检查
         const health = await cli.checkHealth();
         if (health.status !== 'ok') {
-            this._log('error', `opencode 服务不可用: ${health.message}`);
+            this._log('error', `CLI(${cli.getType()}) 服务不可用: ${health.message}`);
             return { sessionId: '', executed: false };
         }
 
