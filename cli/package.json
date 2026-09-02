@@ -1,17 +1,17 @@
 {
     "name": "@ohos-cpf/3rdloop",
-    "version": "0.0.1",
+    "version": "0.0.3",
     "description": "3rdLibraryLoop 三方库自动化检视 CLI：嵌入式复用核心引擎，任务生命周期管理（submit/run/wait/progress/abort/list/result/doctor）",
     "type": "module",
     "license": "MIT",
-    "author": "junxiaoliu927 <1605029776@qq.com>",
-    "homepage": "https://gitcode.com/Sincerelyurs/3rdLibraryLoop",
+    "author": "LalHan <hanle12@huawei.com>",
+    "homepage": "https://gitcode.com/lalhanOrz/3rdLibraryLoop",
     "repository": {
         "type": "git",
-        "url": "git+https://gitcode.com/Sincerelyurs/3rdLibraryLoop.git"
+        "url": "git+https://gitcode.com/lalhanOrz/3rdLibraryLoop.git"
     },
     "bugs": {
-        "url": "https://gitcode.com/Sincerelyurs/3rdLibraryLoop/issues"
+        "url": "https://gitcode.com/lalhanOrz/3rdLibraryLoop/issues"
     },
     "keywords": [
         "3rdlibrary",
