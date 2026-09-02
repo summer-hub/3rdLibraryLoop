@@ -82,6 +82,60 @@ assert.match(dry.stdout, /codecheck_owner_repo_123_/, 'dry-run 输出应含 code
 const missing = runCli(['run', 'pr-check', '--print-taskdef']);
 assert.equal(missing.exitCode, 1, `缺必填参数应退出码 1，实际 ${missing.exitCode}`);
 
+// ── run pr-push ─────────────────────────────────────────────────
+// 用临时 git 仓库做 workspace-dir；未传 workspace-dir 时应默认取 CLI 执行目录
+
+const PushHome = fs.mkdtempSync(path.join(tmpdir(), '3rdloop-wf-'));
+const gitDir = path.join(PushHome, 'fork-repo');
+fs.mkdirSync(gitDir, { recursive: true });
+execFileSync('git', ['init', '-q'], { cwd: gitDir, stdio: 'ignore' });
+
+const pushEnv = { '3LIB_HOME': PushHome, '3LIB_DATA_DIR': path.join(PushHome, 'db') };
+
+// 1. workflows 列表含 pr-push
+const wfPush = runCli(['workflows']);
+assert.match(wfPush.stdout, /pr-push/, 'workflows 列表应含 pr-push');
+
+// 2. run pr-push --help 含 workspace-dir
+const pushHelp = runCli(['run', 'pr-push', '--help']);
+assert.equal(pushHelp.exitCode, 0, `pr-push --help 应退出码 0，实际 ${pushHelp.exitCode}`);
+assert.match(pushHelp.stdout, /--workspace-dir/, 'pr-push --help 应含 --workspace-dir 参数');
+
+// 3. --print-taskdef（显式 workspace-dir）→ taskId 带 prpush_ 前缀
+const pushDry = runCli(['run', 'pr-push', '--workspace-dir', gitDir, '--print-taskdef'], pushEnv);
+assert.equal(pushDry.exitCode, 0, `pr-push --print-taskdef 应退出码 0，实际 ${pushDry.exitCode}`);
+assert.match(pushDry.stdout, /prpush_/, 'dry-run 输出应含 prpush_ 前缀的 taskId');
+assert.match(pushDry.stdout, /ohos-lib-pr-push/, 'taskDef 应含 ohos-lib-pr-push specifiedSkill');
+
+// 4. 缺省 --workspace-dir → 默认取 CLI 执行目录（process.cwd()）
+const pushDryDefault = runCli(['run', 'pr-push', '--print-taskdef'], pushEnv);
+assert.equal(pushDryDefault.exitCode, 0, `缺省 workspace-dir 应退出码 0，实际 ${pushDryDefault.exitCode}`);
+// 防御：本仓库根即 git 仓库，缺省 workspace-dir 应解析为 CLI 执行目录
+if (fs.existsSync(path.join(process.cwd(), '.git'))) {
+    assert.match(pushDryDefault.stdout, new RegExp(process.cwd().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), '缺省 workspace-dir 应为 CLI 执行目录');
+}
+
+// 5. 非法 workspace-dir（不存在）→ 退出码 1
+const pushBadDir = runCli(['run', 'pr-push', '--workspace-dir', path.join(PushHome, 'no-such-dir'), '--print-taskdef'], pushEnv);
+assert.equal(pushBadDir.exitCode, 1, `不存在的 workspace-dir 应退出码 1，实际 ${pushBadDir.exitCode}`);
+
+// 6. 非法 workspace-dir（非 git 仓库）→ 退出码 1
+const notGitDir = path.join(PushHome, 'not-git');
+fs.mkdirSync(notGitDir, { recursive: true });
+const pushNotGit = runCli(['run', 'pr-push', '--workspace-dir', notGitDir, '--print-taskdef'], pushEnv);
+assert.equal(pushNotGit.exitCode, 1, `非 git 的 workspace-dir 应退出码 1，实际 ${pushNotGit.exitCode}`);
+
+// 7. 非法 changelog 值 → 退出码 1
+const pushBadChangelog = runCli(['run', 'pr-push', '--workspace-dir', gitDir, '--changelog', 'maybe', '--print-taskdef'], pushEnv);
+assert.equal(pushBadChangelog.exitCode, 1, `changelog 非法值应退出码 1，实际 ${pushBadChangelog.exitCode}`);
+
+// 8. 未知 flag → 退出码 1
+const pushUnknownFlag = runCli(['run', 'pr-push', '--workspace-dir', gitDir, '--bogus-flag', 'x', '--print-taskdef'], pushEnv);
+assert.equal(pushUnknownFlag.exitCode, 1, `未知 flag 应退出码 1，实际 ${pushUnknownFlag.exitCode}`);
+
+// 清理临时工作区与隔离 HOME
+fs.rmSync(PushHome, { recursive: true, force: true });
+
 // ── 未知命令 → 退出码 1 ──────────────────────────────────────────
 
 const unknown = runCli(['nonexistent-command']);
