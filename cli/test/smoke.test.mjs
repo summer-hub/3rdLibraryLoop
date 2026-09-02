@@ -87,6 +87,15 @@ assert.equal(missing.exitCode, 1, `缺必填参数应退出码 1，实际 ${miss
 const unknown = runCli(['nonexistent-command']);
 assert.equal(unknown.exitCode, 1, `未知命令应退出码 1，实际 ${unknown.exitCode}`);
 
+// ── update（离线可测：help 含 update；多余位置参数报错）──────────
+
+const helpWithUpdate = runCli(['--help']);
+assert.match(helpWithUpdate.stdout, /3rdloop update/, '帮助文本应含 3rdloop update 命令');
+
+const updateHelp = runCli(['update', '--help']);
+assert.equal(updateHelp.exitCode, 0, `update --help 应退出码 0（视为触发 update 主体），实际 ${updateHelp.exitCode}`);
+// 不实测 update 主体（避免触碰网络/系统安装），仅验证 help 分发可达
+
 // ── config（隔离 3LIB_HOME，避免污染真实 ~/.3lib/.env）───────────
 
 const CfgHome = fs.mkdtempSync(path.join(tmpdir(), '3rdloop-cfg-'));

@@ -50,6 +50,7 @@ FlexRunner / TestCheck / Knowledge），无需启动 HTTP 服务，即可从终�
 | `3rd3rdloop run <工作流名> [--flag <值> ...]` | 以固定编排执行工作流（阻塞到终态） |
 | `3rdloop run pr-check --pr-url <URL> [--library-type <arkts\|flutter\|rn\|tpccplus>]` | PR 代码检视（等价前端 PR 检视面板，taskId 带 `codecheck_` 前缀） |
 | `3rdloop config list\|get\|set\|unset` | 命令配置 `.env` 配置项（默认读写 `~/.3lib/.env`） |
+| `3rdloop update [--check] [--yes] [--force] [--registry <url>]` | 自更新到 npm 最新版（尊重用户镜像源） |
 | `3rdloop doctor` | 环境自检（Node/opencode/.env/SKILL/数据目录） |
 | `3rdloop version` | 版本信息 |
 
@@ -341,6 +342,39 @@ export default {
 - `3LIB_ROOT` / `3LIB_HOME` 为**系统环境变量专用**（`.env` 写入不生效），`config` 会拒绝 `set`，请用 `setx` / `export` 配置。
 - 密钥 `set` 后明文写入 `~/.3lib/.env`（与手写 .env 一致），但 CLI 标准输出不回显明文。
 - `--data-dir` / `--skill-dir` 等**命令行 flag 仍是最高的单次覆盖**，不受 `config` 影响。
+
+## 自更新（3rdloop update）
+
+`3rdloop update` 检查 npm registry 上的发布时间，确认后自动重装到最新版：
+
+```bash
+# 检查 + 交互确认后更新到 latest
+3rdloop update
+
+# 仅检查是否有新版本，不执行更新（适合 CI / 提醒）
+3rdloop update --check
+
+# 跳过交互确认直接更新（非 TTY 场景或自动化）
+3rdloop update --yes
+
+# 覆盖 npm registry（默认尊重用户 npm 镜像配置，如 npmmirror）
+3rdloop update --registry https://registry.npmjs.org/
+```
+
+### 更新姿势
+
+| 安装方式 | update 行为 |
+|----------|-------------|
+| 正式全局安装（`npm i -g @ohos-cpf/3rdloop`） | 检查发现新版本后 `npm install -g @ohos-cpf/3rdloop@latest` 重装 |
+| 开发态（`npm link` 链接到仓库） | 默认**退出并提示**用 `git pull` 更新源码；加 `--force` 可强制替换为 registry 正式包 |
+| `--check` | 只查询与输出版本差异，不做任何修改 |
+
+### 安全说明
+
+- 更新只替换程序文件，**数据目录 `~/.3lib/3rdloop/db`、`~/.3lib/.env` 配置均不受影响**（数据根在设计上不随 npm 包变化）。
+- 更新走 `npm install -g` 全量重装，保证引擎与依赖（`@opencode-ai/sdk` / `better-sqlite3` / `dotenv` 等）版本自洽，不手动改动 `node_modules`。
+- 更新完成后请用 `3rdloop version` / `3rdloop doctor` 确认新版本与引擎来源。
+- 非 TTY 下交互确认自动拒绝，需配合 `--yes` 才能脚本化更新。
 
 ## 环境约定
 

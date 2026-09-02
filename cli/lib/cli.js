@@ -144,6 +144,9 @@ export async function runCli(argv) {
         case 'config':
             return cmdConfig({ flags, rest, projectRoot, user3libHome, jsonMode, out });
 
+        case 'update':
+            return cmdUpdate({ flags, rest, jsonMode, out });
+
         default:
             process.stderr.write(`未知命令: ${cmd}\n`);
             printHelp();
@@ -201,6 +204,18 @@ async function cmdWorkflows({ jsonMode, out }) {
 async function cmdConfig({ flags, rest, projectRoot, user3libHome, jsonMode, out }) {
     const { cmdConfigImpl } = await import('./config-cmd.js');
     return cmdConfigImpl({ projectRoot, user3libHome, jsonMode, out, rest });
+}
+
+// ─── update（自更新）─────────────────────────────────────────────
+
+async function cmdUpdate({ flags, rest, jsonMode, out }) {
+    const { cmdUpdateImpl } = await import('./update.js');
+    const result = await cmdUpdateImpl({ jsonMode, rest });
+    if (jsonMode) {
+        // cmdUpdateImpl 内部已输出 --json 结构化结果到 stdout
+        return result.ok ? EXIT.OK : EXIT.ERROR;
+    }
+    return result.ok ? EXIT.OK : EXIT.ERROR;
 }
 
 // ─── run / submit ──────────────────────────────────────────────────
@@ -623,6 +638,7 @@ function printHelp() {
   3rdloop workflows                     列出已注册的固定编排工作流
   3rdloop run <工作流名> [--flag <值> ...]     以固定编排执行工作流（阻塞到终态）
   3rdloop config list|get|set|unset ...  配置 .env 配置项（默认读写 ~/.3lib/.env）
+  3rdloop update [--check] [--yes] [--force] [--registry <url>]  自更新到 npm 最新版
   3rdloop doctor                        环境自检
   3rdloop version                       版本信息
 
@@ -642,6 +658,13 @@ config 子命令:
   3rdloop config set <KEY> <VALUE>    设置某项（文件: ~/.3lib/.env，密钥不回显）
   3rdloop config unset <KEY>          删除用户级 .env 中的某项（恢复默认）
   优先级: 系统环境变量 > ~/.3lib/.env > 默认值
+
+update 专用选项:
+  --check          仅检查是否有新版本，不执行更新
+  --yes, -y        跳过交互确认直接更新
+  --force          开发态（npm link）也强制替换为 registry 正式包
+  --registry <url> 覆盖 npm registry（默认尊重用户 npm 镜像配置）
+  注意: 数据目录 ~/.3lib/3rdloop/db 与 SKILL 配置不受更新影响
 
 全局选项:
   --json          结构化输出到 stdout（进度/日志走 stderr）
