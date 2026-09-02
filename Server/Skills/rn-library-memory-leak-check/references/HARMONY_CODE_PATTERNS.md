@@ -96,6 +96,8 @@ napi_wrap(env, jsThis, nativePtr, finalizeCb, nullptr, &ref);
 ├── js/                         # RN JS 层 ❌ 不检视
 ```
 
+> ⚠️ **必须排除的缓存/依赖目录**：`.upstream-cache/`（接口分析前置阶段拉取的上游 npm 包缓存，其中普通 JS 文件仅因含 `NativeModules` 引用即被匹配，会被误报为"RN 鸿蒙化特征文件"）、`node_modules/`、`oh_modules/`。`scan_harmony_code.py` 已默认排除；手工执行 `find`/`rg` 枚举特征文件时须同样排除。
+
 ---
 
 ## 5. 判定规则

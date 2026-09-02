@@ -12,6 +12,8 @@
 | `ios/` | `harmony/` ETS TurboModule + C++ Package |
 | `example/android`, `example/ios` | `example/harmony/` |
 
+> ⚠️ 以上为典型映射。实际鸿蒙化仓库可能重命名/移动/合并上游文件（实测 camera-kit：`src/specs/CameraNativeComponent.ts` → `src/CameraKitNativeComponent.ts`，`src/types.ts` → `types/types.ts`，平台文件合并为自有 `src/Camera.tsx`）。合并 patch 前先建立实际映射表（见报告「上游→鸿蒙目录映射」章节），不得假设鸿蒙仓库原样保留上游目录结构。
+
 ## 判断矩阵
 
 | 上游变更 | 需鸿蒙适配 | 典型动作 |
@@ -19,11 +21,14 @@
 | 纯 JS 逻辑，无 native 交互 | 通常否 | 合并 JS 即可 |
 | 新增/修改 export API | 是 | 同步 `src/`，检查 harmony 调用 |
 | TurboModule 方法增删改 | 是 | 改 Spec → codegen → ETS/C++ |
+| Fabric 组件 Spec props/事件增删改（`codegenNativeComponent` 输入文件） | 是 | 改组件 Spec → 重跑 codegen → ETS 原生实现新 props/事件 |
 | Android/iOS 权限/生命周期 | 是 | 在 ETS 用 OHOS API 对等实现 |
 | 事件名/NativeEventEmitter 变更 | 是 | 对齐 JS 层 + 原生 emit 事件名 |
 | `package.json` peerDeps 升级 | 待评估 | 查目标 RNOH 版本兼容矩阵 |
 | 仅 README/CHANGELOG | 否 | — |
 | 仅 `.github`/CI | 否 | — |
+
+> ⚠️ **自动判定盲区**：`rn-scan-exports.cjs` 只检查 TurboModule Spec，不覆盖 Fabric 组件 Spec。View 型库（相机/播放器/地图/WebView）的组件 Spec 变更（props/事件增删）须**人工 diff** `codegenNativeComponent` 输入文件，命中即「需要原生适配」（实测 camera-kit 16.1.3→18.0.0 曾因此产生假阴性）。
 
 ## RNOH 框架版本适配要点
 

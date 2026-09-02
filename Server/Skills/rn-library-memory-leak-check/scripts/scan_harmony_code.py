@@ -38,6 +38,11 @@ JS_EXTENSIONS = {'.ts', '.js', '.tsx'}
 CPP_EXTENSIONS = {'.cpp', '.c', '.h', '.hpp'}
 HARMONY_DIRS = {'harmony', 'ohos', 'harmonyos'}
 
+# 排除目录：上游 npm 包缓存 / 依赖安装目录。
+# 不排除时，.upstream-cache 中的上游 JS 文件（仅因含 NativeModules 引用）会被
+# 误报为"RN 鸿蒙化特征文件"，夸大鸿蒙化特征统计并污染目录级分析样本。
+EXCLUDED_DIRS = {'.upstream-cache', 'node_modules', 'oh_modules'}
+
 # RN JS 三方库特征（检测这些以确认是 RN 鸿蒙化库而非纯 JS 库）
 RN_JS_PATTERNS = [
     re.compile(r'TurboModuleRegistry', re.IGNORECASE),
@@ -75,9 +80,10 @@ def parse_args() -> str:
 
 
 def find_files(root: Path, extensions: Set[str], max_results: int = 0) -> List[Path]:
-    """递归查找指定扩展名的文件，跨平台实现。"""
+    """递归查找指定扩展名的文件，跨平台实现（自动排除缓存/依赖目录）。"""
     results = []
     for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in EXCLUDED_DIRS]
         for filename in filenames:
             ext = os.path.splitext(filename)[1].lower()
             if ext in extensions:
@@ -88,9 +94,10 @@ def find_files(root: Path, extensions: Set[str], max_results: int = 0) -> List[P
 
 
 def find_dirs(root: Path, target_names: Set[str], max_results: int = 5) -> List[Path]:
-    """查找指定名称的目录。"""
+    """查找指定名称的目录（自动排除缓存/依赖目录）。"""
     results = []
     for dirpath, dirnames, _ in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in EXCLUDED_DIRS]
         for dirname in dirnames:
             if dirname in target_names:
                 results.append(Path(dirpath) / dirname)
@@ -266,6 +273,7 @@ def main() -> None:
 
     print('=== 鸿蒙化代码特征扫描 ===')
     print(f'源码目录: {source_dir_str}')
+    print(f'排除目录: {", ".join(sorted(EXCLUDED_DIRS))}')
     print()
 
     rn_js_matched, rn_js_detected = scan_rn_js_features(source_dir)

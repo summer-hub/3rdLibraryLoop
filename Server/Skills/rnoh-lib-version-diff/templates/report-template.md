@@ -25,9 +25,35 @@
 | 项目 | 值 |
 |------|-----|
 | 鸿蒙化基线版本 | v{version} |
-| npm 最新版本 | v{version} |
+| 任务指定对比版本 | v{version}（与 latest 不同时填写） |
+| npm 最新版本 (dist-tags.latest) | v{version} |
 | 版本状态 | {落后 N 个小版本 / ✅ 最新 / 超前} |
+| 至任务指定版本差距 | {落后 N 个版本，主要变更概述} |
+| 至 npm latest 差距 | {落后 N 个版本，latest 增量说明（如仅 patch 修复），可提示顺带对齐} |
 | 最近版本列表 | {v1}, {v2}, {v3}, ... |
+
+---
+
+## 分支-基线核验（任务指定分支/基线与仓库不符时必填）
+
+> 以 `README.OpenSource` Version Number（最可靠）+ `git log --all --grep` + `git branch -a --contains` 核验；不符时以实际核验结果为准，并在报告开篇澄清。
+
+| 分支 | package.json 版本 | README.OpenSource 上游基线 | 说明 |
+|------|------------------|---------------------------|------|
+| {branch} | {version} | {version} | {如：任务指定分支，实际基线为 X} |
+| {branch} | {version} | {version} | {如：任务指定基线实际所在分支} |
+
+---
+
+## 自动判定修正（人工复核推翻脚本结论时必填）
+
+> 脚本（rn-scan-exports.cjs）自动判定仅覆盖 TurboModule Spec；Fabric 组件 Spec 变更须人工 diff `codegenNativeComponent` 输入文件复核。下游请勿直接采信 `api-diff_*.md` 的自动结论。
+
+| 项目 | 内容 |
+|------|------|
+| 脚本自动结论 | {如：✅ 无需原生适配 — 接口未变更} |
+| 修正后结论 | {如：需要原生适配（类型 A）} |
+| 修正原因 | {如：Fabric 组件 Spec 新增 N props + M 事件，为 codegen 直接输入} |
 
 ---
 
@@ -45,10 +71,25 @@
 |------|----------|----------|--------|
 | JS/TS 公共 API | {说明} | 高/中/低 | {n} |
 | TurboModule Spec | {说明} | 高/中/低 | {n} |
+| Fabric 组件 Spec | {说明} | 高/中/低 | {n} |
 | Android 原生 | {说明} | 高/中/低 | {n} |
 | iOS 原生 | {说明} | 高/中/低 | {n} |
 | 构建/依赖 | {说明} | 高/中/低 | {n} |
 | 文档/测试/CI | {说明} | 高/中/低 | {n} |
+
+---
+
+## 上游→鸿蒙目录映射（仅类型 A）
+
+> 鸿蒙化仓库并非原样保留上游 src/ 结构。Phase 2 筛选与后续 code-adapt 阶段按此表转写文件变更，不得假设鸿蒙仓库保留上游目录结构。
+
+| 类别 | 上游路径 | 鸿蒙仓库对应 | 说明 |
+|------|----------|-------------|------|
+| Fabric 组件 Spec | {path} | {path} | {重命名/扩展说明} |
+| TurboModule Spec | {path} | {path} | |
+| types | {path} | {path} | |
+| 平台实现 | {X.android.tsx / X.ios.tsx} | {X.tsx 自有实现等} | |
+| codegen 入口 | — | {scripts/codegen-lib.js 等} | {react-native-harmony-cli 调用方式、输出目录} |
 
 ---
 
@@ -61,6 +102,8 @@
 | 🔴 高风险 | 大版本差距，有 breaking change 或原生层重构 |
 
 **当前评估：** {风险等级} — {判定依据说明}
+
+> ⚠️ major 版本跨度 ≠ breaking change：须逐条核对 CHANGELOG / GitHub Releases 的 breaking 项是否触及 **JS 层接口契约**（原生侧 only 的 breaking 属性可降级处理）。
 
 ---
 

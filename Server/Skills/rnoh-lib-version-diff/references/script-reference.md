@@ -94,6 +94,7 @@ npm tgz 包含编译产物和预编译二进制框架，这些在 git 仓库中�
 
 **限制**：
 - 不支持 rename 检测。npm 包之间的文件移动较少见，且 diff 内容已能展示差异。
+- 接口差异自动判定（rn-scan-exports.cjs）只覆盖 TurboModule Spec（`src/specs/Native*Module.ts`），**不检查 Fabric 组件 Spec**（`codegenNativeComponent` 输入文件）。View 型库（相机/播放器/地图/WebView）须人工 diff 组件 Spec 文件的 props/事件增删，否则可能产生「无需原生适配」假阴性（实测 camera-kit 16.1.3→18.0.0）。
 
 **输出文件**：
 - `<version1>/` — 版本1 源代码（解压后的 npm 包）

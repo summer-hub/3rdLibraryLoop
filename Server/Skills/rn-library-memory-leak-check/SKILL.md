@@ -4,7 +4,7 @@ description: 对 RN 三方库鸿蒙化代码进行内存泄露检视，聚焦 Ar
 license: Apache-2.0
 compatibility: 需要访问 Git 仓库、分析 ohos 目录下的 ETS/C++ 源码
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # RNLibraryMemoryLeakCheckSkill
@@ -88,6 +88,8 @@ python3 {skillDir}/scripts/scan_harmony_code.py '{"sourceDir": "{{outputDir}}/so
 
 > `workdir: "{{outputDir}}"`
 
+> ⚠️ 脚本默认排除 `.upstream-cache`、`node_modules`、`oh_modules` 缓存/依赖目录，避免接口分析前置阶段拉取的上游 npm 包缓存被误报为"RN 鸿蒙化特征文件"（普通 JS 文件仅因含 `NativeModules` 引用即被匹配）。若手工执行 `find`/`rg` 枚举特征文件，须同样排除这些目录。
+
 **判定规则**：
 - 优先通过代码特征识别，而非仅依赖目录名称
 - 扫描到鸿蒙代码特征 → 确认鸿蒙化实现，进入 Phase 1
@@ -108,6 +110,8 @@ python3 {skillDir}/scripts/scan_harmony_code.py '{"sourceDir": "{{outputDir}}/so
 
 **关键检查**：`__onDestroy__` 必须按"移除监听 → 停止操作 → 释放系统资源 → 清空 Map → 置空回调引用"顺序执行。
 
+> ⚠️ **无状态模块豁免**：`__onDestroy__` 未释放扣 20 分的前提是模块**持有需要释放的资源**。若模块为"零状态"（零事件监听、零系统资源句柄、零 Map/Set 容器、零回调引用、零实例字段），未重写 `__onDestroy__` 属正确最小化设计，**不扣分**，在报告中注明"无泄露面"。适用豁免前必须先完成零泄露面穷尽验证（见 [CHECKLIST.md 第 10 节](references/CHECKLIST.md#10-零泄露面穷尽验证模式集无状态库确认)），禁止仅凭"看起来没有状态"就直接豁免。
+
 ### 1.2 NativeComponent 生命周期绑定（致命项，15分）
 
 | 检查项 | 问题描述 | 扣分规则 |
@@ -123,6 +127,18 @@ python3 {skillDir}/scripts/scan_harmony_code.py '{"sourceDir": "{{outputDir}}/so
 - 多实例场景：同一 ViewManager 创建的多个 View 实例必须各自独立清理
 
 > 详细代码示例（正例/反例）参见 [检查清单 - 1. TurboModule/NativeModule 生命周期管理](references/CHECKLIST.md#1-turbomodulenativemodule-生命周期管理)
+
+### 1.3 手写/codegen 双轨 TurboModule 接线验证（观察项，0 分）
+
+鸿蒙化库中经常同时存在**手写 C++ TurboModule 类**与 **codegen 生成的同名 TurboModule**（位于 `generated/RNOH/generated/turbo_modules/`），且两套实现方法数可能不一致。仅凭文件存在无法判断哪个真正生效，必须做接线验证：
+
+1. 打开库的 Package 头文件（如 `BaseReactNativeXXXPackage.h`，通常由 codegen 生成）
+2. 查看 `createTurboModule()` / 工厂方法中 `std::make_shared<XXX>` **实际实例化的类名**
+3. 工厂只实例化 codegen 类 → 手写类为**未接线死代码**（运行期零分配零调用，无内存影响）；工厂实例化手写类 → codegen 类仅是接口壳
+
+**判定原则**：判断 C++ TurboModule 哪个生效，看 Package 工厂链路中实际创建的类名，而非文件是否存在。
+
+**评分处理**：未接线的手写死代码、codegen 产物滞后（手写与 codegen 方法数不一致）等**内存零影响**的发现，记入泄露风险清单但标注"**观察（0 分）**"，注明不扣分理由及归属阶段（编码质量/一致性检视），不计入内存扣分。
 
 ---
 
@@ -287,6 +303,7 @@ python3 {skillDir}/scripts/scan_harmony_code.py '{"sourceDir": "{{outputDir}}/so
 - 泄露风险清单必须标注 **语言层**（ArkTS/C++/RN/跨语言）
 - 每条泄露记录包含足够的定位信息（文件路径+行号）
 - 扣分明细表按致命/严重/中等/轻微分类汇总
+- 泄露风险清单支持"**观察（0 分）**"严重度档位：检视中发现的对内存**零影响**的问题（如未接线的手写死代码、codegen 产物滞后、死代码单例设计隐患），记入清单但标注"观察（0 分）"，须注明不扣分理由（无内存影响）及建议归属阶段（编码质量/一致性检视），防止信息丢失，同时不稀释内存评分语义
 
 ---
 

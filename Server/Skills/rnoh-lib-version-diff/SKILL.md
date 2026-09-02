@@ -14,7 +14,7 @@ license: MIT
 compatibility: 需要 node、npm、tar、diff；仅需 npm registry 访问；鸿蒙 API 核查需 devecocli CLI。注意：脚本会对 diff 做行为验证（PATH 中 DevEco toolchains 等不兼容 diff 会被自动跳过），可用环境变量 DIFF_BIN 指定绝对路径
 allowed-tools: Bash Read Grep Glob Write
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   phase: "1-of-4"
 ---
 
@@ -55,12 +55,12 @@ metadata:
 ## 工作流程
 
 ```
-Step 1: 提取基线版本 + 查询 npm 最新版本
+Step 1: 提取基线版本（含分支-基线核验）+ 查询 npm 最新版本
 Step 2: 升级类型判定（A/B/C）
 Step 3: 检查目标分支是否存在
 Step 4: 两阶段 diff 生成（仅类型 A）
-  Phase 1: 生成全量文件变更清单 + 接口差异分析
-  Phase 2: AI 筛选相关文件 → 生成精简 patch
+  Phase 1: 生成全量文件变更清单 + 接口差异分析 + 组件 Spec 人工复核
+  Phase 2: AI 筛选相关文件 → 生成精简 patch + 建立上游→鸿蒙目录映射表
 Step 5: 鸿蒙 API 核查（仅涉及原生能力时）
 Step 6: 生成版本分析报告
 ```
@@ -71,12 +71,20 @@ Step 6: 生成版本分析报告
 
 ### 如果已指定基线版本和目标版本
 
-直接记录，跳到 Step 2。仅需从 `README.OpenSource` 文件获取上游仓库 URL：
+**先核验「分支-基线」组合与仓库实际是否一致**（任务指定的组合可能与仓库不符——实测 camera-kit：任务指定 br_rnoh0.77 分支基线 16.1.3，实际该分支为 15.1.x，16.1.3 基线在 master 分支）。核验手段按可靠性从高到低：
+
+1. `README.OpenSource` 的 `Version Number` 字段 — **最可靠**，是鸿蒙化仓库的权威声明
+2. `git log --all --grep="<版本号>"` + `git branch -a --contains <commit>` 定位版本提交所在分支
+3. `git show origin/<branch>:package.json` 交叉验证各分支的 package.json 版本
 
 ```bash
-# 查看 README.OpenSource 获取 Upstream URL
+# 查看 README.OpenSource 获取 Upstream URL 与权威基线版本
 cat <鸿蒙化仓库>/README.OpenSource
 ```
+
+> ⚠️ 若核验结果与任务指定不符：在报告开篇显式澄清，输出各分支版本矩阵（分支 × package.json 版本 × README.OpenSource 基线），并以**实际核验结果**为准继续分析。
+
+同时从 `README.OpenSource` 获取上游仓库 URL，然后跳到 Step 2。
 
 ### 如果未指定基线版本
 
@@ -89,6 +97,8 @@ node scripts/detect-upstream-version.js <git-repo-url>
 **回退方案**：如果脚本输出"未找到匹配的上游版本号"，检查仓库根目录的 `README.OpenSource` 文件——其中包含 `Version Number` 和 `Upstream URL` 字段，比 package.json 依赖列表更可靠（鸿蒙化仓库会用 `@react-native-ohos/` 前缀替换上游包名）。
 
 记录以下信息：基线版本、npm 最新版本、版本状态（落后/最新/超前）、上游仓库 URL。
+
+> ⚠️ **版本差距双口径**：当任务指定的对比版本 ≠ npm `dist-tags.latest` 时，同时记录「至任务指定版本」与「至 npm latest」两档差距。latest 可能仅多 patch 修复（实测 camera-kit：任务指定 18.0.0，latest 为 18.0.1 仅含 iOS 修复），可在升级建议中提示顺带对齐。
 
 ---
 
@@ -151,7 +161,17 @@ node scripts/generate-diff.js \
 
 其中 `structure_*.md` 和 `api-diff_*.md` 由脚本内部调用 `rn-scan-exports.cjs`（位于 `../../../MCP/scripts/`）对比两个版本的 JS 导出和 TurboModule Spec 自动生成。
 
-**核心逻辑**：如果 JS 层接口未变更 → "无需原生适配，只需合并 JS + codegen"。如果接口变更 → 列出每个变更的方法及其签名作为适配检查项。
+**核心逻辑**：RN 库的原生接口契约 = **TurboModule Spec + Fabric Component Spec 两部分**。判定矩阵：
+
+| 检查项 | 覆盖文件 | 判定 |
+|--------|----------|------|
+| JS 导出变更 | index 入口、公共 API | 需同步 JS + 检查 harmony 调用 |
+| TurboModule Spec 变更 | `src/specs/Native*Module.ts` | **需要原生适配**（改 Spec → codegen → ETS/C++） |
+| **Fabric 组件 Spec 变更**（须人工复核） | `codegenNativeComponent` 输入文件（如 `src/specs/*Component*.ts`） | **需要原生适配**（组件 Spec 是 codegen 直接输入：改 Spec → 重跑 codegen → ETS 原生实现新 props/事件） |
+
+即：**TurboModule Spec 变更 OR 组件 Spec 变更 → 需要原生适配**；两者都无变更且 JS 导出无变更 → 无需原生适配，只需合并 JS + codegen。
+
+> ⚠️ **自动判定盲区（必做人工复核）**：`rn-scan-exports.cjs` 的自动判定只覆盖 TurboModule Spec，**不检查 Fabric 组件 Spec**。对 View 型库（相机/播放器/地图/WebView 等），脚本结论「无需原生适配」可能是**假阴性**（实测 camera-kit 16.1.3→18.0.0：TurboModule Spec 无变更，但组件 Spec 新增 4 props + 2 事件，正确结论为需要原生适配）。脚本判定后**务必人工 diff** 所有 `codegenNativeComponent` 输入文件，重点检查组件 interface/`NativeProps` 的 props 增删与 `DirectEventHandler`/`BubblingEventHandler` 事件增删。若人工复核推翻脚本结论，在报告中显式记录修正（见 Step 6）。
 
 ### Phase 2：AI 筛选相关文件 → 生成精简 patch
 
@@ -182,6 +202,22 @@ node scripts/generate-diff.js \
 - 如果导出变更 → 包含入口文件（index.ts/tsx）
 - 始终包含含 codegenConfig 变更的 package.json
 - 绝不包含：example/、docs/、.github/、原生平台目录、已删除的包目录
+- 注意：上游共享实现（`X.tsx`）与平台特化文件（`X.android.tsx` / `X.ios.tsx`）是**三份并行文件**，变更可能只出现在平台版（实测 camera-kit：共享版无变更、平台版有 props 默认值注入），不可只看入口/共享版
+- 注意：Phase 1 的 patch 仍可能含 android/ios 原生代码与 .DS_Store 等二进制噪音，不要因 patch 体积大而误判变更面；在 patch 中 grep 时用 `grep -a` 强制文本模式（否则报 "Binary file matches"）
+
+**建立「上游→鸿蒙」目录映射表**（Phase 2 必做产出，写入报告）：
+
+鸿蒙化仓库并非原样保留上游 src/ 结构（可能重命名、移动、合并平台文件）。筛选时对照鸿蒙仓库实际结构建立映射表，覆盖以下映射项（示例为 camera-kit 实测）：
+
+| 映射项 | 上游路径 | 鸿蒙仓库对应 |
+|--------|----------|-------------|
+| Fabric 组件 Spec | `src/specs/CameraNativeComponent.ts` | `src/CameraKitNativeComponent.ts`（重命名+扩展） |
+| TurboModule Spec | `src/specs/NativeCameraKitModule.ts` | `src/NativeCameraKit.tsx` |
+| types | `src/types.ts` / `src/CameraProps.ts` | `types/types.ts` / `types/CameraProps.ts` |
+| 平台实现 | `src/Camera.android.tsx` / `Camera.ios.tsx` | `src/Camera.tsx`（自有实现，DeviceEventEmitter 桥接） |
+| codegen 入口 | — | `scripts/codegen-lib.js`（react-native-harmony-cli 的 commandCodegenLibHarmony，cpp/arkts 双输出） |
+
+后续 code-adapt 阶段按此映射表转写文件变更，**不得假设鸿蒙仓库保留上游目录结构**。
 
 ---
 
@@ -207,6 +243,10 @@ devecocli docs search "<关键词>" --catalog harmonyos-references --limit 10
 - 🟢 低风险：仅补丁版本差距，无 breaking change
 - 🟡 中风险：小版本差距，有 API 变更但向后兼容
 - 🔴 高风险：大版本差距，有 breaking change 或原生层重构
+
+> ⚠️ **major 跨度 ≠ breaking change**：版本号跨度只是信号，评级依据是逐条核对 CHANGELOG / GitHub Releases 的 breaking 项是否触及 **JS 层接口契约**。实测 camera-kit：18.0.0 为 major 但官方声明「No known breaking changes」（预防性标记）；17.0.0 的 breaking（移除 `iOsSleepBeforeStarting`）是原生侧 only 属性，16.1.3 的 JS Spec 中本就不存在，对 JS 契约无影响、可降级处理。上游 release notes 优先从 GitHub Releases 页面获取（CHANGELOG.md 不在 npm tgz 内，raw 获取可能超时）。
+
+> ⚠️ **自动判定修正标注**：当人工复核（如 Fabric 组件 Spec 检查）推翻脚本自动结论时，报告中必须显式记录修正前后的结论与原因（如「脚本判定：无需原生适配 → 修正为：需要原生适配，原因：组件 Spec 新增 props/事件」），避免下游直接采信 `api-diff_*.md` 的自动结论。
 
 适配判断规则见 [references/OHOS_ADAPTATION.md](references/OHOS_ADAPTATION.md)。
 

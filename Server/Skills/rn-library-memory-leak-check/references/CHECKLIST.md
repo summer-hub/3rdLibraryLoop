@@ -25,6 +25,8 @@
 | Map 数据清理 | 模块级 Map（如 `mConnectedDevices`）是否清空 | 高 | 未清空 -12 |
 | 释放顺序 | 先移除监听→停操作→清数据→释放资源 | 中 | 顺序错误 -8 |
 
+> ⚠️ **无状态模块豁免**：`destroy` 未释放扣 20 分的前提是模块**持有需要释放的资源**（事件监听/系统资源句柄/Map/Set 容器/回调引用/实例字段）。零状态模块未重写 `__onDestroy__`/`destroy` 属正确最小化设计，**不扣分**，报告中注明"无泄露面"。适用豁免前必须先完成[第 10 节零泄露面穷尽验证](#10-零泄露面穷尽验证模式集无状态库确认)。
+
 **正确示例**：
 
 ```typescript
@@ -857,3 +859,47 @@ class BleTurboModuleImpl extends TurboModule implements NativeBleModuleSpec {
 | 缓存无上限 | -8 |
 | RAII 未使用 | -10 |
 | 事件发送器未随 TurboModule 销毁 | -10 |
+
+### 观察项（0 分，不计入扣分）
+
+内存检视中发现的对内存**零影响**的问题，记入泄露风险清单但标注"观察（0 分）"，注明不扣分理由及建议归属阶段（编码质量/一致性检视）：
+
+| 问题类型 | 处理 | 说明 |
+|----------|------|------|
+| 未接线的手写 TurboModule 死代码 | 观察（0 分） | Package 工厂未实例化，运行期零分配零调用（接线验证方法见 SKILL.md 1.3） |
+| codegen 产物滞后（手写与 codegen 方法数不一致） | 观察（0 分） | 无内存影响，属一致性/维护性问题 |
+| 死代码模块级单例（全仓库无 import） | 观察（0 分）或轻微（0～-5） | 运行期零分配，非严格泄露；被 import 的 eager 单例另按"加载即常驻"标定轻微～中等 |
+| 无状态模块未重写 `__onDestroy__` | 豁免，不扣分 | 零监听/零句柄/零容器/零回调引用时属正确最小化设计（见第 1 节豁免规则） |
+
+---
+
+## 10. 零泄露面穷尽验证模式集（无状态库确认）
+
+**用途**：疑似"零状态"库（纯 TurboModule、无 NativeComponent、业务全部映射到系统静态一次性 API）在下"零泄露面"结论前，必须用以下 rg 模式集穷尽验证，**全库 0 命中方可确认**。确认零泄露面后，`__onDestroy__` 缺失适用第 1 节的无状态模块豁免规则。
+
+```bash
+# 1. 生命周期/监听/订阅
+rg -n "__onDestroy__|onDestroy|aboutToDisappear|onDropViewInstance|addListener|removeListener|EventEmitter|addEventListener" <ets/cpp/js 目录>
+# 2. 鸿蒙 on/off 订阅对
+rg -n "\.on\(|\.off\(" <ets 目录>
+# 3. 容器与静态状态
+rg -n "Map<|Set<|static |private " <ets 目录> --glob '*.ts' --glob '*.ets'
+# 4. C++ 内存与 NAPI（仅手写文件）
+rg -n "new |malloc|napi_|delete |free\(" <cpp 目录> -g '<手写文件 pattern>'
+# 5. 定时器
+rg -n "setInterval|setTimeout" <ets 目录>
+```
+
+**要点**：
+- C++ 检查必须区分手写文件与 `generated/` 目录（用 `-g` 限定只查手写文件，如 `-g 'Cookies*'`）；codegen 生成的空壳文件（EventEmitters/Props/ShadowNodes 等）单独确认"空实现无资源"即可，不逐文件深查
+- 扫描范围须排除 `.upstream-cache`、`node_modules`、`oh_modules` 等缓存/依赖目录（与 Phase 0 扫描脚本排除规则一致）
+- 全部 0 命中 → 报告注明"零泄露面，经六组模式穷尽验证"；任一命中 → 按对应 Phase 检查项深入分析
+
+### 10.1 codegen 组件空壳快速判定
+
+无 NativeComponent 的库，codegen 仍会生成组件相关文件（EventEmitters/Props/ShadowNodes/ComponentDescriptor 等）。快速判定整组文件是否为空壳：
+
+- 查看 Package 头文件（如 `BaseReactNativeXXXPackage.h`）中 `createComponentDescriptorProviders()` / `createComponentJSIBinderByName()` 的返回值是否为**空集合**
+- 查看 `supportedComponentNames` / `supportedEventNames` 是否为**空 vector**
+
+两者均为空 → 整组组件文件按空壳处理，NativeComponent 维度记"**不适用**"而非"通过"（报告中明确标注，避免误读为已检查通过）。
