@@ -49,6 +49,7 @@ FlexRunner / TestCheck / Knowledge），无需启动 HTTP 服务，即可从终�
 | `3rdloop workflows` | 列出已注册的固定编排工作流 |
 | `3rd3rdloop run <工作流名> [--flag <值> ...]` | 以固定编排执行工作流（阻塞到终态） |
 | `3rdloop run pr-check --pr-url <URL> [--library-type <arkts\|flutter\|rn\|tpccplus>]` | PR 代码检视（等价前端 PR 检视面板，taskId 带 `codecheck_` 前缀） |
+| `3rdloop config list\|get\|set\|unset` | 命令配置 `.env` 配置项（默认读写 `~/.3lib/.env`） |
 | `3rdloop doctor` | 环境自检（Node/opencode/.env/SKILL/数据目录） |
 | `3rdloop version` | 版本信息 |
 
@@ -297,6 +298,50 @@ export default {
 - 新增业务 SKILL 请放在 `Server/Skills/` 下（沿用既有 SKILL 约定），工作流文件中以
   `specifiedSkill` 引用即可。
 
+## config 配置命令（.env 配置项）
+
+`3rdloop config` 提供对 `.env` 配置项的命令式管理，**默认读写用户级 `~/.3lib/.env`**（跨项目全局生效），无需每次命令携带 flag 或手改 `.env` 文件。
+
+### 子命令
+
+| 子命令 | 作用 |
+|--------|------|
+| `3rdloop config list` | 列出全部已知配置项及当前生效值（密钥类脱敏） |
+| `3rdloop config get <KEY>` | 查看某项当前生效值（密钥类脱敏） |
+| `3rdloop config set <KEY> <VALUE>` | 设置某项并写入 `~/.3lib/.env`（密钥不回显） |
+| `3rdloop config unset <KEY>` | 删除 `~/.3lib/.env` 中的某项（恢复默认） |
+
+### 读取优先级（与 `.env` 加载链一致）
+
+**系统环境变量 > `~/.3lib/.env`（用户级） > 项目根 `Server/.env` > 内置默认值**。
+`config` 命令会模糊识别每项当前来源（`env` / `user-env` / `project-env` / `default`），在 `list`/`get` 输出中标注。
+
+### 白名单与校验
+
+`config` 命令内置全部已知配置键的白名单目录（LLM / Selector / 编排并发 / CLI / GitCode / `3LIB_*`），每项带默认值、说明与校验器（布尔、端口、权重、URL、枚举等）。**未知键 `set` 会报错**列出已知项。`DASHSCOPE_API_KEY`、`GIT_TOKEN` 等密钥类在 `get`/`list` 中脱敏显示。
+
+### 示例：配置默认存储路径
+
+```bash
+# 查看当前生效的数据目录（默认 ~/.3lib/3rdloop/db）
+3rdloop config get 3LIB_DATA_DIR
+
+# 将任务产物统一存到团队共享目录（全局生效，无需每次带 --data-dir）
+3rdloop config set 3LIB_DATA_DIR "D:\code\team\shared-db"
+
+# 确认生效：doctor 数据目录变为该路径，run 产物落 <dir>/task/<taskId>/
+3rdloop doctor
+
+# 恢复默认
+3rdloop config unset 3LIB_DATA_DIR
+```
+
+### 说明
+
+- `3LIB_ROOT` / `3LIB_HOME` 为**系统环境变量专用**（`.env` 写入不生效），`config` 会拒绝 `set`，请用 `setx` / `export` 配置。
+- 密钥 `set` 后明文写入 `~/.3lib/.env`（与手写 .env 一致），但 CLI 标准输出不回显明文。
+- `--data-dir` / `--skill-dir` 等**命令行 flag 仍是最高的单次覆盖**，不受 `config` 影响。
+
 ## 环境约定
 
 - **`.env`** 加载链：系统环境变量 > `~/.3lib/.env`（用户级） > 项目根 `Server/.env`。
@@ -306,7 +351,7 @@ export default {
 
 ## 环境变量
 
-CLI 自身配置（`3LIB_*` 前缀）：
+CLI 自身配置（`3LIB_*` 前缀）：可用 `3rdloop config set <KEY> <VALUE>` 配置（写入 `~/.3lib/.env`），下表列出默认值。
 
 | 变量 | 作用 | 默认值 |
 |------|------|--------|
@@ -316,15 +361,12 @@ CLI 自身配置（`3LIB_*` 前缀）：
 | `3LIB_SKILL_DIR` | SKILL 目录覆盖（等效 `--skill-dir`） | `vendor/Server/Skills` |
 | `3LIB_TASK_PREFIX` | taskId 前缀（审计用） | 空 |
 
-Windows 设置方式：
+推荐用 `3rdloop config` 管理（默认写入 `~/.3lib/.env`）：
 
 ```powershell
-# 当前终端临时生效
-$env:3LIB_DATA_DIR = "D:\code\tmp\db"
-# 用户级永久生效（需重开终端）
-setx 3LIB_DATA_DIR "D:\code\tmp\db"
-# 或写入 C:\Users\<用户>\.3lib\.env
-```
+# 配置默认存储路径（全局生效，无需每次带 --data-dir）
+3rdloop config set 3LIB_DATA_DIR "D:\code\team\shared-db"
+3rdloop config list          # 查看全部配置项及当前生效值
 
 > **注意**：提交用的 `--data-dir` / `3LIB_DATA_DIR` 必须与 `wait`/`progress`/`list`/`result` 一致，
 > 否则会出现"任务不存在"。跨终端统一最简单的方式是 `setx 3LIB_DATA_DIR` 一人设全局。

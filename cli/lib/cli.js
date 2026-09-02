@@ -141,6 +141,9 @@ export async function runCli(argv) {
         case 'orch':
             return cmdOrch({ flags, rest, projectRoot, dataDir, skillDir, jsonMode, quiet, verbose, out, u });
 
+        case 'config':
+            return cmdConfig({ flags, rest, projectRoot, user3libHome, jsonMode, out });
+
         default:
             process.stderr.write(`未知命令: ${cmd}\n`);
             printHelp();
@@ -191,6 +194,13 @@ async function cmdWorkflows({ jsonMode, out }) {
         if (params) process.stdout.write(`     用法: 3rdloop run ${it.name} ${params}\n`);
     }
     return EXIT.OK;
+}
+
+// ─── config（配置 .env 配置项）────────────────────────────────────
+
+async function cmdConfig({ flags, rest, projectRoot, user3libHome, jsonMode, out }) {
+    const { cmdConfigImpl } = await import('./config-cmd.js');
+    return cmdConfigImpl({ projectRoot, user3libHome, jsonMode, out, rest });
 }
 
 // ─── run / submit ──────────────────────────────────────────────────
@@ -612,6 +622,7 @@ function printHelp() {
   3rdloop orch tasks                          列出编排任务
   3rdloop workflows                     列出已注册的固定编排工作流
   3rdloop run <工作流名> [--flag <值> ...]     以固定编排执行工作流（阻塞到终态）
+  3rdloop config list|get|set|unset ...  配置 .env 配置项（默认读写 ~/.3lib/.env）
   3rdloop doctor                        环境自检
   3rdloop version                       版本信息
 
@@ -624,6 +635,13 @@ function printHelp() {
 
 工作流专用选项:
   --print-taskdef  仅构造并打印/落盘 taskDef（dry-run，不触碰引擎），适合调试新工作流
+
+config 子命令:
+  3rdloop config list                 列出全部配置项及当前生效值
+  3rdloop config get <KEY>            查看某项当前生效值
+  3rdloop config set <KEY> <VALUE>    设置某项（文件: ~/.3lib/.env，密钥不回显）
+  3rdloop config unset <KEY>          删除用户级 .env 中的某项（恢复默认）
+  优先级: 系统环境变量 > ~/.3lib/.env > 默认值
 
 全局选项:
   --json          结构化输出到 stdout（进度/日志走 stderr）
