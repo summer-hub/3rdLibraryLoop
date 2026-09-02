@@ -69,7 +69,7 @@ export async function runCli(argv) {
     _redirectStdoutLogs();
 
     const projectName = getProjectName(projectRoot, flags.projectName);
-    const dataDir = resolveDataDir({ dataDirFlag: flags.dataDir, projectName, user3libHome, projectRoot });
+    const dataDir = resolveDataDir({ dataDirFlag: flags.dataDir, user3libHome });
     const skillDir = resolveSkillDir({ skillDirFlag: flags.skillDir, projectRoot });
 
     // 统计服务写用户数据目录（而非 vendor/Server 相对路径的 cli/db）
@@ -629,7 +629,7 @@ function printHelp() {
   --json          结构化输出到 stdout（进度/日志走 stderr）
   -v, --verbose   详细模式
   --quiet         仅输出最终结果
-  --data-dir <p>  数据目录覆盖（默认 <项目根同级>/db）
+  --data-dir <p>  数据目录覆盖（默认 ~/.3lib/3rdloop/db）
   --project <n>   项目名覆盖（默认 git 仓库根名）
   --skill-dir <p>  SKILL 目录覆盖
   -h, --help      帮助

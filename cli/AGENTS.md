@@ -258,7 +258,7 @@ node cli/bin/3rdloop.mjs run <name> --print-taskdef    # 缺必填
 
 - `.env` 加载链：系统环境变量 > `~/.3lib/.env`（用户级） > 项目根 `Server/.env`。
   `loadEnvChain` 必须在任何核心引擎 import 前执行（使 Server 内部 dotenv 变静默 no-op）。
-- 数据目录：`<项目根同级>/db`（`--data-dir` / `3LIB_DATA_DIR` 可覆盖），任务写
+- 数据目录：`~/.3lib/3rdloop/db`（`--data-dir` / `3LIB_DATA_DIR` 可覆盖），任务写
   `<数据目录>/task/{taskId}/`。
 - opencode：自动拉起 `opencode serve`（项目上一级 cwd），已运行则复用；退出时清理进程树
   （Windows 用 `taskkill /pid X /T /F`）。

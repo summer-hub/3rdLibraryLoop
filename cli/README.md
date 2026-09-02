@@ -59,7 +59,7 @@ FlexRunner / TestCheck / Knowledge），无需启动 HTTP 服务，即可从终�
 | `--json` | 结构化输出到 **stdout**（进度/日志走 stderr，脚本可安全解析 stdout） |
 | `-v, --verbose` | 详细模式 |
 | `--quiet` | 仅输出最终结果 |
-| `--data-dir <p>` | 数据目录覆盖（默认 `<项目根同级>/db`，如 `D:\code\3rdLibraryLoop` → `D:\code\db`） |
+| `--data-dir <p>` | 数据目录覆盖（默认 `~/.3lib/3rdloop/db`） |
 | `--project <n>` | 项目名覆盖（默认取 git 仓库根名） |
 | `--skill-dir <p>` | SKILL 目录覆盖 |
 | `-h, --help` | 帮助 |
@@ -300,7 +300,7 @@ export default {
 ## 环境约定
 
 - **`.env`** 加载链：系统环境变量 > `~/.3lib/.env`（用户级） > 项目根 `Server/.env`。
-- **数据目录**：`<项目根同级>/db`（如 `D:\code\3rdLibraryLoop` → `D:\code\db`），与核心引擎默认 workspace 级数据库一致；任务写入 `<数据目录>/task/{taskId}/`。
+- **数据目录**：`~/.3lib/3rdloop/db`（Windows: `C:\Users\<用户>\.3lib\3rdloop\db`，macOS/Linux: `~/.3lib/3rdloop/db`），跨平台一致、不随执行目录变化、不随 npm 卸载清空；任务写入 `<数据目录>/task/{taskId}/`。
 - **opencode**：`3rdloop` 会自动拉起 `opencode serve`（需在项目**上一级**目录运行），
   退出时负责清理进程树。若已存在运行中的 opencode 服务则直接复用。
 
@@ -310,7 +310,7 @@ CLI 自身配置（`3LIB_*` 前缀）：
 
 | 变量 | 作用 | 默认值 |
 |------|------|--------|
-| `3LIB_DATA_DIR` | 数据目录覆盖（等效 `--data-dir`） | `<项目根同级>/db` |
+| `3LIB_DATA_DIR` | 数据目录覆盖（等效 `--data-dir`） | `~/.3lib/3rdloop/db` |
 | `3LIB_ROOT` | 项目根覆盖（须为系统环境变量，`.env` 文件不生效） | 自动探测 |
 | `3LIB_HOME` | 用户 3lib 主目录（含日志 `logs/`，须为系统环境变量） | `~/.3lib` |
 | `3LIB_SKILL_DIR` | SKILL 目录覆盖（等效 `--skill-dir`） | `vendor/Server/Skills` |
@@ -360,7 +360,9 @@ cd cli && npm install && npm link
 3rdloop run "冒烟：分析一个三方库的鸿蒙化可行性" --max-loops 1
 ```
 
-数据目录默认在仓库根同级 `<项目根同级>/db`（与核心引擎默认一致，团队同机共享任务数据）；如需每用户隔离，用 `--data-dir` 或 `3LIB_DATA_DIR` 覆盖。
+数据目录默认在用户三义库主目录 `~/.3lib/3rdloop/db`（跨平台一致，不随执行目录/ npm 卸载变化）；如需自定义位置（如团队共享目录），用 `--data-dir` 或 `3LIB_DATA_DIR` 覆盖。
+
+> **注意**：CLI 任务数据默认与 Web 前端（读取仓库根 `db/`）分离，CLI 提交的任务不会出现在前端任务列表。
 
 ## 场景二：后端更新与软链
 
