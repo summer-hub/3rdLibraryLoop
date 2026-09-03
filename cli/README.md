@@ -260,7 +260,6 @@ LLM 凭据变量（`DASHSCOPE_API_KEY` / `LLM_MODEL` 等）：按上文场景二
 3rdloop update --registry https://registry.npmjs.org/
 ```
 
-- 以 `npm link` 开发方式安装（连接到仓库源码）时，`update` 默认跳过并提示用 `git pull` 更新源码，加 `--force` 可强制替换为 registry 正式包
 - 更新只替换程序文件，**数据目录** `~/.3lib/3rdloop/db` **与** `~/.3lib/.env` **配置不受影响**
 
 

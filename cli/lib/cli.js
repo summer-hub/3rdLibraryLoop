@@ -660,7 +660,7 @@ function printHelp() {
   3rdloop run <工作流名> [--flag <值> ...]     以固定编排执行工作流（阻塞到终态）
   3rdloop config list|get|set|unset ...  配置 .env 配置项（默认读写 ~/.3lib/.env）
   3rdloop serve [--port N] [-w|--web] [--web-port N]  启动 Server HTTP 后端（供前端展示）
-  3rdloop update [--check] [--yes] [--force] [--registry <url>]  自更新到 npm 最新版
+  3rdloop update [--check] [--yes] [--registry <url>]  自更新到 npm 最新版
   3rdloop web [--port N] [--backend <url>]       启动 Web 前端服务
   3rdloop web install-ext <dir>                  安装扩展（tag/issue/prcheck 等二级功能）
   3rdloop web list-ext | remove-ext <name>       扩展管理
@@ -687,7 +687,6 @@ config 子命令:
 update 专用选项:
   --check          仅检查是否有新版本，不执行更新
   --yes, -y        跳过交互确认直接更新
-  --force          开发态（npm link）也强制替换为 registry 正式包
   --registry <url> 覆盖 npm registry（默认尊重用户 npm 镜像配置）
   注意: 数据目录 ~/.3lib/3rdloop/db 与 SKILL 配置不受更新影响
 
