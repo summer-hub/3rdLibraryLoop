@@ -1,4 +1,4 @@
-import { join, dirname } from 'node:path';
+import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import JsonAdapter from './adapters/JsonAdapter.js';
@@ -36,6 +36,12 @@ class StorageManager {
     constructor(options = {}) {
         if (options.rootDir) {
             this.rootDir = options.rootDir;
+        } else if (process.env['3LIB_DATA_DIR']) {
+            // CLI 数据目录策略（与 WEB_STATS_ROOT 同模式）：
+            // 3rdloop serve/run 等命令将解析后的数据目录注入 env，
+            // 使内部所有自建 createStorage()（FlexRunner/KnowledgeManager/
+            // MessageArchive 等）统一落到用户数据目录，而非模块相对路径。
+            this.rootDir = resolve(process.env['3LIB_DATA_DIR']);
         } else {
             // 本文件 (Server/DbUse/) 上溯 3 层到 workspace 根 → db/
             const here = dirname(fileURLToPath(import.meta.url));

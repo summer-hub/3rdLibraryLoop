@@ -9,6 +9,9 @@
  *   步骤 2~7 stability / consistency / memoryLeak /    — 6 个检视维度并发执行
  *            documentation / testCoverage /             （dependId=1 fan-out）
  *            knownIssue（独立扣分项）
+ *   步骤 ⑧  源码清理（前端动作，非编排步骤）           — 终态后删除 source/ 释放存储
+ *                                                          （ohos/ + RN/），仅删源码，
+ *                                                          报告与过程文件保留
  *
  * 每个检视 SKILL 输出 0-100 评分：
  *   - 首选：SKILL 按约定写 meta .json（stepId{X}_loop{L}_meta_{N}.json），
@@ -33,6 +36,7 @@
  *   6. GET  /api/flexrunner/steps?taskId= — 解析报告文件（懒加载）
  *   7. GET  /api/flexrunner/file?path= — 读取报告 / 评分兜底解析
  *   8. POST /api/orchestrator/abort — 取消任务
+ *   9. POST /api/flexrunner/clean-source — 终态后清理源码（仅删 source/，报告保留）
  *
  * 依赖：utils.js（apiFetch / createPagination / escapeHtml / toast / $）
  *       codecheck.css（cc-* 通用卡片样式）+ rnlibrarycheck.css（rn-* 扩展样式）
@@ -49,6 +53,8 @@ var _RN_STEP_DEFS = [
     { stepId: 5, key: 'documentation', skill: 'rn-library-documentation-quality-check',   num: '⑤', name: '文档质量检视', desc: 'API 注释、适配说明、示例质量',              report: '文档质量检视报告.md', scoreKey: 'documentationScore' },
     { stepId: 6, key: 'testcoverage',  skill: 'rn-library-test-coverage-check',           num: '⑥', name: '用例覆盖度检视', desc: '测试覆盖率、Demo 覆盖率',               report: '用例覆盖度检视报告.md', scoreKey: 'testCoverageScore' },
     { stepId: 7, key: 'knownissue',    skill: 'rn-library-known-issue-check',             num: '⑦', name: '已知问题检视', desc: '历史案例规则回归，独立扣分项（命中一条扣 30 分）', report: '已知问题检视报告.md', scoreKey: 'knownIssueScore' },
+    // ⑧ 源码清理：纯前端动作（uiOnly，不进 taskDef），终态后调用 /api/flexrunner/clean-source 删除 source/（ohos/ + RN/）
+    { stepId: 8, key: 'cleansource',   skill: '', num: '⑧', name: '源码清理', desc: '检视完成删除 source/ 源码释放存储，保留报告与过程文件', report: null, scoreKey: null, uiOnly: true },
 ];
 
 /* 评分权重（与 AIweb RNLibraryCheck 综合评分口径一致，权重和 = 1；knownissue 为独立扣分项不参与加权） */
@@ -283,6 +289,7 @@ async function doRNLibraryCheck() {
         // 6 个检视步骤（并发）：依赖步骤 1 已克隆的 source/ohos/、source/RN/ 和 接口规格说明.md
         for (var i = 1; i < _RN_STEP_DEFS.length; i++) {
             var def = _RN_STEP_DEFS[i];
+            if (def.uiOnly) continue; // 源码清理为纯前端动作，不进编排 taskDef
             var desc = [
                 '请使用 ' + def.skill + ' SKILL 对 RN 三方库「' + libraryName + '」进行' + def.name + '，生成检视报告。',
                 '',
@@ -384,6 +391,7 @@ function _rnNewTaskState(taskId, libraryName, ohosRepoUrl, upstreamRepoUrl, rndo
         _resolving: false,
         _progressLoaded: false,
         _terminalDone: false,
+        _cleanStarted: false,   // 源码清理是否已触发（幂等防重）
         mdFileCount: 0,    // taskDir 下的 .md 文件数（驱动"下载全部报告"按钮）
         reportPaths: {},   // 各维度专属报告文件（如 稳定性检视报告.md）
         resultPaths: {},   // 各步骤 result .md 兜底路径（部分 SKILL 会把报告合入 result 文件）
@@ -837,9 +845,10 @@ async function _rnResolveFiles(idx) {
     var task = _rnTasks[idx];
     if (!task) return;
 
-    // 全部专属报告已找到 → 幂等返回
+    // 全部专属报告已找到 → 幂等返回（uiOnly / 无报告步骤跳过，如⑧源码清理）
     var allFound = true;
     for (var a = 0; a < _RN_STEP_DEFS.length; a++) {
+        if (_RN_STEP_DEFS[a].uiOnly || !_RN_STEP_DEFS[a].report) continue;
         if (!task.reportPaths[_RN_STEP_DEFS[a].key]) { allFound = false; break; }
     }
     if (allFound) { task.filesResolved = true; _rnShowReportButtons(idx); return; }
@@ -997,6 +1006,8 @@ function _rnOnTerminal(idx, status) {
     _rnResolveFiles(idx).then(function () {
         _rnFallbackScores(idx);
     });
+    // 最后环节：清理源码（仅删 taskDir/source/（ohos/ + RN/），报告 .md / meta .json 等过程文件保留）
+    _rnCleanSource(idx);
 }
 
 function _rnFinishSSE(idx) {
@@ -1043,6 +1054,77 @@ function _rnRenderElapsed(idx) {
 
     var timeEl = document.getElementById('rn-' + idx + '-time');
     if (timeEl && task.startedAt) timeEl.textContent = _rnFormatTime(task.startedAt);
+}
+
+/* ════════════════════════════════════════════════════════════════════
+ * 源码清理（检视最后环节：删除 taskDir/source/，节省存储）
+ *
+ * 后端 POST /api/flexrunner/clean-source 只删除任务目录下固定的 source/ 子目录
+ * （RN 双仓库源码克隆路径，含 ohos/ 与 RN/），检视报告 .md、meta .json、
+ * orchestration.json 等文档与过程文件均在 taskDir 根目录，不受影响。
+ * 触发时机：任务终态（_rnOnTerminal）；历史终态任务渲染时静默补删
+ * （覆盖检视期间页面被关闭、清理未触发的场景）。
+ * ════════════════════════════════════════════════════════════════════ */
+
+/** 字节数格式化：B / KB / MB / GB */
+function _rnFormatBytes(n) {
+    if (!isFinite(n) || n <= 0) return '0 B';
+    var units = ['B', 'KB', 'MB', 'GB'];
+    var i = 0;
+    while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+    return (i === 0 ? Math.round(n) : n.toFixed(1)) + ' ' + units[i];
+}
+
+/** 更新⑧"源码清理"步骤行状态（running / completed / failed） */
+function _rnSetCleanStatus(idx, status, freedBytes) {
+    var row = document.getElementById('rn-' + idx + '-row-cleansource');
+    var icon = document.getElementById('rn-' + idx + '-icon-cleansource');
+    var txt = document.getElementById('rn-' + idx + '-cleansource-txt');
+    if (row) row.className = 'rn-step-row ' + status;
+    if (icon) {
+        if (status === 'running') { icon.className = 'rn-step-icon running'; icon.textContent = '🧹'; }
+        else if (status === 'completed') { icon.className = 'rn-step-icon completed'; icon.textContent = '✓'; }
+        else if (status === 'failed') { icon.className = 'rn-step-icon failed'; icon.textContent = '✗'; }
+    }
+    if (txt) {
+        if (status === 'running') txt.textContent = '正在清理源码…';
+        else if (status === 'completed') txt.textContent = freedBytes != null ? '已清理源码，释放 ' + _rnFormatBytes(freedBytes) : '源码已清理';
+        else if (status === 'failed') txt.textContent = '清理失败';
+    }
+}
+
+/**
+ * 调用后端清理源码（幂等，失败允许下次触发重试）。
+ * @param {number} idx
+ * @param {boolean} [silent] - 静默模式（历史补删，不弹 toast）
+ */
+function _rnCleanSource(idx, silent) {
+    var task = _rnTasks[idx];
+    if (!task || task._cleanStarted) return;
+    task._cleanStarted = true;
+
+    _rnSetCleanStatus(idx, 'running');
+    apiFetch('POST', '/api/flexrunner/clean-source', { taskId: task.taskId }, 60000)
+        .then(function (r) {
+            if (r.data && r.data.status === 'ok' && r.data.cleaned) {
+                _rnSetCleanStatus(idx, 'completed', r.data.freedBytes);
+                if (!silent) {
+                    toast('info', '已清理源码（' + _rnEsc(task.libraryName) + '），释放 ' + _rnFormatBytes(r.data.freedBytes) + ' 存储空间');
+                }
+            } else if (r.data && r.data.status === 'ok') {
+                // 无源码可清（未克隆 / 已清理过）→ 幂等完成
+                _rnSetCleanStatus(idx, 'completed');
+            } else {
+                // HTTP 错误（如 409 任务仍在执行）→ 失败可重试
+                task._cleanStarted = false;
+                _rnSetCleanStatus(idx, 'failed');
+            }
+        })
+        .catch(function () {
+            // 清理失败：重置标记，下次触发（如历史重新渲染）时重试
+            task._cleanStarted = false;
+            _rnSetCleanStatus(idx, 'failed');
+        });
 }
 
 /* ════════════════════════════════════════════════════════════════════
@@ -1352,6 +1434,8 @@ function _rnRenderHistoryPage(tasks, isFirstPage) {
             _rnStartProgressPoll(idx);
         } else {
             _rnFinishSSE(idx);
+            // 终态历史任务：静默补删源码（覆盖检视期间页面关闭、终态清理未触发的场景）
+            _rnCleanSource(idx, true);
         }
     }
 }

@@ -21,6 +21,7 @@ import FlexRunnerController from '../controllers/FlexRunnerController.js';
  *  GET    /steps             — 列出任务步骤和文件
  *  GET    /file              — 读取指定文件内容
  *  GET    /archive           — 打包下载任务目录下全部 .md 报告（ZIP）
+ *  POST   /clean-source      — 删除任务目录下源码克隆目录 source/（释放存储，保留报告/过程文件）
  *  GET    /runners           — 列出所有已注册实例
  *  DELETE /runner            — 移除一个实例
  *
@@ -51,6 +52,7 @@ export function createFlexRunnerRouter(dependencies) {
     router.get('/steps',          controller.steps.bind(controller));
     router.get('/file',           controller.file.bind(controller));
     router.get('/archive',        controller.archive.bind(controller));
+    router.post('/clean-source',  controller.cleanSource.bind(controller));
     router.get('/runners',        controller.runners.bind(controller));
 
     // ── 控制与检查 ──

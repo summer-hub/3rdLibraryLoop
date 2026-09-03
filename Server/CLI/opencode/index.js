@@ -388,7 +388,7 @@ class OpenCodeCLI {
             try {
                 statusMap = await this.client.session.status({ query: {} });
             } catch (e) {
-                this._log('warn', `checkSessionStatus: session.status() 失败，降级为拉消息: ${e.message}`);
+                this._log('debug', `checkSessionStatus: session.status() 失败，降级为拉消息: ${e.message}`);
             }
             const rawStatus = statusMap?.data?.[sessionId];
             if (rawStatus && (rawStatus.type === 'busy' || rawStatus.type === 'retry')) {
@@ -487,7 +487,7 @@ class OpenCodeCLI {
                 hasNewMessage: !!checkRes.hasNewMessage
             };
         } catch (error) {
-            this._log('warn', `checkSessionStatus 异常 id=${sessionId}: ${error.message}`);
+            this._log('debug', `checkSessionStatus 异常 id=${sessionId}: ${error.message}`);
             return { status: 'unknown' };
         }
     }

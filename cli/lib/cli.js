@@ -145,7 +145,7 @@ export async function runCli(argv) {
             return cmdConfig({ flags, rest, projectRoot, user3libHome, jsonMode, out });
 
         case 'serve':
-            return cmdServe({ flags, rest, jsonMode });
+            return cmdServe({ flags, rest, jsonMode, dataDir });
 
         case 'update':
             return cmdUpdate({ flags, rest, jsonMode, out });
@@ -226,9 +226,9 @@ async function cmdUpdate({ flags, rest, jsonMode, out }) {
 
 // ─── serve（启动 Server HTTP 后端，供前端展示）─────────────────────────
 
-async function cmdServe({ flags, rest, jsonMode }) {
+async function cmdServe({ flags, rest, jsonMode, dataDir }) {
     const { cmdServe: impl } = await import('./serve.js');
-    return impl({ rest: flags.rest, jsonMode });
+    return impl({ rest: flags.rest, jsonMode, dataDir });
 }
 
 // ─── run / submit ──────────────────────────────────────────────────

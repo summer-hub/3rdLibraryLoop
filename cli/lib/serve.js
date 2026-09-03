@@ -88,9 +88,10 @@ function _parseServeArgs(rest = []) {
  * @param {object} opts
  * @param {string[]} opts.rest - flags.rest（含 serve 专用参数）
  * @param {boolean} opts.jsonMode
+ * @param {string} [opts.dataDir] - CLI 解析后的数据目录（--data-dir / 3LIB_DATA_DIR / 默认）
  * @returns {Promise<number>} 退出码（serve 为长驻命令，仅 --help/启动失败正常返回）
  */
-export async function cmdServe({ rest = [], jsonMode = false }) {
+export async function cmdServe({ rest = [], jsonMode = false, dataDir = '' }) {
     // --help / -h：打印用法
     if (rest.includes('--help') || rest.includes('-h')) {
         _printServeHelp();
@@ -104,6 +105,15 @@ export async function cmdServe({ rest = [], jsonMode = false }) {
     if (args.web && serverPort === webPort) {
         process.stderr.write(`3rdloop serve: 后端端口与 Web 端口相同 (${serverPort})，请用 --web-port 指定不同端口\n`);
         return 1;
+    }
+
+    // ── 数据目录对齐 CLI（A3）：与 run/submit 共用同一 dataDir ──────
+    // 通过 env 注入而非逐层传参：Server 内部所有自建 createStorage()
+    // 都经 StorageManager 默认根目录解析，env 一处生效（含 FlexRunner /
+    // KnowledgeManager / MessageArchive 等惰性自建实例）。
+    // 必须在 import Server 模块前设置（覆盖部分模块加载期构造的实例）。
+    if (dataDir) {
+        process.env['3LIB_DATA_DIR'] = dataDir;
     }
 
     const serverModule = await _importServerModule();
@@ -141,7 +151,9 @@ export async function cmdServe({ rest = [], jsonMode = false }) {
 
     try {
         // cliType 由环境决定（shell > .env > 默认 opencode），与 CLI 嵌入式一致；
-        // dataDir/skillDir 沿用 Server 默认（workspace 根 db/），本期不与 CLI 打通
+        // dataDir 已通过 3LIB_DATA_DIR env 注入（见上），Server 内部所有默认
+        // createStorage() 均落到用户数据目录；skillDir 沿用包内 vendor 默认
+        // （npm 更新自动获得新 SKILL，不与 CLI 的 3LIB_SKILL_DIR 联动）
         const server = await serverModule.createServer({ port: serverPort });
 
         if (jsonMode) {

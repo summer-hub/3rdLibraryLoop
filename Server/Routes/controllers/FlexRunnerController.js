@@ -777,6 +777,77 @@ class FlexRunnerController {
     }
 
     /**
+     * POST /api/flexrunner/clean-source
+     * 删除任务目录下的源码克隆目录（{taskDir}/source/），释放存储空间。
+     *
+     * 仓库检视（ArkTS/Flutter/RN）与 PR 代码检视（arkts/flutter/rn-code-check）均把
+     * 仓库源码克隆到任务目录的 source/ 固定路径；检视结束后源码不再被引用
+     * （检视报告 .md、meta .json、orchestration.json 等过程文件均在 taskDir 根目录），
+     * 由前端在任务终态时调用本接口清理。
+     *
+     * 安全约束：
+     *   - 只删除固定子目录名 source（不接受任意路径参数，防误删报告/过程文件）
+     *   - taskDir 经 _resolveTaskDir 解析（内存实例 → 编排元信息 → 磁盘白名单兜底）
+     *   - 内存中编排器仍有步骤执行（pending/ready/running）时拒绝清理
+     *   - source/ 不存在时幂等返回 cleaned=false（如 tpc-cpp-check 不克隆源码）
+     *
+     * Body: { taskId }
+     */
+    async cleanSource(req, res) {
+        const body = req.body || {};
+        const { taskId } = body;
+        if (!taskId) {
+            return res.error(400, 'taskId 为必填项');
+        }
+
+        try {
+            // 活跃任务保护：内存中编排器仍有步骤在执行时拒绝（防止误删执行中正在使用的源码）
+            if (this._orchestratorController) {
+                try {
+                    const steps = this._orchestratorController.getTaskSteps(taskId);
+                    const active = steps.some(s =>
+                        ['pending', 'ready', 'running'].includes(String(s.status || '').toLowerCase()));
+                    if (active) {
+                        return res.error(409, '任务仍在执行中，暂不能清理源码');
+                    }
+                } catch { /* 内存无实例（已结束 / 重启后磁盘恢复）→ 继续清理 */ }
+            }
+
+            const taskDir = await this._resolveTaskDir(taskId);
+            if (!taskDir) {
+                return res.error(404, `未找到任务目录: taskId=${taskId}`);
+            }
+
+            const sourceDir = path.join(taskDir, 'source');
+
+            let st = null;
+            try { st = await fs.stat(sourceDir); } catch { /* 目录不存在 */ }
+            if (!st || !st.isDirectory()) {
+                return res.json({
+                    status: 'ok',
+                    cleaned: false,
+                    freedBytes: 0,
+                    message: '任务目录下无源码目录（source/ 不存在），无需清理',
+                });
+            }
+
+            // 统计释放空间（统计失败不阻塞删除，按 0 返回）
+            const freedBytes = await this._dirSize(sourceDir).catch(() => 0);
+            await fs.rm(sourceDir, { recursive: true, force: true });
+
+            res.json({
+                status: 'ok',
+                cleaned: true,
+                freedBytes,
+                path: sourceDir,
+                message: '已删除源码目录 source/，报告与过程文件保留',
+            });
+        } catch (err) {
+            res.error(500, `源码清理失败: ${err.message}`);
+        }
+    }
+
+    /**
      * 解析任务工作目录（供 archive 打包等场景使用）。
      *
      * 查找顺序：
@@ -821,6 +892,27 @@ class FlexRunnerController {
         }
 
         return null;
+    }
+
+    /**
+     * 递归统计目录占用大小（字节）。符号链接不计入（防循环遍历）。
+     * @param {string} dir
+     * @returns {Promise<number>}
+     * @private
+     */
+    async _dirSize(dir) {
+        let total = 0;
+        const entries = await fs.readdir(dir, { withFileTypes: true });
+        for (const e of entries) {
+            const fp = path.join(dir, e.name);
+            if (e.isDirectory()) {
+                total += await this._dirSize(fp);
+            } else if (e.isFile()) {
+                const st = await fs.stat(fp).catch(() => null);
+                if (st) total += st.size;
+            }
+        }
+        return total;
     }
 
     /**

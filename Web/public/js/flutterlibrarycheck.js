@@ -8,6 +8,8 @@
  *   步骤 1  flutter-interface                            — 克隆仓库 + 接口规格分析
  *   步骤 2~6 stability / consistency / memoryLeak /      — 5 个检视维度并发执行
  *            documentation / testCoverage                  （dependId=1 fan-out）
+ *   步骤 ⑦  源码清理（前端动作，非编排步骤）             — 终态后删除 source/ 释放存储，
+ *                                                          仅删源码，报告与过程文件保留
  *
  * 每个检视 SKILL 输出 0-100 评分：
  *   - 首选：SKILL 按约定写 meta .json（stepId{X}_loop{L}_meta_{N}.json），
@@ -24,6 +26,7 @@
  *   6. GET  /api/flexrunner/steps?taskId= — 解析报告文件（懒加载）
  *   7. GET  /api/flexrunner/file?path= — 读取报告 / 评分兜底解析
  *   8. POST /api/orchestrator/abort — 取消任务
+ *   9. POST /api/flexrunner/clean-source — 终态后清理源码（仅删 source/，报告保留）
  *
  * 依赖：utils.js（apiFetch / createPagination / escapeHtml / toast / $）
  *       codecheck.css（cc-* 通用卡片样式）+ flutterlibrarycheck.css（flc-* 扩展样式）
@@ -39,6 +42,8 @@ var _FLC_STEP_DEFS = [
     { stepId: 4, key: 'memoryleak',    skill: 'flutter-library-memory-leak-check',          num: '④', name: '内存泄露检视', desc: '生命周期、资源释放、Stream 管理',      report: '内存泄露检视报告.md', scoreKey: 'memoryLeakScore' },
     { stepId: 5, key: 'documentation', skill: 'flutter-library-documentation-quality-check', num: '⑤', name: '文档质量检视', desc: '鸿蒙化文档完整性、准确性、易读性',     report: '文档质量检视报告.md', scoreKey: 'documentationScore' },
     { stepId: 6, key: 'testcoverage',  skill: 'flutter-library-test-coverage-check',        num: '⑥', name: '用例覆盖度检视', desc: '测试覆盖率、Demo 覆盖率',           report: '用例覆盖度检视报告.md', scoreKey: 'testCoverageScore' },
+    // ⑦ 源码清理：纯前端动作（uiOnly，不进 taskDef），终态后调用 /api/flexrunner/clean-source 删除 source/
+    { stepId: 7, key: 'cleansource',   skill: '', num: '⑦', name: '源码清理', desc: '检视完成删除 source/ 源码释放存储，保留报告与过程文件', report: null, scoreKey: null, uiOnly: true },
 ];
 
 /* 评分权重（与 AIweb FlutterLibraryCheck 综合评分口径一致，权重和 = 1） */
@@ -301,6 +306,7 @@ async function doFlutterLibraryCheck() {
         // 5 个检视步骤（并发）：依赖步骤 1 已克隆的 source/ 和 接口规格说明.md
         for (var i = 1; i < _FLC_STEP_DEFS.length; i++) {
             var def = _FLC_STEP_DEFS[i];
+            if (def.uiOnly) continue; // 源码清理为纯前端动作，不进编排 taskDef
             var desc = [
                 '请使用 ' + def.skill + ' SKILL 对 Flutter 三方库「' + repoInfo.repoName + '」进行' + def.name + '，生成检视报告。',
                 '',
@@ -383,6 +389,7 @@ function _flcNewTaskState(taskId, repoUrl, repoName) {
         _resolving: false,
         _progressLoaded: false,
         _terminalDone: false,
+        _cleanStarted: false,   // 源码清理是否已触发（幂等防重）
         mdFileCount: 0,    // taskDir 下的 .md 文件数（驱动"下载全部报告"按钮）
         reportPaths: {},   // 各维度专属报告文件（如 稳定性检视报告.md）
         resultPaths: {},   // 各步骤 result .md 兜底路径（部分 SKILL 会把报告合入 result 文件）
@@ -826,9 +833,10 @@ async function _flcResolveFiles(idx) {
     var task = _flcTasks[idx];
     if (!task) return;
 
-    // 全部专属报告已找到 → 幂等返回
+    // 全部专属报告已找到 → 幂等返回（uiOnly / 无报告步骤跳过，如⑦源码清理）
     var allFound = true;
     for (var a = 0; a < _FLC_STEP_DEFS.length; a++) {
+        if (_FLC_STEP_DEFS[a].uiOnly || !_FLC_STEP_DEFS[a].report) continue;
         if (!task.reportPaths[_FLC_STEP_DEFS[a].key]) { allFound = false; break; }
     }
     if (allFound) { task.filesResolved = true; _flcShowReportButtons(idx); return; }
@@ -986,6 +994,8 @@ function _flcOnTerminal(idx, status) {
     _flcResolveFiles(idx).then(function () {
         _flcFallbackScores(idx);
     });
+    // 最后环节：清理源码（仅删 taskDir/source/，报告 .md / meta .json 等过程文件保留）
+    _flcCleanSource(idx);
 }
 
 function _flcFinishSSE(idx) {
@@ -1032,6 +1042,77 @@ function _flcRenderElapsed(idx) {
 
     var timeEl = document.getElementById('flc-' + idx + '-time');
     if (timeEl && task.startedAt) timeEl.textContent = _flcFormatTime(task.startedAt);
+}
+
+/* ════════════════════════════════════════════════════════════════════
+ * 源码清理（检视最后环节：删除 taskDir/source/，节省存储）
+ *
+ * 后端 POST /api/flexrunner/clean-source 只删除任务目录下固定的 source/ 子目录
+ * （源码克隆路径），检视报告 .md、meta .json、orchestration.json 等文档与
+ * 过程文件均在 taskDir 根目录，不受影响。
+ * 触发时机：任务终态（_flcOnTerminal）；历史终态任务渲染时静默补删
+ * （覆盖检视期间页面被关闭、清理未触发的场景）。
+ * ════════════════════════════════════════════════════════════════════ */
+
+/** 字节数格式化：B / KB / MB / GB */
+function _flcFormatBytes(n) {
+    if (!isFinite(n) || n <= 0) return '0 B';
+    var units = ['B', 'KB', 'MB', 'GB'];
+    var i = 0;
+    while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+    return (i === 0 ? Math.round(n) : n.toFixed(1)) + ' ' + units[i];
+}
+
+/** 更新⑦"源码清理"步骤行状态（running / completed / failed） */
+function _flcSetCleanStatus(idx, status, freedBytes) {
+    var row = document.getElementById('flc-' + idx + '-row-cleansource');
+    var icon = document.getElementById('flc-' + idx + '-icon-cleansource');
+    var txt = document.getElementById('flc-' + idx + '-cleansource-txt');
+    if (row) row.className = 'flc-step-row ' + status;
+    if (icon) {
+        if (status === 'running') { icon.className = 'flc-step-icon running'; icon.textContent = '🧹'; }
+        else if (status === 'completed') { icon.className = 'flc-step-icon completed'; icon.textContent = '✓'; }
+        else if (status === 'failed') { icon.className = 'flc-step-icon failed'; icon.textContent = '✗'; }
+    }
+    if (txt) {
+        if (status === 'running') txt.textContent = '正在清理源码…';
+        else if (status === 'completed') txt.textContent = freedBytes != null ? '已清理源码，释放 ' + _flcFormatBytes(freedBytes) : '源码已清理';
+        else if (status === 'failed') txt.textContent = '清理失败';
+    }
+}
+
+/**
+ * 调用后端清理源码（幂等，失败允许下次触发重试）。
+ * @param {number} idx
+ * @param {boolean} [silent] - 静默模式（历史补删，不弹 toast）
+ */
+function _flcCleanSource(idx, silent) {
+    var task = _flcTasks[idx];
+    if (!task || task._cleanStarted) return;
+    task._cleanStarted = true;
+
+    _flcSetCleanStatus(idx, 'running');
+    apiFetch('POST', '/api/flexrunner/clean-source', { taskId: task.taskId }, 60000)
+        .then(function (r) {
+            if (r.data && r.data.status === 'ok' && r.data.cleaned) {
+                _flcSetCleanStatus(idx, 'completed', r.data.freedBytes);
+                if (!silent) {
+                    toast('info', '已清理源码（' + _flcEsc(task.repoName) + '），释放 ' + _flcFormatBytes(r.data.freedBytes) + ' 存储空间');
+                }
+            } else if (r.data && r.data.status === 'ok') {
+                // 无源码可清（未克隆 / 已清理过）→ 幂等完成
+                _flcSetCleanStatus(idx, 'completed');
+            } else {
+                // HTTP 错误（如 409 任务仍在执行）→ 失败可重试
+                task._cleanStarted = false;
+                _flcSetCleanStatus(idx, 'failed');
+            }
+        })
+        .catch(function () {
+            // 清理失败：重置标记，下次触发（如历史重新渲染）时重试
+            task._cleanStarted = false;
+            _flcSetCleanStatus(idx, 'failed');
+        });
 }
 
 /* ════════════════════════════════════════════════════════════════════
@@ -1338,6 +1419,8 @@ function _flcRenderHistoryPage(tasks, isFirstPage) {
             _flcStartProgressPoll(idx);
         } else {
             _flcFinishSSE(idx);
+            // 终态历史任务：静默补删源码（覆盖检视期间页面关闭、终态清理未触发的场景）
+            _flcCleanSource(idx, true);
         }
     }
 }

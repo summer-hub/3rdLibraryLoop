@@ -13,6 +13,7 @@
  *   6. GET  /api/flexrunner/steps?taskId= — 获取结果文件列表
  *   7. GET  /api/flexrunner/file?path= — 读取检视报告
  *   8. POST /api/orchestrator/abort — 取消任务
+ *   9. POST /api/flexrunner/clean-source — 终态后清理源码（仅删 source/，报告保留）
  *
  * 依赖：utils.js（apiFetch / API / createPagination / escapeHtml / toast / $）
  * ════════════════════════════════════════════════════════════════════ */
@@ -322,6 +323,7 @@ function _renderCCHistoryPage(tasks, isFirstPage) {
             startedAt: startTime || null,
             finishedAt: endTime || null,
             resultPath: null,
+            _cleanStarted: false,   // 源码清理是否已触发（幂等防重）
             // 列表响应中的结构化指标（终态任务直接渲染徽章，无需额外请求）
             metrics: t.metadata || null,
         };
@@ -372,6 +374,8 @@ function _handleTaskStage(idx, stage) {
         _startProgressPoll(idx);
     } else {
         _finishCCSSE(idx);
+        // 终态历史任务：静默补删源码（覆盖检视期间页面关闭、终态清理未触发的场景）
+        _ccCleanSource(idx, true);
         // 终态任务不主动拉文件（上千任务时列表渲染零额外请求）；
         // 展开卡片 / 点击预览/下载时才懒加载（toggleCCCard / viewCCReport / downloadCCReport）
     }
@@ -460,6 +464,7 @@ async function doCodeCheck() {
             startedAt: null,
             finishedAt: null,
             resultPath: null,
+            _cleanStarted: false,   // 源码清理是否已触发（幂等防重）
         };
 
         _createCCCard(idx, displayLabel, prUrl, libType, new Date().toISOString());
@@ -516,6 +521,8 @@ function _startProgressPoll(idx) {
                 _stopProgressPoll(idx);
                 _finishCCSSE(idx);
                 _loadCCResultFiles(idx);
+                // 最后环节：清理源码（仅删 taskDir/source/，报告与过程文件保留）
+                _ccCleanSource(idx);
             }
         } catch (e) { /* 静默失败 */ }
     }, 3000);
@@ -608,6 +615,52 @@ async function _loadCCResultFiles(idx) {
             }
         }
     } catch (e) { /* 静默失败 */ }
+}
+
+/* ── 源码清理（检视最后环节：删除 taskDir/source/，节省存储）──────────
+ *
+ * arkts/flutter/rn-code-check 检视过程中会把 PR 目标仓库克隆到任务目录的
+ * source/ 下，检视终态后源码不再被引用（报告 .md / meta .json 等过程文件
+ * 均在 taskDir 根目录，不受影响）；tpc-cpp-check 不克隆源码，后端幂等返回。
+ * 触发时机：任务终态（轮询 / SSE complete / 取消）；历史终态任务渲染时
+ * 静默补删（覆盖检视期间页面被关闭、清理未触发的场景）。
+ * ──────────────────────────────────────────────────────────────────── */
+
+/** 字节数格式化：B / KB / MB / GB */
+function _ccFormatBytes(n) {
+    if (!isFinite(n) || n <= 0) return '0 B';
+    var units = ['B', 'KB', 'MB', 'GB'];
+    var i = 0;
+    while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+    return (i === 0 ? Math.round(n) : n.toFixed(1)) + ' ' + units[i];
+}
+
+/**
+ * 调用后端清理源码（幂等，失败允许下次触发重试）。
+ * @param {number} idx
+ * @param {boolean} [silent] - 静默模式（历史补删 / 取消场景，不弹 toast）
+ */
+function _ccCleanSource(idx, silent) {
+    var task = _ccTasks[idx];
+    if (!task || task._cleanStarted) return;
+    task._cleanStarted = true;
+
+    apiFetch('POST', '/api/flexrunner/clean-source', { taskId: task.taskId }, 60000)
+        .then(function (r) {
+            if (r.data && r.data.status === 'ok' && r.data.cleaned) {
+                if (!silent) {
+                    toast('info', '已清理检视源码，释放 ' + _ccFormatBytes(r.data.freedBytes) + ' 存储空间');
+                }
+            } else if (!(r.data && r.data.status === 'ok')) {
+                // HTTP 错误（如 409 任务仍在执行）→ 失败可重试
+                task._cleanStarted = false;
+            }
+            // ok 且 cleaned=false：无源码可清（未克隆 / 已清理过）→ 幂等完成，不提示
+        })
+        .catch(function () {
+            // 清理失败：重置标记，下次触发（如历史重新渲染）时重试
+            task._cleanStarted = false;
+        });
 }
 
 /* ── 创建检视任务卡片 ────────────────────────────────────────────────── */
@@ -764,6 +817,8 @@ function _connectCCSSE(idx) {
         _stopProgressPoll(idx);
         _finishCCSSE(idx);
         _loadCCResultFiles(idx);
+        // 最后环节：清理源码（仅删 taskDir/source/，报告与过程文件保留）
+        _ccCleanSource(idx);
     });
 
     // 编排错误
@@ -777,6 +832,8 @@ function _connectCCSSE(idx) {
         _updateCCStage(idx, 'aborted', {});
         _stopProgressPoll(idx);
         _finishCCSSE(idx);
+        // 终止场景：静默清理源码（已有"已取消"提示，避免 toast 叠加）
+        _ccCleanSource(idx, true);
     });
 
     // 连接建立
@@ -920,6 +977,8 @@ async function stopCCTask(idx) {
     _updateCCStage(idx, 'aborted', {});
     _stopProgressPoll(idx);
     _finishCCSSE(idx);
+    // 终止场景：静默清理源码（SSE aborted 监听会幂等兜底）
+    _ccCleanSource(idx, true);
 }
 
 /* ── 报告下载 ────────────────────────────────────────────────────────── */
