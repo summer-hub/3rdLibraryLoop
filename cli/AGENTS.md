@@ -12,10 +12,10 @@
 ```
 cli/
 ├── AGENTS.md            # 本文档
-├── package.json         # bin: 3rdloop；files: bin/lib/vendor/README.md
+├── package.json         # bin: 3rdloop；files: bin/lib/vendor/web/workflows/README.md
 ├── bin/3rdloop.mjs         # 入口：argv 解析 + 退出码归一（任何异常 → 1）
 ├── lib/
-│   ├── cli.js           # 命令分发（run/submit/step/orch/workflows...）
+│   ├── cli.js           # 命令分发（run/submit/step/orch/web/workflows...）
 │   ├── config.js        # 环境装配：项目根/.env 链/数据目录/SKILL 目录/taskId
 │   ├── config-cmd.js    # 3rdloop config 配置命令（白名单 .env 读写）
 │   ├── update.js        # 3rdloop update 自更新（版本检测/npm link 识别/重装）
@@ -27,11 +27,13 @@ cli/
 │   ├── orch.js          # 3rdloop orch 多步骤编排（Orchestrator）
 │   ├── workflow.js      # 工作流执行器（固定编排入口，本期新增）
 │   ├── workflows.js     # 工作流注册表/加载器（目录自动加载，本期新增）
+│   ├── web.js           # 3rdloop web 前端服务（静态 + 反代 + 扩展挂载）
+│   ├── web-ext.js       # web 扩展机制（manifest 加载 + express 兼容 shim）
 │   └── exit-codes.js    # 退出码约定
 ├── workflows/           # 工作流注册目录（每个 .js/.mjs 自动注册一个工作流）
 ├── scripts/
-│   ├── prepack.mjs      # 发布期：复制 Server/ → cli/vendor/Server/
-│   ├── clean-vendor.mjs # 发布后：删除本地 cli/vendor/
+│   ├── prepack.mjs      # 发布期：复制 Server/ → cli/vendor/Server/、Web/public/ → cli/web/
+│   ├── clean-vendor.mjs # 发布后：删除本地 cli/vendor/ 与 cli/web/
 │   └── verify-deps.mjs  # 校验引擎 import 的依赖已声明
 └── README.md            # 用户文档
 ```
@@ -246,6 +248,31 @@ node cli/bin/3rdloop.mjs run <name> --print-taskdef    # 缺必填
 - **不改 SKILL**：工作流只做"参数 → taskDef"，执行细节由 `specifiedSkill` 绑定的 SKILL 承载。
   新增业务能力应注册新工作流 + 复用现有 SKILL，不改动 `Server/Skills/`。
 
+## web 命令（前端服务 + 扩展挂载）
+
+- 实现：`lib/web.js`（服务与子命令）+ `lib/web-ext.js`（扩展 manifest 加载 + 轻量 express 兼容 shim），
+  分发：`cli.js` `case 'web'`（惰性 import）。基于 node:http 零新增依赖（SSE 反代语义复刻 `Web/server.js`）。
+- 命令：`3rdloop web [--port 8080] [--backend <url>] [--web-root <dir>] [--ext-root <dir>]...
+  [--ext <name,...>] [--no-ext] [--open]`；子命令 `install-ext <dir>` / `list-ext` / `remove-ext <name>`。
+- **典型模式**：仓库内 `node cli/bin/3rdloop.mjs web` = 全功能（核心前端 + `Web/ext/` 全部扩展）；
+  `3rdloop web --no-ext` = 纯后端操作（仅核心工作台，`--no-ext` 优先于 `--ext`，不受已安装扩展影响）；
+  `--ext tag,issue` = 白名单挂载（未发现的名字打 stderr 警告）。
+- **设计（方案 A+D）**：核心前端（PR/仓库检视 + loop/knowledge）进 npm 包；tag/issue/prcheck 等
+  二级目录功能以"扩展"形式留仓库 `Web/ext/`，**不进包、按需启用**：
+  - 前端资产解析：`--web-root` > `3LIB_WEB_ROOT` > 仓库 `Web/public`（开发态）> `cli/web`（prepack 复制的内置副本）
+  - 扩展根解析：`--ext-root` > `3LIB_WEB_EXT_ROOT` > 仓库 `Web/ext`（开发态自动全量挂载）> `~/.3lib/3rdloop/web-ext`（用户安装）
+  - 扩展数据目录：`<dataDir>/web-ext/<name>`（跟随 `--data-dir`）；扩展同名时先注册者优先（开发态仓库源优先于用户安装）
+- 路由优先级：`/api/ext-registry`（本地响应）→ `/<mount>` 扩展（页面/API/静态）→ `/api/*`、`/stream*` 后端反代 → 核心前端静态。
+- 扩展协议：`Web/ext/<name>/manifest.json`（name/title/mount/order/server/page）+ `router.cjs`
+  （`module.exports.createExtRouter({ express, Database, dbDir, serverRoot, logger })`）+ `public/`。
+  shim 仅支持 `get/post/put/patch/delete`（`:param` 路径参数、`req.params/query/body`、
+  `res.status/json/send/setHeader/end/sendFile`），**不支持** `router.use`。
+- prepack 同步复制 `Web/public → cli/web`（files 白名单含 `web`），postpack（clean-vendor）一并清理；
+  `.gitignore` 忽略 `cli/web/`。
+- 前端导航：`Web/public/index.html` 的 `#nav-ext-section` + `navigation.js` `ExtNav` 经
+  `/api/ext-registry` 动态渲染扩展入口（端点缺失/无扩展时静默隐藏，兼容旧版 `Web/server.js` 纯静态部署）。
+- 退出码：常驻服务，SIGINT→130 / SIGTERM→143；端口占用 EADDRINUSE→1。
+
 ## 命令家族
 
 | 层 | 命令 | 复用引擎 |
@@ -255,6 +282,7 @@ node cli/bin/3rdloop.mjs run <name> --print-taskdef    # 缺必填
 | 固定编排 | `orch run`/`load`/`start`/`progress`/控制/`tasks` | Orchestrator |
 | **工作流** | `3rdloop run <wf>`/`3rdloop workflows` | Orchestrator + 注册表 |
 | 配置 | `config list/get/set/unset` | ~/.3lib/.env 白名单读写 |
+| **前端** | `web`/`web install-ext|list-ext|remove-ext` | 静态托管 + 反代 + 扩展挂载 |
 | 运维 | `doctor`/`version`/`update` | check-env 维度 + npm registry |
 
 ## 环境约定

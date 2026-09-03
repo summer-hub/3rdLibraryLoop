@@ -120,4 +120,5 @@ server.listen(PORT, () => {
     console.log(`[Web] 静态服务已启动: http://localhost:${PORT}`);
     console.log(`[Web] 反向代理 /api/* → ${BACKEND}`);
     console.log(`[Web] 浏览器访问 http://localhost:${PORT} 即可使用`);
+    console.log('[Web] 提示: 本服务为纯静态托管，无 tag/issue/prcheck 扩展；全功能请用 node cli/bin/3rdloop.mjs web');
 });

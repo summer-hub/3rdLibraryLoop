@@ -1,0 +1,1633 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PR 检视意见批量解决</title>
+  <style>
+    /* ═══ 基础重置 ═══ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0f18;
+      --bg-2: #10131e;
+      --surface: #12151f;
+      --surface-2: #191c28;
+      --surface-3: #1f2233;
+      --border: #242738;
+      --border-2: #2d3148;
+      --border-3: #3a3f5c;
+      --accent: #4d8cf7;
+      --accent-2: #7b5cf0;
+      --accent-3: #5eead4;
+      --ok: #3ab571;
+      --warn: #e09a18;
+      --err: #df4545;
+      --info: #60a5fa;
+      --text: #cdd5e8;
+      --text-2: #9ea8c4;
+      --text-3: #535b7a;
+      --dim: #535b7a;
+      --radius: 10px;
+      --radius-sm: 8px;
+      --radius-lg: 14px;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,.25);
+      --shadow: 0 4px 12px rgba(0,0,0,.35);
+      --shadow-lg: 0 12px 32px rgba(0,0,0,.45);
+      --mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', ui-monospace, monospace;
+      --ease: cubic-bezier(.4, 0, .2, 1);
+    }
+
+    html { font-size: 16px; }
+
+    body {
+      background:
+        radial-gradient(1200px 600px at 8% -10%, rgba(77, 140, 247, .08), transparent 60%),
+        radial-gradient(900px 500px at 100% 0%, rgba(123, 92, 240, .06), transparent 55%),
+        var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ═══ 全局网格背景纹理 ═══ */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(77, 140, 247, .015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(77, 140, 247, .015) 1px, transparent 1px);
+      background-size: 48px 48px;
+      z-index: 0;
+      mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+      -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+    }
+
+    /* ═══ 布局 ═══ */
+    .layout {
+      display: grid;
+      grid-template-rows: 64px 1fr;
+      height: 100vh;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ═══ 顶栏 ═══ */
+    header {
+      background: linear-gradient(180deg, rgba(17, 20, 42, .85), rgba(17, 20, 42, .6));
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 28px;
+      position: relative;
+      z-index: 10;
+    }
+
+    header::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg,
+        transparent 0%,
+        var(--accent) 30%,
+        var(--accent-2) 60%,
+        transparent 100%);
+      opacity: .55;
+    }
+
+    .logo {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -.3px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logo-mark {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(77, 140, 247, .35);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .logo-mark::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,.2), transparent 50%);
+    }
+
+    .logo-mark svg { width: 16px; height: 16px; color: #fff; position: relative; }
+
+    .logo-text { color: #fff; }
+    .logo-text span { color: var(--accent); }
+
+    .logo-badge {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      background: linear-gradient(135deg, rgba(77, 140, 247, .15), rgba(123, 92, 240, .15));
+      color: var(--accent);
+      padding: 3px 9px;
+      border-radius: 20px;
+      border: 1px solid rgba(77, 140, 247, .3);
+      margin-left: 4px;
+    }
+
+    .source-link {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #fff;
+      text-decoration: none;
+      background: linear-gradient(135deg, rgba(245, 108, 56, .12), rgba(240, 80, 50, .12));
+      border: 1px solid rgba(245, 108, 56, .3);
+      padding: 6px 14px;
+      border-radius: 20px;
+      transition: all .25s var(--ease);
+      margin-left: 8px;
+      white-space: nowrap;
+    }
+
+    .source-link:hover {
+      background: linear-gradient(135deg, rgba(245, 108, 56, .22), rgba(240, 80, 50, .22));
+      border-color: rgba(245, 108, 56, .5);
+      box-shadow: 0 0 16px rgba(245, 108, 56, .25);
+      transform: translateY(-1px);
+    }
+
+    .header-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .stats-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-2);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-weight: 500;
+    }
+
+    .stats-pill .icon { font-size: 13px; display: inline-flex; align-items: center; }
+    .stats-pill strong { color: #fff; font-weight: 700; font-family: var(--mono); }
+
+    /* ═══ Token 配置区 ═══ */
+    .token-config {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .token-config label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-2);
+      white-space: nowrap;
+      letter-spacing: .02em;
+    }
+
+    .token-input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .token-input-wrap input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 5px 30px 5px 10px;
+      font-size: 12px;
+      font-family: var(--mono);
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      width: 200px;
+    }
+
+    .token-input-wrap input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(77, 140, 247, .15);
+    }
+
+    .token-input-wrap input::placeholder { color: var(--dim); font-size: 11px; }
+
+    .token-toggle-vis {
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-3);
+      cursor: pointer;
+      padding: 2px;
+      display: flex;
+      align-items: center;
+      transition: color .2s;
+      line-height: 0;
+    }
+
+    .token-toggle-vis:hover { color: var(--text-2); }
+    .token-toggle-vis svg { width: 14px; height: 14px; }
+
+    .token-status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--err);
+      transition: background .3s;
+      flex-shrink: 0;
+    }
+
+    .token-status-dot.active {
+      background: var(--ok);
+      box-shadow: 0 0 6px rgba(58, 181, 113, .5);
+    }
+
+    .btn-token-sm {
+      padding: 5px 10px;
+      font-size: 11px;
+      border-radius: 5px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      font-family: inherit;
+      transition: all .2s var(--ease);
+    }
+
+    .btn-token-save {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff;
+    }
+
+    .btn-token-save:hover { box-shadow: 0 2px 10px rgba(77, 140, 247, .4); }
+
+    .btn-token-clear {
+      background: var(--surface-2);
+      color: var(--text-3);
+      border: 1px solid var(--border);
+    }
+
+    .btn-token-clear:hover { color: var(--err); border-color: rgba(223, 69, 69, .3); }
+
+    /* ═══ 主内容区 ═══ */
+    main {
+      overflow-y: auto;
+      min-height: 0;
+      padding: 18px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* ═══ Panel 组件 ═══ */
+    .panel {
+      background: linear-gradient(180deg, var(--surface), var(--bg-2));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      flex-shrink: 0;
+      box-shadow: var(--shadow);
+      position: relative;
+    }
+
+    .panel::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(77, 140, 247, .3), transparent);
+    }
+
+    .panel-head {
+      padding: 10px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: linear-gradient(180deg, var(--surface-2), transparent);
+    }
+
+    .panel-head h2 { font-size: 13px; font-weight: 600; color: #fff; letter-spacing: -.1px; }
+
+    .panel-head .path {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-3);
+      background: var(--bg);
+      padding: 2px 7px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+    }
+
+    .panel-head .ml { margin-left: auto; display: flex; gap: 8px; }
+
+    .panel-body {
+      padding: 14px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* ═══ Method 标签 ═══ */
+    .method {
+      font-size: 10px;
+      font-family: var(--mono);
+      font-weight: 700;
+      padding: 3px 7px;
+      border-radius: 5px;
+      min-width: 42px;
+      text-align: center;
+      letter-spacing: .04em;
+      border: 1px solid transparent;
+    }
+
+    .m-post { background: rgba(77, 140, 247, .12); color: var(--accent); border-color: rgba(77, 140, 247, .25); }
+    .m-get  { background: rgba(58, 181, 113, .12); color: var(--ok); border-color: rgba(58, 181, 113, .25); }
+
+    /* ═══ 表单控件 ═══ */
+    .form-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-row label {
+      font-size: 12px;
+      color: var(--text-2);
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .form-row input,
+    .form-row select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 7px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s, background .2s;
+      width: 100%;
+    }
+
+    .form-row input:hover,
+    .form-row select:hover { border-color: var(--border-2); }
+
+    .form-row input:focus,
+    .form-row select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(77, 140, 247, .15);
+      background: var(--bg-2);
+    }
+
+    .form-row input::placeholder { color: var(--dim); }
+
+    .form-inline {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .form-inline .form-row { flex: 1; min-width: 160px; }
+
+    /* ═══ 按钮 ═══ */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 8px 16px;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all .2s var(--ease);
+      white-space: nowrap;
+      font-family: inherit;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn:active { transform: scale(.97); }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(77, 140, 247, .3), inset 0 1px 0 rgba(255,255,255,.15);
+    }
+
+    .btn-primary::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,.15), transparent 50%);
+      opacity: 0;
+      transition: opacity .2s;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(77, 140, 247, .45), inset 0 1px 0 rgba(255,255,255,.2);
+    }
+
+    .btn-primary:hover:not(:disabled)::before { opacity: 1; }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #f87171, #dc2626);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(223, 69, 69, .25);
+    }
+
+    .btn-danger:hover:not(:disabled) {
+      box-shadow: 0 4px 14px rgba(223, 69, 69, .4);
+      transform: translateY(-1px);
+    }
+
+    .btn-ghost {
+      background: var(--surface-2);
+      color: var(--text-2);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover:not(:disabled) {
+      background: var(--surface-3);
+      color: var(--text);
+      border-color: var(--border-2);
+    }
+
+    .btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 6px; }
+
+    /* ═══ 表单容器 ═══ */
+    .form-container {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* ═══ 统计卡片网格 ═══ */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .stat-card {
+      background: linear-gradient(180deg, var(--surface-2), var(--bg-2));
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 16px;
+      position: relative;
+      overflow: hidden;
+      transition: all .25s var(--ease);
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--accent);
+      opacity: .6;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--border-2);
+      box-shadow: var(--shadow);
+    }
+
+    .stat-card::after {
+      content: '';
+      position: absolute;
+      top: -40px;
+      right: -40px;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      opacity: .08;
+      pointer-events: none;
+    }
+
+    .stat-card[data-type="total"]::before  { background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+    .stat-card[data-type="total"]::after   { background: radial-gradient(circle, var(--accent), transparent 70%); }
+    .stat-card[data-type="pending"]::before { background: linear-gradient(90deg, var(--warn), #f59e0b); }
+    .stat-card[data-type="pending"]::after  { background: radial-gradient(circle, var(--warn), transparent 70%); }
+    .stat-card[data-type="success"]::before { background: linear-gradient(90deg, var(--ok), #10b981); }
+    .stat-card[data-type="success"]::after  { background: radial-gradient(circle, var(--ok), transparent 70%); }
+    .stat-card[data-type="failed"]::before  { background: linear-gradient(90deg, var(--err), #dc2626); }
+    .stat-card[data-type="failed"]::after   { background: radial-gradient(circle, var(--err), transparent 70%); }
+
+    .stat-card .stat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .stat-card .stat-label { font-size: 11px; color: var(--text-2); font-weight: 500; }
+
+    .stat-card .stat-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(77, 140, 247, .12);
+      color: var(--accent);
+    }
+
+    .stat-card[data-type="pending"] .stat-icon { background: rgba(224, 154, 24, .12); color: var(--warn); }
+    .stat-card[data-type="success"] .stat-icon { background: rgba(58, 181, 113, .12); color: var(--ok); }
+    .stat-card[data-type="failed"]  .stat-icon { background: rgba(223, 69, 69, .12); color: var(--err); }
+    .stat-card .stat-icon svg { width: 14px; height: 14px; }
+
+    .stat-card .stat-value {
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+      font-family: var(--mono);
+      line-height: 1.2;
+      letter-spacing: -.5px;
+    }
+
+    .stat-card .stat-value.pending { color: var(--warn); }
+    .stat-card .stat-value.success { color: var(--ok); }
+    .stat-card .stat-value.failed  { color: var(--err); }
+
+    /* ═══ PR 卡片列表 ═══ */
+    .pr-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .pr-card {
+      background: linear-gradient(180deg, var(--surface-2), var(--bg-2));
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0;
+      display: flex;
+      align-items: stretch;
+      transition: all .25s var(--ease);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .pr-card::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: var(--dim);
+      transition: width .25s var(--ease);
+    }
+
+    .pr-card[data-status="pending"]::before { background: linear-gradient(180deg, var(--warn), #f59e0b); }
+    .pr-card[data-status="running"]::before { background: linear-gradient(180deg, var(--accent), var(--accent-2)); }
+    .pr-card[data-status="success"]::before { background: linear-gradient(180deg, var(--ok), #10b981); }
+    .pr-card[data-status="partial"]::before { background: linear-gradient(180deg, var(--warn), var(--accent)); }
+    .pr-card[data-status="failed"]::before  { background: linear-gradient(180deg, var(--err), #dc2626); }
+
+    .pr-card:hover {
+      border-color: var(--border-2);
+      transform: translateX(2px);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .pr-card:hover::before { width: 4px; }
+
+    .pr-card-main {
+      padding: 10px 18px 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      min-width: 0;
+      flex-wrap: wrap;
+    }
+
+    .pr-card-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex-shrink: 1;
+      flex-wrap: wrap;
+    }
+
+    .pr-card-repo, .pr-card-repo:link, .pr-card-repo:visited, .pr-card-repo:hover, .pr-card-repo:active {
+      text-decoration: none;
+    }
+
+    .pr-card-repo {
+      font-size: 13px;
+      color: var(--accent-3);
+      background: rgba(94, 234, 212, .08);
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid rgba(94, 234, 212, .2);
+      font-family: var(--mono);
+      white-space: normal;
+      word-break: break-all;
+      flex-shrink: 0;
+      cursor: pointer;
+      transition: background .2s, border-color .2s;
+    }
+
+    .pr-card-repo:hover {
+      background: rgba(94, 234, 212, .18);
+      border-color: rgba(94, 234, 212, .4);
+    }
+
+    .pr-card-desc {
+      font-size: 12px;
+      color: var(--fg);
+      background: rgba(255, 255, 255, .06);
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, .1);
+      white-space: normal;
+      word-break: break-all;
+      max-width: 100%;
+    }
+
+    .pr-card-status {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 5px;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border: 1px solid transparent;
+      flex-shrink: 0;
+    }
+
+    .pr-card-status::before {
+      content: '';
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 6px currentColor;
+    }
+
+    .status-pending {
+      background: rgba(224, 154, 24, .1);
+      color: var(--warn);
+      border-color: rgba(224, 154, 24, .25);
+    }
+
+    .status-running {
+      background: rgba(77, 140, 247, .1);
+      color: var(--accent);
+      border-color: rgba(77, 140, 247, .25);
+    }
+
+    .status-running::before { animation: pulse 1.5s ease-in-out infinite; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .4; }
+    }
+
+    .status-success {
+      background: rgba(58, 181, 113, .1);
+      color: var(--ok);
+      border-color: rgba(58, 181, 113, .25);
+    }
+
+    .status-partial {
+      background: rgba(224, 154, 24, .1);
+      color: var(--accent);
+      border-color: rgba(77, 140, 247, .25);
+    }
+
+    .status-failed {
+      background: rgba(223, 69, 69, .1);
+      color: var(--err);
+      border-color: rgba(223, 69, 69, .25);
+    }
+
+    .pr-card-time {
+      font-size: 12px;
+      color: var(--text-2);
+      font-family: var(--mono);
+      flex-shrink: 0;
+    }
+
+    .pr-card-message {
+      font-size: 12px;
+      color: var(--text-2);
+      font-family: var(--mono);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 2;
+      min-width: 60px;
+    }
+
+    .pr-card-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .token-missing-hint {
+      font-size: 11px;
+      color: var(--warn);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    /* ═══ 空提示 ═══ */
+    .empty-hint {
+      text-align: center;
+      padding: 28px 20px;
+      color: var(--text-3);
+      font-size: 12px;
+      border: 1px dashed var(--border-2);
+      border-radius: var(--radius-sm);
+      background: rgba(77, 140, 247, .02);
+    }
+
+    .empty-hint::before {
+      content: '📋';
+      display: block;
+      font-size: 24px;
+      margin-bottom: 8px;
+      opacity: .4;
+    }
+
+    /* ═══ 错误提示 ═══ */
+    .error-msg {
+      color: var(--err);
+      font-size: 13px;
+      display: none;
+      padding: 10px 14px;
+      background: rgba(223, 69, 69, .08);
+      border: 1px solid rgba(223, 69, 69, .2);
+      border-radius: 8px;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .error-msg::before { content: '⚠'; font-size: 14px; }
+    .error-msg.visible { display: flex; }
+
+    /* ═══ Toast ═══ */
+    .toast-container {
+      position: fixed;
+      top: 78px;
+      right: 24px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .toast {
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #fff;
+      box-shadow: 0 8px 24px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.08) inset;
+      animation: toastIn .35s var(--ease);
+      max-width: 360px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      backdrop-filter: blur(12px);
+      pointer-events: auto;
+    }
+
+    .toast::before { font-size: 16px; }
+
+    .toast-success { background: linear-gradient(135deg, rgba(58, 181, 113, .95), rgba(58, 181, 113, .95)); }
+    .toast-success::before { content: '✓'; }
+    .toast-error   { background: linear-gradient(135deg, rgba(223, 69, 69, .95), rgba(223, 69, 69, .95)); }
+    .toast-error::before   { content: '✕'; }
+    .toast-info     { background: linear-gradient(135deg, rgba(77, 140, 247, .95), rgba(123, 92, 240, .95)); }
+    .toast-info::before     { content: 'ℹ'; }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(40px) scale(.95); }
+      to   { opacity: 1; transform: translateX(0) scale(1); }
+    }
+
+    @keyframes toastOut {
+      to { opacity: 0; transform: translateX(40px) scale(.95); }
+    }
+
+    .toast.leaving { animation: toastOut .3s var(--ease) forwards; }
+
+    /* ═══ 滚动条 ═══ */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-2);
+      border-radius: 4px;
+      border: 2px solid transparent;
+      background-clip: padding-box;
+    }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-3); background-clip: padding-box; border: 2px solid transparent; }
+
+    /* ═══ 响应式 ═══ */
+    @media (max-width: 980px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .form-inline { flex-direction: column; align-items: stretch; }
+      .form-inline .form-row { min-width: 0; }
+      .pr-card-main { flex-wrap: wrap; }
+    }
+
+    @media (max-width: 640px) {
+      .stats-grid { grid-template-columns: 1fr; }
+      main { padding: 14px; }
+      header { padding: 0 16px; }
+    }
+
+    /* ═══ 入场动画 ═══ */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .panel      { animation: fadeUp .4s var(--ease) backwards; }
+    .stats-grid { animation: fadeUp .4s var(--ease) backwards; }
+    .panel:nth-child(1) { animation-delay: .05s; }
+    .panel:nth-child(2) { animation-delay: .1s; }
+    .panel:nth-child(3) { animation-delay: .15s; }
+
+    .pr-card { animation: fadeUp .35s var(--ease) backwards; }
+
+    /* ═══ 详情展开面板 ═══ */
+    .pr-card-detail {
+      display: none;
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+      padding: 12px 18px 12px 24px;
+    }
+
+    .pr-card-detail.visible { display: block; }
+
+    .pr-card-detail summary-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+      font-size: 12px;
+      color: var(--text-2);
+      font-weight: 600;
+    }
+
+    .pr-card-detail .detail-stats {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 10px;
+    }
+
+    .pr-card-detail .detail-stat {
+      font-size: 12px;
+      color: var(--text-2);
+    }
+
+    .pr-card-detail .detail-stat strong {
+      font-family: var(--mono);
+      color: #fff;
+    }
+
+    .pr-card-detail .detail-stat.success strong { color: var(--ok); }
+    .pr-card-detail .detail-stat.failed strong  { color: var(--err); }
+
+    .pr-card-detail .detail-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .pr-card-detail .detail-table th {
+      text-align: left;
+      padding: 6px 12px;
+      color: var(--text-3);
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .pr-card-detail .detail-table td {
+      padding: 6px 12px;
+      border-bottom: 1px solid rgba(36, 39, 56, .5);
+      font-family: var(--mono);
+      color: var(--text-2);
+      max-width: 400px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .pr-card-detail .detail-table tr:hover td {
+      background: rgba(77, 140, 247, .04);
+    }
+
+    .pr-card-detail .detail-table .ok { color: var(--ok); }
+    .pr-card-detail .detail-table .fail { color: var(--err); }
+
+    .detail-toggle {
+      font-size: 13px;
+      color: var(--accent);
+      cursor: pointer;
+      background: none;
+      border: 1px solid rgba(77, 140, 247, .25);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-family: inherit;
+      transition: all .2s var(--ease);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .detail-toggle:hover {
+      background: rgba(77, 140, 247, .08);
+      border-color: rgba(77, 140, 247, .4);
+    }
+
+    .detail-toggle svg {
+      width: 12px;
+      height: 12px;
+      transition: transform .2s var(--ease);
+    }
+
+    .detail-toggle.open svg { transform: rotate(90deg); }
+
+    /* ═══ 审查状态标签 ═══ */
+    .review-badge {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 4px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      letter-spacing: .02em;
+    }
+
+    .review-approved {
+      background: rgba(58, 181, 113, .12);
+      color: var(--ok);
+      border: 1px solid rgba(58, 181, 113, .3);
+    }
+
+    .review-failed {
+      background: rgba(223, 69, 69, .12);
+      color: var(--err);
+      border: 1px solid rgba(223, 69, 69, .3);
+    }
+
+    .detail-review-approved {
+      font-size: 12px;
+      color: var(--ok);
+      font-weight: 600;
+      margin-bottom: 8px;
+      padding: 4px 10px;
+      background: rgba(58, 181, 113, .08);
+      border: 1px solid rgba(58, 181, 113, .2);
+      border-radius: 5px;
+    }
+
+    .detail-review-failed {
+      font-size: 12px;
+      color: var(--err);
+      font-weight: 600;
+      margin-bottom: 8px;
+      padding: 4px 10px;
+      background: rgba(223, 69, 69, .08);
+      border: 1px solid rgba(223, 69, 69, .2);
+      border-radius: 5px;
+    }
+
+    .detail-review-pending {
+      font-size: 12px;
+      color: var(--text-3);
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="layout">
+    <!-- ═══ 顶栏 ═══ -->
+    <header>
+      <div class="logo">
+        <span class="logo-mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10 9 9 9 8 9"/>
+          </svg>
+        </span>
+        <span class="logo-text">OHOS <span>CPF-ApplicationTPC</span></span>
+        <span class="logo-badge">PrCheck</span>
+      </div>
+      <a class="source-link" href="https://gitcode.com/lalhanOrz/AIWeb" target="_blank" rel="noopener noreferrer" title="GitCode">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style="flex-shrink:0;color:#f56c38"><circle cx="12" cy="12" r="10"/></svg>
+        <span>GitCode</span>
+      </a>
+      <div class="header-right">
+        <div class="token-config">
+          <span class="token-status-dot" id="token-status" title="Token 状态"></span>
+          <label>Token</label>
+          <div class="token-input-wrap">
+            <input type="password" id="global-token" placeholder="GitCode Access Token" />
+            <button class="token-toggle-vis" onclick="toggleTokenVis()" title="显示/隐藏">
+              <svg id="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+          <button class="btn-token-sm btn-token-save" onclick="saveToken()">保存</button>
+          <button class="btn-token-sm btn-token-clear" onclick="clearToken()">清除</button>
+        </div>
+        <div class="stats-pill">
+          <span class="icon">📋</span>
+          <span><strong id="pr-count">0</strong> 个 PR</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ═══ 主内容区 ═══ -->
+    <main>
+      <!-- ═══ 统计卡片 ═══ -->
+      <div class="stats-grid">
+        <div class="stat-card" data-type="total">
+          <div class="stat-header">
+            <span class="stat-label">总计</span>
+            <span class="stat-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+              </svg>
+            </span>
+          </div>
+          <div class="stat-value" id="stat-total">0</div>
+        </div>
+        <div class="stat-card" data-type="pending">
+          <div class="stat-header">
+            <span class="stat-label">待执行</span>
+            <span class="stat-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </span>
+          </div>
+          <div class="stat-value pending" id="stat-pending">0</div>
+        </div>
+        <div class="stat-card" data-type="success">
+          <div class="stat-header">
+            <span class="stat-label">成功</span>
+            <span class="stat-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </span>
+          </div>
+          <div class="stat-value success" id="stat-success">0</div>
+        </div>
+        <div class="stat-card" data-type="failed">
+          <div class="stat-header">
+            <span class="stat-label">失败</span>
+            <span class="stat-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+              </svg>
+            </span>
+          </div>
+          <div class="stat-value failed" id="stat-failed">0</div>
+        </div>
+      </div>
+
+      <!-- ═══ 添加 PR ═══ -->
+      <div class="panel">
+        <div class="panel-head">
+          <span class="method m-post">POST</span>
+          <h2>添加 PR</h2>
+          <span class="path">/prcheck/create</span>
+        </div>
+        <div class="panel-body">
+          <div class="form-container">
+            <div class="form-inline">
+              <div class="form-row" style="flex:3">
+                <label>PR 地址 <span style="color:var(--err)">*</span></label>
+                <input id="pr-url" placeholder="https://gitcode.com/owner/repo/pull/123" />
+              </div>
+              <div class="form-row" style="flex:2">
+                <label>问题描述</label>
+                <input id="pr-desc" placeholder="该 PR 解决的问题说明" />
+              </div>
+              <button class="btn btn-primary" onclick="createPr()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                添加
+              </button>
+            </div>
+          </div>
+          <div id="create-error" class="error-msg"></div>
+        </div>
+      </div>
+
+      <!-- ═══ PR 列表 ═══ -->
+      <div class="panel">
+        <div class="panel-head">
+          <span class="method m-get">GET</span>
+          <h2>PR 列表</h2>
+          <span class="path">/prcheck/list</span>
+          <div class="ml">
+            <button class="btn btn-ghost btn-sm" onclick="loadPrs()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+              </svg>
+              刷新
+            </button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div id="pr-list" class="pr-list">
+            <div id="pr-empty" class="empty-hint">暂无 PR，输入地址添加第一个</div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast-container" id="toast-container"></div>
+
+  <script>
+    // ── Token 本地缓存 ──
+    const TOKEN_KEY = 'prcheck_gitcode_token';
+
+    function loadSavedToken() {
+      const saved = localStorage.getItem(TOKEN_KEY);
+      const input = document.getElementById('global-token');
+      const dot   = document.getElementById('token-status');
+      if (saved) {
+        input.value = saved;
+        dot.classList.add('active');
+      } else {
+        dot.classList.remove('active');
+      }
+    }
+
+    function saveToken() {
+      const input = document.getElementById('global-token');
+      const token = input.value.trim();
+      const dot   = document.getElementById('token-status');
+      if (token) {
+        localStorage.setItem(TOKEN_KEY, token);
+        dot.classList.add('active');
+        toast('Token 已保存到本地浏览器', 'success');
+      } else {
+        toast('请输入 Token', 'error');
+      }
+    }
+
+    function clearToken() {
+      const input = document.getElementById('global-token');
+      const dot   = document.getElementById('token-status');
+      localStorage.removeItem(TOKEN_KEY);
+      input.value = '';
+      dot.classList.remove('active');
+      toast('Token 已清除', 'info');
+    }
+
+    function getSavedToken() {
+      return localStorage.getItem(TOKEN_KEY) || '';
+    }
+
+    function toggleTokenVis() {
+      const input = document.getElementById('global-token');
+      const icon  = document.getElementById('eye-icon');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+      } else {
+        input.type = 'password';
+        icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+      }
+    }
+
+    // 自动保存：输入时实时同步到 localStorage
+    document.getElementById('global-token').addEventListener('input', () => {
+      const input = document.getElementById('global-token');
+      const dot   = document.getElementById('token-status');
+      const token = input.value.trim();
+      if (token) {
+        localStorage.setItem(TOKEN_KEY, token);
+        dot.classList.add('active');
+      } else {
+        localStorage.removeItem(TOKEN_KEY);
+        dot.classList.remove('active');
+      }
+    });
+
+    const API_BASE = '/prcheck';
+
+    // ── Toast ──
+    function toast(msg, type = 'info') {
+      const c = document.getElementById('toast-container');
+      const t = document.createElement('div');
+      t.className = `toast toast-${type}`;
+      t.textContent = msg;
+      c.appendChild(t);
+      setTimeout(() => {
+        t.classList.add('leaving');
+        setTimeout(() => t.remove(), 300);
+      }, 3000);
+    }
+
+    // ── 时间格式化 ──
+    function formatTime(iso) {
+      if (!iso) return '';
+      // SQLite datetime('now') 存储的是 UTC，格式 "2026-07-04 00:56:43"
+      const utcStr = iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z';
+      const d = new Date(utcStr);
+      if (isNaN(d.getTime())) return iso;
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    // ── HTML 转义 ──
+    function escHtml(s) {
+      if (!s) return '';
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    function escAttr(s) {
+      if (!s) return '';
+      return s.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // ── 统计更新 ──
+    function updateStats(prs) {
+      document.getElementById('stat-total').textContent   = prs.length;
+      document.getElementById('stat-pending').textContent  = prs.filter(p => p.status === 'pending').length;
+      document.getElementById('stat-success').textContent  = prs.filter(p => p.status === 'success').length;
+      document.getElementById('stat-failed').textContent   = prs.filter(p => p.status === 'failed' || p.status === 'partial').length;
+      document.getElementById('pr-count').textContent      = prs.length;
+    }
+
+    // ── 渲染 PR 列表 ──
+    function renderPrs(prs) {
+      const list  = document.getElementById('pr-list');
+      const empty = document.getElementById('pr-empty');
+
+      if (!prs || prs.length === 0) {
+        list.innerHTML = '';
+        list.appendChild(empty);
+        empty.style.display = '';
+        updateStats([]);
+        return;
+      }
+
+      empty.style.display = 'none';
+      list.innerHTML = '';
+      list.appendChild(empty);
+
+      prs.forEach((pr, idx) => {
+        const card = document.createElement('div');
+        card.className = 'pr-card';
+        card.setAttribute('data-status', pr.status || 'pending');
+        card.setAttribute('data-pr-id', pr.id);
+        card.style.animationDelay = (idx * 0.04) + 's';
+
+        const statusClass = {
+          pending: 'status-pending',
+          running: 'status-running',
+          success: 'status-success',
+          partial: 'status-partial',
+          failed:  'status-failed',
+        }[pr.status] || 'status-pending';
+
+        const statusText = {
+          pending: '待审查',
+          running: '执行中',
+          success: '已审查',
+          partial: '部分成功',
+          failed:  '失败',
+        }[pr.status] || pr.status;
+
+        const timeStr = pr.createdAt ? formatTime(pr.createdAt) : '';
+
+        // 结果摘要
+        let resultSummary = '';
+        const hasDetails = pr.details && Array.isArray(pr.details) && pr.details.length > 0;
+        if (pr.status === 'success' && pr.resolvedCount > 0) {
+          resultSummary = `✓ ${pr.resolvedCount} 条已解决`;
+        } else if (pr.status === 'partial') {
+          resultSummary = `${pr.resolvedCount}/${pr.totalCount} 成功，${pr.failedCount} 失败`;
+        } else if (pr.status === 'failed' && pr.errorMessage) {
+          resultSummary = escHtml(pr.errorMessage.substring(0, 80));
+        }
+
+        // 审查状态标签
+        let reviewBadge = '';
+        if (pr.reviewApproved === 1) {
+          reviewBadge = '<span class="review-badge review-approved">✓ 审查通过</span>';
+        } else if (pr.reviewApproved === -1) {
+          reviewBadge = '<span class="review-badge review-failed">✕ 审查未通过</span>';
+        }
+
+        // 解析 details JSON
+        let detailsData = [];
+        try {
+          detailsData = (typeof pr.details === 'string') ? JSON.parse(pr.details) : (pr.details || []);
+        } catch { detailsData = []; }
+        const hasDetailsData = Array.isArray(detailsData) && detailsData.length > 0;
+
+        // 详情展开按钮（仅执行后有明细数据时显示）
+        const detailToggleHtml = hasDetailsData
+          ? `<button class="detail-toggle" onclick="toggleDetail(${pr.id}, this)">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+               详情
+             </button>`
+          : '';
+
+        card.innerHTML = `
+          <div class="pr-card-main">
+            <div class="pr-card-info">
+              <a class="pr-card-repo" href="${escAttr(pr.repoUrl)}" target="_blank" rel="noopener" title="${escAttr(pr.repoUrl)}">${escHtml(pr.repoUrl)}</a>
+              ${pr.description ? `<span class="pr-card-desc">${escHtml(pr.description)}</span>` : ''}
+            </div>
+            <span class="pr-card-status ${statusClass}">${statusText}</span>
+            ${timeStr ? `<span class="pr-card-time">${timeStr}</span>` : ''}
+            ${resultSummary ? `<span class="pr-card-message">${resultSummary}</span>` : ''}
+            ${reviewBadge}
+            ${detailToggleHtml}
+            ${pr.reviewApproved !== 1 ? `
+            <span class="pr-card-actions">
+              <span class="token-missing-hint" id="token-hint-${pr.id}" style="display:none">⚠ 未配置 Token</span>
+              <button class="btn btn-primary btn-sm" onclick="executePr(${pr.id})" ${pr.status === 'running' ? 'disabled' : ''}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+                审查
+              </button>
+            </span>
+            ` : ''}
+          </div>
+          <div class="pr-card-detail" id="detail-${pr.id}">
+            ${hasDetailsData ? renderDetailTable(detailsData, pr) : ''}
+          </div>
+        `;
+        list.appendChild(card);
+      });
+
+      updateStats(prs);
+    }
+
+    // ── 渲染详情表格 ──
+    function renderDetailTable(details, pr) {
+      const successCount = details.filter(d => d.success).length;
+      const failCount    = details.filter(d => !d.success).length;
+
+      // 审查状态
+      let reviewHtml = '';
+      if (pr.reviewApproved === 1) {
+        reviewHtml = '<div class="detail-review-approved">✓ PR 审查已通过</div>';
+      } else if (pr.reviewApproved === -1) {
+        // 提取审批错误信息
+        const reviewErr = pr.errorMessage && pr.errorMessage.includes('审批:')
+          ? escHtml(pr.errorMessage.split('审批:').pop())
+          : '';
+        reviewHtml = `<div class="detail-review-failed">✕ PR 审查未通过${reviewErr ? '：' + reviewErr : ''}</div>`;
+      } else {
+        reviewHtml = '<div class="detail-review-pending">○ PR 审查未执行</div>';
+      }
+
+      let html = `${reviewHtml}
+        <div class="detail-stats">
+          <span class="detail-stat">总计 <strong>${details.length}</strong></span>
+          <span class="detail-stat success">成功 <strong>${successCount}</strong></span>
+          <span class="detail-stat failed">失败 <strong>${failCount}</strong></span>
+        </div>
+        <table class="detail-table">
+          <thead>
+            <tr>
+              <th style="width:30px">#</th>
+              <th style="width:140px">Discussion ID</th>
+              <th style="width:60px">状态</th>
+              <th>错误信息</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      details.forEach((d, i) => {
+        const statusHtml = d.success
+          ? '<span class="ok">✓ 成功</span>'
+          : '<span class="fail">✕ 失败</span>';
+        const errorHtml = d.errorMessage ? escHtml(d.errorMessage) : '<span style="color:var(--dim)">—</span>';
+        html += `
+          <tr>
+            <td>${i + 1}</td>
+            <td title="${escAttr(d.discussionId || '')}">${escHtml((d.discussionId || '').substring(0, 16))}${(d.discussionId || '').length > 16 ? '…' : ''}</td>
+            <td>${statusHtml}</td>
+            <td title="${escAttr(d.errorMessage || '')}">${errorHtml}</td>
+          </tr>
+        `;
+      });
+
+      html += `</tbody></table>`;
+      return html;
+    }
+
+    // ── 展开/收起详情 ──
+    function toggleDetail(id, btn) {
+      const panel = document.getElementById(`detail-${id}`);
+      if (!panel) return;
+      const isVisible = panel.classList.contains('visible');
+      if (isVisible) {
+        panel.classList.remove('visible');
+        btn.classList.remove('open');
+      } else {
+        panel.classList.add('visible');
+        btn.classList.add('open');
+      }
+    }
+
+    // ── 加载 PR 列表 ──
+    async function loadPrs() {
+      try {
+        const res  = await fetch(`${API_BASE}/list`);
+        const data = await res.json();
+        if (data.success) {
+          renderPrs(data.data || []);
+        } else {
+          toast('加载失败: ' + (data.message || '未知错误'), 'error');
+        }
+      } catch (e) {
+        toast('网络错误: ' + e.message, 'error');
+      }
+    }
+
+    // ── 创建 PR 记录 ──
+    async function createPr() {
+      const prUrl = document.getElementById('pr-url').value.trim();
+      const prDesc = document.getElementById('pr-desc').value.trim();
+      const errEl = document.getElementById('create-error');
+      errEl.className = 'error-msg';
+
+      if (!prUrl) {
+        errEl.textContent = '请输入 PR 地址';
+        errEl.className = 'error-msg visible';
+        return;
+      }
+
+      try {
+        const res  = await fetch(`${API_BASE}/create`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ repoUrl: prUrl, description: prDesc }),
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          toast('PR 添加成功', 'success');
+          document.getElementById('pr-url').value = '';
+          document.getElementById('pr-desc').value = '';
+          loadPrs();
+        } else {
+          errEl.textContent = data.message || '添加失败';
+          errEl.className = 'error-msg visible';
+        }
+      } catch (e) {
+        errEl.textContent = '网络错误: ' + e.message;
+        errEl.className = 'error-msg visible';
+      }
+    }
+
+    // ── 执行审查（批量解决检视意见） ──
+    async function executePr(id) {
+      const token = getSavedToken();
+
+      if (!token) {
+        toast('请先在顶部配置 GitCode Token', 'error');
+        const hint = document.getElementById(`token-hint-${id}`);
+        if (hint) hint.style.display = 'flex';
+        document.getElementById('global-token').focus();
+        return;
+      }
+
+      // 隐藏 token 提示
+      const hint = document.getElementById(`token-hint-${id}`);
+      if (hint) hint.style.display = 'none';
+
+      // 立即将该卡片状态显示为执行中
+      const card     = document.querySelector(`[data-pr-id="${id}"]`);
+      const statusEl = card?.querySelector('.pr-card-status');
+      const btnEl    = card?.querySelector('.btn-primary');
+      if (statusEl) {
+        statusEl.className = 'pr-card-status status-running';
+        statusEl.textContent = '执行中…';
+      }
+      if (btnEl) btnEl.disabled = true;
+
+      try {
+        const res  = await fetch(`${API_BASE}/execute`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ id, token }),
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          toast(data.message || '审查完成', 'success');
+        } else {
+          toast('执行失败: ' + (data.message || '未知错误'), 'error');
+        }
+      } catch (e) {
+        toast('网络错误: ' + e.message, 'error');
+      } finally {
+        loadPrs();
+      }
+    }
+
+    // ── 回车快捷键 ──
+    document.getElementById('pr-url').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') createPr();
+    });
+    document.getElementById('pr-desc').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') createPr();
+    });
+
+    // ── 初始化 ──
+    loadSavedToken();
+    loadPrs();
+  </script>
+</body>
+
+</html>

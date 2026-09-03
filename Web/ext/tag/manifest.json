@@ -1,0 +1,9 @@
+{
+    "name": "tag",
+    "title": "GitCode TAG",
+    "description": "GitCode 仓库打 TAG 管理：记录入库 → 执行打 TAG → 状态追踪",
+    "mount": "/tag",
+    "order": 10,
+    "server": "router.cjs",
+    "page": "public/index.html"
+}

@@ -21,16 +21,25 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.resolve(__dirname, '..');
 
 const VENDOR_DIR = path.join(CLI_ROOT, 'vendor');
+const WEB_DIR = path.join(CLI_ROOT, 'web');
 
 async function main() {
-    if (!fs.existsSync(VENDOR_DIR)) {
+    if (fs.existsSync(VENDOR_DIR)) {
+        console.log('——— [clean-vendor] 删除发布产物 cli/vendor/ ———');
+        fs.rmSync(VENDOR_DIR, { recursive: true, force: true });
+        console.log('[clean-vendor] 完成。工作区已回归仅有 Server/ 一份源码。');
+    } else {
         console.log('[clean-vendor] vendor 目录不存在，无需清理:', VENDOR_DIR);
-        return;
     }
 
-    console.log('——— [clean-vendor] 删除发布产物 cli/vendor/ ———');
-    fs.rmSync(VENDOR_DIR, { recursive: true, force: true });
-    console.log('[clean-vendor] 完成。工作区已回归仅有 Server/ 一份源码。');
+    // prepack 复制的 3rdloop web 内置前端（Web/public 副本），同样属于发布产物
+    if (fs.existsSync(WEB_DIR)) {
+        console.log('——— [clean-vendor] 删除发布产物 cli/web/ ———');
+        fs.rmSync(WEB_DIR, { recursive: true, force: true });
+        console.log('[clean-vendor] 完成。工作区已回归仅有 Web/public 一份前端源码。');
+    } else {
+        console.log('[clean-vendor] web 目录不存在，无需清理:', WEB_DIR);
+    }
 }
 
 main().catch(err => {

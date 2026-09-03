@@ -1,0 +1,9 @@
+{
+    "name": "prcheck",
+    "title": "PR 检视意见解决",
+    "description": "PR 检视意见批量解决系统：预览 → 批量解决 → 审批追踪",
+    "mount": "/prcheck",
+    "order": 20,
+    "server": "router.cjs",
+    "page": "public/index.html"
+}

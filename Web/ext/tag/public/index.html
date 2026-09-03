@@ -1,0 +1,1682 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GitCode TAG 管理</title>
+  <style>
+    /* ═══ 基础重置 ═══ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0f18;
+      --bg-2: #10131e;
+      --surface: #12151f;
+      --surface-2: #191c28;
+      --surface-3: #1f2233;
+      --border: #242738;
+      --border-2: #2d3148;
+      --border-3: #3a3f5c;
+      --accent: #4d8cf7;
+      --accent-2: #7b5cf0;
+      --accent-3: #5eead4;
+      --ok: #3ab571;
+      --warn: #e09a18;
+      --err: #df4545;
+      --info: #60a5fa;
+      --text: #cdd5e8;
+      --text-2: #9ea8c4;
+      --text-3: #535b7a;
+      --dim: #535b7a;
+      --radius: 10px;
+      --radius-sm: 8px;
+      --radius-lg: 14px;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,.25);
+      --shadow: 0 4px 12px rgba(0,0,0,.35);
+      --shadow-lg: 0 12px 32px rgba(0,0,0,.45);
+      --shadow-glow: 0 0 24px rgba(77, 140, 247, .25);
+      --mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', ui-monospace, monospace;
+      --ease: cubic-bezier(.4, 0, .2, 1);
+    }
+
+    html { font-size: 16px; }
+
+    body {
+      background:
+        radial-gradient(1200px 600px at 8% -10%, rgba(77, 140, 247, .08), transparent 60%),
+        radial-gradient(900px 500px at 100% 0%, rgba(123, 92, 240, .06), transparent 55%),
+        var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ═══ 全局网格背景纹理 ═══ */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(77, 140, 247, .015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(77, 140, 247, .015) 1px, transparent 1px);
+      background-size: 48px 48px;
+      z-index: 0;
+      mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+      -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+    }
+
+    /* ═══ 布局 ═══ */
+    .layout {
+      display: grid;
+      grid-template-rows: 64px 1fr;
+      height: 100vh;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ═══ 顶栏 ═══ */
+    header {
+      background: linear-gradient(180deg, rgba(17, 20, 42, .85), rgba(17, 20, 42, .6));
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 28px;
+      position: relative;
+      z-index: 10;
+    }
+
+    header::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg,
+        transparent 0%,
+        var(--accent) 30%,
+        var(--accent-2) 60%,
+        transparent 100%);
+      opacity: .55;
+    }
+
+    .logo {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -.3px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logo-mark {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(77, 140, 247, .35);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .logo-mark::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,.2), transparent 50%);
+    }
+
+    .logo-mark svg {
+      width: 16px;
+      height: 16px;
+      color: #fff;
+      position: relative;
+    }
+
+    .logo-text { color: #fff; }
+    .logo-text span { color: var(--accent); }
+
+    .logo-badge {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      background: linear-gradient(135deg, rgba(77, 140, 247, .15), rgba(123, 92, 240, .15));
+      color: var(--accent);
+      padding: 3px 9px;
+      border-radius: 20px;
+      border: 1px solid rgba(77, 140, 247, .3);
+      margin-left: 4px;
+    }
+
+    .source-link {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #fff;
+      text-decoration: none;
+      background: linear-gradient(135deg, rgba(245, 108, 56, .12), rgba(240, 80, 50, .12));
+      border: 1px solid rgba(245, 108, 56, .3);
+      padding: 6px 14px;
+      border-radius: 20px;
+      transition: all .25s var(--ease);
+      margin-left: 8px;
+      white-space: nowrap;
+    }
+
+    .source-link:hover {
+      background: linear-gradient(135deg, rgba(245, 108, 56, .22), rgba(240, 80, 50, .22));
+      border-color: rgba(245, 108, 56, .5);
+      box-shadow: 0 0 16px rgba(245, 108, 56, .25);
+      transform: translateY(-1px);
+    }
+
+    .header-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .stats-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-2);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-weight: 500;
+    }
+
+    .stats-pill .icon {
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .stats-pill strong {
+      color: #fff;
+      font-weight: 700;
+      font-family: var(--mono);
+    }
+
+    /* ═══ Token 配置区 ═══ */
+    .token-config {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .token-config label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-2);
+      white-space: nowrap;
+      letter-spacing: .02em;
+    }
+
+    .token-input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .token-input-wrap input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 5px 30px 5px 10px;
+      font-size: 12px;
+      font-family: var(--mono);
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      width: 200px;
+    }
+
+    .token-input-wrap input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(77, 140, 247, .15);
+    }
+
+    .token-input-wrap input::placeholder { color: var(--dim); font-size: 11px; }
+
+    .token-toggle-vis {
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-3);
+      cursor: pointer;
+      padding: 2px;
+      display: flex;
+      align-items: center;
+      transition: color .2s;
+      line-height: 0;
+    }
+
+    .token-toggle-vis:hover { color: var(--text-2); }
+    .token-toggle-vis svg { width: 14px; height: 14px; }
+
+    .token-status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--err);
+      transition: background .3s;
+      flex-shrink: 0;
+    }
+
+    .token-status-dot.active {
+      background: var(--ok);
+      box-shadow: 0 0 6px rgba(58, 181, 113, .5);
+    }
+
+    .btn-token-sm {
+      padding: 5px 10px;
+      font-size: 11px;
+      border-radius: 5px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      font-family: inherit;
+      transition: all .2s var(--ease);
+    }
+
+    .btn-token-save {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff;
+    }
+
+    .btn-token-save:hover { box-shadow: 0 2px 10px rgba(77, 140, 247, .4); }
+
+    .btn-token-clear {
+      background: var(--surface-2);
+      color: var(--text-3);
+      border: 1px solid var(--border);
+    }
+
+    .btn-token-clear:hover { color: var(--err); border-color: rgba(223, 69, 69, .3); }
+
+    /* ═══ 主内容区 ═══ */
+    main {
+      overflow-y: auto;
+      min-height: 0;
+      padding: 18px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* ═══ Panel 组件 ═══ */
+    .panel {
+      background: linear-gradient(180deg, var(--surface), var(--bg-2));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      flex-shrink: 0;
+      box-shadow: var(--shadow);
+      position: relative;
+    }
+
+    .panel::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(77, 140, 247, .3), transparent);
+    }
+
+    .panel-head {
+      padding: 10px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: linear-gradient(180deg, var(--surface-2), transparent);
+    }
+
+    .panel-head h2 {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      letter-spacing: -.1px;
+    }
+
+    .panel-head .path {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-3);
+      background: var(--bg);
+      padding: 2px 7px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+    }
+
+    .panel-head .ml {
+      margin-left: auto;
+      display: flex;
+      gap: 8px;
+    }
+
+    .panel-body {
+      padding: 14px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* ═══ Method 标签 ═══ */
+    .method {
+      font-size: 10px;
+      font-family: var(--mono);
+      font-weight: 700;
+      padding: 3px 7px;
+      border-radius: 5px;
+      min-width: 42px;
+      text-align: center;
+      letter-spacing: .04em;
+      border: 1px solid transparent;
+    }
+
+    .m-post {
+      background: rgba(77, 140, 247, .12);
+      color: var(--accent);
+      border-color: rgba(77, 140, 247, .25);
+    }
+
+    .m-get {
+      background: rgba(58, 181, 113, .12);
+      color: var(--ok);
+      border-color: rgba(58, 181, 113, .25);
+    }
+
+
+    /* ═══ 表单控件 ═══ */
+    .form-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-row label {
+      font-size: 12px;
+      color: var(--text-2);
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .form-row input,
+    .form-row select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 7px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s, background .2s;
+      width: 100%;
+    }
+
+    .form-row input:hover,
+    .form-row select:hover {
+      border-color: var(--border-2);
+    }
+
+    .form-row input:focus,
+    .form-row select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(77, 140, 247, .15);
+      background: var(--bg-2);
+    }
+
+    .form-row input::placeholder {
+      color: var(--dim);
+    }
+
+    .form-row textarea {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 7px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s, background .2s;
+      width: 100%;
+      resize: vertical;
+      min-height: 60px;
+      line-height: 1.5;
+    }
+
+    .form-row textarea:hover {
+      border-color: var(--border-2);
+    }
+
+    .form-row textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(77, 140, 247, .15);
+      background: var(--bg-2);
+    }
+
+    .form-row textarea::placeholder {
+      color: var(--dim);
+    }
+
+    .form-inline {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .form-inline .form-row {
+      flex: 1;
+      min-width: 160px;
+    }
+
+    /* ═══ 按钮 ═══ */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 8px 16px;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all .2s var(--ease);
+      white-space: nowrap;
+      font-family: inherit;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn:active { transform: scale(.97); }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(77, 140, 247, .3), inset 0 1px 0 rgba(255,255,255,.15);
+    }
+
+    .btn-primary::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,.15), transparent 50%);
+      opacity: 0;
+      transition: opacity .2s;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(77, 140, 247, .45), inset 0 1px 0 rgba(255,255,255,.2);
+    }
+
+    .btn-primary:hover:not(:disabled)::before { opacity: 1; }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #f87171, #dc2626);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(223, 69, 69, .25);
+    }
+
+    .btn-danger:hover:not(:disabled) {
+      box-shadow: 0 4px 14px rgba(223, 69, 69, .4);
+      transform: translateY(-1px);
+    }
+
+    .btn-ghost {
+      background: var(--surface-2);
+      color: var(--text-2);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover:not(:disabled) {
+      background: var(--surface-3);
+      color: var(--text);
+      border-color: var(--border-2);
+    }
+
+    .btn-filter.active {
+      background: linear-gradient(135deg, rgba(224, 154, 24, .15), rgba(240, 158, 11, .15));
+      color: var(--warn);
+      border-color: rgba(224, 154, 24, .35);
+    }
+
+    .btn-filter.active:hover:not(:disabled) {
+      background: linear-gradient(135deg, rgba(224, 154, 24, .25), rgba(240, 158, 11, .25));
+      border-color: rgba(224, 154, 24, .5);
+    }
+
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 12px;
+      border-radius: 6px;
+    }
+
+    /* ═══ 表单容器 ═══ */
+    .form-container {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* ═══ 文本标签 ═══ */
+    .text-label {
+      font-size: 12px;
+      color: var(--text-2);
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: none;
+    }
+
+    .text-mono-count {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--dim);
+    }
+
+    /* ═══ 历史标签行 ═══ */
+    .history-label-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    /* ═══ 空提示 ═══ */
+    .empty-hint {
+      text-align: center;
+      padding: 28px 20px;
+      color: var(--text-3);
+      font-size: 12px;
+      border: 1px dashed var(--border-2);
+      border-radius: var(--radius-sm);
+      background: rgba(77, 140, 247, .02);
+    }
+
+    .empty-hint::before {
+      content: '🏷';
+      display: block;
+      font-size: 24px;
+      margin-bottom: 8px;
+      opacity: .4;
+      filter: grayscale(20%);
+    }
+
+    /* ═══ 统计卡片网格 ═══ */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .stat-card {
+      background: linear-gradient(180deg, var(--surface-2), var(--bg-2));
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 16px;
+      position: relative;
+      overflow: hidden;
+      transition: all .25s var(--ease);
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--accent);
+      opacity: .6;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--border-2);
+      box-shadow: var(--shadow);
+    }
+
+    .stat-card::after {
+      content: '';
+      position: absolute;
+      top: -40px;
+      right: -40px;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      opacity: .08;
+      pointer-events: none;
+    }
+
+    .stat-card[data-type="total"]::before { background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+    .stat-card[data-type="total"]::after { background: radial-gradient(circle, var(--accent), transparent 70%); }
+
+    .stat-card[data-type="pending"]::before { background: linear-gradient(90deg, var(--warn), #f59e0b); }
+    .stat-card[data-type="pending"]::after { background: radial-gradient(circle, var(--warn), transparent 70%); }
+
+    .stat-card[data-type="success"]::before { background: linear-gradient(90deg, var(--ok), #10b981); }
+    .stat-card[data-type="success"]::after { background: radial-gradient(circle, var(--ok), transparent 70%); }
+
+    .stat-card[data-type="failed"]::before { background: linear-gradient(90deg, var(--err), #dc2626); }
+    .stat-card[data-type="failed"]::after { background: radial-gradient(circle, var(--err), transparent 70%); }
+
+    .stat-card .stat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .stat-card .stat-label {
+      font-size: 11px;
+      color: var(--text-2);
+      font-weight: 500;
+    }
+
+    .stat-card .stat-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(77, 140, 247, .12);
+      color: var(--accent);
+    }
+
+    .stat-card[data-type="pending"] .stat-icon { background: rgba(224, 154, 24, .12); color: var(--warn); }
+    .stat-card[data-type="success"] .stat-icon { background: rgba(58, 181, 113, .12); color: var(--ok); }
+    .stat-card[data-type="failed"] .stat-icon { background: rgba(223, 69, 69, .12); color: var(--err); }
+
+    .stat-card .stat-icon svg { width: 14px; height: 14px; }
+
+    .stat-card .stat-value {
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+      font-family: var(--mono);
+      line-height: 1.2;
+      letter-spacing: -.5px;
+    }
+
+    .stat-card .stat-value.pending { color: var(--warn); }
+    .stat-card .stat-value.success { color: var(--ok); }
+    .stat-card .stat-value.failed { color: var(--err); }
+
+    /* ═══ TAG 卡片列表 ═══ */
+    .tag-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .tag-card {
+      background: linear-gradient(180deg, var(--surface-2), var(--bg-2));
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0;
+      display: flex;
+      align-items: stretch;
+      transition: all .25s var(--ease);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tag-card::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: var(--dim);
+      transition: width .25s var(--ease);
+    }
+
+    .tag-card[data-status="pending"]::before { background: linear-gradient(180deg, var(--warn), #f59e0b); }
+    .tag-card[data-status="running"]::before { background: linear-gradient(180deg, var(--accent), var(--accent-2)); }
+    .tag-card[data-status="success"]::before { background: linear-gradient(180deg, var(--ok), #10b981); }
+    .tag-card[data-status="failed"]::before { background: linear-gradient(180deg, var(--err), #dc2626); }
+
+    .tag-card[data-status="deprecated"]::before { background: linear-gradient(180deg, var(--dim), var(--text-3)); }
+
+    .tag-card:hover {
+      border-color: var(--border-2);
+      transform: translateX(2px);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .tag-card:hover::before { width: 4px; }
+
+    .tag-card-main {
+      padding: 10px 18px 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .tag-card-header {
+      display: contents;
+    }
+
+
+    .tag-card-name {
+      font-weight: 700;
+      color: #fff;
+      font-size: 14px;
+      letter-spacing: -.2px;
+      flex-shrink: 0;
+    }
+
+    .tag-card-ref {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-2);
+      flex-shrink: 0;
+    }
+
+    .tag-card-status {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 5px;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border: 1px solid transparent;
+      flex-shrink: 0;
+    }
+
+    .tag-card-status::before {
+      content: '';
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 6px currentColor;
+    }
+
+    .status-pending {
+      background: rgba(224, 154, 24, .1);
+      color: var(--warn);
+      border-color: rgba(224, 154, 24, .25);
+    }
+
+    .status-running {
+      background: rgba(77, 140, 247, .1);
+      color: var(--accent);
+      border-color: rgba(77, 140, 247, .25);
+    }
+
+    .status-running::before {
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .4; }
+    }
+
+    .status-success {
+      background: rgba(58, 181, 113, .1);
+      color: var(--ok);
+      border-color: rgba(58, 181, 113, .25);
+    }
+
+    .status-failed {
+      background: rgba(223, 69, 69, .1);
+      color: var(--err);
+      border-color: rgba(223, 69, 69, .25);
+    }
+
+    .status-deprecated {
+      background: rgba(83, 91, 122, .12);
+      color: var(--dim);
+      border-color: rgba(83, 91, 122, .25);
+    }
+
+    .status-deprecated::before {
+      background: var(--dim);
+      box-shadow: none;
+    }
+
+    .tag-card-repo, .tag-card-repo:link, .tag-card-repo:visited, .tag-card-repo:hover, .tag-card-repo:active {
+      text-decoration: none;
+    }
+    .tag-card-repo {
+      font-size: 11px;
+      color: var(--accent-3);
+      background: rgba(94, 234, 212, .08);
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid rgba(94, 234, 212, .2);
+      font-family: var(--mono);
+      white-space: nowrap;
+      flex-shrink: 0;
+      cursor: pointer;
+      transition: background .2s, border-color .2s;
+    }
+    .tag-card-repo:hover {
+      background: rgba(94, 234, 212, .18);
+      border-color: rgba(94, 234, 212, .4);
+    }
+
+    .tag-card-time {
+      font-size: 11px;
+      color: var(--text-2);
+      font-family: var(--mono);
+      flex-shrink: 0;
+    }
+
+    .tag-card-desc {
+      font-weight: 700;
+      color: #fff;
+      font-size: 13px;
+      letter-spacing: -.2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: pre-line;
+      flex: 2;
+      min-width: 60px;
+      max-height: 72px;
+      overflow-y: auto;
+      line-height: 1.5;
+    }
+
+    .tag-card-message {
+      font-size: 11px;
+      color: var(--text-2);
+      font-family: var(--mono);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 2;
+      min-width: 60px;
+    }
+
+    .tag-card.deprecated-card .tag-card-name,
+    .tag-card.deprecated-card .tag-card-ref,
+    .tag-card.deprecated-card .tag-card-repo,
+    .tag-card.deprecated-card .tag-card-desc,
+    .tag-card.deprecated-card .tag-card-message,
+    .tag-card.deprecated-card .tag-card-time {
+      opacity: .45;
+    }
+
+    .btn-deprecate {
+      background: var(--surface-2);
+      color: var(--text-3);
+      border: 1px solid var(--border);
+    }
+
+    .btn-deprecate:hover:not(:disabled) {
+      color: var(--warn);
+      border-color: rgba(224, 154, 24, .3);
+      background: rgba(224, 154, 24, .08);
+    }
+
+    .tag-card-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-shrink: 0;
+      margin-left: auto;
+    }
+
+    .token-missing-hint {
+      font-size: 11px;
+      color: var(--warn);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    /* ═══ 输出框 ═══ */
+    .output-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 12px 14px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-2);
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .output-box.empty {
+      color: var(--dim);
+      font-style: italic;
+    }
+
+    /* ═══ 错误提示 ═══ */
+    .error-msg {
+      color: var(--err);
+      font-size: 13px;
+      display: none;
+      padding: 10px 14px;
+      background: rgba(223, 69, 69, .08);
+      border: 1px solid rgba(223, 69, 69, .2);
+      border-radius: 8px;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .error-msg::before {
+      content: '⚠';
+      font-size: 14px;
+    }
+
+    .error-msg.visible {
+      display: flex;
+    }
+
+    /* ═══ Toast ═══ */
+    .toast-container {
+      position: fixed;
+      top: 78px;
+      right: 24px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .toast {
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #fff;
+      box-shadow: 0 8px 24px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.08) inset;
+      animation: toastIn .35s var(--ease);
+      max-width: 360px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      pointer-events: auto;
+    }
+
+    .toast::before {
+      font-size: 16px;
+    }
+
+    .toast-success {
+      background: linear-gradient(135deg, rgba(58, 181, 113, .95), rgba(58, 181, 113, .95));
+    }
+    .toast-success::before { content: '✓'; }
+
+    .toast-error {
+      background: linear-gradient(135deg, rgba(223, 69, 69, .95), rgba(223, 69, 69, .95));
+    }
+    .toast-error::before { content: '✕'; }
+
+    .toast-info {
+      background: linear-gradient(135deg, rgba(77, 140, 247, .95), rgba(123, 92, 240, .95));
+    }
+    .toast-info::before { content: 'ℹ'; }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(40px) scale(.95); }
+      to { opacity: 1; transform: translateX(0) scale(1); }
+    }
+
+    @keyframes toastOut {
+      to { opacity: 0; transform: translateX(40px) scale(.95); }
+    }
+
+    .toast.leaving {
+      animation: toastOut .3s var(--ease) forwards;
+    }
+
+    /* ═══ 滚动条 ═══ */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-2);
+      border-radius: 4px;
+      border: 2px solid transparent;
+      background-clip: padding-box;
+    }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-3); background-clip: padding-box; border: 2px solid transparent; }
+
+    /* ═══ 响应式 ═══ */
+    @media (max-width: 980px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .form-inline { flex-direction: column; align-items: stretch; }
+      .form-inline .form-row { min-width: 0; }
+      .tag-card-main { flex-wrap: wrap; }
+    }
+
+    @media (max-width: 640px) {
+      .stats-grid { grid-template-columns: 1fr; }
+      main { padding: 14px; }
+      header { padding: 0 16px; }
+      .tag-card-main { flex-wrap: wrap; }
+    }
+
+    /* ═══ 入场动画 ═══ */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .panel { animation: fadeUp .4s var(--ease) backwards; }
+    .stats-grid { animation: fadeUp .4s var(--ease) backwards; }
+    .panel:nth-child(1) { animation-delay: .05s; }
+    .panel:nth-child(2) { animation-delay: .1s; }
+    .panel:nth-child(3) { animation-delay: .15s; }
+    .stats-grid { animation-delay: 0s; }
+
+    .tag-card {
+      animation: fadeUp .35s var(--ease) backwards;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="layout">
+    <!-- ═══ 顶栏 ═══ -->
+    <header>
+      <div class="logo">
+        <span class="logo-mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+            <line x1="7" y1="7" x2="7.01" y2="7"/>
+          </svg>
+        </span>
+        <span class="logo-text">OHOS <span>CPF-ApplicationTPC</span></span>
+        <span class="logo-badge">TAG</span>
+      </div>
+      <a class="source-link" href="https://gitcode.com/lalhanOrz/AIWeb" target="_blank" rel="noopener noreferrer" title="GitCode">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style="flex-shrink:0;color:#f56c38"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-2h2v2zm0-4h-2V7h2v6zm4 4h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+        <span>GitCode</span>
+      </a>
+      <div class="header-right">
+        <div class="token-config">
+          <span class="token-status-dot" id="token-status" title="Token 状态"></span>
+          <label>Token</label>
+          <div class="token-input-wrap">
+            <input type="password" id="global-token" placeholder="GitCode Access Token" />
+            <button class="token-toggle-vis" onclick="toggleTokenVis()" title="显示/隐藏">
+              <svg id="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+          <button class="btn-token-sm btn-token-save" onclick="saveToken()">保存</button>
+          <button class="btn-token-sm btn-token-clear" onclick="clearToken()">清除</button>
+        </div>
+        <div class="stats-pill">
+          <span class="icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+              <line x1="7" y1="7" x2="7.01" y2="7"/>
+            </svg>
+          </span>
+          <span><strong id="tag-count">0</strong> 个 TAG</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ═══ 主内容区 ═══ -->
+    <main>
+      <!-- ═══ 统计卡片 ═══ -->
+      <div class="stats-grid">
+        <div class="stat-card" data-type="total">
+          <div class="stat-header">
+            <span class="stat-label">总计</span>
+            <span class="stat-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="7"/>
+                <rect x="14" y="3" width="7" height="7"/>
+                <rect x="14" y="14" width="7" height="7"/>
+                <rect x="3" y="14" width="7" height="7"/>
+              </svg>
+            </span>
+          </div>
+          <div class="stat-value" id="stat-total">0</div>
+        </div>
+        <div class="stat-card" data-type="pending">
+          <div class="stat-header">
+            <span class="stat-label">待执行</span>
+            <span class="stat-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </span>
+          </div>
+          <div class="stat-value pending" id="stat-pending">0</div>
+        </div>
+        <div class="stat-card" data-type="success">
+          <div class="stat-header">
+            <span class="stat-label">成功</span>
+            <span class="stat-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </span>
+          </div>
+          <div class="stat-value success" id="stat-success">0</div>
+        </div>
+        <div class="stat-card" data-type="failed">
+          <div class="stat-header">
+            <span class="stat-label">失败</span>
+            <span class="stat-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            </span>
+          </div>
+          <div class="stat-value failed" id="stat-failed">0</div>
+        </div>
+      </div>
+
+      <!-- ═══ 创建 TAG ═══ -->
+      <div class="panel">
+        <div class="panel-head">
+          <span class="method m-post">POST</span>
+          <h2>创建 TAG</h2>
+          <span class="path">/tag/create</span>
+        </div>
+        <div class="panel-body">
+          <div class="form-container">
+            <div class="form-inline">
+              <div class="form-row" style="flex:2">
+                <label>仓库地址 <span style="color:var(--err)">*</span></label>
+                <input id="repo-url" placeholder="https://gitcode.com/owner/repo" />
+              </div>
+              <div class="form-row" style="flex:1">
+                <label>分支/Commit ID <span style="color:var(--err)">*</span></label>
+                <input id="ref-name" placeholder="master" />
+              </div>
+            </div>
+            <div class="form-inline">
+              <div class="form-row" style="flex:1">
+                <label>Tag 名称 <span style="color:var(--err)">*</span></label>
+                <input id="tag-name" placeholder="v1.0.0" />
+              </div>
+              <button class="btn btn-primary" onclick="createTag()" style="align-self:flex-end;margin-bottom:0">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                  <line x1="12" y1="5" x2="12" y2="19"/>
+                  <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                创建
+              </button>
+            </div>
+            <div class="form-row">
+              <label>Tag 描述 <span class="text-label" style="font-weight:400;color:var(--text-3)">（支持换行）</span></label>
+              <textarea id="tag-desc" placeholder="Release v1.0.0&#10;- Feature A&#10;- Feature B" rows="3"></textarea>
+            </div>
+          </div>
+          <div id="create-error" class="error-msg"></div>
+        </div>
+      </div>
+
+      <!-- ═══ TAG 列表 ═══ -->
+      <div class="panel">
+        <div class="panel-head">
+          <span class="method m-get">GET</span> 
+          <h2>TAG 列表</h2>
+          <span class="path">/tag/list</span>
+          <div class="ml">
+            <button class="btn btn-ghost btn-sm btn-filter" id="filter-pending-btn" onclick="toggleFilter()" title="只展示未执行的 TAG">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+              </svg>
+              仅看未执行
+            </button>
+            <button class="btn btn-ghost btn-sm" onclick="loadTags()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                <polyline points="23 4 23 10 17 10"/>
+                <polyline points="1 20 1 14 7 14"/>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+              </svg>
+              刷新
+            </button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div id="tag-list" class="tag-list">
+            <div id="tag-empty" class="empty-hint">暂无 TAG，点击「创建」添加第一个</div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast-container" id="toast-container"></div>
+
+  <script>
+    // ── Token 本地缓存 ──
+    const TOKEN_KEY = 'tag_gitcode_token';
+
+    function loadSavedToken() {
+      const saved = localStorage.getItem(TOKEN_KEY);
+      const input = document.getElementById('global-token');
+      const dot   = document.getElementById('token-status');
+      if (saved) {
+        input.value = saved;
+        dot.classList.add('active');
+      } else {
+        dot.classList.remove('active');
+      }
+    }
+
+    function saveToken() {
+      const input = document.getElementById('global-token');
+      const token = input.value.trim();
+      const dot   = document.getElementById('token-status');
+      if (token) {
+        localStorage.setItem(TOKEN_KEY, token);
+        dot.classList.add('active');
+        toast('Token 已保存到本地浏览器', 'success');
+      } else {
+        toast('请输入 Token', 'error');
+      }
+    }
+
+    function clearToken() {
+      const input = document.getElementById('global-token');
+      const dot   = document.getElementById('token-status');
+      localStorage.removeItem(TOKEN_KEY);
+      input.value = '';
+      dot.classList.remove('active');
+      toast('Token 已清除', 'info');
+    }
+
+    function getSavedToken() {
+      return localStorage.getItem(TOKEN_KEY) || '';
+    }
+
+    function toggleTokenVis() {
+      const input = document.getElementById('global-token');
+      const icon  = document.getElementById('eye-icon');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+      } else {
+        input.type = 'password';
+        icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+      }
+    }
+
+    // 自动保存：输入时实时同步到 localStorage
+    document.getElementById('global-token').addEventListener('input', () => {
+      const input = document.getElementById('global-token');
+      const dot   = document.getElementById('token-status');
+      const token = input.value.trim();
+      if (token) {
+        localStorage.setItem(TOKEN_KEY, token);
+        dot.classList.add('active');
+      } else {
+        localStorage.removeItem(TOKEN_KEY);
+        dot.classList.remove('active');
+      }
+    });
+
+    const API_BASE = '/tag';
+
+    // ── 筛选状态本地缓存 ──
+    const FILTER_KEY = 'tag_filter_pending';
+    let filterPending = false;
+
+    function loadFilterState() {
+      filterPending = localStorage.getItem(FILTER_KEY) === 'true';
+      updateFilterBtn();
+    }
+
+    function updateFilterBtn() {
+      const btn = document.getElementById('filter-pending-btn');
+      if (!btn) return;
+      if (filterPending) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    }
+
+    function toggleFilter() {
+      filterPending = !filterPending;
+      localStorage.setItem(FILTER_KEY, String(filterPending));
+      updateFilterBtn();
+      loadTags();
+    }
+
+    // ── Toast ──
+    function toast(msg, type = 'info') {
+      const c = document.getElementById('toast-container');
+      const t = document.createElement('div');
+      t.className = `toast toast-${type}`;
+      t.textContent = msg;
+      c.appendChild(t);
+      setTimeout(() => {
+        t.classList.add('leaving');
+        setTimeout(() => t.remove(), 300);
+      }, 3000);
+    }
+
+    // ── 时间格式化 ──
+    function formatTime(iso) {
+      if (!iso) return '';
+      // SQLite datetime('now') 存储的是 UTC，格式 "2026-07-04 00:56:43"
+      // 加 T 和 Z 后缀让 JS 识别为 UTC，再自动转为本地时间
+      const utcStr = iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z';
+      const d = new Date(utcStr);
+      if (isNaN(d.getTime())) return iso;
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    // ── 判断是否为废弃记录（errorMessage 以 [DEPRECATED] 开头）──
+    function isDeprecated(tag) {
+      return tag.errorMessage && tag.errorMessage.startsWith('[DEPRECATED]');
+    }
+
+    // ── 统计更新 ──
+    function updateStats(tags) {
+      // 废弃记录不参与计数
+      const activeTags = tags.filter(t => !isDeprecated(t));
+      document.getElementById('stat-total').textContent = activeTags.length;
+      document.getElementById('stat-pending').textContent = activeTags.filter(t => t.status === 'pending').length;
+      document.getElementById('stat-success').textContent = activeTags.filter(t => t.status === 'success').length;
+      document.getElementById('stat-failed').textContent = activeTags.filter(t => t.status === 'failed' && !isDeprecated(t)).length;
+      document.getElementById('tag-count').textContent = activeTags.length;
+    }
+
+    // ── 渲染 TAG 列表 ──
+    function renderTags(tags) {
+      const list = document.getElementById('tag-list');
+      const empty = document.getElementById('tag-empty');
+
+      // 统计始终使用全量数据
+      updateStats(tags);
+
+      // 应用筛选：仅看未执行时只展示 pending 且非废弃的记录
+      const displayTags = filterPending
+        ? tags.filter(t => t.status === 'pending' && !isDeprecated(t))
+        : tags;
+
+      if (!displayTags || displayTags.length === 0) {
+        list.innerHTML = '';
+        if (filterPending && tags.length > 0) {
+          empty.textContent = '没有待执行的 TAG';
+        } else {
+          empty.textContent = '暂无 TAG，点击「创建」添加第一个';
+        }
+        list.appendChild(empty);
+        empty.style.display = '';
+        return;
+      }
+
+      empty.style.display = 'none';
+      // 保留 empty 节点但隐藏，清除其他内容
+      list.innerHTML = '';
+      list.appendChild(empty);
+
+      displayTags.forEach((tag, idx) => {
+        const deprecated = isDeprecated(tag);
+
+        const card = document.createElement('div');
+        card.className = 'tag-card' + (deprecated ? ' deprecated-card' : '');
+        card.setAttribute('data-status', deprecated ? 'deprecated' : (tag.status || 'pending'));
+        card.setAttribute('data-tag-id', tag.id);
+        card.style.animationDelay = (idx * 0.04) + 's';
+
+        const statusClass = deprecated
+          ? 'status-deprecated'
+          : ({ pending: 'status-pending', running: 'status-running', success: 'status-success', failed: 'status-failed' }[tag.status] || 'status-pending');
+
+        const statusText = deprecated
+          ? '已废弃'
+          : ({ pending: '待执行', running: '执行中', success: '成功', failed: '失败' }[tag.status] || tag.status);
+
+        const timeStr = tag.createdAt ? formatTime(tag.createdAt) : '';
+
+        card.innerHTML = `
+          <div class="tag-card-main">
+            <span class="tag-card-name">${escHtml(tag.tagName)}</span>
+            <a class="tag-card-repo" href="${escAttr(tag.repoUrl)}" target="_blank" rel="noopener">${escHtml(tag.repoUrl)}</a>
+            <span class="tag-card-ref">${escHtml(tag.ref)}</span>
+            <span class="tag-card-status ${statusClass}">${statusText}</span>
+            ${tag.tagDesc ? `<span class="tag-card-desc">${escHtml(tag.tagDesc)}</span>` : ''}
+            ${tag.message ? `<span class="tag-card-message">${escHtml(tag.message)}</span>` : ''}
+            ${timeStr ? `<span class="tag-card-time">${timeStr}</span>` : ''}
+            <span class="tag-card-actions">
+              ${deprecated
+                ? `<span class="btn btn-deprecate btn-sm" style="cursor:default">
+                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                       <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                     </svg>
+                     已废弃
+                   </span>`
+                : tag.status === 'success'
+                  ? (tag.tagUrl
+                    ? `<a class="btn btn-ghost btn-sm" href="${escAttr(tag.tagUrl)}" target="_blank" rel="noopener">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        查看
+                      </a>`
+                    : `<span class="btn btn-ghost btn-sm" style="cursor:default;color:var(--ok);border-color:rgba(58,181,113,.25)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        已完成
+                      </span>`)
+                  : `<span class="token-missing-hint" id="token-hint-${tag.id}" style="display:none">⚠ 未配置 Token</span>
+                     <button class="btn btn-primary btn-sm" onclick="executeTag(${tag.id})" ${tag.status === 'running' ? 'disabled' : ''}>
+                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                         <polygon points="5 3 19 12 5 21 5 3"/>
+                       </svg>
+                       执行
+                     </button>
+                     <button class="btn btn-deprecate btn-sm" onclick="deprecateTag(${tag.id})" title="标记此条为废弃（存在问题，不参与计数）">
+                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                         <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                       </svg>
+                       废弃
+                     </button>`}
+            </span>
+          </div>
+        `;
+        list.appendChild(card);
+      });
+    }
+
+    // ── HTML 转义 ──
+    function escHtml(s) {
+      if (!s) return '';
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+    function escAttr(s) {
+      if (!s) return '';
+      return s.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // ── 加载 TAG 列表 ──
+    async function loadTags() {
+      try {
+        const res = await fetch(`${API_BASE}/list`);
+        const data = await res.json();
+        if (data.success) {
+          renderTags(data.data || []);
+        } else {
+          toast('加载失败: ' + (data.message || '未知错误'), 'error');
+        }
+      } catch (e) {
+        toast('网络错误: ' + e.message, 'error');
+      }
+    }
+
+    // ── 创建 TAG ──
+    async function createTag() {
+      const repoUrl = document.getElementById('repo-url').value.trim();
+      const ref = document.getElementById('ref-name').value.trim();
+      const tagName = document.getElementById('tag-name').value.trim();
+      const tagDesc = document.getElementById('tag-desc').value.trim();
+      const errEl = document.getElementById('create-error');
+
+      errEl.className = 'error-msg';
+
+      if (!repoUrl || !ref || !tagName) {
+        errEl.textContent = '仓库地址、分支/Commit ID、Tag 名称为必填项';
+        errEl.className = 'error-msg visible';
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/create`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ repoUrl, ref, tagName, tagDesc })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          toast('TAG 创建成功', 'success');
+          document.getElementById('repo-url').value = '';
+          document.getElementById('ref-name').value = '';
+          document.getElementById('tag-name').value = '';
+          document.getElementById('tag-desc').value = '';
+          loadTags();
+        } else {
+          errEl.textContent = data.error || '创建失败';
+          errEl.className = 'error-msg visible';
+        }
+      } catch (e) {
+        errEl.textContent = '网络错误: ' + e.message;
+        errEl.className = 'error-msg visible';
+      }
+    }
+
+    // ── 执行 TAG ──
+    async function executeTag(id) {
+      const token = getSavedToken();
+
+      if (!token) {
+        toast('请先在顶部配置 GitCode Token', 'error');
+        const hint = document.getElementById(`token-hint-${id}`);
+        if (hint) hint.style.display = 'flex';
+        document.getElementById('global-token').focus();
+        return;
+      }
+
+      // 隐藏 token 提示
+      const hint = document.getElementById(`token-hint-${id}`);
+      if (hint) hint.style.display = 'none';
+
+      // 立即将该卡片状态显示为执行中
+      const card = document.querySelector(`[data-tag-id="${id}"]`);
+      const statusEl = card?.querySelector('.tag-card-status');
+      const btnEl = card?.querySelector('.btn-primary');
+      if (statusEl) {
+        statusEl.className = 'tag-card-status status-running';
+        statusEl.textContent = '执行中…';
+      }
+      if (btnEl) btnEl.disabled = true;
+
+      try {
+        const res = await fetch(`${API_BASE}/execute`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, token })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          toast('TAG 执行成功', 'success');
+        } else {
+          toast('执行失败: ' + (data.message || '未知错误'), 'error');
+        }
+      } catch (e) {
+        toast('网络错误: ' + e.message, 'error');
+      } finally {
+        loadTags();
+      }
+    }
+
+
+    // ── 废弃 TAG ──
+    async function deprecateTag(id) {
+      if (!confirm('确定要废弃此 TAG 吗？废弃后将不参与计数，且不再显示执行按钮。')) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/deprecate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          toast('TAG 已废弃', 'info');
+          loadTags();
+        } else {
+          toast('废弃失败: ' + (data.message || '未知错误'), 'error');
+        }
+      } catch (e) {
+        toast('网络错误: ' + e.message, 'error');
+      }
+    }
+
+    // ── 初始化 ──
+    loadSavedToken();
+    loadFilterState();
+    loadTags();
+  </script>
+</body>
+
+</html>

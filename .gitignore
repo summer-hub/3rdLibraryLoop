@@ -50,3 +50,4 @@ Server/Agent/SkillSelector/types.js
 
 # CLI 发布产物（仅 npm pack/publish 时临时生成，不入库）
 cli/vendor/
+cli/web/

@@ -168,6 +168,51 @@ var Nav = {
     }
 };
 
+/* ─── 扩展功能导航（3rdloop web 扩展注册表） ──────────────────────────
+ * 从 /api/ext-registry 拉取已挂载扩展（tag/issue/prcheck 等二级目录功能），
+ * 动态渲染导航项，点击跳转对应挂载路径（独立页面，浏览器返回键回到工作台）。
+ * 端点不存在（如纯静态部署/旧版 Web/server.js）或无扩展时静默隐藏整个分区。
+ * ──────────────────────────────────────────────────────────────────── */
+var ExtNav = {
+    init: function () {
+        fetch('/api/ext-registry')
+            .then(function (res) { return res.ok ? res.json() : null; })
+            .then(function (payload) {
+                var exts = payload && payload.data;
+                if (!exts || !exts.length) return;
+
+                var host = document.getElementById('nav-ext-section');
+                if (!host) return;
+
+                exts.sort(function (a, b) {
+                    return (a.order || 100) - (b.order || 100) ||
+                           String(a.name).localeCompare(String(b.name));
+                });
+
+                exts.forEach(function (ext) {
+                    if (!ext.mount) return;
+                    var item = document.createElement('div');
+                    item.className = 'nav-item nav-item-ext';
+                    item.title = ext.description || ext.title || ext.name;
+
+                    var badge = document.createElement('span');
+                    badge.className = 'method m-post';
+                    badge.textContent = 'EXT';
+                    item.appendChild(badge);
+                    item.appendChild(document.createTextNode(' ' + (ext.title || ext.name)));
+
+                    item.addEventListener('click', function () {
+                        window.location.href = ext.mount;
+                    });
+                    host.appendChild(item);
+                });
+
+                host.style.display = '';
+            })
+            .catch(function () { /* 扩展服务不可用（纯静态部署）时静默隐藏 */ });
+    }
+};
+
 window.Nav = Nav;
 window.ViewMode = ViewMode;
 
@@ -187,4 +232,7 @@ window.addEventListener('load', function () {
 
     // 5. 视图模式初始化（恢复 hash / localStorage，触发懒加载）
     ViewMode.init();
+
+    // 6. 扩展功能导航（异步，3rdloop web 部署时渲染 tag/issue/prcheck 入口）
+    ExtNav.init();
 });

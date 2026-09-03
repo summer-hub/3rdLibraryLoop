@@ -1,0 +1,2718 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GitCode Issue 查询</title>
+  <style>
+    /* ═══ 基础重置 ═══ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0f18;
+      --bg-2: #10131e;
+      --surface: #12151f;
+      --surface-2: #191c28;
+      --surface-3: #1f2233;
+      --border: #242738;
+      --border-2: #2d3148;
+      --border-3: #3a3f5c;
+      --accent: #4d8cf7;
+      --accent-2: #7b5cf0;
+      --accent-3: #5eead4;
+      --ok: #3ab571;
+      --warn: #e09a18;
+      --err: #df4545;
+      --info: #60a5fa;
+      --text: #cdd5e8;
+      --text-2: #9ea8c4;
+      --text-3: #535b7a;
+      --dim: #535b7a;
+      --radius: 10px;
+      --radius-sm: 8px;
+      --radius-lg: 14px;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,.25);
+      --shadow: 0 4px 12px rgba(0,0,0,.35);
+      --shadow-lg: 0 12px 32px rgba(0,0,0,.45);
+      --mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', ui-monospace, monospace;
+      --ease: cubic-bezier(.4, 0, .2, 1);
+    }
+
+    html { font-size: 16px; }
+
+    body {
+      background:
+        radial-gradient(1200px 600px at 8% -10%, rgba(77, 140, 247, .08), transparent 60%),
+        radial-gradient(900px 500px at 100% 0%, rgba(123, 92, 240, .06), transparent 55%),
+        var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ═══ 全局网格背景纹理 ═══ */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(77, 140, 247, .015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(77, 140, 247, .015) 1px, transparent 1px);
+      background-size: 48px 48px;
+      z-index: 0;
+      mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+      -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+    }
+
+    /* ═══ 布局 ═══ */
+    .layout {
+      display: grid;
+      grid-template-rows: 64px 1fr;
+      height: 100vh;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ═══ 顶栏 ═══ */
+    header {
+      background: linear-gradient(180deg, rgba(17, 20, 42, .85), rgba(17, 20, 42, .6));
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 28px;
+      position: relative;
+      z-index: 10;
+    }
+
+    header::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg,
+        transparent 0%,
+        var(--accent) 30%,
+        var(--accent-2) 60%,
+        transparent 100%);
+      opacity: .55;
+    }
+
+    .logo {
+      font-size: 17px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -.3px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logo-mark {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(77, 140, 247, .35);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .logo-mark::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,.2), transparent 50%);
+    }
+
+    .logo-mark svg {
+      width: 16px;
+      height: 16px;
+      color: #fff;
+      position: relative;
+    }
+
+    .logo-text { color: #fff; }
+    .logo-text span { color: var(--accent); }
+
+    .logo-badge {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      background: linear-gradient(135deg, rgba(77, 140, 247, .15), rgba(123, 92, 240, .15));
+      color: var(--accent);
+      padding: 3px 9px;
+      border-radius: 20px;
+      border: 1px solid rgba(77, 140, 247, .3);
+      margin-left: 4px;
+    }
+
+    .source-link {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      text-decoration: none;
+      background: linear-gradient(135deg, rgba(245, 108, 56, .12), rgba(240, 80, 50, .12));
+      border: 1px solid rgba(245, 108, 56, .3);
+      padding: 6px 14px;
+      border-radius: 20px;
+      transition: all .25s var(--ease);
+      margin-left: 8px;
+      white-space: nowrap;
+    }
+
+    .source-link:hover {
+      background: linear-gradient(135deg, rgba(245, 108, 56, .22), rgba(240, 80, 50, .22));
+      border-color: rgba(245, 108, 56, .5);
+      box-shadow: 0 0 16px rgba(245, 108, 56, .25);
+      transform: translateY(-1px);
+    }
+
+    .header-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .stats-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: var(--text-2);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-weight: 500;
+    }
+
+    .stats-pill .icon {
+      font-size: 15px;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .stats-pill strong {
+      color: #fff;
+      font-weight: 700;
+      font-family: var(--mono);
+    }
+
+    /* ═══ 按钮 ═══ */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 8px 16px;
+      border-radius: 7px;
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all .2s var(--ease);
+      white-space: nowrap;
+      font-family: inherit;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn:active { transform: scale(.97); }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(77, 140, 247, .3), inset 0 1px 0 rgba(255,255,255,.15);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(77, 140, 247, .45), inset 0 1px 0 rgba(255,255,255,.2);
+    }
+
+    .btn-ghost {
+      background: var(--surface-2);
+      color: var(--text-2);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover:not(:disabled) {
+      background: var(--surface-3);
+      color: var(--text);
+      border-color: var(--border-2);
+    }
+
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 14px;
+      border-radius: 6px;
+    }
+
+    .btn-export {
+      background: linear-gradient(135deg, rgba(58, 181, 113, .15), rgba(16, 185, 129, .15));
+      color: var(--ok);
+      border: 1px solid rgba(58, 181, 113, .3);
+    }
+
+    .btn-export:hover:not(:disabled) {
+      background: linear-gradient(135deg, rgba(58, 181, 113, .25), rgba(16, 185, 129, .25));
+      border-color: rgba(58, 181, 113, .5);
+      box-shadow: 0 0 16px rgba(58, 181, 113, .2);
+      transform: translateY(-1px);
+    }
+
+    /* ═══ 主内容区 ═══ */
+    main {
+      overflow-y: auto;
+      min-height: 0;
+      padding: 18px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* ═══ Panel 组件 ═══ */
+    .panel {
+      background: linear-gradient(180deg, var(--surface), var(--bg-2));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      flex-shrink: 0;
+      box-shadow: var(--shadow);
+      position: relative;
+    }
+
+    .panel::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(77, 140, 247, .3), transparent);
+    }
+
+    .panel-head {
+      padding: 10px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: linear-gradient(180deg, var(--surface-2), transparent);
+    }
+
+    .panel-head h2 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+      letter-spacing: -.1px;
+    }
+
+    .panel-head .path {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--text-3);
+      background: var(--bg);
+      padding: 2px 7px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+    }
+
+    .panel-head .ml {
+      margin-left: auto;
+      display: flex;
+      gap: 8px;
+    }
+
+    .panel-body {
+      padding: 14px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* ═══ 组织切换 Tabs ═══ */
+    .org-tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 4px;
+    }
+
+    .org-tab {
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-2);
+      cursor: pointer;
+      transition: all .2s var(--ease);
+      border: none;
+      background: transparent;
+      font-family: inherit;
+      white-space: nowrap;
+    }
+
+    .org-tab:hover {
+      color: var(--text);
+      background: var(--surface-3);
+    }
+
+    .org-tab.active {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(77, 140, 247, .3);
+    }
+
+    /* ═══ 统计卡片网格 ═══ */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .stat-card {
+      background: linear-gradient(180deg, var(--surface-2), var(--bg-2));
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 16px;
+      position: relative;
+      overflow: hidden;
+      transition: all .25s var(--ease);
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      opacity: .6;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--border-2);
+      box-shadow: var(--shadow);
+    }
+
+    .stat-card[data-type="total"]::before { background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+    .stat-card[data-type="replied"]::before { background: linear-gradient(90deg, var(--ok), #10b981); }
+    .stat-card[data-type="unreplied"]::before { background: linear-gradient(90deg, var(--warn), #f59e0b); }
+
+    .stat-card .stat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .stat-card .stat-label {
+      font-size: 13px;
+      color: var(--text-2);
+      font-weight: 500;
+    }
+
+    .stat-card .stat-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(77, 140, 247, .12);
+      color: var(--accent);
+    }
+
+    .stat-card[data-type="replied"] .stat-icon { background: rgba(58, 181, 113, .12); color: var(--ok); }
+    .stat-card[data-type="unreplied"] .stat-icon { background: rgba(224, 154, 24, .12); color: var(--warn); }
+
+    .stat-card .stat-icon svg { width: 14px; height: 14px; }
+
+    .stat-card .stat-value {
+      font-size: 26px;
+      font-weight: 700;
+      color: #fff;
+      font-family: var(--mono);
+      line-height: 1.2;
+      letter-spacing: -.5px;
+    }
+
+    .stat-card .stat-value.replied { color: var(--ok); }
+    .stat-card .stat-value.unreplied { color: var(--warn); }
+
+    /* ═══ Issue 表格 ═══ */
+    .issue-table-wrap {
+      overflow-x: auto;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+    }
+
+    .issue-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    .issue-table thead {
+      background: var(--surface-2);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    .issue-table th {
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--text-2);
+      font-size: 13px;
+      letter-spacing: .03em;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border-2);
+      white-space: nowrap;
+    }
+
+    .issue-table td {
+      padding: 10px 14px;
+      color: var(--text);
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    .issue-table tbody tr {
+      transition: background .15s var(--ease);
+    }
+
+    .issue-table tbody tr:hover {
+      background: rgba(77, 140, 247, .04);
+    }
+
+    .issue-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .issue-table .col-index {
+      width: 40px;
+      text-align: center;
+      color: var(--text-3);
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+
+    .issue-table .col-issue-url {
+      max-width: 120px;
+    }
+
+    .issue-table .issue-link {
+      color: var(--accent-3);
+      text-decoration: none;
+      font-family: var(--mono);
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: color .2s;
+    }
+
+    .issue-table .issue-link:hover {
+      color: var(--accent);
+      text-decoration: underline;
+    }
+
+    .issue-table .col-repo {
+      max-width: 160px;
+    }
+
+    .issue-table .repo-name {
+      font-size: 13px;
+      color: var(--accent-3);
+      background: rgba(94, 234, 212, .08);
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid rgba(94, 234, 212, .2);
+      font-family: var(--mono);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: inline-block;
+      max-width: 100%;
+    }
+
+    .issue-table .reply-badge {
+      font-size: 13px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 5px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+
+    .issue-table .reply-badge::before {
+      content: '';
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .reply-yes {
+      background: rgba(58, 181, 113, .1);
+      color: var(--ok);
+      border-color: rgba(58, 181, 113, .25);
+    }
+
+    .reply-no {
+      background: rgba(224, 154, 24, .1);
+      color: var(--warn);
+      border-color: rgba(224, 154, 24, .25);
+    }
+
+    /* ── 分类标签徽章 ── */
+    .label-badge {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+    .label-bug {
+      background: rgba(239, 68, 68, .1);
+      color: #ef4444;
+      border-color: rgba(239, 68, 68, .25);
+    }
+    .label-feature {
+      background: rgba(77, 140, 247, .1);
+      color: var(--accent);
+      border-color: rgba(77, 140, 247, .25);
+    }
+    .label-question {
+      background: rgba(58, 181, 113, .1);
+      color: var(--ok);
+      border-color: rgba(58, 181, 113, .25);
+    }
+
+    /* ── 用户身份徽章 ── */
+    .user-type-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      white-space: nowrap;
+      display: inline-block;
+      margin-top: 2px;
+    }
+    .user-type-internal {
+      background: rgba(168, 85, 247, .1);
+      color: #a855f7;
+      border-color: rgba(168, 85, 247, .25);
+    }
+    .user-type-external {
+      background: rgba(100, 116, 139, .1);
+      color: #64748b;
+      border-color: rgba(100, 116, 139, .25);
+    }
+    .username-cell {
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    /* ── 分类按钮 ── */
+    .btn-classify {
+      font-size: 12px;
+    }
+
+    .issue-table .time-cell {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--text-2);
+      white-space: nowrap;
+    }
+
+    .issue-table .duration-cell {
+      font-family: var(--mono);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .duration-unreplied {
+      color: var(--warn);
+      font-weight: 600;
+    }
+
+    .duration-replied {
+      color: var(--text-3);
+    }
+
+    .issue-table .duration-cell {
+      font-family: var(--mono);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .duration-unreplied {
+      color: var(--warn);
+      font-weight: 600;
+    }
+
+    .duration-replied {
+      color: var(--text-3);
+    }
+
+    .issue-table .title-cell {
+      max-width: 300px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    /* ═══ 表头内联筛选 ═══ */
+    .th-filter {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      position: relative;
+    }
+
+    .th-filter-btn {
+      background: none;
+      border: none;
+      color: var(--text-3);
+      cursor: pointer;
+      padding: 2px;
+      display: flex;
+      align-items: center;
+      transition: color .2s;
+      line-height: 0;
+      border-radius: 3px;
+    }
+
+    .th-filter-btn:hover {
+      color: var(--text);
+      background: rgba(255,255,255,.06);
+    }
+
+    .th-filter-btn.active {
+      color: var(--accent);
+    }
+
+    .th-filter-btn svg {
+      width: 13px;
+      height: 13px;
+    }
+
+    .th-filter-popover {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      z-index: 20;
+      background: var(--surface-2);
+      border: 1px solid var(--border-2);
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow-lg);
+      padding: 10px;
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 200px;
+    }
+
+    .th-filter-popover.visible {
+      display: flex;
+    }
+
+    .th-filter-input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      width: 100%;
+    }
+
+    .th-filter-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(77, 140, 247, .15);
+    }
+
+    .th-filter-input::placeholder { color: var(--dim); font-size: 13px; }
+
+    .th-filter-select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 14px;
+      outline: none;
+      cursor: pointer;
+      transition: border-color .2s, box-shadow .2s;
+      width: 100%;
+    }
+
+    .th-filter-select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(77, 140, 247, .15);
+    }
+
+    .th-filter-clear {
+      background: none;
+      border: 1px solid var(--border-2);
+      color: var(--text-2);
+      border-radius: 6px;
+      padding: 5px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all .2s;
+      white-space: nowrap;
+      text-align: center;
+    }
+
+    .th-filter-clear:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .filter-count {
+      font-size: 13px;
+      color: var(--text-3);
+      font-family: var(--mono);
+      margin-left: 8px;
+    }
+
+    .filter-count.filtered {
+      color: var(--accent);
+    }
+
+    /* ═══ 空提示 ═══ */
+    .empty-hint {
+      text-align: center;
+      padding: 28px 20px;
+      color: var(--text-3);
+      font-size: 14px;
+      border: 1px dashed var(--border-2);
+      border-radius: var(--radius-sm);
+      background: rgba(77, 140, 247, .02);
+    }
+
+    .empty-hint::before {
+      content: '📋';
+      display: block;
+      font-size: 28px;
+      margin-bottom: 8px;
+      opacity: .4;
+    }
+
+    /* ═══ 刷新信息 ═══ */
+    .refresh-info {
+      font-size: 13px;
+      color: var(--text-3);
+      font-family: var(--mono);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* ═══ Issue 列表更新时间标签 ═══ */
+    .list-update-time {
+      font-size: 13px;
+      color: var(--text-3);
+      font-family: var(--mono);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-left: 12px;
+    }
+
+    .list-update-time::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--ok);
+      flex-shrink: 0;
+    }
+
+    .list-update-time.empty {
+      display: none;
+    }
+
+    /* ═══ 密码输入弹窗 ═══ */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .55);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 1001;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.visible {
+      display: flex;
+      animation: fadeIn .2s var(--ease);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal {
+      background: linear-gradient(180deg, var(--surface), var(--bg-2));
+      border: 1px solid var(--border-2);
+      border-radius: var(--radius-lg);
+      padding: 24px 28px;
+      width: 380px;
+      max-width: 90vw;
+      box-shadow: var(--shadow-lg);
+      position: relative;
+    }
+
+    .modal::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    }
+
+    .modal-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .modal-desc {
+      font-size: 14px;
+      color: var(--text-2);
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+
+    .modal-input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 7px;
+      padding: 10px 14px;
+      font-size: 15px;
+      font-family: var(--mono);
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+
+    .modal-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(77, 140, 247, .15);
+    }
+
+    .modal-input::placeholder { color: var(--dim); }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+      justify-content: flex-end;
+    }
+
+    .modal-error {
+      font-size: 14px;
+      color: var(--err);
+      margin-top: 8px;
+      display: none;
+    }
+
+    .modal-error.visible { display: block; }
+
+    /* ═══ 批注编辑弹窗 ═══ */
+    .annotate-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 14px;
+    }
+
+    .annotate-field label {
+      font-size: 14px;
+      color: var(--text-2);
+      font-weight: 500;
+    }
+
+    .annotate-field select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 7px;
+      padding: 10px 14px;
+      font-size: 15px;
+      outline: none;
+      cursor: pointer;
+      transition: border-color .2s, box-shadow .2s;
+      font-family: inherit;
+    }
+
+    .annotate-field select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(77, 140, 247, .15);
+    }
+
+    .annotate-field textarea {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 7px;
+      padding: 10px 14px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 60px;
+      line-height: 1.5;
+    }
+
+    .annotate-field textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(77, 140, 247, .15);
+    }
+
+    /* 备注列单元格样式 */
+    .note-cell {
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 13px;
+      color: var(--text-2);
+    }
+
+    .note-cell.has-note {
+      color: var(--accent-3);
+    }
+
+    .assignee-cell {
+      font-size: 13px;
+      color: var(--text-2);
+      white-space: nowrap;
+    }
+
+    .btn-edit {
+      background: rgba(77, 140, 247, .1);
+      color: var(--accent);
+      border: 1px solid rgba(77, 140, 247, .25);
+      padding: 4px 10px;
+      border-radius: 5px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all .2s var(--ease);
+      white-space: nowrap;
+    }
+
+    .btn-edit:hover {
+      background: rgba(77, 140, 247, .2);
+      border-color: rgba(77, 140, 247, .5);
+    }
+
+    /* ═══ Loading 遮罩 ═══ */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(13, 15, 24, .75);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 1002;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .loading-overlay.visible { display: flex; }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border-2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      font-size: 15px;
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    /* ═══ Toast ═══ */
+    .toast-container {
+      position: fixed;
+      top: 78px;
+      right: 24px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .toast {
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 500;
+      color: #fff;
+      box-shadow: 0 8px 24px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.08) inset;
+      animation: toastIn .35s var(--ease);
+      max-width: 360px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      pointer-events: auto;
+    }
+
+    .toast::before { font-size: 18px; }
+
+    .toast-success { background: linear-gradient(135deg, rgba(58, 181, 113, .95), rgba(58, 181, 113, .95)); }
+    .toast-success::before { content: '✓'; }
+
+    .toast-error { background: linear-gradient(135deg, rgba(223, 69, 69, .95), rgba(223, 69, 69, .95)); }
+    .toast-error::before { content: '✕'; }
+
+    .toast-info { background: linear-gradient(135deg, rgba(77, 140, 247, .95), rgba(123, 92, 240, .95)); }
+    .toast-info::before { content: 'ℹ'; }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(40px) scale(.95); }
+      to { opacity: 1; transform: translateX(0) scale(1); }
+    }
+
+    @keyframes toastOut {
+      to { opacity: 0; transform: translateX(40px) scale(.95); }
+    }
+
+    .toast.leaving { animation: toastOut .3s var(--ease) forwards; }
+
+    /* ═══ 滚动条 ═══ */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-2);
+      border-radius: 4px;
+      border: 2px solid transparent;
+      background-clip: padding-box;
+    }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-3); background-clip: padding-box; border: 2px solid transparent; }
+
+    /* ═══ 响应式 ═══ */
+    @media (max-width: 980px) {
+      .stats-grid { grid-template-columns: repeat(3, 1fr); }
+      .org-tab { padding: 8px 12px; font-size: 14px; }
+    }
+
+    @media (max-width: 640px) {
+      .stats-grid { grid-template-columns: 1fr; }
+      main { padding: 14px; }
+      header { padding: 0 16px; flex-wrap: wrap; height: auto; min-height: 64px; }
+      .org-tabs { width: 100%; }
+    }
+
+    /* ═══ 入场动画 ═══ */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .panel { animation: fadeUp .4s var(--ease) backwards; }
+    .stats-grid { animation: fadeUp .4s var(--ease) backwards; }
+    .panel:nth-child(1) { animation-delay: .05s; }
+    .panel:nth-child(2) { animation-delay: .1s; }
+    .stats-grid { animation-delay: 0s; }
+
+    .issue-table tbody tr {
+      animation: fadeUp .25s var(--ease) backwards;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="layout">
+    <!-- ═══ 顶栏 ═══ -->
+    <header>
+      <div class="logo">
+        <span class="logo-mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10 9 9 9 8 9"/>
+          </svg>
+        </span>
+        <span class="logo-text">OHOS <span>CPF</span></span>
+        <span class="logo-badge">Issue</span>
+      </div>
+      <a class="source-link" href="https://gitcode.com/lalhanOrz/AIWeb" target="_blank" rel="noopener noreferrer" title="GitCode">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style="flex-shrink:0;color:#f56c38"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-2h2v2zm0-4h-2V7h2v6zm4 4h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+        <span>GitCode</span>
+      </a>
+      <div class="header-right">
+        <button class="btn btn-ghost btn-sm" onclick="openRefreshModal()" title="输入密码刷新数据">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="M9 12l2 2 4-4"/>
+          </svg>
+          刷新数据
+        </button>
+        <button class="btn btn-export btn-sm" onclick="exportExcel()" title="导出为 Excel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          导出 Excel
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="openBatchAnnotateModal()" title="对当前筛选范围内的 Issue 批量设置批注">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+            <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+          </svg>
+          批量编辑
+        </button>
+        <div class="stats-pill">
+          <span class="icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+          </span>
+          <span><strong id="issue-count">0</strong> 个 Issue</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ═══ 主内容区 ═══ -->
+    <main>
+      <!-- ═══ 组织切换 + 统计 ═══ -->
+      <div class="panel">
+        <div class="panel-head">
+          <h2>组织切换</h2>
+          <span class="path">选择组织查看 Issue</span>
+          <div class="ml">
+            <span class="refresh-info" id="refresh-info"></span>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="org-tabs" id="org-tabs">
+            <!-- 组织 Tab 由 JS 动态生成 -->
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-card" data-type="total">
+              <div class="stat-header">
+                <span class="stat-label">总计 Issue</span>
+                <span class="stat-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                  </svg>
+                </span>
+              </div>
+              <div class="stat-value" id="stat-total">0</div>
+            </div>
+            <div class="stat-card" data-type="replied">
+              <div class="stat-header">
+                <span class="stat-label">已回复</span>
+                <span class="stat-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </svg>
+                </span>
+              </div>
+              <div class="stat-value replied" id="stat-replied">0</div>
+            </div>
+            <div class="stat-card" data-type="unreplied">
+              <div class="stat-header">
+                <span class="stat-label">未回复</span>
+                <span class="stat-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                </span>
+              </div>
+              <div class="stat-value unreplied" id="stat-unreplied">0</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ Issue 列表 ═══ -->
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Issue 列表</h2>
+          <span class="path" id="current-org-path">--</span>
+          <span class="list-update-time" id="list-update-time"></span>
+          <span class="filter-count" id="filter-count"></span>
+          <div class="ml">
+            <button class="btn btn-ghost btn-sm btn-classify" onclick="openClassifyModal()" title="对未分类 Issue 执行 AI 分类">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                <path d="M9 11l3 3L22 4"/>
+                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+              </svg>
+              自动分类
+            </button>
+            <button class="btn btn-ghost btn-sm" onclick="loadIssues()" title="刷新列表">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                <polyline points="23 4 23 10 17 10"/>
+                <polyline points="1 20 1 14 7 14"/>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+              </svg>
+              刷新列表
+            </button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="issue-table-wrap">
+            <table class="issue-table" id="issue-table">
+              <thead>
+                <tr>
+                  <th class="col-index">#</th>
+                  <th>Issue 地址</th>
+                  <th>
+                    <div class="th-filter">
+                      <span>仓库名称</span>
+                      <button class="th-filter-btn" id="btn-filter-repo" onclick="toggleFilterPopover('repo')" title="筛选库名">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                      </button>
+                      <div class="th-filter-popover" id="popover-repo">
+                        <!-- 仓库分类筛选（全部 / 三方框架 / 三方库）
+                             分类依据服务端 framework_repos.txt 名单派生的 repoType 字段，
+                             与模糊搜索一并点击「确定」后生效 -->
+                        <select class="th-filter-select" id="filter-repo-type" title="按框架/库分类筛选">
+                          <option value="all">全部分类</option>
+                          <option value="framework">三方框架</option>
+                          <option value="library">三方库</option>
+                        </select>
+                        <!-- 仓库名称模糊搜索（不区分大小写，与分类筛选叠加生效） -->
+                        <input type="text" class="th-filter-input" id="filter-repo" placeholder="搜索库名…" />
+                        <div style="display:flex;gap:6px">
+                          <button class="th-filter-clear" onclick="clearRepoFilter()" style="flex:1">清除</button>
+                          <button class="th-filter-clear" onclick="applyRepoFilter()" style="flex:1;border-color:var(--accent);color:var(--accent)">确定</button>
+                        </div>
+                      </div>
+                    </div>
+                  </th>
+                  <th>
+                    <div class="th-filter">
+                      <span>是否已有回复</span>
+                      <button class="th-filter-btn" id="btn-filter-reply" onclick="toggleFilterPopover('reply')" title="筛选回复状态">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                      </button>
+                      <div class="th-filter-popover" id="popover-reply">
+                        <select class="th-filter-select" id="filter-reply">
+                          <option value="all">全部</option>
+                          <option value="replied">已回复</option>
+                          <option value="unreplied">未回复</option>
+                        </select>
+                        <button class="th-filter-clear" onclick="applyReplyFilter()" style="border-color:var(--accent);color:var(--accent)">确定</button>
+                      </div>
+                    </div>
+                  </th>
+                  <th>
+                    <div class="th-filter">
+                      <span>用户名</span>
+                      <button class="th-filter-btn" id="btn-filter-userType" onclick="toggleFilterPopover('userType')" title="筛选用户身份">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                      </button>
+                      <div class="th-filter-popover" id="popover-userType">
+                        <select class="th-filter-select" id="filter-userType">
+                          <option value="all">全部用户</option>
+                          <option value="internal">内部开发人员</option>
+                          <option value="external">外部开发人员</option>
+                        </select>
+                        <button class="th-filter-clear" onclick="applyUserTypeFilter()" style="border-color:var(--accent);color:var(--accent)">确定</button>
+                      </div>
+                    </div>
+                  </th>
+                  <th>提出时间</th>
+                  <th>未回复时长</th>
+                  <th>
+                    <div class="th-filter">
+                      <span>分类</span>
+                      <button class="th-filter-btn" id="btn-filter-label" onclick="toggleFilterPopover('label')" title="筛选分类标签">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                      </button>
+                      <div class="th-filter-popover" id="popover-label">
+                        <select class="th-filter-select" id="filter-label">
+                          <option value="all">全部</option>
+                          <option value="bug">缺陷</option>
+                          <option value="feature">需求</option>
+                          <option value="question">咨询</option>
+                        </select>
+                        <button class="th-filter-clear" onclick="applyLabelFilter()" style="border-color:var(--accent);color:var(--accent)">确定</button>
+                      </div>
+                    </div>
+                  </th>
+                  <th>Issue 标题</th>
+                  <th>备注</th>
+                  <th>
+                    <div class="th-filter">
+                      <span>负责人</span>
+                      <button class="th-filter-btn" id="btn-filter-assignee" onclick="toggleFilterPopover('assignee')" title="筛选负责人">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                      </button>
+                      <div class="th-filter-popover" id="popover-assignee">
+                        <input type="text" class="th-filter-input" id="filter-assignee" placeholder="搜索负责人…" />
+                        <div style="display:flex;gap:6px">
+                          <button class="th-filter-clear" onclick="clearAssigneeFilter()" style="flex:1">清除</button>
+                          <button class="th-filter-clear" onclick="applyAssigneeFilter()" style="flex:1;border-color:var(--accent);color:var(--accent)">确定</button>
+                        </div>
+                      </div>
+                    </div>
+                  </th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="issue-tbody">
+              </tbody>
+            </table>
+          </div>
+          <div id="issue-empty" class="empty-hint" style="display:none">暂无 Issue 数据，请点击右上角「刷新数据」获取</div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ═══ 密码弹窗 ═══ -->
+  <div class="modal-overlay" id="refresh-modal">
+    <div class="modal">
+      <div class="modal-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18" style="color:var(--accent)">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+        刷新确认
+      </div>
+      <div class="modal-desc">
+        输入管理密码后，将从 GitCode API 获取 <strong id="modal-org-name" style="color:var(--accent-3)">--</strong> 组织的最新 Issue 数据。
+      </div>
+      <input type="password" class="modal-input" id="refresh-password" placeholder="请输入管理密码" />
+      <div class="modal-error" id="refresh-error"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost btn-sm" onclick="closeRefreshModal()">取消</button>
+        <button class="btn btn-primary btn-sm" id="refresh-confirm-btn" onclick="confirmRefresh()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="M9 12l2 2 4-4"/>
+          </svg>
+          确认刷新
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 批注编辑弹窗 ═══ -->
+  <div class="modal-overlay" id="annotate-modal">
+    <div class="modal" style="width:460px">
+      <div class="modal-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18" style="color:var(--accent)">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+        编辑批注
+      </div>
+      <div class="modal-desc">
+        为 Issue <strong id="annotate-issue-number" style="color:var(--accent-3)">--</strong> 添加或修改批注信息。
+      </div>
+      <div class="annotate-field">
+        <label for="annotate-note">备注</label>
+        <textarea id="annotate-note" placeholder="输入备注内容…" rows="3"></textarea>
+      </div>
+      <div class="annotate-field">
+        <label for="annotate-assignee">负责人</label>
+        <input type="text" class="modal-input" id="annotate-assignee" placeholder="输入负责人姓名" />
+      </div>
+      <div class="annotate-field">
+        <label for="annotate-label">分类标签</label>
+        <select id="annotate-label">
+          <option value="bug">缺陷（Bug）</option>
+          <option value="feature">需求（Feature）</option>
+          <option value="question">咨询（Question）</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost btn-sm" onclick="closeAnnotateModal()">取消</button>
+        <button class="btn btn-primary btn-sm" id="annotate-confirm-btn" onclick="confirmAnnotate()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          保存批注
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 批量编辑弹窗 ═══ -->
+  <div class="modal-overlay" id="batch-annotate-modal">
+    <div class="modal" style="width:460px">
+      <div class="modal-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18" style="color:var(--accent)">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+        批量编辑批注
+      </div>
+      <div class="modal-desc">
+        对当前筛选范围内的 <strong id="batch-annotate-count" style="color:var(--accent-3)">--</strong> 条 Issue 统一设置批注信息。
+      </div>
+      <div class="annotate-field">
+        <label for="batch-annotate-note">备注</label>
+        <textarea id="batch-annotate-note" placeholder="输入备注内容（将覆盖所有选中 Issue 的备注）…" rows="3"></textarea>
+      </div>
+      <div class="annotate-field">
+        <label for="batch-annotate-assignee">负责人</label>
+        <input type="text" class="modal-input" id="batch-annotate-assignee" placeholder="输入负责人姓名（将覆盖所有选中 Issue 的负责人）" />
+      </div>
+      <div class="annotate-field">
+        <label for="batch-annotate-label">分类标签</label>
+        <select id="batch-annotate-label">
+          <option value="">不修改</option>
+          <option value="bug">缺陷（Bug）</option>
+          <option value="feature">需求（Feature）</option>
+          <option value="question">咨询（Question）</option>
+        </select>
+      </div>
+      <div class="annotate-field">
+        <label for="batch-annotate-password">管理密码</label>
+        <input type="password" class="modal-input" id="batch-annotate-password" placeholder="输入管理密码" />
+      </div>
+      <div class="modal-error" id="batch-annotate-error"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost btn-sm" onclick="closeBatchAnnotateModal()">取消</button>
+        <button class="btn btn-primary btn-sm" id="batch-annotate-confirm-btn" onclick="confirmBatchAnnotate()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          批量保存
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 自动分类弹窗 ═══ -->
+  <div class="modal-overlay" id="classify-modal">
+    <div class="modal" style="width:460px">
+      <div class="modal-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18" style="color:var(--accent)">
+          <path d="M9 11l3 3L22 4"/>
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+        自动分类
+      </div>
+      <div class="modal-desc">
+        对 <strong style="color:var(--accent-3)"><span id="classify-org-name">--</span></strong> 中未分类的 Issue 执行 AI 分类。
+      </div>
+      <div class="annotate-field">
+        <label for="classify-password">管理密码</label>
+        <input type="password" class="modal-input" id="classify-password" placeholder="输入管理密码" />
+      </div>
+      <div class="annotate-field">
+        <label for="classify-cli-type">CLI 服务</label>
+        <select id="classify-cli-type">
+          <option value="opencode">OpenCode</option>
+          <option value="copilot">GitHub Copilot</option>
+        </select>
+      </div>
+      <div class="modal-error" id="classify-error"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost btn-sm" onclick="closeClassifyModal()">取消</button>
+        <button class="btn btn-primary btn-sm" id="classify-confirm-btn" onclick="confirmClassify()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+            <path d="M9 11l3 3L22 4"/>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+          开始分类
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Loading 遮罩 ═══ -->
+  <div class="loading-overlay" id="loading-overlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text" id="loading-text">正在从 GitCode 获取 Issue 数据…</div>
+  </div>
+
+  <!-- ═══ Toast 容器 ═══ -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script>
+    // ── 常量 ──
+    const API_BASE   = '/issue';
+    const ORG_KEY    = 'issue_current_org';
+    // 仓库名称列筛选状态持久化 key（页面刷新后保持当前筛选条件）
+    const FILTER_REPO_KEY      = 'issue_filter_repo';       // 模糊搜索关键词
+    const FILTER_REPO_TYPE_KEY = 'issue_filter_repo_type';  // 分类下拉值（all/framework/library）
+
+    // ── 状态 ──
+    let organizations = [];
+    let currentOrg    = '';
+    let currentData   = null;
+    let filterRepo    = '';
+    let filterReply   = 'all';
+    let filterLabel   = 'all';
+    let filterUserType = 'all';
+    let filterAssignee = '';
+    // 仓库名称列筛选：分类下拉（'all' | 'framework' | 'library'，默认"全部"）
+    let filterRepoType = 'all';
+    // 批量编辑：当前筛选范围内的 Issue URL 列表
+    let batchAnnotateUrls = [];
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  Toast 通知
+    // ════════════════════════════════════════════════════════════════════════════
+
+    function toast(msg, type = 'info') {
+      const c = document.getElementById('toast-container');
+      const t = document.createElement('div');
+      t.className = `toast toast-${type}`;
+      t.textContent = msg;
+      c.appendChild(t);
+      setTimeout(() => {
+        t.classList.add('leaving');
+        setTimeout(() => t.remove(), 300);
+      }, 3000);
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  HTML 转义（XSS 防护）
+    // ════════════════════════════════════════════════════════════════════════════
+
+    function escHtml(s) {
+      if (s === null || s === undefined) return '';
+      const d = document.createElement('div');
+      d.textContent = String(s);
+      return d.innerHTML;
+    }
+
+    function escAttr(s) {
+      if (s === null || s === undefined) return '';
+      return String(s).replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  时间格式化
+    // ════════════════════════════════════════════════════════════════════════════
+
+    function formatTime(iso) {
+      if (!iso) return '';
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return iso;
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    /**
+     * 计算从某个时间点到现在的时长描述
+     * 返回如 “3天 5小时”、“2小时 10分钟”、“5分钟” 等
+     *
+     * @param {string} iso - ISO 时间字符串
+     * @returns {string} 人类可读的时长描述
+     */
+    function formatDuration(iso) {
+      if (!iso) return '--';
+      const from = new Date(iso);
+      if (isNaN(from.getTime())) return '--';
+
+      const diffMs = Date.now() - from.getTime();
+      if (diffMs < 0) return '刚刚';
+
+      const totalMin = Math.floor(diffMs / 60000);
+      const days  = Math.floor(totalMin / (60 * 24));
+      const hours = Math.floor((totalMin % (60 * 24)) / 60);
+      const mins  = totalMin % 60;
+
+      if (days > 0) {
+        return `${days}天 ${hours}小时`;
+      }
+      if (hours > 0) {
+        return `${hours}小时 ${mins}分钟`;
+      }
+      if (mins > 0) {
+        return `${mins}分钟`;
+      }
+      return '刚刚';
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  组织切换
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /**
+     * 加载组织列表并渲染 Tab
+     */
+    async function loadOrganizations() {
+      try {
+        const res = await fetch(`${API_BASE}/orgs`);
+        const data = await res.json();
+        if (data.success) {
+          organizations = data.data || [];
+          renderOrgTabs();
+
+          // 从 localStorage 恢复上次选择的组织
+          const savedOrg = localStorage.getItem(ORG_KEY);
+          if (savedOrg && organizations.includes(savedOrg)) {
+            currentOrg = savedOrg;
+          } else {
+            currentOrg = organizations[0] || '';
+          }
+          updateActiveTab();
+          await loadIssues();
+        }
+      } catch (e) {
+        toast('加载组织列表失败: ' + e.message, 'error');
+      }
+    }
+
+    /**
+     * 渲染组织 Tab
+     */
+    function renderOrgTabs() {
+      const container = document.getElementById('org-tabs');
+      container.innerHTML = '';
+
+      organizations.forEach((org) => {
+        const tab = document.createElement('button');
+        tab.className = 'org-tab';
+        tab.textContent = org;
+        tab.setAttribute('data-org', org);
+        tab.onclick = () => switchOrg(org);
+        container.appendChild(tab);
+      });
+    }
+
+    /**
+     * 切换组织
+     */
+    async function switchOrg(org) {
+      if (org === currentOrg) return;
+      currentOrg = org;
+      localStorage.setItem(ORG_KEY, org);
+      // 切换组织时重置筛选条件
+      filterRepo = '';
+      filterReply = 'all';
+      filterLabel = 'all';
+      filterUserType = 'all';
+      filterRepoType = 'all';
+      const repoInput = document.getElementById('filter-repo');
+      const replySelect = document.getElementById('filter-reply');
+      const labelSelect = document.getElementById('filter-label');
+      const userTypeSelect = document.getElementById('filter-userType');
+      const repoTypeSelect = document.getElementById('filter-repo-type');
+      if (repoInput) repoInput.value = '';
+      if (replySelect) replySelect.value = 'all';
+      if (labelSelect) labelSelect.value = 'all';
+      if (userTypeSelect) userTypeSelect.value = 'all';
+      if (repoTypeSelect) repoTypeSelect.value = 'all';
+      // 切换组织后原筛选条件不再适用，同步清除持久化的仓库名称筛选状态
+      localStorage.removeItem(FILTER_REPO_KEY);
+      localStorage.removeItem(FILTER_REPO_TYPE_KEY);
+      // 关闭所有弹出框
+      document.querySelectorAll('.th-filter-popover').forEach((p) => p.classList.remove('visible'));
+      updateActiveTab();
+      await loadIssues();
+    }
+
+    /**
+     * 更新当前激活的 Tab 样式
+     */
+    function updateActiveTab() {
+      document.querySelectorAll('.org-tab').forEach((tab) => {
+        if (tab.getAttribute('data-org') === currentOrg) {
+          tab.classList.add('active');
+        } else {
+          tab.classList.remove('active');
+        }
+      });
+
+      // 更新当前组织路径显示
+      const pathEl = document.getElementById('current-org-path');
+      if (pathEl) {
+        pathEl.textContent = currentOrg || '--';
+      }
+
+      // 更新弹窗中的组织名
+      const modalOrgEl = document.getElementById('modal-org-name');
+      if (modalOrgEl) {
+        modalOrgEl.textContent = currentOrg || '--';
+      }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  Issue 数据加载与渲染
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /**
+     * 加载当前组织的最新 Issue 数据
+     */
+    async function loadIssues() {
+      // 加载状态提示（数据量大时给用户即时反馈，避免误以为页面卡死）
+      const empty = document.getElementById('issue-empty');
+      const table = document.getElementById('issue-table');
+      if (empty && table) {
+        table.style.display = '';
+        empty.style.display = '';
+        empty.textContent = '正在加载 Issue 列表…';
+      }
+      try {
+        const url = `${API_BASE}/list?org=${encodeURIComponent(currentOrg)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (data.success) {
+          currentData = data.data;
+          renderIssues(currentData);
+          updateRefreshInfo(currentData);
+        } else {
+          toast('加载失败: ' + (data.message || '未知错误'), 'error');
+        }
+      } catch (e) {
+        toast('网络错误: ' + e.message, 'error');
+      }
+    }
+
+    /**
+     * 更新刷新信息显示
+     */
+    function updateRefreshInfo(data) {
+      const el = document.getElementById('refresh-info');
+      if (el) {
+        if (data && data.fetchedAt) {
+          const time = formatTime(data.fetchedAt);
+          el.textContent = `数据更新于: ${time}`;
+        } else {
+          el.textContent = '暂无数据';
+        }
+      }
+
+      // 同步更新 issue 列表面板的更新时间标签
+      const listEl = document.getElementById('list-update-time');
+      if (listEl) {
+        if (data && data.fetchedAt) {
+          const time = formatTime(data.fetchedAt);
+          listEl.textContent = time;
+          listEl.classList.remove('empty');
+        } else {
+          listEl.textContent = '';
+          listEl.classList.add('empty');
+        }
+      }
+    }
+
+    /**
+     * 更新统计卡片
+     */
+    function updateStats(issues) {
+      const total    = issues.length;
+      const replied  = issues.filter(i => i.hasReply).length;
+      const unreplied = total - replied;
+
+      document.getElementById('stat-total').textContent     = total;
+      document.getElementById('stat-replied').textContent   = replied;
+      document.getElementById('stat-unreplied').textContent = unreplied;
+      document.getElementById('issue-count').textContent    = total;
+    }
+
+    /**
+     * 获取筛选后的 Issue 列表
+     */
+    function getFilteredIssues(issues) {
+      // 分类筛选条件提前提取，避免在 filter 循环内重复读取（微小优化）
+      const wantRepoType = filterRepoType;
+      const repoKeyword  = filterRepo ? filterRepo.toLowerCase() : '';
+
+      return issues.filter((issue) => {
+        // 仓库分类筛选（三方框架 / 三方库，依据服务端派生的 repoType 字段）
+        if (wantRepoType !== 'all' && issue.repoType !== wantRepoType) return false;
+        // 库名筛选（模糊匹配，不区分大小写）
+        if (repoKeyword) {
+          const repo = (issue.repoName || '').toLowerCase();
+          if (!repo.includes(repoKeyword)) return false;
+        }
+        // 负责人筛选（模糊匹配，不区分大小写）
+        if (filterAssignee) {
+          const assignee = (issue.assignee || '').toLowerCase();
+          if (!assignee.includes(filterAssignee.toLowerCase())) return false;
+        }
+        // 回复状态筛选
+        if (filterReply === 'replied' && !issue.hasReply) return false;
+        if (filterReply === 'unreplied' && issue.hasReply) return false;
+        // 分类标签筛选（仅按 bug/feature/question 筛选）
+        if (filterLabel !== 'all' && issue.label !== filterLabel) return false;
+        // 用户身份筛选
+        if (filterUserType !== 'all' && issue.userType !== filterUserType) return false;
+        return true;
+      });
+    }
+
+    /**
+     * 更新筛选计数显示 + 表头筛选按钮高亮
+     */
+    function updateFilterCount(filtered, total) {
+      const el = document.getElementById('filter-count');
+      if (!el) return;
+      if (filtered === total) {
+        el.textContent = `共 ${total} 条`;
+        el.classList.remove('filtered');
+      } else {
+        el.textContent = `${filtered} / ${total} 条`;
+        el.classList.add('filtered');
+      }
+
+      // 表头筛选按钮高亮（仓库名称列：分类下拉或模糊搜索任一生效即高亮）
+      const repoBtn = document.getElementById('btn-filter-repo');
+      const replyBtn = document.getElementById('btn-filter-reply');
+      const labelBtn = document.getElementById('btn-filter-label');
+      const userTypeBtn = document.getElementById('btn-filter-userType');
+      const assigneeBtn = document.getElementById('btn-filter-assignee');
+      if (repoBtn) repoBtn.classList.toggle('active', !!filterRepo || filterRepoType !== 'all');
+      if (replyBtn) replyBtn.classList.toggle('active', filterReply !== 'all');
+      if (labelBtn) labelBtn.classList.toggle('active', filterLabel !== 'all');
+      if (userTypeBtn) userTypeBtn.classList.toggle('active', filterUserType !== 'all');
+      if (assigneeBtn) assigneeBtn.classList.toggle('active', !!filterAssignee);
+    }
+
+    /**
+     * 切换表头筛选弹出框显示/隐藏
+     */
+    function toggleFilterPopover(type) {
+      const popover = document.getElementById(`popover-${type}`);
+      if (!popover) return;
+      // 关闭其他弹出框
+      document.querySelectorAll('.th-filter-popover').forEach((p) => {
+        if (p !== popover) p.classList.remove('visible');
+      });
+      popover.classList.toggle('visible');
+      // 自动聚焦输入框
+      if (popover.classList.contains('visible')) {
+      const input = popover.querySelector('input');
+      const select = popover.querySelector('select');
+      if (input) setTimeout(() => input.focus(), 50);
+      if (select) setTimeout(() => select.focus(), 50);
+    }
+    }
+
+    /**
+     * 应用仓库名称筛选（点击确定后执行）
+     * 同时应用分类下拉与模糊搜索关键词，两者条件叠加生效
+     * 持久化到 localStorage，页面刷新后自动恢复
+     */
+    function applyRepoFilter() {
+      filterRepo     = document.getElementById('filter-repo').value.trim();
+      filterRepoType = document.getElementById('filter-repo-type').value;
+      localStorage.setItem(FILTER_REPO_KEY, filterRepo);
+      localStorage.setItem(FILTER_REPO_TYPE_KEY, filterRepoType);
+      document.getElementById('popover-repo').classList.remove('visible');
+      if (currentData) renderIssues(currentData);
+    }
+
+    /**
+     * 清除仓库名称筛选（同时重置分类下拉与模糊搜索）
+     */
+    function clearRepoFilter() {
+      filterRepo = '';
+      filterRepoType = 'all';
+      document.getElementById('filter-repo').value = '';
+      document.getElementById('filter-repo-type').value = 'all';
+      localStorage.removeItem(FILTER_REPO_KEY);
+      localStorage.removeItem(FILTER_REPO_TYPE_KEY);
+      document.getElementById('popover-repo').classList.remove('visible');
+      if (currentData) renderIssues(currentData);
+    }
+
+    /**
+     * 应用负责人筛选（点击确定后执行）
+     */
+    function applyAssigneeFilter() {
+      filterAssignee = document.getElementById('filter-assignee').value.trim();
+      document.getElementById('popover-assignee').classList.remove('visible');
+      if (currentData) renderIssues(currentData);
+    }
+
+    /**
+     * 清除负责人筛选
+     */
+    function clearAssigneeFilter() {
+      filterAssignee = '';
+      document.getElementById('filter-assignee').value = '';
+      document.getElementById('popover-assignee').classList.remove('visible');
+      if (currentData) renderIssues(currentData);
+    }
+
+    /**
+     * 应用回复状态筛选（点击确定后执行）
+     */
+    function applyReplyFilter() {
+      filterReply = document.getElementById('filter-reply').value;
+      document.getElementById('popover-reply').classList.remove('visible');
+      if (currentData) renderIssues(currentData);
+    }
+
+    /**
+     * 清除回复状态筛选
+     */
+    function clearReplyFilter() {
+      filterReply = 'all';
+      document.getElementById('filter-reply').value = 'all';
+      document.getElementById('popover-reply').classList.remove('visible');
+      if (currentData) renderIssues(currentData);
+    }
+
+    /**
+     * 应用分类标签筛选（点击确定后执行）
+     */
+    function applyLabelFilter() {
+      filterLabel = document.getElementById('filter-label').value;
+      document.getElementById('popover-label').classList.remove('visible');
+      if (currentData) renderIssues(currentData);
+    }
+
+    /**
+     * 清除分类标签筛选
+     */
+    function clearLabelFilter() {
+      filterLabel = 'all';
+      document.getElementById('filter-label').value = 'all';
+      document.getElementById('popover-label').classList.remove('visible');
+      if (currentData) renderIssues(currentData);
+    }
+
+    /**
+     * 应用用户身份筛选（点击确定后执行）
+     */
+    function applyUserTypeFilter() {
+      filterUserType = document.getElementById('filter-userType').value;
+      document.getElementById('popover-userType').classList.remove('visible');
+      if (currentData) renderIssues(currentData);
+    }
+
+    /**
+     * 清除用户身份筛选
+     */
+    function clearUserTypeFilter() {
+      filterUserType = 'all';
+      document.getElementById('filter-userType').value = 'all';
+      document.getElementById('popover-userType').classList.remove('visible');
+      if (currentData) renderIssues(currentData);
+    }
+
+    /**
+     * 清除所有筛选条件
+     */
+    function clearAllFilters() {
+      filterRepo = '';
+      filterReply = 'all';
+      filterLabel = 'all';
+      filterUserType = 'all';
+      filterAssignee = '';
+      filterRepoType = 'all';
+      document.getElementById('filter-repo').value = '';
+      document.getElementById('filter-reply').value = 'all';
+      document.getElementById('filter-label').value = 'all';
+      document.getElementById('filter-userType').value = 'all';
+      document.getElementById('filter-assignee').value = '';
+      document.getElementById('filter-repo-type').value = 'all';
+      localStorage.removeItem(FILTER_REPO_KEY);
+      localStorage.removeItem(FILTER_REPO_TYPE_KEY);
+      document.querySelectorAll('.th-filter-popover').forEach((p) => p.classList.remove('visible'));
+      if (currentData) renderIssues(currentData);
+    }
+
+    /**
+     * 渲染 Issue 表格
+     */
+    function renderIssues(data) {
+      const tbody   = document.getElementById('issue-tbody');
+      const empty   = document.getElementById('issue-empty');
+      const table   = document.getElementById('issue-table');
+
+      const allIssues = (data && data.issues) || [];
+
+      // 始终更新统计（基于全部数据，不受筛选影响）
+      updateStats(allIssues);
+
+      // 应用筛选
+      const issues = getFilteredIssues(allIssues);
+      updateFilterCount(issues.length, allIssues.length);
+
+      if (issues.length === 0) {
+        tbody.innerHTML = '';
+        empty.style.display = '';
+
+        if (allIssues.length === 0) {
+          // 无任何数据：隐藏整个表格
+          table.style.display = 'none';
+          empty.textContent = data
+            ? '该组织暂无打开的 Issue'
+            : '暂无 Issue 数据，请点击右上角「刷新数据」获取';
+        } else {
+          // 有数据但筛选无结果：保留表头（含筛选按钮），在下方显示提示
+          table.style.display = '';
+          empty.innerHTML = '没有符合筛选条件的 Issue &nbsp;<button class="btn btn-ghost btn-sm" onclick="clearAllFilters()" style="margin-left:8px">清除筛选</button>';
+        }
+        return;
+      }
+
+      table.style.display = '';
+      empty.style.display = 'none';
+
+      tbody.innerHTML = issues.map((issue, idx) => {
+        const replyClass = issue.hasReply ? 'reply-yes' : 'reply-no';
+        const replyText  = issue.hasReply ? '已回复' : '未回复';
+        const timeStr    = formatTime(issue.createdAt);
+        const rowNum     = idx + 1;
+
+        // 未回复时长：以 updatedAt（最后更新时间）为基准计算
+        // 已回复的 issue 也显示，但样式弱化
+        const durationStr   = formatDuration(issue.updatedAt || issue.createdAt);
+        const durationClass = issue.hasReply ? 'duration-replied' : 'duration-unreplied';
+
+        // 批注字段
+        const note     = issue.note || '';
+        const assignee = issue.assignee || '';
+
+        // 用户身份
+        const username = issue.username || '';
+        const userType = issue.userType || '';
+        const userTypeMap = {
+          'internal': { text: '内部开发人员', cls: 'user-type-internal' },
+          'external': { text: '外部开发人员', cls: 'user-type-external' },
+        };
+        const userTypeInfo = userTypeMap[userType] || null;
+
+        // 分类标签
+        const label = issue.label || '';
+        const labelMap = {
+          'bug':      { text: '缺陷', cls: 'label-bug' },
+          'feature':  { text: '需求', cls: 'label-feature' },
+          'question': { text: '咨询', cls: 'label-question' },
+        };
+        const labelInfo = labelMap[label] || null;
+
+        return `
+          <tr style="animation-delay: ${(idx * 0.02).toFixed(3)}s">
+            <td class="col-index">${rowNum}</td>
+            <td class="col-issue-url">
+              ${issue.issueUrl
+                ? `<a class="issue-link" href="${escAttr(issue.issueUrl)}" target="_blank" rel="noopener noreferrer" title="${escAttr(issue.issueUrl)}">
+                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12">
+                       <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                       <polyline points="15 3 21 3 21 9"/>
+                       <line x1="10" y1="14" x2="21" y2="3"/>
+                     </svg>
+                     #${escHtml(issue.number || rowNum)}
+                   </a>`
+                : '<span style="color:var(--dim)">--</span>'}
+            </td>
+            <td class="col-repo">
+              <span class="repo-name" title="${escAttr(issue.repoName)}">${escHtml(issue.repoName)}</span>
+            </td>
+            <td>
+              <span class="reply-badge ${replyClass}">${replyText}</span>
+            </td>
+            <td class="username-cell">
+              ${username
+                ? `<div title="${escAttr(username)}">${escHtml(username)}</div>`
+                : '<span style="color:var(--dim)">--</span>'}
+              ${userTypeInfo ? `<span class="user-type-badge ${userTypeInfo.cls}">${userTypeInfo.text}</span>` : ''}
+            </td>
+            <td class="time-cell">${escHtml(timeStr)}</td>
+            <td class="duration-cell">
+              <span class="${durationClass}" title="最后更新于 ${escAttr(formatTime(issue.updatedAt))}">${escHtml(durationStr)}</span>
+            </td>
+            <td>${labelInfo ? `<span class="label-badge ${labelInfo.cls}">${labelInfo.text}</span>` : '<span style="color:var(--dim)">--</span>'}</td>
+            <td class="title-cell" title="${escAttr(issue.title)}">${escHtml(issue.title)}</td>
+            <td class="note-cell ${note ? 'has-note' : ''}" title="${escAttr(note)}">${escHtml(note) || '<span style="color:var(--dim)">--</span>'}</td>
+            <td class="assignee-cell">${escHtml(assignee) || '<span style="color:var(--dim)">--</span>'}</td>
+            <td>
+              <button class="btn-edit" onclick="openAnnotateModal('${escAttr(issue.issueUrl)}', ${issue.number || rowNum}, ${escAttr(JSON.stringify(note))}, '${escAttr(assignee)}', '${escAttr(label)}')">编辑</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  刷新数据（密码验证 + 调用 GitCode API）
+    // ════════════════════════════════════════════════════════════════════════════
+
+    function openRefreshModal() {
+      const modal = document.getElementById('refresh-modal');
+      const pwd   = document.getElementById('refresh-password');
+      const err   = document.getElementById('refresh-error');
+
+      // 更新弹窗中的组织名
+      const modalOrgEl = document.getElementById('modal-org-name');
+      if (modalOrgEl) modalOrgEl.textContent = currentOrg || '--';
+
+      pwd.value = '';
+      err.classList.remove('visible');
+      err.textContent = '';
+      modal.classList.add('visible');
+      pwd.focus();
+    }
+
+    function closeRefreshModal() {
+      document.getElementById('refresh-modal').classList.remove('visible');
+    }
+
+    /**
+     * 确认刷新：验证密码后调用 API
+     */
+    async function confirmRefresh() {
+      const password = document.getElementById('refresh-password').value.trim();
+      const errEl    = document.getElementById('refresh-error');
+      const btn      = document.getElementById('refresh-confirm-btn');
+
+      errEl.classList.remove('visible');
+      errEl.textContent = '';
+
+      if (!password) {
+        errEl.textContent = '请输入管理密码';
+        errEl.classList.add('visible');
+        return;
+      }
+
+      // 禁用按钮 + 显示 Loading
+      btn.disabled = true;
+      btn.textContent = '刷新中…';
+      closeRefreshModal();
+      showLoading(`正在从 GitCode 获取 ${currentOrg} 的 Issue 数据…`);
+
+      try {
+        const res = await fetch(`${API_BASE}/refresh`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({
+            org:      currentOrg,
+            password,
+          }),
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          toast(data.message || `刷新成功，共获取 ${data.data.total} 条 issue`, 'success');
+          await loadIssues();
+        } else {
+          toast('刷新失败: ' + (data.message || '未知错误'), 'error');
+        }
+      } catch (e) {
+        toast('网络错误: ' + e.message, 'error');
+      } finally {
+        hideLoading();
+        btn.disabled = false;
+        btn.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="M9 12l2 2 4-4"/>
+          </svg>
+          确认刷新`;
+      }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  批注编辑（note / assignee / label）
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /** 当前正在编辑批注的 Issue URL */
+    let annotateIssueUrl = '';
+
+    /**
+     * 打开批注编辑弹窗
+     *
+     * @param {string} issueUrl - Issue URL
+     * @param {number} number  - Issue 编号
+     * @param {string} note    - 现有备注
+     * @param {string} assignee - 现有负责人
+     * @param {string} label   - 现有分类标签
+     */
+    function openAnnotateModal(issueUrl, number, note, assignee, label) {
+      annotateIssueUrl = issueUrl;
+
+      document.getElementById('annotate-issue-number').textContent = '#' + number;
+      document.getElementById('annotate-note').value     = note || '';
+      document.getElementById('annotate-assignee').value = assignee || '';
+      document.getElementById('annotate-label').value   = label || 'bug';
+
+      document.getElementById('annotate-modal').classList.add('visible');
+      setTimeout(() => document.getElementById('annotate-note').focus(), 50);
+    }
+
+    /**
+     * 关闭批注编辑弹窗
+     */
+    function closeAnnotateModal() {
+      document.getElementById('annotate-modal').classList.remove('visible');
+      annotateIssueUrl = '';
+    }
+
+    /**
+     * 确认保存批注：调用 PATCH /issue/annotate API
+     */
+    async function confirmAnnotate() {
+      if (!annotateIssueUrl) {
+        toast('无法获取 Issue 信息', 'error');
+        return;
+      }
+
+      const note     = document.getElementById('annotate-note').value.trim();
+      const assignee = document.getElementById('annotate-assignee').value.trim();
+      const label    = document.getElementById('annotate-label').value;
+
+      const btn = document.getElementById('annotate-confirm-btn');
+      btn.disabled = true;
+      btn.textContent = '保存中…';
+
+      try {
+        const res = await fetch(`${API_BASE}/annotate`, {
+          method:  'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({
+            org:      currentOrg,
+            issueUrl: annotateIssueUrl,
+            fields:   { note, assignee, label },
+          }),
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          toast('批注保存成功', 'success');
+          closeAnnotateModal();
+          // 重新加载数据以刷新表格
+          await loadIssues();
+        } else {
+          toast('保存失败: ' + (data.message || '未知错误'), 'error');
+        }
+      } catch (e) {
+        toast('网络错误: ' + e.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          保存批注`;
+      }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  批量编辑批注（基于当前筛选范围）
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /**
+     * 打开批量编辑弹窗
+     * 收集当前筛选范围内的所有 Issue URL，供批量更新使用
+     */
+    function openBatchAnnotateModal() {
+      if (!currentOrg) {
+        toast('请先选择组织', 'error');
+        return;
+      }
+
+      if (!currentData || !currentData.issues || currentData.issues.length === 0) {
+        toast('当前组织暂无 Issue 数据，请先刷新', 'error');
+        return;
+      }
+
+      // 收集当前筛选范围内的 Issue
+      const filtered = getFilteredIssues(currentData.issues);
+      if (filtered.length === 0) {
+        toast('当前筛选范围内没有 Issue', 'error');
+        return;
+      }
+
+      // 记录待批量更新的 Issue URL 列表
+      batchAnnotateUrls = filtered.map((issue) => issue.issueUrl).filter(Boolean);
+
+      const modal = document.getElementById('batch-annotate-modal');
+      document.getElementById('batch-annotate-count').textContent = batchAnnotateUrls.length;
+      document.getElementById('batch-annotate-note').value = '';
+      document.getElementById('batch-annotate-assignee').value = '';
+      document.getElementById('batch-annotate-label').value = '';
+      document.getElementById('batch-annotate-password').value = '';
+      document.getElementById('batch-annotate-error').classList.remove('visible');
+      document.getElementById('batch-annotate-error').textContent = '';
+
+      modal.classList.add('visible');
+      setTimeout(() => document.getElementById('batch-annotate-note').focus(), 50);
+    }
+
+    /**
+     * 关闭批量编辑弹窗
+     */
+    function closeBatchAnnotateModal() {
+      document.getElementById('batch-annotate-modal').classList.remove('visible');
+      batchAnnotateUrls = [];
+    }
+
+    /**
+     * 确认批量保存：调用 PATCH /issue/batch-annotate API
+     */
+    async function confirmBatchAnnotate() {
+      if (!batchAnnotateUrls || batchAnnotateUrls.length === 0) {
+        toast('没有可批量编辑的 Issue', 'error');
+        return;
+      }
+
+      const note     = document.getElementById('batch-annotate-note').value.trim();
+      const assignee = document.getElementById('batch-annotate-assignee').value.trim();
+      const label    = document.getElementById('batch-annotate-label').value;
+      const password = document.getElementById('batch-annotate-password').value.trim();
+      const errEl    = document.getElementById('batch-annotate-error');
+
+      errEl.classList.remove('visible');
+      errEl.textContent = '';
+
+      if (!password) {
+        errEl.textContent = '请输入管理密码';
+        errEl.classList.add('visible');
+        return;
+      }
+
+      // 至少填写一个字段才有意义
+      if (!note && !assignee && !label) {
+        errEl.textContent = '请至少填写备注、负责人或分类标签中的一项';
+        errEl.classList.add('visible');
+        return;
+      }
+
+      const btn = document.getElementById('batch-annotate-confirm-btn');
+      btn.disabled = true;
+      btn.textContent = '批量保存中…';
+
+      try {
+        const res = await fetch(`${API_BASE}/batch-annotate`, {
+          method:  'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({
+            org:      currentOrg,
+            issueUrls: batchAnnotateUrls,
+            password,
+            fields:   { note, assignee, label },
+          }),
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          toast(data.message || '批量保存成功', 'success');
+          closeBatchAnnotateModal();
+          // 重新加载数据以刷新表格
+          await loadIssues();
+        } else {
+          errEl.textContent = data.message || '批量保存失败';
+          errEl.classList.add('visible');
+        }
+      } catch (e) {
+        toast('网络错误: ' + e.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          批量保存`;
+      }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  AI 分类（通过 CLI 服务）
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /**
+     * 打开自动分类弹窗
+     */
+    function openClassifyModal() {
+      if (!currentOrg) {
+        toast('请先选择组织', 'error');
+        return;
+      }
+      const modal = document.getElementById('classify-modal');
+      const orgNameEl = document.getElementById('classify-org-name');
+      const pwd = document.getElementById('classify-password');
+      const err = document.getElementById('classify-error');
+
+      if (orgNameEl) orgNameEl.textContent = currentOrg;
+      pwd.value = '';
+      err.classList.remove('visible');
+      err.textContent = '';
+      modal.classList.add('visible');
+      pwd.focus();
+    }
+
+    /**
+     * 关闭自动分类弹窗
+     */
+    function closeClassifyModal() {
+      document.getElementById('classify-modal').classList.remove('visible');
+    }
+
+    /**
+     * 确认执行分类：调用 POST /issue/classify API
+     */
+    async function confirmClassify() {
+      const password = document.getElementById('classify-password').value.trim();
+      const cliType = document.getElementById('classify-cli-type').value;
+      const errEl = document.getElementById('classify-error');
+
+      if (!password) {
+        errEl.textContent = '请输入管理密码';
+        errEl.classList.add('visible');
+        return;
+      }
+
+      const btn = document.getElementById('classify-confirm-btn');
+      btn.disabled = true;
+      btn.textContent = '分类中…';
+      errEl.classList.remove('visible');
+
+      closeClassifyModal();
+      showLoading('正在通过 AI 分析 Issue 标题，请稍候…');
+
+      try {
+        const res = await fetch(`${API_BASE}/classify`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({
+            org:      currentOrg,
+            password,
+            cliType,
+          }),
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          toast(data.message || '分类完成', 'success');
+          await loadIssues();
+        } else {
+          toast('分类失败: ' + (data.message || '未知错误'), 'error');
+        }
+      } catch (e) {
+        toast('网络错误: ' + e.message, 'error');
+      } finally {
+        hideLoading();
+        btn.disabled = false;
+        btn.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+            <path d="M9 11l3 3L22 4"/>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+          开始分类`;
+      }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  导出 Excel
+    // ════════════════════════════════════════════════════════════════════════════
+
+    function exportExcel() {
+      if (!currentOrg) {
+        toast('请先选择组织', 'error');
+        return;
+      }
+
+      if (!currentData || !currentData.issues || currentData.issues.length === 0) {
+        toast('当前组织暂无 Issue 数据，请先刷新', 'error');
+        return;
+      }
+
+      // 构建 URL，带上当前筛选条件
+      let url = `${API_BASE}/export?org=${encodeURIComponent(currentOrg)}`;
+      if (filterLabel !== 'all') url += `&label=${encodeURIComponent(filterLabel)}`;
+      if (filterUserType !== 'all') url += `&userType=${encodeURIComponent(filterUserType)}`;
+      if (filterRepoType !== 'all') url += `&repoType=${encodeURIComponent(filterRepoType)}`;
+      if (filterReply !== 'all') url += `&reply=${encodeURIComponent(filterReply)}`;
+      if (filterRepo) url += `&repoName=${encodeURIComponent(filterRepo)}`;
+      if (filterAssignee) url += `&assignee=${encodeURIComponent(filterAssignee)}`;
+
+      // 触发下载
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = '';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast('正在导出 Excel 文件…', 'info');
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  Loading 遮罩
+    // ════════════════════════════════════════════════════════════════════════════
+
+    function showLoading(text) {
+      const overlay = document.getElementById('loading-overlay');
+      const textEl  = document.getElementById('loading-text');
+      if (textEl) textEl.textContent = text || '加载中…';
+      overlay.classList.add('visible');
+    }
+
+    function hideLoading() {
+      document.getElementById('loading-overlay').classList.remove('visible');
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  键盘事件
+    // ════════════════════════════════════════════════════════════════════════════
+
+    // ESC 关闭弹窗
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeRefreshModal();
+        closeAnnotateModal();
+        closeBatchAnnotateModal();
+      }
+      // Enter 确认刷新
+      if (e.key === 'Enter' && document.getElementById('refresh-modal').classList.contains('visible')) {
+        confirmRefresh();
+      }
+    });
+
+    // 点击遮罩关闭弹窗
+    document.getElementById('refresh-modal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) {
+        closeRefreshModal();
+      }
+    });
+
+    // 点击遮罩关闭批注弹窗
+    document.getElementById('annotate-modal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) {
+        closeAnnotateModal();
+      }
+    });
+
+    // 点击遮罩关闭批量编辑弹窗
+    document.getElementById('batch-annotate-modal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) {
+        closeBatchAnnotateModal();
+      }
+    });
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  筛选事件监听
+    // ════════════════════════════════════════════════════════════════════════════
+
+    // 库名搜索框：按回车确认筛选
+    document.getElementById('filter-repo').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        applyRepoFilter();
+      }
+    });
+
+    // 负责人搜索框：按回车确认筛选
+    document.getElementById('filter-assignee').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        applyAssigneeFilter();
+      }
+    });
+
+    // 点击外部关闭弹出框
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.th-filter')) {
+        document.querySelectorAll('.th-filter-popover').forEach((p) => p.classList.remove('visible'));
+      }
+    });
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  初始化
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /**
+     * 从 localStorage 恢复仓库名称列的筛选状态（页面刷新后保持）
+     *
+     * 非法值（如历史遗留的未知分类）自动回退为默认值，避免筛选失效
+     */
+    function restoreFilterState() {
+      try {
+        // 恢复模糊搜索关键词
+        const savedRepo = localStorage.getItem(FILTER_REPO_KEY);
+        if (savedRepo) {
+          filterRepo = savedRepo;
+          const repoInput = document.getElementById('filter-repo');
+          if (repoInput) repoInput.value = savedRepo;
+        }
+
+        // 恢复分类下拉值（仅接受合法枚举值，其余回退为 'all'）
+        const savedRepoType = localStorage.getItem(FILTER_REPO_TYPE_KEY);
+        if (savedRepoType === 'framework' || savedRepoType === 'library') {
+          filterRepoType = savedRepoType;
+        } else {
+          filterRepoType = 'all';
+        }
+        const repoTypeSelect = document.getElementById('filter-repo-type');
+        if (repoTypeSelect) repoTypeSelect.value = filterRepoType;
+      } catch (e) {
+        // localStorage 不可用（如隐私模式）时静默降级为默认筛选状态
+        filterRepo = '';
+        filterRepoType = 'all';
+      }
+    }
+
+    restoreFilterState();
+    loadOrganizations();
+  </script>
+</body>
+
+</html>

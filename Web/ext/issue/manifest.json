@@ -1,0 +1,9 @@
+{
+    "name": "issue",
+    "title": "Issue 分析",
+    "description": "GitCode 组织 Issue 查询系统：刷新 → AI 分类 → 批注 → 导出",
+    "mount": "/issue",
+    "order": 30,
+    "server": "router.cjs",
+    "page": "public/index.html"
+}

@@ -147,6 +147,9 @@ export async function runCli(argv) {
         case 'update':
             return cmdUpdate({ flags, rest, jsonMode, out });
 
+        case 'web':
+            return cmdWeb({ flags, rest, user3libHome, dataDir, jsonMode, out });
+
         default:
             process.stderr.write(`未知命令: ${cmd}\n`);
             printHelp();
@@ -610,6 +613,14 @@ async function cmdOrch({ flags, rest, projectRoot, dataDir, skillDir, jsonMode, 
     return impl({ flags, rest, projectRoot, dataDir, skillDir, jsonMode, quiet, verbose, out, u });
 }
 
+/**
+ * 3rdloop web 命令二段分发（转发到 lib/web.js：前端服务 + 扩展挂载）。
+ */
+async function cmdWeb({ flags, rest, user3libHome, dataDir, jsonMode, out }) {
+    const { cmdWeb: impl } = await import('./web.js');
+    return impl({ flags, rest, user3libHome, dataDir, jsonMode, out });
+}
+
 // ─── 帮助 ─────────────────────────────────────────────────────────
 
 function printHelp() {
@@ -639,6 +650,9 @@ function printHelp() {
   3rdloop run <工作流名> [--flag <值> ...]     以固定编排执行工作流（阻塞到终态）
   3rdloop config list|get|set|unset ...  配置 .env 配置项（默认读写 ~/.3lib/.env）
   3rdloop update [--check] [--yes] [--force] [--registry <url>]  自更新到 npm 最新版
+  3rdloop web [--port N] [--backend <url>]       启动 Web 前端服务
+  3rdloop web install-ext <dir>                  安装扩展（tag/issue/prcheck 等二级功能）
+  3rdloop web list-ext | remove-ext <name>       扩展管理
   3rdloop doctor                        环境自检
   3rdloop version                       版本信息
 
