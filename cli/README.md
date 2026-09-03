@@ -34,73 +34,108 @@ npm i -g @ohos-cpf/3rdloop
 
 ## 使用
 
+按使用场景组织：装好之后，先做**环境自检**并完成**必要配置**，然后**快速开启一个任务**；进阶场景（PR 检视/自动提 PR、自更新）按需查阅。
 
+### 场景一：初次使用 —— 环境自检
 
-### 前置条件
-
-- **Node.js** >= 22
-- **opencode CLI**：`3rdloop` 会自动拉起 `opencode serve`（在项目上一级目录运行），退出时清理进程树；已存在则复用
-- **LLM 凭据**：以下任一层配置即可
-  - 项目级：仓库 `Server/.env`
-  - 用户级：`~/.3lib/.env`
-  - 系统环境变量：`setx DASHSCOPE_API_KEY "sk-xxx"`
-
-
-
-### 快速开始
+安装后第一步，先跑环境自检：
 
 ```bash
-# 环境自检
 3rdloop doctor
-
-# 提交并阻塞到准出终态（最常用）
-3rdloop run "为 libcurl 生成鸿蒙 demo 场景并跑通编译"
-
-# 提交并立即返回 taskId（进程内继续跑，需保持进程存活）
-3rdloop submit "分析 sqlite3 的鸿蒙化可行性"
-
-# 等待到终态 / 查询进度 / 中止 / 列表 / 结果
-3rdloop wait <taskId> --timeout 30m
-3rdloop progress <taskId> --watch
-3rdloop abort <taskId>
-3rdloop list --status running
-3rdloop result <taskId> --json
 ```
 
+`doctor` 会逐项检查 Node / opencode / `.env` 凭据 / SKILL 目录 / 数据目录，缺什么会明确提示。除此之外还需要了解：
 
+- **Node.js** >= 22
+- **opencode CLI**：`3rdloop` 会自动拉起 `opencode serve`（在项目上一级目录运行），退出时清理进程树；已存在则复用，一般无需手动管理
+- **LLM 凭据**：`doctor` 提示凭据缺失时，见下面"配置"一节
 
-### 命令一览
+### 场景二：配置 —— 需要注意哪些配置项
 
+绝大多数配置项都有内置默认值，**开箱即用**。只有 LLM 凭据是必配项：
 
-| 命令                                                                                                                                                         | 说明                                           |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| `3rdloop run <desc>`                                                                                                                                       | 提交任务并阻塞到准出终态（默认行为）                           |
-| `3rdloop submit <desc>`                                                                                                                                    | 提交任务，打印 taskId 后进程内继续执行                      |
-| `3rdloop wait <taskId> [--timeout 30m]`                                                                                                                    | 等待任务到终态                                      |
-| `3rdloop progress <taskId> [--watch]`                                                                                                                      | 查询进度；`--watch` 持续轮询到终态                       |
-| `3rdloop abort <taskId>`                                                                                                                                   | 中止任务                                         |
-| `3rdloop list [--status st] [--limit N] [--older-than 7d]`                                                                                                 | 列出任务                                         |
-| `3rdloop result <taskId> [--raw]`                                                                                                                          | 读取最终结果                                       |
-| `3rdloop step run <desc> [--task-id id] [--step-id N] [--input-report p] [--max-retries N] [--loop N] [--task-dir p] [--specified-skill <SKILL name|目录名>]` | 单步执行（FlexRunner 直连，不经拆解/编排/审核）               |
-| `3rdloop step status <taskId> [--step-id N]`                                                                                                               | 查询单步状态/产物/会话                                 |
-| `3rdloop step result <taskId> [--step-id N]`                                                                                                               | 读取该步 result.md 内容                            |
-| `3rdloop orch run <task-def.json>`                                                                                                                         | 加载任务定义 + 启动编排，阻塞到终态                          |
-| `3rdloop orch load <task-def.json>`                                                                                                                        | 仅加载任务定义（落盘 orchestration.json，进程退出后仍可 start） |
-| `3rdloop orch start <taskId>`                                                                                                                              | 从磁盘恢复 LOADED 状态并启动编排，阻塞到终态                   |
-| `3rdloop orch progress <taskId> [--loop N]`                                                                                                                | 查询编排进度                                       |
-| `3rdloop orch abort|pause|resume <taskId>`                                                                                                                 | 终止/暂停/恢复编排                                   |
-| `3rdloop orch tasks`                                                                                                                                       | 列出编排任务                                       |
-| `3rdloop workflows`                                                                                                                                        | 列出已注册的固定编排工作流                                |
-| `3rdloop run <工作流名> [--flag <值> ...]`                                                                                                                      | 以固定编排执行工作流（阻塞到终态）                            |
-| `3rdloop run pr-check --pr-url <URL> [--library-type <arkts|flutter|rn|tpccplus>]`                                                                         | PR 代码检视                                      |
-| `3rdloop run pr-push [--workspace-dir <p>] [--upstream-url <URL>] [--base-branch <b>] [--changelog <auto|true|false>] [--dry-run <true|false>]`            | 三方库自动提 PR（fork 工作区修改 → 源仓库 Issue/PR + 触发 CI） |
-| `3rdloop config list|get|set|unset`                                                                                                                        | 命令配置 `.env` 配置项（默认读写 `~/.3lib/.env`）         |
-| `3rdloop update [--check] [--yes] [--force] [--registry <url>]`                                                                                            | 自更新到 npm 最新版（尊重用户镜像源）                        |
-| `3rdloop doctor`                                                                                                                                           | 环境自检（Node/opencode/.env/SKILL/数据目录）          |
-| `3rdloop version`                                                                                                                                          | 版本信息                                         |
+```bash
+# 必配：百炼 API Key（从 https://bailian.console.aliyun.com/ 获取，get/list 脱敏显示）
+3rdloop config set DASHSCOPE_API_KEY <sk-xxxxxxxx>
+```
 
+按需可选（不设置即关闭/自动）：
 
-更多进阶用法（`step` 参数细节、`orch` 任务定义格式、工作流注册），见仓库 `cli/README_DEVELOP.md` 或 `3rdloop <子命令> --help`。
+```bash
+# GitCode Token（仅访问私有仓库时需要，get/list 脱敏显示）
+3rdloop config set GIT_TOKEN <your-gitcode-token>
+
+# SKILL 目录覆盖（等效 --skill-dir，不设置则自动解析）
+3rdloop config set 3LIB_SKILL_DIR </path/to/Skills>
+```
+
+有默认值、一般无需改（调整时参考）：
+
+```bash
+# LLM 端点（默认百炼 OpenAI 兼容端点，仅切换其他 LLM 服务时修改）
+3rdloop config set LLM_BASE_URL https://dashscope.aliyuncs.com/compatible-mode/v1
+
+# LLM 模型 id
+3rdloop config set LLM_MODEL glm-5.2
+
+# 默认 CLI 类型（opencode | deveco-code，HarmonyOS 场景切 deveco-code）
+3rdloop config set CLI_TYPE deveco-code
+
+# 数据存储目录（默认 ~/.3lib/3rdloop/db，如团队共享目录）
+3rdloop config set 3LIB_DATA_DIR "D:\code\team\shared-db"
+```
+
+> 其余配置项（`LLM_MAX_TOKENS` / `LLM_ENABLE_THINKING` / `SELECTOR_*` / `MAX_CONCURRENT_SESSIONS` / `OPENCODE_*` / `DEVECO_*`）均有内置默认值，完整清单执行 `3rdloop config list` 查看。`3LIB_ROOT` / `3LIB_HOME` 仅支持系统环境变量（`export` / `setx`），`config set` 会拒绝写入。
+
+配置完成后统一验证：
+
+```bash
+3rdloop config list      # 查看全部配置项及当前生效值
+3rdloop doctor           # 环境自检
+```
+
+凭据也可以不通过 `config` 配置，任选一层即可：系统环境变量（`setx DASHSCOPE_API_KEY "sk-xxx"`）、用户级 `~/.3lib/.env`、项目根 `Server/.env`。
+
+### 场景三：快速开启一个任务
+
+在目标三方库仓库目录下，一句话描述任务，提交并阻塞到准出终态（**最常用**）：
+
+```bash
+3rdloop run "为 libcurl 生成鸿蒙 demo 场景并跑通编译"
+```
+
+`run` 会自动完成"任务拆解 → 编排执行 → 准出审核"的完整大循环，多轮次自动重规划直到通过；退出码 `0` 即通过。
+
+任务比较耗时、不想干等？提交后立即返回 taskId（进程内继续跑，需保持进程存活），之后可用 `3rdloop progress/wait/result <taskId>` 跟进：
+
+```bash
+3rdloop submit "分析 sqlite3 的鸿蒙化可行性"
+```
+
+### 场景四：跑预置工作流（PR 检视 / 自动提 PR 等）
+
+常用固定流程已封装为一键工作流，先看有哪些：
+
+```bash
+3rdloop workflows                # 列出已注册的固定编排工作流
+3rdloop run <工作流名> --help     # 查看某个工作流的参数说明
+```
+
+**三方库自动提 PR**（fork 工作区修改 → 源仓库 Issue/PR + 触发 CI）：
+
+```bash
+# 最常用：在 fork 仓库克隆目录下直接执行（workspace-dir 缺省取当前目录）
+3rdloop run pr-push
+
+# 显式指定工作区与可选参数
+3rdloop run pr-push --workspace-dir D:\work\fork-repo --upstream-url https://gitcode.com/CPF-RN/lib \
+  --changelog auto --dry-run false
+```
+
+> 提 PR 是非幂等发布操作，失败不会自动重试；执行成功后报告 `ohos-lib-pr-push-report.md` 会自动复制到执行目录。先用 `--print-taskdef` dry-run 可以核对将执行的编排定义。
+
+更多进阶用法（任务管理、`step` 单步执行、`orch` 自定义编排、工作流注册等），见仓库 `cli/README_DEVELOP.md` 或 `3rdloop <子命令> --help`。
+
 
 ### 退出码
 
@@ -119,7 +154,7 @@ npm i -g @ohos-cpf/3rdloop
 
 ## 配置
 
-
+> 快速上手需要的配置（LLM 凭据等）见上文 [场景二：配置](#场景二配置--需要注意哪些配置项)。本节补充完整的配置参考：数据目录与环境变量清单。
 
 ### 数据目录（中间产物）
 
@@ -136,7 +171,6 @@ npm i -g @ohos-cpf/3rdloop
 
 CLI 自身配置（`3LIB_*` 前缀）：
 
-
 | 变量                 | 作用                                | 默认值                  |
 | ------------------ | --------------------------------- | -------------------- |
 | `3LIB_DATA_DIR`    | 数据目录覆盖（等效 `--data-dir`）           | `~/.3lib/3rdloop/db` |
@@ -145,87 +179,7 @@ CLI 自身配置（`3LIB_*` 前缀）：
 | `3LIB_SKILL_DIR`   | SKILL 目录覆盖（等效 `--skill-dir`）      | 默认按发布/开发状态自动解析       |
 | `3LIB_TASK_PREFIX` | taskId 前缀（审计用）                    | 空                    |
 
-
-LLM 凭据变量（`DASHSCOPE_API_KEY` / `LLM_MODEL` 等）：按上面的 `.env` 加载链任选一层配置即可。
-
-### 命令行配置（3rdloop config）
-
-`config` 子命令对 `.env` 配置项做命令式管理，默认读写用户级 `~/.3lib/.env`（跨项目全局生效），无需手改 `.env` 文件：
-
-```bash
-# 查看当前生效的数据目录
-3rdloop config get 3LIB_DATA_DIR
-
-# 将任务产物统一存到团队共享目录（全局生效，无需每次带 --data-dir）
-3rdloop config set 3LIB_DATA_DIR "D:\code\team\shared-db"
-
-# 查看全部配置项及当前生效值（密钥类脱敏）
-3rdloop config list
-
-# 恢复默认
-3rdloop config unset 3LIB_DATA_DIR
-```
-
-- 读取优先级：**系统环境变量 >** `~/.3lib/.env`**（用户级） > 项目根** `Server/.env` **> 内置默认值**
-- `config` 内置白名单与值校验，未知键 `set` 会报错；`DASHSCOPE_API_KEY` / `GIT_TOKEN` 等密钥在 `get`/`list` 中脱敏显示
-- `3LIB_ROOT` / `3LIB_HOME` 为系统环境变量专用，`config set` 会拒绝，请用 `setx` / `export`
-- `--data-dir` / `--skill-dir` 命令行 flag 仍是最高的单次覆盖
-
-### 配置项逐项设置命令（可复制）
-
-绝大多数配置项都有内置默认值，**无需设置**（如 `LLM_MODEL=glm-5.2`、`OPENCODE_PORT=4096`、`SELECTOR_TOP_K=5` 等，完整清单执行 `3rdloop config list` 查看）。只有以下无默认值的项需要按需配置（`<>` 为占位符，替换后去掉尖括号）。
-
-**必配（LLM 凭据）：**
-
-```bash
-# 百炼 API Key（从 https://bailian.console.aliyun.com/ 获取，get/list 脱敏显示）
-3rdloop config set DASHSCOPE_API_KEY <sk-xxxxxxxx>
-```
-
-**按需可选（不设置即关闭/自动）：**
-
-```bash
-# GitCode Token（仅访问私有仓库时需要，get/list 脱敏显示）
-3rdloop config set GIT_TOKEN <your-gitcode-token>
-
-# SKILL 目录覆盖（等效 --skill-dir，不设置则自动解析）
-3rdloop config set 3LIB_SKILL_DIR </path/to/Skills>
-```
-
-**有默认值、一般无需改（调整时参考）：**
-
-```bash
-# LLM 端点（默认百炼 OpenAI 兼容端点，仅切换其他 LLM 服务时修改）
-3rdloop config set LLM_BASE_URL https://dashscope.aliyuncs.com/compatible-mode/v1
-
-# LLM 模型 id
-3rdloop config set LLM_MODEL glm-5.2
-
-# 默认 CLI 类型（opencode | deveco-code，HarmonyOS 场景切 deveco-code）
-3rdloop config set CLI_TYPE deveco-code
-
-# 设置数据存储目录
-3rdloop config set 3LIB_DATA_DIR xxxxx
-```
-
-> 其余配置项（`LLM_MAX_TOKENS` / `LLM_ENABLE_THINKING` / `SELECTOR_*` / `MAX_CONCURRENT_SESSIONS` / `OPENCODE_*` / `DEVECO_*` / `3LIB_DATA_DIR`）均有内置默认值，开箱即用；如需调整再按相同格式 `config set`。`3LIB_ROOT` / `3LIB_HOME` 仅支持系统环境变量（`export` / `setx`），`config set` 会拒绝写入。
-
-设置完成后可统一验证：
-
-```bash
-3rdloop config list      # 查看全部配置项及当前生效值
-3rdloop doctor           # 环境自检
-```
-
-
-
-### 环境加载细节
-
-- `.env` **加载链**：系统环境变量 > `~/.3lib/.env` > 项目根 `Server/.env`
-- **opencode**：自动拉起 `opencode serve`（项目上一级目录），退出时清理进程树；已存在则复用
-- **任务数据隔离**：CLI 任务数据默认与 Web 前端（读取仓库根 `db/`）分离，CLI 提交的任务不会出现在前端任务列表
-
-
+LLM 凭据变量（`DASHSCOPE_API_KEY` / `LLM_MODEL` 等）：按上文场景二所述，系统环境变量 / `~/.3lib/.env` / 项目根 `Server/.env` 任选一层配置即可。
 
 ## API
 
@@ -284,7 +238,7 @@ LLM 凭据变量（`DASHSCOPE_API_KEY` / `LLM_MODEL` 等）：按上面的 `.env
 
 ## 维护者
 
-[@junxiaoliu927](https://gitcode.com/Sincerelyurs/3rdLibraryLoop)
+[@lalhan](https://gitcode.com/lalhanorz)  [@junxiaoliu927](https://gitcode.com/Sincerelyurs)
 
 ## 许可证
 
