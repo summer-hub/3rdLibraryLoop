@@ -144,6 +144,9 @@ export async function runCli(argv) {
         case 'config':
             return cmdConfig({ flags, rest, projectRoot, user3libHome, jsonMode, out });
 
+        case 'serve':
+            return cmdServe({ flags, rest, jsonMode });
+
         case 'update':
             return cmdUpdate({ flags, rest, jsonMode, out });
 
@@ -219,6 +222,13 @@ async function cmdUpdate({ flags, rest, jsonMode, out }) {
         return result.ok ? EXIT.OK : EXIT.ERROR;
     }
     return result.ok ? EXIT.OK : EXIT.ERROR;
+}
+
+// ─── serve（启动 Server HTTP 后端，供前端展示）─────────────────────────
+
+async function cmdServe({ flags, rest, jsonMode }) {
+    const { cmdServe: impl } = await import('./serve.js');
+    return impl({ rest: flags.rest, jsonMode });
 }
 
 // ─── run / submit ──────────────────────────────────────────────────
@@ -649,6 +659,7 @@ function printHelp() {
   3rdloop workflows                     列出已注册的固定编排工作流
   3rdloop run <工作流名> [--flag <值> ...]     以固定编排执行工作流（阻塞到终态）
   3rdloop config list|get|set|unset ...  配置 .env 配置项（默认读写 ~/.3lib/.env）
+  3rdloop serve [--port N] [-w|--web] [--web-port N]  启动 Server HTTP 后端（供前端展示）
   3rdloop update [--check] [--yes] [--force] [--registry <url>]  自更新到 npm 最新版
   3rdloop web [--port N] [--backend <url>]       启动 Web 前端服务
   3rdloop web install-ext <dir>                  安装扩展（tag/issue/prcheck 等二级功能）

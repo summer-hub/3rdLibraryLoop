@@ -72,32 +72,33 @@ npm i -g @ohos-cpf/3rdloop
 ### 命令一览
 
 
-| 命令                                                                                                                                                         | 说明                                           |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| `3rdloop run <desc>`                                                                                                                                       | 提交任务并阻塞到准出终态（默认行为）                           |
-| `3rdloop submit <desc>`                                                                                                                                    | 提交任务，打印 taskId 后进程内继续执行                      |
-| `3rdloop wait <taskId> [--timeout 30m]`                                                                                                                    | 等待任务到终态                                      |
-| `3rdloop progress <taskId> [--watch]`                                                                                                                      | 查询进度；`--watch` 持续轮询到终态                       |
-| `3rdloop abort <taskId>`                                                                                                                                   | 中止任务                                         |
-| `3rdloop list [--status st] [--limit N] [--older-than 7d]`                                                                                                 | 列出任务                                         |
-| `3rdloop result <taskId> [--raw]`                                                                                                                          | 读取最终结果                                       |
-| `3rdloop step run <desc> [--task-id id] [--step-id N] [--input-report p] [--max-retries N] [--loop N] [--task-dir p] [--specified-skill <SKILL name|目录名>]` | 单步执行（FlexRunner 直连，不经拆解/编排/审核）               |
-| `3rdloop step status <taskId> [--step-id N]`                                                                                                               | 查询单步状态/产物/会话                                 |
-| `3rdloop step result <taskId> [--step-id N]`                                                                                                               | 读取该步 result.md 内容                            |
-| `3rdloop orch run <task-def.json>`                                                                                                                         | 加载任务定义 + 启动编排，阻塞到终态                          |
-| `3rdloop orch load <task-def.json>`                                                                                                                        | 仅加载任务定义（落盘 orchestration.json，进程退出后仍可 start） |
-| `3rdloop orch start <taskId>`                                                                                                                              | 从磁盘恢复 LOADED 状态并启动编排，阻塞到终态                   |
-| `3rdloop orch progress <taskId> [--loop N]`                                                                                                                | 查询编排进度                                       |
-| `3rdloop orch abort|pause|resume <taskId>`                                                                                                                 | 终止/暂停/恢复编排                                   |
-| `3rdloop orch tasks`                                                                                                                                       | 列出编排任务                                       |
-| `3rdloop workflows`                                                                                                                                        | 列出已注册的固定编排工作流                                |
-| `3rdloop run <工作流名> [--flag <值> ...]`                                                                                                                      | 以固定编排执行工作流（阻塞到终态）                            |
-| `3rdloop run pr-check --pr-url <URL> [--library-type <arkts|flutter|rn|tpccplus>]`                                                                         | PR 代码检视                                      |
-| `3rdloop run pr-push [--workspace-dir <p>] [--upstream-url <URL>] [--base-branch <b>] [--changelog <auto|true|false>] [--dry-run <true|false>]`            | 三方库自动提 PR（fork 工作区修改 → 源仓库 Issue/PR + 触发 CI） |
-| `3rdloop config list|get|set|unset`                                                                                                                        | 命令配置 `.env` 配置项（默认读写 `~/.3lib/.env`）         |
-| `3rdloop update [--check] [--yes] [--force] [--registry <url>]`                                                                                            | 自更新到 npm 最新版（尊重用户镜像源）                        |
-| `3rdloop doctor`                                                                                                                                           | 环境自检（Node/opencode/.env/SKILL/数据目录）          |
-| `3rdloop version`                                                                                                                                          | 版本信息                                         |
+| 命令                                                                                                                                           | 说明                                           |
+| -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| `3rdloop run <desc>`                                                                                                                         | 提交任务并阻塞到准出终态（默认行为）                           |
+| `3rdloop submit <desc>`                                                                                                                      | 提交任务，打印 taskId 后进程内继续执行                      |
+| `3rdloop wait <taskId> [--timeout 30m]`                                                                                                      | 等待任务到终态                                      |
+| `3rdloop progress <taskId> [--watch]`                                                                                                        | 查询进度；`--watch` 持续轮询到终态                       |
+| `3rdloop abort <taskId>`                                                                                                                     | 中止任务                                         |
+| `3rdloop list [--status st] [--limit N] [--older-than 7d]`                                                                                   | 列出任务                                         |
+| `3rdloop result <taskId> [--raw]`                                                                                                            | 读取最终结果                                       |
+| `3rdloop step run [--task-id id] [--step-id N] [--input-report p] [--max-retries N] [--loop N] [--task-dir p] [--specified-skill <SKILL name \| 目录名>]` | 单步执行（FlexRunner 直连，不经拆解/编排/审核）               |
+| `3rdloop step status <taskId> [--step-id N]`                                                                                                 | 查询单步状态/产物/会话                                 |
+| `3rdloop step result <taskId> [--step-id N]`                                                                                                 | 读取该步 result.md 内容                            |
+| `3rdloop orch run <task-def.json>`                                                                                                           | 加载任务定义 + 启动编排，阻塞到终态                          |
+| `3rdloop orch load <task-def.json>`                                                                                                          | 仅加载任务定义（落盘 orchestration.json，进程退出后仍可 start） |
+| `3rdloop orch start <taskId>`                                                                                                                | 从磁盘恢复 LOADED 状态并启动编排，阻塞到终态                   |
+| `3rdloop orch progress <taskId> [--loop N]`                                                                                                  | 查询编排进度                                       |
+| `3rdloop orch abort \| pause`                                                                                                                | 中止/暂停编排                                     |
+| `3rdloop orch tasks`                                                                                                                         | 列出编排任务                                       |
+| `3rdloop workflows`                                                                                                                          | 列出已注册的固定编排工作流                                |
+| `3rdloop run <工作流名> [--flag <值> ...]`                                                                                                        | 以固定编排执行工作流（阻塞到终态）                            |
+| `3rdloop run pr-check --pr-url [--library-type <arkts \| flutter>]`                                                                                          | 预置工作流：PR 检查                                    |
+| `3rdloop run pr-push [--workspace-dir ] [--upstream-url ] [--base-branch ] [--changelog <auto \| true>]`                                                                                       | 预置工作流：PR 推送                                    |
+| `3rdloop config list \| get \| set \| delete`                                                                                                           | 管理配置项                                         |
+| `3rdloop serve [--port N] [-w\|--web] [--web-port N]`                                                                                                   | 启动 Server HTTP 后端（供前端展示；可选同时拉起 Web 前端）          |
+| `3rdloop update [--check] [--yes] [--force] [--registry <url>]`                                                                              | 自更新到 npm 最新版（尊重用户镜像源）                        |
+| `3rdloop doctor`                                                                                                                             | 环境自检（Node/opencode/.env/SKILL/数据目录）          |
+| `3rdloop version`                                                                                                                            | 版本信息                                         |
 
 
 更多进阶用法（`step` 参数细节、`orch` 任务定义格式、工作流注册），见仓库 `cli/README_DEVELOP.md` 或 `3rdloop <子命令> --help`。
@@ -170,6 +171,8 @@ LLM 凭据变量（`DASHSCOPE_API_KEY` / `LLM_MODEL` 等）：按上面的 `.env
 - `config` 内置白名单与值校验，未知键 `set` 会报错；`DASHSCOPE_API_KEY` / `GIT_TOKEN` 等密钥在 `get`/`list` 中脱敏显示
 - `3LIB_ROOT` / `3LIB_HOME` 为系统环境变量专用，`config set` 会拒绝，请用 `setx` / `export`
 - `--data-dir` / `--skill-dir` 命令行 flag 仍是最高的单次覆盖
+
+
 
 ### 配置项逐项设置命令（可复制）
 
