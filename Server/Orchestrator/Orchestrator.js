@@ -36,6 +36,7 @@
  */
 
 import path from 'node:path';
+import { hostname } from 'node:os';
 
 import { FlexRunner } from '../FlexRunner/FlexRunner.js';
 import { StepNode, NodeStatus } from './StepNode.js';
@@ -409,6 +410,10 @@ class Orchestrator {
         this._startTime = nowCST();
         this._emit(SSE_EVENT.TASK_START, this.getProgress());
         await this._persistState();
+        // 写入属主标记（pid/hostname）：标识本编排由当前进程执行。
+        // 服务重启时 restoreFromDisk 据此判定 running 任务的归属——
+        // 属主进程仍存活（如 3rdloop run 嵌入式 CLI）则跳过，不误标 FAILED。
+        await this._writeOwnerFile();
 
         try {
             // 初始就绪：将所有入口步骤标记为 ready
@@ -460,6 +465,8 @@ class Orchestrator {
 
         this._log('info', `── 编排执行结束: status=${this._status} ──`);
         await this._persistState();
+        // 已到终态，属主标记失效，清理（先持久化终态再清理，崩溃窗口内重启仍可正确判定）
+        await this._deleteOwnerFile();
         return { status: this._status, summary: this.getProgress() };
     }
 
@@ -1273,6 +1280,38 @@ class Orchestrator {
         this._persistChain = this._persistChain.then(run, run);
         // 对外仍 await，使调用方（如 loadTask/start/restoreState 中的 await）能感知完成
         await this._persistChain;
+    }
+
+    /**
+     * 写入属主标记文件（db/task/{taskId}/owner.json）。
+     *
+     * 记录执行本编排的进程 pid 与 hostname。服务重启时
+     * OrchestratorController.restoreFromDisk 据此判定 running 状态任务的归属：
+     * 属主进程仍存活（如 3rdloop run 嵌入式 CLI 在独立进程执行）则跳过恢复，
+     * 不标记 FAILED、不写 SQLite 中断记录、不回写注册表。
+     * 静默失败，不影响编排主流程。
+     * @private
+     */
+    async _writeOwnerFile() {
+        if (!this.storage || !this._taskId) return;
+        try {
+            await this.storage.json('task').write(`${this._taskId}/owner`, {
+                pid: process.pid,
+                hostname: hostname(),
+                wroteAt: new Date().toISOString()
+            });
+        } catch { /* 静默失败 */ }
+    }
+
+    /**
+     * 删除属主标记文件（编排到终态时调用）。
+     * @private
+     */
+    async _deleteOwnerFile() {
+        if (!this.storage || !this._taskId) return;
+        try {
+            await this.storage.json('task').delete(`${this._taskId}/owner`);
+        } catch { /* 静默失败 */ }
     }
 
     /**

@@ -451,7 +451,7 @@ class TestCheck {
             this._log('warn', `审核 Session ${sessionId} 未在超时时间内完成`);
         }
 
-        this._log('info', `invokeSkill 完成 — sessionId: ${sessionId}, completed: ${completed}`);
+        this._log('debug', `invokeSkill 完成 — sessionId: ${sessionId}, completed: ${completed}`);
         return { sessionId, executed: completed };
     }
 

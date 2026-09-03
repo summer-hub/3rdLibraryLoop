@@ -846,7 +846,7 @@ class FlexRunner {
                 return false;
             }
 
-            this._log('info', `invokeSkill 完成 — sessionId: ${sessionId}`);
+            this._log('debug', `invokeSkill 完成 — sessionId: ${sessionId}`);
             return true;
         } catch (err) {
             this._log('error', `invokeSkill 异常: ${err.message}`);
@@ -907,18 +907,18 @@ class FlexRunner {
 
         try {
             const content = await fs.readFile(summaryFilePath, 'utf-8');
-            this._log('info', `persistKnowledge: 已读取经验文件 (${content.length} 字符)`);
+            this._log('debug', `persistKnowledge: 已读取经验文件 (${content.length} 字符)`);
 
             // 1. 将经验内容持久化到步骤记录
             await this._persistStep({ knowledgeSummary: content });
-            this._log('info', 'persistKnowledge: 经验已持久化到步骤记录');
+            this._log('debug', 'persistKnowledge: 经验已持久化到步骤记录');
 
             // 2. 登记到知识沉淀系统
             if (this.#knowledgeManager) {
                 // 避免重复登记：先检查是否已存在
                 const existing = await this.#knowledgeManager.findByDocPath(summaryFilePath);
                 if (existing) {
-                    this._log('info', `persistKnowledge: 经验已登记过，跳重复登记 — id: ${existing.id}`);
+                    this._log('debug', `persistKnowledge: 经验已登记过，跳重复登记 — id: ${existing.id}`);
                 } else {
                     const record = await this.#knowledgeManager.addExperience({
                         docPath: summaryFilePath,
@@ -929,7 +929,7 @@ class FlexRunner {
                         skillDir: this.#matchedSkillDir,
                         taskDescription: this.#taskDescription
                     });
-                    this._log('info', `persistKnowledge: 经验已登记到知识沉淀系统 — id: ${record.id}`);
+                    this._log('debug', `persistKnowledge: 经验已登记到知识沉淀系统 — id: ${record.id}`);
                 }
             } else {
                 this._log('warn', 'persistKnowledge: KnowledgeManager 未初始化，跳过知识沉淀登记');
@@ -1112,12 +1112,12 @@ class FlexRunner {
         const value = raw.replace(/^[#>*\-\s]+/, '').trim();
 
         if (value === '成功') {
-            this._log('info', `checkResult: 执行状态 = 成功 (${resultFilePath})`);
+            this._log('debug', `checkResult: 执行状态 = 成功 (${resultFilePath})`);
             return true;
         }
 
         if (value === '失败') {
-            this._log('info', `checkResult: 执行状态 = 失败 (${resultFilePath})`);
+            this._log('error', `checkResult: 执行状态 = 失败 (${resultFilePath})`);
             return false;
         }
 
@@ -1578,7 +1578,7 @@ class FlexRunner {
 
             // 等待 AI 回复期间收到终止请求 → 不再等待文件生成（session 已被远程中止）
             if (this.#aborted) {
-                this._log('info', '_summarizeExperience: 等待回复期间被终止，放弃经验总结');
+                this._log('warn', '_summarizeExperience: 等待回复期间被终止，放弃经验总结');
                 return false;
             }
 
@@ -1587,7 +1587,7 @@ class FlexRunner {
                 return false;
             }
 
-            this._log('info',
+            this._log('debug',
                 `_summarizeExperience: AI 回复完成，content 长度 ${result.content?.length || 0}，` +
                 `等待 Summary 文件生成…`
             );
@@ -1601,7 +1601,7 @@ class FlexRunner {
                 return false;
             }
 
-            this._log('info', `经验总结完成 — Summary 文件已生成: ${summaryFilePath}`);
+            this._log('debug', `经验总结完成 — Summary 文件已生成: ${summaryFilePath}`);
             return true;
         } catch (err) {
             this._log('error', `_summarizeExperience 异常: ${err.message}`);

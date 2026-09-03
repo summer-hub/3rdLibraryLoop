@@ -18,6 +18,7 @@
 
 import path from 'node:path';
 import fs from 'node:fs';
+import { hostname } from 'node:os';
 import { Orchestrator, OrchestratorStatus } from '../../Orchestrator/Orchestrator.js';
 import { StorageManager } from '../../DbUse/index.js';
 
@@ -291,11 +292,26 @@ class OrchestratorController {
 
             this._orchestrators.set(taskId, orch);
 
-            // 注册任务摘要到注册表（SQLite），供历史列表分页查询
+            // 注册任务摘要到注册表（SQLite），供历史列表分页查询。
+            // 注意：任务已注册时保留原 task_type —— 大循环任务由
+            // LoopEngineController.start 先注册为 'loop'，随后 LoopEngine 内部
+            // 调用本 load() 加载编排，若无条件 upsert 'orchestrator' 会覆盖
+            // 任务类型；一旦进程中断（finally 未执行改回），任务将无法在
+            // 大循环历史页（taskType='loop' 过滤）中显示。
+            const registry = this._getRegistry();
+            let taskType = 'orchestrator';
+            if (registry) {
+                try {
+                    const registered = await registry.get(taskId);
+                    if (registered && registered.task_type) {
+                        taskType = registered.task_type;
+                    }
+                } catch { /* 查询失败按新任务处理 */ }
+            }
             const firstStep = body.steps[0] || {};
             this._registerTask({
                 taskId,
-                taskType: 'orchestrator',
+                taskType,
                 status: 'loaded',
                 title: (firstStep.taskDescription || body.title || '').slice(0, 200),
                 description: body.title || firstStep.taskDescription || '',
@@ -752,6 +768,52 @@ class OrchestratorController {
     }
 
     /**
+     * 判断 running 状态的持久化任务是否有仍存活的"外部属主进程"。
+     *
+     * owner.json 由 Orchestrator.start() 写入（pid/hostname），终态时删除：
+     *   - 无 owner.json → 老任务（机制上线前创建）或已正常收尾 → false（维持中断语义）
+     *   - pid 已死（同机）→ 属主进程已崩溃，清理残留文件后返回 false
+     *   - pid 存活且非当前进程 → 外部进程（如 3rdloop run）仍在执行 → true
+     *   - hostname 不同（共享数据目录跨机部署）→ 本机 pid 探测无意义，保守返回 true
+     *
+     * @param {string} taskId
+     * @returns {Promise<boolean>}
+     * @private
+     */
+    async _hasLiveExternalOwner(taskId) {
+        let owner = null;
+        try {
+            owner = await this.storage.json('task').read(`${taskId}/owner`);
+        } catch {
+            return false;
+        }
+        if (!owner || typeof owner.pid !== 'number') return false;
+
+        // 本进程残留（防御：restoreFromDisk 运行期本进程不可能有在途编排）
+        if (owner.pid === process.pid) return false;
+
+        // 异机属主：pid 属于另一台机器，本机探测会误判无关进程，保守视为存活
+        if (owner.hostname && owner.hostname !== hostname()) return true;
+
+        // 同机：探测属主进程死活（EPERM = 进程存在但属其他用户）
+        let alive = false;
+        try {
+            process.kill(owner.pid, 0);
+            alive = true;
+        } catch (err) {
+            alive = err.code === 'EPERM';
+        }
+        if (!alive) {
+            // 属主已崩溃但未及清理 → 删除残留，交由调用方维持 RUNNING→FAILED 语义
+            try {
+                await this.storage.json('task').delete(`${taskId}/owner`);
+            } catch { /* ignore */ }
+            return false;
+        }
+        return true;
+    }
+
+    /**
      * 从磁盘恢复所有持久化的编排任务到内存。
      *
      * 服务重启时调用。对每个 db/task/{taskId}/orchestration.json：
@@ -761,6 +823,12 @@ class OrchestratorController {
      *   - 恢复后回写注册表：进程死亡导致 start().finally() 中的终态回写未执行，
      *     registry 停留在 loaded/running 的记录修正为恢复后的终态（含 metrics、
      *     interrupted 标记）；未入库的老任务补录摘要。
+     *
+     * 跨进程属主检测（RUNNING 状态专属）：
+     *   3rdloop run（嵌入式 CLI）在独立进程中执行编排、共享同一 db/ 目录，
+     *   服务重启不能把这类"仍在执行中"的任务误判为崩溃残留。依据 owner.json
+     * （Orchestrator.start 写入、终态删除）判定：属主进程仍存活 → 跳过该任务
+     * （不恢复入内存、不标 FAILED、不改注册表），由属主进程自行推进与收尾。
      *
      * @returns {Promise<{restored: string[], failed: string[]}>}
      */
@@ -782,6 +850,14 @@ class OrchestratorController {
                 if (!state) {
                     console.warn(`[OrchestratorController] orchestration.json 为空: taskId=${taskId}`);
                     failed.push(taskId);
+                    continue;
+                }
+
+                // ── 跨进程属主检测：running 任务可能属于另一存活进程 ──
+                if (state.status === 'running' && await this._hasLiveExternalOwner(taskId)) {
+                    console.log(
+                        `[OrchestratorController] 跳过 running 任务（属主进程仍在执行，疑似 3rdloop run 嵌入式任务）: taskId=${taskId}`
+                    );
                     continue;
                 }
 
@@ -853,11 +929,19 @@ class OrchestratorController {
             const status = progress.status || 'failed';
             const firstStep = (state.steps || [])[0] || {};
 
+            // task_type 自愈：任务目录存在 loop.json 说明是大循环任务
+            // （LoopEngine 产物）。中断场景下 LoopEngineController.start 的
+            // finally 未执行，task_type 可能停留在被编排 load() 覆盖后的
+            // 'orchestrator' —— 修正为 'loop'，否则大循环历史页
+            // （taskType='loop' 过滤）看不到该任务。
+            const isLoopTask = state.taskDir
+                && fs.existsSync(path.join(state.taskDir, 'loop.json'));
+
             if (!existing) {
                 // 老任务未入库（TaskRegistryStore 上线前创建）：补录摘要，保留原始创建时间
                 await registry.upsert({
                     taskId,
-                    taskType: 'orchestrator',
+                    taskType: isLoopTask ? 'loop' : 'orchestrator',
                     status,
                     title: (firstStep.taskDescription || taskId).slice(0, 200),
                     description: firstStep.taskDescription || '',
@@ -865,7 +949,11 @@ class OrchestratorController {
                     metadata
                 });
             } else {
-                await registry.patch(taskId, { status, metadata });
+                const patchBody = { status, metadata };
+                if (isLoopTask && existing.task_type !== 'loop') {
+                    patchBody.task_type = 'loop';
+                }
+                await registry.patch(taskId, patchBody);
             }
             console.log(
                 `[OrchestratorController] 注册表已修正: taskId=${taskId}, ` +

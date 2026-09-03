@@ -639,7 +639,7 @@ class OpenCodeCLI {
                 sessionId,
                 data.map(m => this._toArchiveMessage(m))
             );
-            this._log('info',
+            this._log('debug',
                 `自动归档 id=${sessionId} reason=${reason} — appended=${archRes.appended} skipped=${archRes.skipped}`);
         } catch (e) {
             this._log('warn', `自动归档失败 id=${sessionId} reason=${reason}: ${e.message}`);
