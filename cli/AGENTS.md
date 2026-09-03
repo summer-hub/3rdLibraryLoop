@@ -318,9 +318,14 @@ node cli/bin/3rdloop.mjs run <name> --print-taskdef    # 缺必填
   `fs.realpathSync(<cliRoot>/bin/3rdloop.mjs)`；相等 = npm link 软链（开发态）。开发态默认
   警告 + 跳过（提示 `git pull`），`--force` 先 `npm unlink -g` 再重装正式包。
 - registry 覆盖：`--registry` 追加到 `npm view`/`npm install`；默认用 `npm config get registry`
-  （兼容 npmmirror 等镜像）。
+  （兼容 npmmirror 等镜像）。所有 npm 调用统一经 `runNpm(args, opts)` 封装。
 - 易踩坑：
   - **不手动改 node_modules**：更新统一走 `npm install -g` 全量重装，保证依赖自洽。
+  - **Windows 下 npm 是 `npm.cmd`**：`execFileSync('npm')` 的 CreateProcess 无法执行批处理 shim，
+    抛 `spawnSync npm ENOENT`。`runNpm` 在 win32 用 `shell:true`（cmd 按 PATHEXT 解析 npm.cmd，
+    已被 cmd.exe 转义防注入），POSIX（macOS/Linux）保持 `shell:false` 直接调用，行为零变化。
+  - **`--registry` 注入防护**：`runNpm` 在 win32 分支对 `--registry` 值做 http(s) URL 白名单校验
+    （拒绝空白/引号/`&|<>^();%` 等元字符），其余参数均为代码内常量，无用户输入面。
   - **非 TTY 交互确认自动拒绝**：脚本化必须 `--yes`。
   - **`--help` 不联网**：`cmdUpdateImpl` 先处理 `-h/--help` 打印用法后返回，避免无网络环境卡死。
   - 更新只替换程序文件，数据目录 `~/.3lib/3rdloop/db` 与 `~/.3lib/.env` 不受影响。
