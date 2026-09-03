@@ -18,7 +18,7 @@ cli/
 │   ├── cli.js           # 命令分发（run/submit/step/orch/web/workflows...）
 │   ├── config.js        # 环境装配：项目根/.env 链/数据目录/SKILL 目录/taskId
 │   ├── config-cmd.js    # 3rdloop config 配置命令（白名单 .env 读写）
-│   ├── update.js        # 3rdloop update 自更新（版本检测/npm link 识别/重装）
+│   ├── update.js        # 3rdloop update 自更新（版本检测/卸载旧版/重装）
 │   ├── runner.js        # 核心引擎组装（复刻 server.js 依赖注入）+ 执行能力
 │   ├── queries.js       # 磁盘直读查询（progress/list/result，不实例化引擎）
 │   ├── ui.js            # stdout/stderr 输出契约 + 增量 diff 渲染
@@ -311,12 +311,9 @@ node cli/bin/3rdloop.mjs run <name> --print-taskdef    # 缺必填
 ## update 命令（自更新）
 
 - 实现：`lib/update.js`，分发：`cli.js` `case 'update'`（惰性 import）。
-- 命令：`3rdloop update [--check] [--yes] [--force] [--registry <url>]`。
+- 命令：`3rdloop update [--check] [--yes] [--registry <url>]`。
 - 流程：`getCliVersion()`（本地）→ `npm view @ohos-cpf/3rdloop version`（registry，尊重用户镜像，
-  失败回退 packument API）→ `compareVersions` 判断 → 交互确认 → `npm install -g ...@latest` 重装。
-- **npm link 开发态识别**：比较 `fs.realpathSync(process.argv[1])` 与
-  `fs.realpathSync(<cliRoot>/bin/3rdloop.mjs)`；相等 = npm link 软链（开发态）。开发态默认
-  警告 + 跳过（提示 `git pull`），`--force` 先 `npm unlink -g` 再重装正式包。
+  失败回退 packument API）→ `compareVersions` 判断 → 交互确认 → 卸载旧版 + `npm install -g ...@latest` 重装。
 - registry 覆盖：`--registry` 追加到 `npm view`/`npm install`；默认用 `npm config get registry`
   （兼容 npmmirror 等镜像）。所有 npm 调用统一经 `runNpm(args, opts)` 封装。
 - 易踩坑：

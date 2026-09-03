@@ -50,7 +50,7 @@ FlexRunner / TestCheck / Knowledge），无需启动 HTTP 服务，即可从终�
 | `3rd3rdloop run <工作流名> [--flag <值> ...]` | 以固定编排执行工作流（阻塞到终态） |
 | `3rdloop run pr-check --pr-url <URL> [--library-type <arkts\|flutter\|rn\|tpccplus>]` | PR 代码检视（等价前端 PR 检视面板，taskId 带 `codecheck_` 前缀） |
 | `3rdloop config list\|get\|set\|unset` | 命令配置 `.env` 配置项（默认读写 `~/.3lib/.env`） |
-| `3rdloop update [--check] [--yes] [--force] [--registry <url>]` | 自更新到 npm 最新版（尊重用户镜像源） |
+| `3rdloop update [--check] [--yes] [--registry <url>]` | 自更新到 npm 最新版（尊重用户镜像源） |
 | `3rdloop doctor` | 环境自检（Node/opencode/.env/SKILL/数据目录） |
 | `3rdloop version` | 版本信息 |
 
@@ -412,12 +412,11 @@ export default {
 | 安装方式 | update 行为 |
 |----------|-------------|
 | 正式全局安装（`npm i -g @ohos-cpf/3rdloop`） | 检查发现新版本后 `npm install -g @ohos-cpf/3rdloop@latest` 重装 |
-| 开发态（`npm link` 链接到仓库） | 默认**退出并提示**用 `git pull` 更新源码；加 `--force` 可强制替换为 registry 正式包 |
 | `--check` | 只查询与输出版本差异，不做任何修改 |
 
 ### 安全说明
 
-- 所有 npm 调用（`view`/`config get`/`unlink`/`uninstall`/`install`）统一经 `runNpm(args, opts)` 封装。
+- 所有 npm 调用（`view`/`config get`/`uninstall`/`install`）统一经 `runNpm(args, opts)` 封装。
 - **Windows 兼容**：win32 下 `npm` 是 `npm.cmd` 批处理 shim，`execFileSync('npm')` 会因
   CreateProcess 无法执行批处理而抛 `spawnSync npm ENOENT`；`runNpm` 在 win32 用 `shell:true`
   让 cmd.exe 按 PATHEXT 解析 `npm.cmd`，POSIX（macOS/Linux）保持 `shell:false` 直接调用、行为不变。

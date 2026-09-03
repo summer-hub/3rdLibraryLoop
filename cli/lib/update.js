@@ -3,8 +3,7 @@
  *
  * 职责：
  *   - 检测本地版本（getCliVersion）与 npm registry 最新版
- *   - 识别开发态（npm link 软链）与正式全局安装
- *   - 交互确认后通过 npm install -g 重装
+ *   - 交互确认后卸载旧版 + npm install -g 重装最新版
  *
  * 交互/输出契约：
  *   - 进度/日志 → stderr；--json 结构化结果 → stdout
@@ -17,7 +16,6 @@
  *     该分支对用户可控的 --registry 值做白名单校验防 shell 注入
  */
 
-import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
 import { execFileSync } from 'node:child_process';
@@ -26,7 +24,6 @@ import { fileURLToPath } from 'node:url';
 // 本文件在 cli/lib/ 下
 const CLI_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PKG_NAME = '@ohos-cpf/3rdloop';
-const BIN_ABS = path.join(CLI_ROOT, 'bin', '3rdloop.mjs');
 
 // ── npm 调用封装 ─────────────────────────────────────────────────
 
@@ -93,22 +90,6 @@ export function compareVersions(a, b) {
 }
 
 /**
- * 检测当前命令是否为 npm link 软链（开发态）。
- *
- * 原理：npm link 的全局 bin 是指向仓库 bin 的软链；真实全局安装则是
- * node_modules 内的副本。比较 process.argv[1] 与仓库内 bin 的 realpath 是否相同。
- */
-export function detectLinkMode(argv1 = process.argv[1]) {
-    try {
-        const realArgv = fs.realpathSync(argv1 || '');
-        const realLocal = fs.realpathSync(BIN_ABS);
-        return realArgv === realLocal;
-    } catch {
-        return false;
-    }
-}
-
-/**
  * 获取最新版本。
  * 优先 `npm view`（尊重用户 .npmrc 镜像配置）；失败回退 packument API。
  * @returns {Promise<string | null>} latest 版本号；查询失败返回 null
@@ -171,32 +152,14 @@ export async function confirmUpdate({ current, latest } = {}) {
 }
 
 /**
- * 执行更新。
+ * 执行更新：卸载旧版后通过 npm install -g 重装最新版。
  * @param {object} opts
  * @param {string} opts.latest        目标版本（registry latest）
  * @param {string} [opts.registry]    registry 覆盖
- * @param {boolean} [opts.force]      开发态也强制替换
- * @param {boolean} [opts.isLink]     是否 link 模式（可注入便于测试）
  */
-export function performUpdate({ latest, registry, force = false, isLink = detectLinkMode() } = {}) {
+export function performUpdate({ latest, registry } = {}) {
     const installArgs = ['install', '-g', `${PKG_NAME}@latest`];
     if (registry) installArgs.push('--registry', registry);
-
-    // 开发态（npm link）：默认警告并跳过，仅提示 git pull
-    if (isLink && !force) {
-        process.stderr.write(
-            `\n[update] 检测到当前为开发态（npm link），已跳过自更新。\n` +
-            `  开发态请用 git pull 更新仓库源码（数据目录 ~/.3lib/3rdloop/db 不受影响）。\n` +
-            `  如需强制用正式包替换链接，可加 --force。\n`
-        );
-        return { updated: false, skipped: 'link-mode' };
-    }
-
-    // 开发态 + --force：先解除链接
-    if (isLink && force) {
-        process.stderr.write(`[update] 检测到 npm link，先解除链接...\n`);
-        runNpm(['unlink', '-g', PKG_NAME], { encoding: 'utf-8', stdio: 'inherit' });
-    }
 
     process.stderr.write(`[update] 卸载旧版本（@${PKG_NAME}）...\n`);
     try {
@@ -219,19 +182,17 @@ export function performUpdate({ latest, registry, force = false, isLink = detect
 export async function cmdUpdateImpl({ jsonMode = false, rest = [] } = {}) {
     const checkOnly = rest.includes('--check');
     const yes = rest.includes('--yes') || rest.includes('-y');
-    const force = rest.includes('--force');
     const regIdx = rest.indexOf('--registry');
     const registry = regIdx !== -1 ? rest[regIdx + 1] : undefined;
 
     // update 用法说明（--help，离线可测，不触碰网络）
     if (rest.includes('--help') || rest.includes('-h')) {
         const help = [
-            '用法: 3rdloop update [--check] [--yes] [--force] [--registry <url>]',
+            '用法: 3rdloop update [--check] [--yes] [--registry <url>]',
             '',
             '  默认: 检测本地版本与 npm registry 最新版，差异存在时交互确认后重装',
             '  --check           仅检查是否有新版本，不执行更新',
             '  --yes, -y         跳过交互确认直接更新（非 TTY 必须）',
-            '  --force           开发态（npm link）也强制替换为 registry 正式包',
             '  --registry <url>  覆盖 npm registry（默认尊重用户 npm 镜像配置）',
             '  注意: 数据目录 ~/.3lib/3rdloop/db 与 SKILL 配置不受更新影响',
         ].join('\n');
@@ -268,7 +229,7 @@ export async function cmdUpdateImpl({ jsonMode = false, rest = [] } = {}) {
         if (!checkOnly) {
             // --json 下不交互，直接更新（用户显式要求命令行为，等价 --yes）
             try {
-                const r = performUpdate({ latest, registry, force });
+                const r = performUpdate({ latest, registry });
                 process.stdout.write(JSON.stringify({ ...r, ok: true }, null, 2) + '\n');
                 return { ok: true, ...r };
             } catch (err) {
@@ -310,7 +271,7 @@ export async function cmdUpdateImpl({ jsonMode = false, rest = [] } = {}) {
 
     process.stderr.write(`\n`);
     try {
-        const r = performUpdate({ latest, registry, force });
+        const r = performUpdate({ latest, registry });
         return { ok: true, ...r };
     } catch (err) {
         const msg = `更新失败: ${err.message}`;
