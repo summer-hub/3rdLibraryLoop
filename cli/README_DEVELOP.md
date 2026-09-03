@@ -417,6 +417,12 @@ export default {
 
 ### 安全说明
 
+- 所有 npm 调用（`view`/`config get`/`unlink`/`uninstall`/`install`）统一经 `runNpm(args, opts)` 封装。
+- **Windows 兼容**：win32 下 `npm` 是 `npm.cmd` 批处理 shim，`execFileSync('npm')` 会因
+  CreateProcess 无法执行批处理而抛 `spawnSync npm ENOENT`；`runNpm` 在 win32 用 `shell:true`
+  让 cmd.exe 按 PATHEXT 解析 `npm.cmd`，POSIX（macOS/Linux）保持 `shell:false` 直接调用、行为不变。
+- **注入防护**：win32 分支对用户可控的 `--registry` 值做 http(s) URL 白名单校验（拒绝空白/引号/
+  `&|<>^();%` 等元字符），其余参数均为代码内常量。
 - 更新只替换程序文件，**数据目录 `~/.3lib/3rdloop/db`、`~/.3lib/.env` 配置均不受影响**（数据根在设计上不随 npm 包变化）。
 - 更新走 `npm install -g` 全量重装，保证引擎与依赖（`@opencode-ai/sdk` / `better-sqlite3` / `dotenv` 等）版本自洽，不手动改动 `node_modules`。
 - 更新完成后请用 `3rdloop version` / `3rdloop doctor` 确认新版本与引擎来源。

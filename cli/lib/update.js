@@ -12,7 +12,9 @@
  *
  * 安全：
  *   - registry 默认尊重用户 npm 配置（镜像源），--registry 可覆盖
- *   - 全部经 child_process.execFileSync 调 npm，避免 shell 注入
+ *   - 全部经 runNpm 调 npm：POSIX 保持 execFileSync 直接调用（无 shell），
+ *     win32 因 npm 是 npm.cmd shim 需 shell:true（cmd 按 PATHEXT 解析），
+ *     该分支对用户可控的 --registry 值做白名单校验防 shell 注入
  */
 
 import fs from 'node:fs';
@@ -25,6 +27,44 @@ import { fileURLToPath } from 'node:url';
 const CLI_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PKG_NAME = '@ohos-cpf/3rdloop';
 const BIN_ABS = path.join(CLI_ROOT, 'bin', '3rdloop.mjs');
+
+// ── npm 调用封装 ─────────────────────────────────────────────────
+
+// --registry 值来自用户输入，win32 走 shell 前做白名单校验
+const SAFE_REGISTRY_RE = /^https?:\/\/[^\s"'&|<>^();%]+$/;
+
+/**
+ * 跨平台调用 npm。
+ *
+ * - POSIX（macOS/Linux）：shell 为 false，等价于直接 execFileSync('npm', args)，
+ *   macOS 行为与修复前完全一致。
+ * - win32：shell 为 true，Node 用 cmd.exe /d /s /c 执行，cmd 按 PATHEXT
+ *   找到 npm.cmd（execFileSync 的 CreateProcess 无法直接执行批处理 shim）。
+ *
+ * 注入防护：仅 win32 分支对 args 中 --registry 的值做 http(s) URL 白名单校验；
+ * 其余参数均为代码内常量，无用户输入面。npm 缺失时把原生 ENOENT/EINVAL
+ * 转成可读中文提示。
+ */
+export function runNpm(args, opts = {}) {
+    const shell = process.platform === 'win32';
+    if (shell) {
+        const regIdx = args.indexOf('--registry');
+        const reg = regIdx !== -1 ? args[regIdx + 1] : null;
+        if (reg !== undefined && reg !== null && !SAFE_REGISTRY_RE.test(String(reg))) {
+            const err = new Error(`非法 --registry 值（仅允许不含空白/引号/元字符的 http(s) URL）: ${reg}`);
+            err.code = 'INVALID_REGISTRY';
+            throw err;
+        }
+    }
+    try {
+        return execFileSync('npm', args, { ...opts, shell });
+    } catch (err) {
+        if (err && (err.code === 'ENOENT' || err.code === 'EINVAL')) {
+            throw new Error('未找到 npm 命令，请确认已安装 Node.js 且 npm 在 PATH 中（npm --version 可验证）');
+        }
+        throw err;
+    }
+}
 
 // ── 工具 ─────────────────────────────────────────────────────────
 
@@ -77,7 +117,7 @@ export async function fetchLatestVersion({ registry } = {}) {
     const args = ['view', PKG_NAME, 'version'];
     if (registry) args.push('--registry', registry);
     try {
-        const out = execFileSync('npm', args, {
+        const out = runNpm(args, {
             encoding: 'utf-8',
             stdio: 'pipe',
             timeout: 30000,
@@ -103,7 +143,7 @@ export async function fetchLatestVersion({ registry } = {}) {
 /** 从用户 npm 配置读取 registry（无 --registry 时使用镜像源）。 */
 function _detectNpmRegistry() {
     try {
-        const out = execFileSync('npm', ['config', 'get', 'registry'], {
+        const out = runNpm(['config', 'get', 'registry'], {
             encoding: 'utf-8',
             stdio: 'pipe',
             timeout: 10000,
@@ -155,16 +195,16 @@ export function performUpdate({ latest, registry, force = false, isLink = detect
     // 开发态 + --force：先解除链接
     if (isLink && force) {
         process.stderr.write(`[update] 检测到 npm link，先解除链接...\n`);
-        execFileSync('npm', ['unlink', '-g', PKG_NAME], { encoding: 'utf-8', stdio: 'inherit' });
+        runNpm(['unlink', '-g', PKG_NAME], { encoding: 'utf-8', stdio: 'inherit' });
     }
 
     process.stderr.write(`[update] 卸载旧版本（@${PKG_NAME}）...\n`);
     try {
-        execFileSync('npm', ['uninstall', '-g', PKG_NAME], { encoding: 'utf-8', stdio: 'inherit' });
+        runNpm(['uninstall', '-g', PKG_NAME], { encoding: 'utf-8', stdio: 'inherit' });
     } catch { /* 卸载失败不阻断重装 */ }
 
     process.stderr.write(`[update] 安装最新版本...\n`);
-    execFileSync('npm', installArgs, { encoding: 'utf-8', stdio: 'inherit' });
+    runNpm(installArgs, { encoding: 'utf-8', stdio: 'inherit' });
 
     return { updated: true, version: latest };
 }
