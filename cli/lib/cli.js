@@ -146,6 +146,9 @@ export async function runCli(argv) {
         case 'mcp':
             return cmdMcpImpl({ rest, user3libHome, jsonMode });
 
+        case 'knowledge':
+            return cmdKnowledgeImpl({ rest, user3libHome, dataDir, jsonMode });
+
         case 'serve':
             return cmdServe({ rest, jsonMode, dataDir, user3libHome });
 
@@ -236,6 +239,16 @@ async function cmdConfig({ flags, rest, projectRoot, user3libHome, jsonMode, out
 async function cmdMcpImpl({ rest, user3libHome, jsonMode }) {
     const { cmdMcp } = await import('./mcp.js');
     return cmdMcp({ rest, user3libHome, jsonMode });
+}
+
+// ─── knowledge（知识打包回收）──────────────────────────────────────
+
+/**
+ * 3rdloop knowledge 命令二段分发（转发到 lib/knowledge.js）。
+ */
+async function cmdKnowledgeImpl({ rest, user3libHome, dataDir, jsonMode }) {
+    const { cmdKnowledge } = await import('./knowledge.js');
+    return cmdKnowledge({ rest, user3libHome, dataDir, jsonMode });
 }
 
 // ─── update（自更新）─────────────────────────────────────────────
@@ -684,6 +697,9 @@ function printHelp() {
   3rdloop mcp install [--cli opencode|deveco|all]  装配 MCP Gateway（注册到 AI CLI +
           种子复制知识库数据/BadCase 到 ~/.3lib/3rdloop/，npm 安装态必需）
   3rdloop mcp uninstall|status            移除注册 / 查看装配状态
+  3rdloop knowledge export [--since <date>] [--note <text>]
+          打包本地知识（kb 文档 + BadCase）为 zip 发给维护者回收
+  3rdloop knowledge import <zip> [--dry-run]  维护者合入收到的知识包
   3rdloop serve [--port N] [--web-port N]  启动 Server 后端 + Web 前端（同时启动）
          [--web-root <dir>] [--ext-root <dir>] [--ext <name,...>] [--no-ext] [--open]
   3rdloop serve install-ext <dir>                安装扩展（tag/issue/prcheck 等二级功能）

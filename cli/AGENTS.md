@@ -32,6 +32,7 @@ cli/
 │   ├── web.js           # Web 前端服务库（serve 内嵌：静态 + 反代 + 扩展挂载）
 │   ├── web-ext.js       # web 扩展机制（manifest 加载 + express 兼容 shim）
 │   ├── mcp.js           # 3rdloop mcp：MCP Gateway 装配（install/uninstall/status）
+│   ├── knowledge.js     # 3rdloop knowledge：知识打包回收（export/import，人工中转通道）
 │   └── exit-codes.js    # 退出码约定
 ├── workflows/           # 工作流注册目录（每个 .js/.mjs 自动注册一个工作流）
 ├── scripts/
@@ -94,6 +95,24 @@ storage(用户数据目录)
   但**不自动装配**——任务命令不得偷偷改用户全局配置；未装配仅在 stderr 提示一行（警告级不阻断）。
 - **为什么需要用户级配置**：kb 数据与 BadCase 是可写数据，落包目录会随 npm 更新被清除；
   scripts/engine 是代码，随包走获得更新。注册 command 指向包内入口 + 用户级 config。
+
+## knowledge 命令（知识打包回收，人工中转通道）
+
+- 实现：`lib/knowledge.js`，分发：`cli.js` `case 'knowledge'`（惰性 import）。
+- **export（用户侧）**：打包 `~/.3lib/3rdloop/kb-data/docs` + `BadCase/` +
+  `<dataDir>/Knowledge/index.json`（索引仅作人工评估清单）→ 单成员 zip（内含
+  `payload.json`：manifest + docs/badcase/knowledgeIndex，Base64 无需——文件少且为文本，
+  直接 JSON 字符串）。`--since <date>` 按 mtime 裁剪、`--note` 备注、`--output` 路径覆盖。
+- **import（维护者侧）**：`--dry-run` 预演（统计新增/冲突）→ 落位 docs → kb-data/docs、
+  BadCase → BadCase；同名默认跳过（`--allow-overwrite` 覆盖）；**不打 .index/**（kb 引擎
+  派生产物，首次检索自动重建）；索引清单不入库（含他机绝对路径指针）。
+- **zip 实现**：纯 Node 零依赖（zlib.deflateRawSync + 手写 local header/central
+  directory/EOCD）。**坑**：EOCD 的 central directory size 字段必须含文件名长度
+  （header 46 + name），否则 python zipfile 报 "Bad magic number for central directory"、
+  unzip 报 "12 extra bytes"。
+- **路径**：kb-data/BadCase 固定在 `~/.3lib/3rdloop/`（mcp install 的种子位置）；Knowledge
+  索引跟随 `--data-dir`（npm 安装态两者相同，仓库开发态 db 可能被 3LIB_DATA_DIR 覆盖）。
+- **隐私**：export 纯本地打包不上传；用户可先 `unzip` 自查内容再发送。
 
 ## 输出契约
 
@@ -335,6 +354,7 @@ node cli/bin/3rdloop.mjs run <name> --print-taskdef    # 缺必填
 | **工作流** | `3rdloop run <wf>`/`3rdloop workflows` | Orchestrator + 注册表 |
 | 配置 | `config list/get/set/unset` | ~/.3lib/.env 白名单读写 |
 | **MCP 装配** | `mcp install/uninstall/status` | 注册 Gateway 到 AI CLI + 种子复制 kb/BadCase 数据 |
+| **知识回收** | `knowledge export/import` | 本地知识打包 zip（用户侧）/ 解包合入（维护者侧） |
 | **服务/前端** | `serve`/`serve install-ext|list-ext|remove-ext` | Server 后端 + 静态托管 + 反代 + 扩展挂载 |
 | 运维 | `doctor`/`version`/`update` | check-env 维度（按 CLI_TYPE 检测 AI CLI + serve 连通性）+ npm registry |
 
