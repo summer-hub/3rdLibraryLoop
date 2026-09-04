@@ -1,27 +1,18 @@
 /**
- * knowledge.js —— 3rdloop knowledge：本地知识打包回收（export）与合入（import）
+ * knowledge.js —— 3rdloop knowledge：知识沉淀 JSON 打包回收（export）与收件（import）
  *
- * 背景：知识沉淀产物散落在用户数据目录（npm 安装态各机器独立），需要一条
- * 人工中转通道实现"用户 → 维护者 → 仓库/其他用户"的知识回流：
+ * 最简人工中转通道：知识沉淀系统的数据全部是 JSON（<dataDir>/Knowledge/ 下的
+ * index.json 登记表 + kn_*.json 条目），export 打包这些 JSON 为 zip 发给维护者；
+ * 维护者 import 解包到收件箱目录人工评估，不直接覆盖本地知识库。
  *
- *   用户侧（export，零依赖、离线可用）：
- *     3rdloop knowledge export [--output <file>] [--since <date>] [--note <text>]
- *       打包 ~/.3lib/3rdloop/kb-data/docs 新增文档 + BadCase 新规则/案例 +
- *       db/Knowledge 索引清单 → zip（含 manifest.json：来源/时间/清单/统计）
- *       默认输出 ./3rdloop-knowledge-<日期>-<主机名>.zip
- *
- *   维护者侧（import，收到 zip 后一键预检 + 合入）：
- *     3rdloop knowledge import <zip> [--dry-run] [--allow-overwrite]
- *       解包校验 manifest → 逐文件落位（docs → kb-data/docs、BadCase → BadCase、
- *       索引清单仅汇总展示不入库）→ 重建由 kb 引擎首次检索时自动完成
- *       --dry-run 只预览将发生的变更，不写任何文件
+ *   用户侧:  3rdloop knowledge export [--output <file>] [--note <text>]
+ *   维护者侧: 3rdloop knowledge import <zip> [--dry-run]
  *
  * 设计约束：
- *   - export 零网络：纯本地打包，绝不静默上传（隐私合规）
- *   - 不打 .index/（kb 检索引擎的派生产物，import 后自动重建）
- *   - BadCase 冲突默认跳过（--allow-overwrite 覆盖）；docs 同名默认跳过
- *   - 索引（db/Knowledge/index.json）只作为"待人工评估清单"随包携带，
- *     不自动导入（指针含本机绝对路径，对他机无意义）
+ *   - 只打 JSON，不碰任何 md / kb-data / BadCase
+ *   - export 纯本地打包，不上传
+ *   - import 落位到收件箱 ~/.3lib/3rdloop/knowledge-inbox/<来源>-<日期>/，
+ *     多个用户的包互不冲突，也不污染维护者自己的 Knowledge 库（人工评估后自行入库）
  */
 
 import fs from 'node:fs';
@@ -30,31 +21,26 @@ import os from 'node:os';
 import zlib from 'node:zlib';
 import process from 'node:process';
 
-// ─── 用户路径 ─────────────────────────────────────────────────────────
+// ─── 路径 ─────────────────────────────────────────────────────────────
 
 /**
- * 知识相关用户目录。
- * @param {string} user3libHome - ~/.3lib
- * @param {string} [dataDir] - CLI 解析的数据目录（kb-data/BadCase 固定在 loopHome，
- *   仅 Knowledge 索引跟随 dataDir——npm 安装态两者相同，仓库开发态 dataDir 可能被覆盖）
+ * 知识目录。
+ * @param {string} dataDir - CLI 解析的数据目录（Knowledge = <dataDir>/Knowledge）
  */
-export function knowledgePaths(user3libHome, dataDir = '') {
-    const loopHome = path.join(user3libHome, '3rdloop');
+export function knowledgePaths(dataDir) {
     return {
-        loopHome,
-        kbDocsDir: path.join(loopHome, 'kb-data', 'docs'),
-        badcaseDir: path.join(loopHome, 'BadCase'),
-        knowledgeIndex: dataDir
-            ? path.join(dataDir, 'Knowledge', 'index.json')
-            : path.join(loopHome, 'db', 'Knowledge', 'index.json'),
+        knowledgeDir: path.join(dataDir, 'Knowledge'),
+        inboxRoot: null, // import 侧单独解析（基于 user3libHome）
     };
 }
 
-// ─── zip 读写（STORE 打包，纯 Node 无第三方依赖）──────────────────────
-// zip 结构说明：为避免实现 zip 目录遍历/central directory 全套规范，
-// 本实现采用"单成员 zip"约定：一个 zip 只含一个被 deflate 压缩的
-// JSON 载荷文件 payload.json（STORE/DEFLATE 单文件 zip 是稳定子集）。
-// payload 内部再携带多文件内容（Base64），兼顾格式标准与实现简洁。
+/** 维护者收件箱根目录。 */
+function inboxRoot(user3libHome) {
+    return path.join(user3libHome, '3rdloop', 'knowledge-inbox');
+}
+
+// ─── zip 读写（单成员 DEFLATE zip，纯 Node 无第三方依赖）──────────────
+// 一个 zip 只含一个被 deflate 压缩的 JSON 载荷文件 payload.json。
 
 const PAYLOAD_NAME = 'payload.json';
 
@@ -153,133 +139,101 @@ function crc32(buf) {
 // ─── export ───────────────────────────────────────────────────────────
 
 /**
- * 递归收集目录下文件相对路径（排除 .index/.DS_Store/node_modules）。
- */
-function walkFiles(root, rel = '', out = []) {
-    if (!fs.existsSync(root)) return out;
-    for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
-        if (entry.name === '.index' || entry.name === '.DS_Store' || entry.name === 'node_modules') continue;
-        const relPath = rel ? `${rel}/${entry.name}` : entry.name;
-        if (entry.isDirectory()) walkFiles(path.join(root, entry.name), relPath, out);
-        else out.push(relPath);
-    }
-    return out;
-}
-
-/**
- * 3rdloop knowledge export 实现。
+ * 3rdloop knowledge export 实现：打包 <dataDir>/Knowledge/ 下全部 JSON。
  * @param {object} opts
- * @param {string} opts.user3libHome
- * @param {string[]} opts.rest - 命令参数（--output/--since/--note）
+ * @param {string} opts.dataDir
+ * @param {string[]} opts.rest - 命令参数（--output/--note）
  * @param {boolean} opts.jsonMode
  * @returns {Promise<number>} 退出码
  */
-export async function knowledgeExport({ user3libHome, dataDir = '', rest = [], jsonMode = false }) {
+export async function knowledgeExport({ dataDir, rest = [], jsonMode = false }) {
     const out = (data) => { if (jsonMode) process.stdout.write(JSON.stringify(data, null, 2) + '\n'); };
     const log = (msg) => process.stderr.write(`${msg}\n`);
 
     const output = _flagValue(rest, '--output');
-    const since = _flagValue(rest, '--since'); // ISO 日期：仅收该日期后新增的文件（按 mtime）
     const note = _flagValue(rest, '--note') || '';
-    const sinceMs = since ? Date.parse(since) : null;
-    if (since && Number.isNaN(sinceMs)) {
-        log(`错误: 非法 --since 日期: ${since}（示例: 2026-09-01）`);
-        return 1;
-    }
 
-    const up = knowledgePaths(user3libHome, dataDir);
-
-    // ── 收集三类知识 ──
-    const docsFiles = walkFiles(up.kbDocsDir);
-    const badcaseFiles = walkFiles(up.badcaseDir);
-    const knowledgeIndex = fs.existsSync(up.knowledgeIndex)
-        ? JSON.parse(fs.readFileSync(up.knowledgeIndex, 'utf8'))
-        : [];
-
-    const sinceFilter = (absPath) => sinceMs == null || fs.statSync(absPath).mtimeMs >= sinceMs;
-
-    // docs：结构化知识文档（export 全量，包小；--since 可裁剪）
-    const docs = {};
-    let docsSkipped = 0;
-    for (const rel of docsFiles) {
-        const abs = path.join(up.kbDocsDir, rel);
-        if (!sinceFilter(abs)) { docsSkipped++; continue; }
-        docs[rel] = fs.readFileSync(abs, 'utf8');
-    }
-
-    // BadCase：规则/案例/日志（排除种子自带内容：仅收 INDEX 之外的新增 + 用户改动，
-    // 简化策略 = 全量携带，import 端与种子比对去重）
-    const badcase = {};
-    let badcaseSkipped = 0;
-    for (const rel of badcaseFiles) {
-        const abs = path.join(up.badcaseDir, rel);
-        if (!sinceFilter(abs)) { badcaseSkipped++; continue; }
-        badcase[rel] = fs.readFileSync(abs, 'utf8');
-    }
-
-    if (Object.keys(docs).length === 0 && Object.keys(badcase).length === 0 && knowledgeIndex.length === 0) {
-        log('未发现可导出的知识（kb-data/docs、BadCase 均为空）。');
-        log('提示: 知识在任务执行后由 knowledge-import SKILL 沉淀，先跑几个任务再看。');
+    const knowledgeDir = path.join(dataDir, 'Knowledge');
+    if (!fs.existsSync(knowledgeDir)) {
+        log(`未找到知识目录: ${knowledgeDir}`);
+        log('提示: 知识在任务执行后自动沉淀（db/Knowledge），先跑几个任务再看。');
         return 0;
     }
 
-    // ── 载荷与 manifest ──
+    // 收集全部 .json（index.json 登记表 + kn_*.json 知识条目）
+    const files = {};
+    for (const entry of fs.readdirSync(knowledgeDir, { withFileTypes: true })) {
+        if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
+        files[entry.name] = fs.readFileSync(path.join(knowledgeDir, entry.name), 'utf8');
+    }
+    if (Object.keys(files).length === 0) {
+        log(`知识目录为空: ${knowledgeDir}`);
+        return 0;
+    }
+
     const manifest = {
         format: '3rdloop-knowledge/1',
         exportedAt: new Date().toISOString(),
         host: os.hostname(),
         platform: process.platform,
         note,
-        since: since || null,
         stats: {
-            docs: Object.keys(docs).length,
-            badcase: Object.keys(badcase).length,
-            knowledgeIndexEntries: knowledgeIndex.length,
+            files: Object.keys(files).length,
+            entries: files['index.json']
+                ? _countIndexEntries(files['index.json'])
+                : Object.keys(files).filter(n => n.startsWith('kn_')).length,
         },
     };
-    const payload = JSON.stringify({ manifest, docs, badcase, knowledgeIndex }, null, 2);
+    const payload = JSON.stringify({ manifest, knowledgeFiles: files }, null, 2);
 
-    // 默认文件名：./3rdloop-knowledge-<YYYYMMDD>-<hostname>.zip
+    // 默认文件名：./3rdloop-knowledge-<YYYYMMDD>-<主机名>.zip
     const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const defaultName = `3rdloop-knowledge-${date}-${os.hostname().split('.')[0]}.zip`;
-    const target = output
-        ? path.resolve(output)
-        : path.join(process.cwd(), defaultName);
+    const target = output ? path.resolve(output) : path.join(process.cwd(), defaultName);
 
     writeSingleFileZip(target, payload);
 
     if (jsonMode) {
-        out({ ok: true, file: target, ...manifest.stats, docsSkippedBySince: docsSkipped });
+        out({ ok: true, file: target, ...manifest.stats });
     } else {
         log(`[3rdloop knowledge] 知识包已生成: ${target}`);
-        log(`  结构化知识文档: ${manifest.stats.docs} 篇${docsSkipped ? `（--since 裁剪 ${docsSkipped} 篇）` : ''}`);
-        log(`  BadCase 规则/案例: ${manifest.stats.badcase} 个文件`);
-        log(`  知识索引条目: ${manifest.stats.knowledgeIndexEntries} 条（仅作人工评估清单）`);
+        log(`  JSON 文件: ${manifest.stats.files} 个（index.json + kn_*.json）`);
+        log(`  知识条目: ${manifest.stats.entries} 条`);
         if (note) log(`  备注: ${note}`);
         log(`  大小: ${(fs.statSync(target).size / 1024).toFixed(1)} KB`);
-        log(`请将 zip 发送给维护者（微信/邮件均可）；内容由你本机知识文件打包而成，可先解压自查。`);
+        log(`请将 zip 发送给维护者（微信/邮件均可）；内容由你本机知识 JSON 打包而成，可先解压自查。`);
     }
     return 0;
+}
+
+/** 解析 index.json 统计条目数（容错：解析失败返回 0）。 */
+function _countIndexEntries(indexRaw) {
+    try {
+        const arr = JSON.parse(indexRaw);
+        return Array.isArray(arr) ? arr.length : 0;
+    } catch {
+        return 0;
+    }
 }
 
 // ─── import ───────────────────────────────────────────────────────────
 
 /**
- * 3rdloop knowledge import 实现（维护者侧：收 zip → 校验 → 落位）。
+ * 3rdloop knowledge import 实现（维护者侧：收 zip → 解到收件箱目录）。
+ * 收件箱按 <来源主机>-<导出时间> 隔离，多包互不冲突；不覆盖本地 Knowledge 库。
  * @param {object} opts
  * @param {string} opts.user3libHome
- * @param {string[]} opts.rest - <zip> --dry-run --allow-overwrite
+ * @param {string[]} opts.rest - <zip> --dry-run
  * @param {boolean} opts.jsonMode
  */
-export async function knowledgeImport({ user3libHome, dataDir = '', rest = [], jsonMode = false }) {
+export async function knowledgeImport({ user3libHome, rest = [], jsonMode = false }) {
     const out = (data) => { if (jsonMode) process.stdout.write(JSON.stringify(data, null, 2) + '\n'); };
     const log = (msg) => process.stderr.write(`${msg}\n`);
 
     const dryRun = rest.includes('--dry-run');
-    const allowOverwrite = rest.includes('--allow-overwrite');
     const zipPath = rest.find(a => !a.startsWith('--'));
     if (!zipPath) {
-        log('缺少 zip 路径。用法: 3rdloop knowledge import <zip> [--dry-run] [--allow-overwrite]');
+        log('缺少 zip 路径。用法: 3rdloop knowledge import <zip> [--dry-run]');
         return 1;
     }
     const absZip = path.resolve(zipPath);
@@ -288,7 +242,6 @@ export async function knowledgeImport({ user3libHome, dataDir = '', rest = [], j
         return 1;
     }
 
-    // ── 解包 ──
     let payload;
     try {
         payload = JSON.parse(readSingleFileZip(absZip));
@@ -296,67 +249,43 @@ export async function knowledgeImport({ user3libHome, dataDir = '', rest = [], j
         log(`错误: 解析知识包失败: ${err.message}`);
         return 1;
     }
-    const { manifest, docs, badcase, knowledgeIndex } = payload;
+    const { manifest, knowledgeFiles } = payload;
     if (!manifest || manifest.format !== '3rdloop-knowledge/1') {
         log(`错误: 未知知识包格式: ${manifest?.format || '(缺失 manifest)'}`);
         return 1;
     }
 
-    const up = knowledgePaths(user3libHome, dataDir);
-
-    // ── 预演：统计冲突 ──
-    const plan = { docsAdd: [], docsSkip: [], badcaseAdd: [], badcaseSkip: [] };
-    for (const rel of Object.keys(docs || {})) {
-        (fs.existsSync(path.join(up.kbDocsDir, rel)) ? plan.docsSkip : plan.docsAdd).push(rel);
-    }
-    for (const rel of Object.keys(badcase || {})) {
-        (fs.existsSync(path.join(up.badcaseDir, rel)) ? plan.badcaseSkip : plan.badcaseAdd).push(rel);
-    }
+    // 收件箱：~/.3lib/3rdloop/knowledge-inbox/<主机名>-<导出日期>/
+    const date = String(manifest.exportedAt).slice(0, 10);
+    const host = String(manifest.host || 'unknown').split('.')[0];
+    const inboxDir = path.join(inboxRoot(user3libHome), `${host}-${date}`);
 
     if (dryRun) {
-        if (jsonMode) out({ ok: true, dryRun: true, manifest, plan });
+        if (jsonMode) out({ ok: true, dryRun: true, manifest, inboxDir, files: Object.keys(knowledgeFiles || {}) });
         else {
             log(`[3rdloop knowledge] 预演（不写入任何文件）`);
             log(`  知识包: ${absZip}`);
             log(`  导出时间: ${manifest.exportedAt}  来源: ${manifest.host}（${manifest.platform}）`);
             if (manifest.note) log(`  备注: ${manifest.note}`);
-            log(`  将新增 docs: ${plan.docsAdd.length} 篇${plan.docsAdd.length ? `（如 ${plan.docsAdd.slice(0, 3).join(', ')}${plan.docsAdd.length > 3 ? ' ...' : ''}）` : ''}`);
-            log(`  将新增 BadCase: ${plan.badcaseAdd.length} 个${plan.badcaseAdd.length ? `（如 ${plan.badcaseAdd.slice(0, 3).join(', ')}${plan.badcaseAdd.length > 3 ? ' ...' : ''}）` : ''}`);
-            log(`  跳过同名冲突: docs ${plan.docsSkip.length} / BadCase ${plan.badcaseSkip.length}（--allow-overwrite 可覆盖）`);
-            log(`  知识索引条目: ${(knowledgeIndex || []).length} 条（仅展示，不入库）`);
+            log(`  JSON 文件: ${Object.keys(knowledgeFiles || {}).length} 个 → 收件箱 ${inboxDir}`);
         }
         return 0;
     }
 
-    // ── 落位 ──
-    let added = 0, skipped = 0;
-    for (const rel of Object.keys(docs || {})) {
-        const target = path.join(up.kbDocsDir, rel);
-        if (fs.existsSync(target) && !allowOverwrite) { skipped++; continue; }
-        fs.mkdirSync(path.dirname(target), { recursive: true });
-        fs.writeFileSync(target, docs[rel]);
-        added++;
-    }
-    for (const rel of Object.keys(badcase || {})) {
-        const target = path.join(up.badcaseDir, rel);
-        if (fs.existsSync(target) && !allowOverwrite) { skipped++; continue; }
-        fs.mkdirSync(path.dirname(target), { recursive: true });
-        fs.writeFileSync(target, badcase[rel]);
-        added++;
-    }
-
-    // 知识索引：打印摘要供人工评估（不入库：含他机绝对路径指针）
-    if (knowledgeIndex && knowledgeIndex.length > 0 && !jsonMode) {
-        log(`[3rdloop knowledge] 携带知识索引 ${knowledgeIndex.length} 条（未入库；含导出者机器的本地路径，仅供参考）`);
+    let written = 0;
+    for (const [name, content] of Object.entries(knowledgeFiles || {})) {
+        fs.mkdirSync(inboxDir, { recursive: true });
+        fs.writeFileSync(path.join(inboxDir, name), content);
+        written++;
     }
 
     if (jsonMode) {
-        out({ ok: true, added, skipped, plan });
+        out({ ok: true, inboxDir, written, manifest });
     } else {
-        log(`[3rdloop knowledge] 导入完成: 新增 ${added} 个文件${skipped ? `，跳过同名冲突 ${skipped} 个` : ''}`);
-        log(`  docs → ${up.kbDocsDir}`);
-        log(`  BadCase → ${up.badcaseDir}`);
-        log(`  检索索引将在下次 kb_search 时自动重建（.index/ 为派生产物）`);
+        log(`[3rdloop knowledge] 已解包到收件箱: ${inboxDir}`);
+        log(`  JSON 文件: ${written} 个（含 index.json + kn_*.json）`);
+        log(`  来源: ${manifest.host}  导出时间: ${manifest.exportedAt}${manifest.note ? `  备注: ${manifest.note}` : ''}`);
+        log(`人工评估后可将有价值条目拷入仓库或本地 <dataDir>/Knowledge/。`);
     }
     return 0;
 }
@@ -368,31 +297,30 @@ function _flagValue(rest, name) {
     return idx !== -1 ? rest[idx + 1] : undefined;
 }
 
+/** 该 flag 是否携带值。 */
+function _hasValue(flag) {
+    return flag === '--output' || flag === '--note';
+}
+
 export function printKnowledgeHelp() {
-    process.stdout.write(`3rdloop knowledge —— 本地知识打包回收 / 合入（人工中转通道）
+    process.stdout.write(`3rdloop knowledge —— 知识沉淀 JSON 打包回收（人工中转通道）
 
 用法（用户侧：打包发给维护者）:
   3rdloop knowledge export [选项]
-      打包 ~/.3lib/3rdloop/ 下的知识产物为 zip：
-        - kb-data/docs/    结构化知识文档（knowledge-import SKILL 的沉淀）
-        - BadCase/         已知问题规则/案例（泛化 SKILL 的沉淀）
-        - db/Knowledge/    索引清单（仅作人工评估参考，不入库）
+      打包 <dataDir>/Knowledge/ 下的全部 JSON（index.json 登记表 + kn_*.json 知识条目）
   选项:
     --output <file>   输出路径（默认 ./3rdloop-knowledge-<日期>-<主机名>.zip）
-    --since <date>    仅打包该日期后新增的文件（示例: 2026-09-01）
     --note <text>     备注（写入 manifest，如 "mp3agic 检视批次"）
     --json            结构化输出
 
-用法（维护者侧：收到 zip 后合入）:
-  3rdloop knowledge import <zip> [--dry-run] [--allow-overwrite]
-      --dry-run           仅预览将发生的变更，不写入
-      --allow-overwrite   覆盖同名文件（默认跳过）
-      解包后 docs → ~/.3lib/3rdloop/kb-data/docs、BadCase → ~/.3lib/3rdloop/BadCase
+用法（维护者侧：收到 zip 后解包到收件箱）:
+  3rdloop knowledge import <zip> [--dry-run]
+      解包到 ~/.3lib/3rdloop/knowledge-inbox/<来源主机>-<日期>/
+      多个用户的包互不冲突；不覆盖本地知识库，人工评估后自行入库
 
 说明:
   - export 纯本地打包，不上传任何数据；可先解压自查内容再发送
-  - 不含检索索引（.index/），导入后首次检索自动重建
-  - 维护者审核后可把精选内容合入仓库 Archive/data 与 BadCase/，随版本分发
+  - 只含知识沉淀 JSON，不含 md / kb 文档 / BadCase
 `);
 }
 
@@ -401,6 +329,7 @@ export function printKnowledgeHelp() {
  * @param {object} opts
  * @param {string[]} opts.rest
  * @param {string} opts.user3libHome
+ * @param {string} opts.dataDir
  * @param {boolean} opts.jsonMode
  * @returns {Promise<number>}
  */
@@ -413,7 +342,6 @@ export async function cmdKnowledge({ rest = [], user3libHome = '', dataDir = '',
     let subIdx = -1;
     for (let i = 0; i < rest.length; i++) {
         if (rest[i].startsWith('--')) {
-            // flag 值（如 --note 后面的文本）不是子命令，跳过
             if (_hasValue(rest[i]) && rest[i + 1] !== undefined && !rest[i + 1].startsWith('--')) i++;
             continue;
         }
@@ -427,14 +355,9 @@ export async function cmdKnowledge({ rest = [], user3libHome = '', dataDir = '',
         return rest.length === 0 ? 0 : 1;
     }
     const sub = rest[subIdx];
-    if (sub === 'export') return knowledgeExport({ user3libHome, dataDir, rest: args, jsonMode });
-    if (sub === 'import') return knowledgeImport({ user3libHome, dataDir, rest: args, jsonMode });
+    if (sub === 'export') return knowledgeExport({ dataDir, rest: args, jsonMode });
+    if (sub === 'import') return knowledgeImport({ user3libHome, rest: args, jsonMode });
     process.stderr.write(`未知子命令: ${sub}\n`);
     printKnowledgeHelp();
     return 1;
-}
-
-/** 该 flag 是否携带值（--output/--since/--note）。 */
-function _hasValue(flag) {
-    return flag === '--output' || flag === '--since' || flag === '--note';
 }

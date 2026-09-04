@@ -192,21 +192,19 @@ npm 包内置 MCP Gateway（`vendor/MCP`）、知识库检索引擎（`vendor/Ar
 
 ### 场景七：知识回收（把沉淀的知识打包发给维护者）
 
-任务执行会在本机沉淀知识（kb 文档、BadCase 规则、经验索引）。这些知识默认只在你机器上；想贡献给社区/团队，打包发给维护者即可：
+任务执行会在本机沉淀知识 JSON（`<dataDir>/Knowledge/` 下的 `index.json` 登记表 + `kn_*.json` 条目）。想贡献给社区/团队，打包发给维护者即可：
 
 ```bash
 # 用户侧：打包（纯本地操作，不上传任何数据）
 3rdloop knowledge export                    # → ./3rdloop-knowledge-<日期>-<主机名>.zip
-3rdloop knowledge export --since 2026-09-01 # 只打包该日期后新增的
 3rdloop knowledge export --note "mp3agic 批次"  # 附备注
 
-# 维护者侧：收到 zip 后合入（先预演再落位）
-3rdloop knowledge import <zip> --dry-run    # 预览将新增/冲突的文件
-3rdloop knowledge import <zip>              # 落位到本地 kb-data 与 BadCase
-3rdloop knowledge import <zip> --allow-overwrite  # 覆盖同名文件
+# 维护者侧：收到 zip 后解包到收件箱
+3rdloop knowledge import <zip> --dry-run    # 预览
+3rdloop knowledge import <zip>              # → ~/.3lib/3rdloop/knowledge-inbox/<来源主机>-<日期>/
 ```
 
-包内容：kb 结构化知识文档 + BadCase 规则/案例 + 经验索引清单（仅人工评估参考）。zip 为标准格式（可用系统 unzip 自查内容）；不含检索索引（导入后自动重建）。维护者审核后可把精选内容合入仓库 `Archive/data` 与 `BadCase/`，随 npm 版本分发给所有用户。
+包内容只有知识 JSON（不含 md / kb 文档 / BadCase）。zip 为标准格式，可先解压自查；多个用户的包在收件箱按 `主机名-日期` 隔离，互不冲突，也不覆盖维护者本地知识库——人工评估后再入库。
 
 更多进阶用法（任务管理、`step` 单步执行、`orch` 自定义编排、工作流注册等），见仓库 `cli/README_DEVELOP.md` 或 `3rdloop <子命令> --help`。
 

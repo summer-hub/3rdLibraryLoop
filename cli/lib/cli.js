@@ -697,9 +697,9 @@ function printHelp() {
   3rdloop mcp install [--cli opencode|deveco|all]  装配 MCP Gateway（注册到 AI CLI +
           种子复制知识库数据/BadCase 到 ~/.3lib/3rdloop/，npm 安装态必需）
   3rdloop mcp uninstall|status            移除注册 / 查看装配状态
-  3rdloop knowledge export [--since <date>] [--note <text>]
-          打包本地知识（kb 文档 + BadCase）为 zip 发给维护者回收
-  3rdloop knowledge import <zip> [--dry-run]  维护者合入收到的知识包
+  3rdloop knowledge export [--note <text>]
+          打包本地知识沉淀 JSON（db/Knowledge）为 zip 发给维护者回收
+  3rdloop knowledge import <zip> [--dry-run]  维护者解包收到的知识包到收件箱
   3rdloop serve [--port N] [--web-port N]  启动 Server 后端 + Web 前端（同时启动）
          [--web-root <dir>] [--ext-root <dir>] [--ext <name,...>] [--no-ext] [--open]
   3rdloop serve install-ext <dir>                安装扩展（tag/issue/prcheck 等二级功能）

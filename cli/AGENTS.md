@@ -96,23 +96,20 @@ storage(用户数据目录)
 - **为什么需要用户级配置**：kb 数据与 BadCase 是可写数据，落包目录会随 npm 更新被清除；
   scripts/engine 是代码，随包走获得更新。注册 command 指向包内入口 + 用户级 config。
 
-## knowledge 命令（知识打包回收，人工中转通道）
+## knowledge 命令（知识 JSON 打包回收，人工中转通道）
 
 - 实现：`lib/knowledge.js`，分发：`cli.js` `case 'knowledge'`（惰性 import）。
-- **export（用户侧）**：打包 `~/.3lib/3rdloop/kb-data/docs` + `BadCase/` +
-  `<dataDir>/Knowledge/index.json`（索引仅作人工评估清单）→ 单成员 zip（内含
-  `payload.json`：manifest + docs/badcase/knowledgeIndex，Base64 无需——文件少且为文本，
-  直接 JSON 字符串）。`--since <date>` 按 mtime 裁剪、`--note` 备注、`--output` 路径覆盖。
-- **import（维护者侧）**：`--dry-run` 预演（统计新增/冲突）→ 落位 docs → kb-data/docs、
-  BadCase → BadCase；同名默认跳过（`--allow-overwrite` 覆盖）；**不打 .index/**（kb 引擎
-  派生产物，首次检索自动重建）；索引清单不入库（含他机绝对路径指针）。
+- **export（用户侧）**：打包 `<dataDir>/Knowledge/` 下全部 JSON（index.json 登记表 +
+  kn_*.json 知识条目，**只打 JSON，不含 md/kb-data/BadCase**）→ 单成员 zip
+  （内含 payload.json：manifest + knowledgeFiles）。`--note` 备注、`--output` 路径覆盖。
+- **import（维护者侧）**：解包到收件箱 `~/.3lib/3rdloop/knowledge-inbox/<来源主机>-<导出日期>/`
+  ——多用户包互不冲突、**不覆盖本地 Knowledge 库**，人工评估后自行入库。`--dry-run` 预演。
 - **zip 实现**：纯 Node 零依赖（zlib.deflateRawSync + 手写 local header/central
   directory/EOCD）。**坑**：EOCD 的 central directory size 字段必须含文件名长度
   （header 46 + name），否则 python zipfile 报 "Bad magic number for central directory"、
   unzip 报 "12 extra bytes"。
-- **路径**：kb-data/BadCase 固定在 `~/.3lib/3rdloop/`（mcp install 的种子位置）；Knowledge
-  索引跟随 `--data-dir`（npm 安装态两者相同，仓库开发态 db 可能被 3LIB_DATA_DIR 覆盖）。
-- **隐私**：export 纯本地打包不上传；用户可先 `unzip` 自查内容再发送。
+- **Knowledge 目录跟随 `--data-dir`**（npm 安装态默认 ~/.3lib/3rdloop/db/Knowledge；
+  仓库开发态可能被 3LIB_DATA_DIR 覆盖到仓库 db/）。
 
 ## 输出契约
 
