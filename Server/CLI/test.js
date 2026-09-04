@@ -96,7 +96,7 @@ async function main() {
 
     // ─── 创建 CLIController 实例 ───────────────────────────────────────────
     // CLI 类型与连接配置可由环境变量覆盖（CLI_TYPE / CLI_HOST / CLI_PORT）
-    const cliType = process.env.CLI_TYPE || 'opencode';
+    const cliType = process.env.CLI_TYPE || 'deveco-code';
     const cliHost = process.env.CLI_HOST || 'localhost';
     const cliPort = process.env.CLI_PORT || '4096';
     sub(`1. 创建 CLIController (${cliType})`);

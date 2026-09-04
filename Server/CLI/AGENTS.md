@@ -56,7 +56,7 @@ new CLIController(type, options)
 
 | 参数 | 说明 |
 |------|------|
-| `type` | `'opencode'` 或 `'deveco-code'`，**缺省时取环境变量 `CLI_TYPE`，仍未设置则 `'opencode'`**；不支持的值抛异常 |
+| `type` | `'opencode'` 或 `'deveco-code'`，**缺省时取环境变量 `CLI_TYPE`，仍未设置则 `'deveco-code'`**；不支持的值抛异常 |
 | `options` | 透传给适配器（见下） |
 
 **默认 CLI 全局指定（Server/.env）：**
@@ -79,7 +79,7 @@ node Server/Routes/server.js --port 3000 --type deveco-code   # 命令行参数
 CLI_TYPE=deveco-code node Server/Routes/server.js --port 3000 # shell 环境变量
 ```
 
-**优先级：** 显式 `type` 参数 > `--type` 命令行参数 > shell 环境变量 `CLI_TYPE` > `Server/.env` 的 `CLI_TYPE` > `'opencode'`（兜底默认）
+**优先级：** 显式 `type` 参数 > `--type` 命令行参数 > shell 环境变量 `CLI_TYPE` > `Server/.env` 的 `CLI_TYPE` > `'deveco-code'`（兜底默认）
 
 **启动脚本联动（start-services.mjs / check-env.mjs）：**
 
@@ -87,7 +87,7 @@ CLI_TYPE=deveco-code node Server/Routes/server.js --port 3000 # shell 环境变�
   - Server 后端以 `--type <CLI_TYPE>` 启动（不再硬编码 opencode，避免覆盖 .env）
   - CLI serve 服务按类型启动，显式 `--port <CLI_SERVE_PORT>`（与适配器同源解析，杜绝端口漂移）
 - `check-env.mjs` 按 CLI_TYPE 动态检测：CLI 工具安装（opencode / deveco 命令）、模型配置文件（`~/.config/opencode/` 或 `~/.config/deveco/`，schema 相同）
-- 若 `CLI_TYPE` 写了无效值，环境检测给出警告并回退 opencode
+- 若 `CLI_TYPE` 写了无效值，环境检测给出警告并回退 deveco-code
 
 > dotenv 默认不覆盖已存在的环境变量，因此 shell export 天然优先于 .env。内部模块（SkillExecutor / TestCheck / KnowledgeImporter / FlexRunner / LoopEngine）均以无参 `new CLIController()` 构造，自动跟随以上默认类型。两个适配器默认端口统一为 4096（单后端架构，同一时间只运行一个 serve，切换类型无需改端口配置）；需 opencode 与 deveco serve 并存时，通过 `DEVECO_PORT` 给其一指定其他端口。serve 服务由 start-services.mjs 自动拉起（端口校验：进程在但端口不对时会自动以正确端口重启）。
 
@@ -176,10 +176,10 @@ import DevEcoCodeCLI from './CLI/deveco-code.js';
 
 ### test.js — 集成测试
 
-默认连接真实运行的 opencode 服务（`localhost:4096`），按真实使用流程依次调用 `CLIController` 全部接口。可通过环境变量切换目标 CLI（如 deveco-code）：
+默认连接真实运行的 deveco serve（`localhost:4096`，跟随 CLI_TYPE 默认值），按真实使用流程依次调用 `CLIController` 全部接口。可通过环境变量切换目标 CLI（如 opencode）：
 
 ```bash
-CLI_TYPE=deveco-code node Server/CLI/test.js
+CLI_TYPE=opencode node Server/CLI/test.js
 # 环境变量：CLI_TYPE（opencode | deveco-code）/ CLI_HOST / CLI_PORT
 ```
 

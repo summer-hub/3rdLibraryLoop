@@ -20,6 +20,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { resolveCliType } from './config.js';
 
 // ─── vendor 路径解析 ─────────────────────────────────────────────────────────
 // 优先用 vendor/Server 下的副本（发布态）；开发期允许回退到仓库 Server/ 源码。
@@ -99,14 +100,16 @@ class RunContext {
      * @param {string} opts.projectRoot
      * @param {string} opts.dataDir
      * @param {string} opts.skillDir
-     * @param {string} opts.cliType
+     * @param {string} [opts.cliType] - CLI 类型，缺省时按 CLI_TYPE 解析（默认 deveco-code）
      * @param {boolean} opts.verbose
      */
     constructor(opts = {}) {
         this.projectRoot = opts.projectRoot || process.cwd();
         this.dataDir = opts.dataDir || '';
         this.skillDir = opts.skillDir || '';
-        this.cliType = opts.cliType || 'opencode';
+        // CLI 类型解析：显式参数 > CLI_TYPE（env/.env 链）> deveco-code（默认），
+        // 与 Server/Routes/server.js 的 createServer 默认行为一致。
+        this.cliType = resolveCliType(opts.cliType);
         this.verbose = !!opts.verbose;
         this._ready = false;
         this.cliRoot = opts.cliRoot || CLI_ROOT;
@@ -132,9 +135,9 @@ class RunContext {
             flexRunnerFactory: null,
         });
 
-        // 注入共享 cli：Brain/TestCheck 若不注入，会惰性 new CLIController('opencode')
-        // 其默认 MessageArchive 基于 vendor/Server 相对路径上溯 → 落到 cli/db/Session（数据错位）。
-        // 注入后会话归档统一写用户数据目录。
+        // 注入共享 cli：Brain/TestCheck 若不注入，会各自惰性 new CLIController()
+        // （其默认取 env CLI_TYPE，但 MessageArchive 基于 vendor/Server 相对路径上溯
+        //   → 落到 cli/db/Session，数据错位）。注入后会话归档统一写用户数据目录。
         this.brainController = new (await this._importBrainController())({
             storage: this.storage,
             skillDirectory: this.skillDir,

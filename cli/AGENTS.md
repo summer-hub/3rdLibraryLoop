@@ -5,7 +5,8 @@
 无需启动 HTTP 服务即可从终端跑完整"任务拆解 → 编排执行 → 准出审核"大循环。
 
 > 定位：**嵌入式模式**（`Loop Cli封装计划.md` 方案 A）——单进程内组装核心引擎依赖，
-> 仅依赖 `opencode serve`(4096) + LLM 凭据；上 npm 以 `@ohos-cpf/3rdloop_dev` 发布。
+> 仅依赖 AI CLI serve（`CLI_TYPE` 决定 opencode/deveco-code，默认 deveco-code，端口 4096）+ LLM 凭据；
+> 上 npm 以 `@ohos-cpf/3rdloop_dev` 发布。
 
 ## 目录结构
 
@@ -22,7 +23,7 @@ cli/
 │   ├── runner.js        # 核心引擎组装（复刻 server.js 依赖注入）+ 执行能力
 │   ├── queries.js       # 磁盘直读查询（progress/list/result，不实例化引擎）
 │   ├── ui.js            # stdout/stderr 输出契约 + 增量 diff 渲染
-│   ├── opencode.js      # opencode serve 生命周期管理（探测/拉起/清理）
+│   ├── opencode.js      # AI CLI serve 生命周期管理（opencode/deveco-code，按 CLI_TYPE 选 bin/端口）
 │   ├── step.js          # 3rdloop step 单步执行（FlexRunner 直连）
 │   ├── orch.js          # 3rdloop orch 多步骤编排（Orchestrator）
 │   ├── workflow.js      # 工作流执行器（固定编排入口，本期新增）
@@ -283,7 +284,7 @@ node cli/bin/3rdloop.mjs run <name> --print-taskdef    # 缺必填
 | **工作流** | `3rdloop run <wf>`/`3rdloop workflows` | Orchestrator + 注册表 |
 | 配置 | `config list/get/set/unset` | ~/.3lib/.env 白名单读写 |
 | **前端** | `web`/`web install-ext|list-ext|remove-ext` | 静态托管 + 反代 + 扩展挂载 |
-| 运维 | `doctor`/`version`/`update` | check-env 维度 + npm registry |
+| 运维 | `doctor`/`version`/`update` | check-env 维度（按 CLI_TYPE 检测 AI CLI + serve 连通性）+ npm registry |
 
 ## 环境约定
 
@@ -291,8 +292,12 @@ node cli/bin/3rdloop.mjs run <name> --print-taskdef    # 缺必填
   `loadEnvChain` 必须在任何核心引擎 import 前执行（使 Server 内部 dotenv 变静默 no-op）。
 - 数据目录：`~/.3lib/3rdloop/db`（`--data-dir` / `3LIB_DATA_DIR` / `config set 3LIB_DATA_DIR` 可覆盖），任务写
   `<数据目录>/task/{taskId}/`。
-- opencode：自动拉起 `opencode serve`（项目上一级 cwd），已运行则复用；退出时清理进程树
-  （Windows 用 `taskkill /pid X /T /F`）。
+- AI CLI（`CLI_TYPE`，默认 deveco-code）：`run`/`step run`/`orch run|start`/`run <工作流>` 的 `cliType`
+  统一经 `config.js resolveCliType()` 解析（显式参数 > `CLI_TYPE` env/.env 链 > deveco-code），并传给
+  `CLIController` 与 `CliServeManager`（`lib/opencode.js`）：自动拉起 `deveco serve` /
+  `opencode serve --port <port>`（项目上一级 cwd，端口取 `OPENCODE_PORT`/`DEVECO_PORT`，默认 4096），
+  已运行则复用；退出时清理进程树（Windows 用 `taskkill /pid X /T /F`）。`CLI_TYPE` 写了无效值时
+  回退默认值 deveco-code 并 stderr 告警（doctor 会将其报为失败项）。
 
 ## config 命令（`.env` 配置项）
 

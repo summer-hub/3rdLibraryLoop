@@ -141,12 +141,11 @@ export async function cmdWorkflow({ wf, wfWords, flags, env }) {
         projectRoot: env.projectRoot,
         dataDir,
         skillDir: env.skillDir,
-        cliType: 'opencode',
         verbose,
     });
 
-    // 挂载 opencode 生命周期
-    const oc = await _ensureOpcodene(ctx, jsonMode, out);
+    // 挂载 AI CLI serve 生命周期（类型由 CLI_TYPE 决定）
+    const oc = await _ensureCliServe(ctx, jsonMode, out);
     if (!oc) return EXIT.ERROR;
 
     // 信号处理：优雅中止（orchControl abort → kill 子进程）
@@ -292,15 +291,15 @@ function _queries() {
     return import('./queries.js');
 }
 
-/** 确保 opencode serve 运行（正式执行需要；dry-run 不需要）。 */
-async function _ensureOpcodene(ctx, jsonMode, out) {
-    const { OpencodeManager } = await import('./opencode.js');
-    const oc = new OpencodeManager({ projectRoot: ctx.projectRoot });
+/** 确保 AI CLI serve 运行（正式执行需要；dry-run 不需要）。 */
+async function _ensureCliServe(ctx, jsonMode, out) {
+    const { CliServeManager } = await import('./opencode.js');
+    const oc = new CliServeManager({ projectRoot: ctx.projectRoot, cliType: ctx.cliType });
     const ocHealth = await oc.ensureRunning();
     if (!ocHealth.ok) {
         if (jsonMode) out({ ok: false, error: ocHealth.message });
         process.stderr.write(`\n错误: ${ocHealth.message}\n`);
-        process.stderr.write('请先启动 opencode serve（项目上一级目录: opencode serve）后重试。\n');
+        process.stderr.write(`请先启动 ${oc.cliType} serve（项目上一级目录: ${oc.bin} serve）后重试。\n`);
         await oc.stop();
         return null;
     }

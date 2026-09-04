@@ -90,7 +90,7 @@ export const ENV_KEYS = [
     { key: 'MAX_CONCURRENT_SESSIONS', label: 'AI Session 并发上限', description: '跨所有编排任务共享的全局并发信号量上限', default: '50', validate: validators.intPositive },
 
     // ── CLI / AI 助手后端 ────────────────────────────────────────────
-    { key: 'CLI_TYPE', label: '默认 CLI 类型', description: 'opencode | deveco-code', default: 'opencode', validate: validators.cliType },
+    { key: 'CLI_TYPE', label: '默认 CLI 类型', description: 'opencode | deveco-code', default: 'deveco-code', validate: validators.cliType },
     { key: 'OPENCODE_HOST', label: 'opencode 主机', description: '连接配置（可选）', default: 'localhost', validate: validators.nonEmpty },
     { key: 'OPENCODE_PORT', label: 'opencode 端口', description: '连接配置（可选，默认 4096）', default: '4096', validate: validators.portOrEmpty },
     { key: 'DEVECO_HOST', label: 'deveco 主机', description: '连接配置（可选）', default: 'localhost', validate: validators.nonEmpty },

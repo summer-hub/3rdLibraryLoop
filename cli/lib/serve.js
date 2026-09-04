@@ -150,7 +150,7 @@ export async function cmdServe({ rest = [], jsonMode = false, dataDir = '' }) {
     process.once('SIGTERM', () => onSignal('SIGTERM'));
 
     try {
-        // cliType 由环境决定（shell > .env > 默认 opencode），与 CLI 嵌入式一致；
+        // cliType 由环境决定（shell > .env > 默认 deveco-code），与 CLI 嵌入式一致；
         // dataDir 已通过 3LIB_DATA_DIR env 注入（见上），Server 内部所有默认
         // createStorage() 均落到用户数据目录；skillDir 沿用包内 vendor 默认
         // （npm 更新自动获得新 SKILL，不与 CLI 的 3LIB_SKILL_DIR 联动）

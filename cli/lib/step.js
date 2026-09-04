@@ -94,11 +94,11 @@ async function cmdStepRun({ flags, rest, dataDir, skillDir, jsonMode, quiet, ver
 
     const specifiedSkill = _stringFlag(flags, 'specified-skill');
 
-    // 挂载 opencode 生命周期（复用 runner 语义）
+    // 挂载 AI CLI serve 生命周期（复用 runner 语义，类型由 CLI_TYPE 决定）
     const r = await _runner();
-    const ctx = r.createRunContext({ projectRoot, dataDir, skillDir, cliType: 'opencode', verbose });
-    const { OpencodeManager } = await import('./opencode.js');
-    const oc = new OpencodeManager({ projectRoot });
+    const ctx = r.createRunContext({ projectRoot, dataDir, skillDir, verbose });
+    const { CliServeManager } = await import('./opencode.js');
+    const oc = new CliServeManager({ projectRoot, cliType: ctx.cliType });
     const ocHealth = await oc.ensureRunning();
     if (!ocHealth.ok) {
         if (jsonMode) out({ ok: false, error: ocHealth.message, taskId });

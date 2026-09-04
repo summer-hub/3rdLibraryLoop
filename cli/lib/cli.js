@@ -274,20 +274,19 @@ async function submitAndRunImpl({ flags, rest, projectRoot, dataDir, skillDir, j
         projectRoot,
         dataDir,
         skillDir,
-        cliType: 'opencode',
         verbose,
     });
 
-    // 挂载 opencode 生命周期
-    const { OpencodeManager } = await import('./opencode.js');
-    const oc = new OpencodeManager({ projectRoot });
+    // 挂载 AI CLI serve 生命周期（类型由 CLI_TYPE 决定：opencode | deveco-code）
+    const { CliServeManager } = await import('./opencode.js');
+    const oc = new CliServeManager({ projectRoot, cliType: ctx.cliType });
     const ocHealth = await oc.ensureRunning();
     if (!ocHealth.ok) {
         if (jsonMode) {
             process.stdout.write(JSON.stringify({ ok: false, error: ocHealth.message, taskId }, null, 2) + '\n');
         }
         process.stderr.write(`\n错误: ${ocHealth.message}\n`);
-        process.stderr.write('请先启动 opencode serve（项目上一级目录: opencode serve）后重试。\n');
+        process.stderr.write(`请先启动 ${oc.cliType} serve（项目上一级目录: ${oc.bin} serve）后重试。\n`);
         await oc.stop();
         return EXIT.ERROR;
     }

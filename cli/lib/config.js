@@ -7,6 +7,7 @@
  *   - 定位数据目录（--data-dir > 3LIB_DATA_DIR > ~/.3lib/3rdloop/db）
  *   - 生成 clinic 安全唯一 taskId（随机位 8）
  *   - SKILL 目录优先级链（--skill-dir > 3LIB_SKILL_DIR > vendor/Skills）
+ *   - 解析 AI CLI 类型（CLI_TYPE：opencode | deveco-code，默认 deveco-code）
  *
  * 数据目录策略：
  *   用户级统一 ~/.3lib/3rdloop/db（跨平台，由 getUser3libHome 解析），
@@ -202,6 +203,37 @@ export function getUser3libHome() {
     if (process.env['3LIB_HOME']) return process.env['3LIB_HOME'];
     const home = process.env.HOME || process.env.USERPROFILE || os.homedir();
     return path.join(home, '.3lib');
+}
+
+/** 支持的 AI CLI 类型 */
+const CLI_TYPES = ['opencode', 'deveco-code'];
+/** 默认 CLI 类型（本项目面向 HarmonyOS 三方库场景，默认 DevEco Code） */
+const DEFAULT_CLI_TYPE = 'deveco-code';
+let _warnedInvalidCliType = false;
+
+/**
+ * 解析当前生效的 AI CLI 类型（opencode | deveco-code）。
+ *
+ * 优先级：显式参数 > 环境变量 CLI_TYPE（含 loadEnvChain 注入的
+ * 系统环境变量 > ~/.3lib/.env > 项目 Server/.env 链）> 'deveco-code'（默认）。
+ * 与 Server/CLI/cli.js、check-env.mjs 的 resolveCliType 语义保持一致。
+ *
+ * CLI_TYPE 配了无效值时不崩溃：回退默认值并在 stderr 告警一次
+ * （doctor 会将其作为失败项显式报告）。
+ *
+ * @param {string} [override] - 显式类型（优先级最高）
+ * @returns {'opencode'|'deveco-code'}
+ */
+export function resolveCliType(override) {
+    const raw = String(override ?? process.env.CLI_TYPE ?? '').trim();
+    if (CLI_TYPES.includes(raw)) return raw;
+    if (raw && !_warnedInvalidCliType) {
+        _warnedInvalidCliType = true;
+        process.stderr.write(
+            `[3rdloop] 警告: CLI_TYPE="${raw}" 无效（可选值: ${CLI_TYPES.join(' | ')}），已回退 ${DEFAULT_CLI_TYPE}\n`
+        );
+    }
+    return DEFAULT_CLI_TYPE;
 }
 
 /**

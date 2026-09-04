@@ -9,7 +9,7 @@
  *   ③ CLI serve 服务:   按 CLI_TYPE 启动 opencode serve 或 deveco serve（统一默认 4096）
  *
  * CLI_TYPE 解析优先级（与 Server/CLI/cli.js 一致）：
- *   shell 环境变量 CLI_TYPE > Server/.env 的 CLI_TYPE > 'opencode'
+ *   shell 环境变量 CLI_TYPE > Server/.env 的 CLI_TYPE > 'deveco-code'
  *
  * 用法:
  *   node start-services.mjs                  # 先检测环境，通过后启动服务

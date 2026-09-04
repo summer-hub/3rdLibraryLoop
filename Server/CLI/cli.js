@@ -21,7 +21,7 @@ try {
  * 封装 AI 编程助手 CLI（opencode / deveco-code），对外暴露统一的 Session 管理接口。
  *
  * 默认 CLI 类型可在 Server/.env 中配置 CLI_TYPE=opencode|deveco-code，
- * 也可通过 shell 环境变量 CLI_TYPE 指定（优先级高于 .env），均未设置时默认 'opencode'。
+ * 也可通过 shell 环境变量 CLI_TYPE 指定（优先级高于 .env），均未设置时默认 'deveco-code'。
  * 显式传入 type 参数优先级最高。
  *
  * 连接配置同样支持 .env：OPENCODE_HOST/OPENCODE_PORT、DEVECO_HOST/DEVECO_PORT。
@@ -44,7 +44,7 @@ try {
 class CLIController {
     /**
      * @param {'opencode'|'deveco-code'} [type] - CLI 类型，缺省时取环境变量 CLI_TYPE
-     *   （shell 环境变量 > Server/.env），仍未设置则 'opencode'
+     *   （shell 环境变量 > Server/.env），仍未设置则 'deveco-code'
      * @param {object} [options={}]       - 传递给对应适配器的配置项
      *
      * opencode 选项：
@@ -61,7 +61,7 @@ class CLIController {
      * 公共选项：
      *   options.archive    - MessageArchive 实例（消息存档与卡死检测），不传则适配器内部自建
      */
-    constructor(type = process.env.CLI_TYPE || 'opencode', options = {}) {
+    constructor(type = process.env.CLI_TYPE || 'deveco-code', options = {}) {
         this.type = type;
 
         switch (type) {

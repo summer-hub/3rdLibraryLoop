@@ -154,7 +154,7 @@ function getCliConfigPaths(cliType) {
  * 解析当前生效的 CLI 类型
  *
  * 优先级（与 Server/CLI/cli.js 保持一致）：
- *   shell 环境变量 CLI_TYPE > Server/.env 的 CLI_TYPE > 'opencode'
+ *   shell 环境变量 CLI_TYPE > Server/.env 的 CLI_TYPE > 'deveco-code'
  *
  * @returns {'opencode'|'deveco-code'}
  */
@@ -166,7 +166,7 @@ export function resolveCliType() {
         const m = content.match(/^\s*CLI_TYPE\s*=\s*(opencode|deveco-code)\s*$/m);
         if (m) return m[1];
     } catch { /* .env 不存在或不可读，回退默认 */ }
-    return 'opencode';
+    return 'deveco-code';
 }
 
 /**
@@ -336,11 +336,11 @@ function checkEnvFile() {
         if (val === 'opencode' || val === 'deveco-code') {
             ok(`CLI_TYPE = ${val}（默认 CLI 后端）`);
         } else {
-            warn(`CLI_TYPE = "${val}" 无效，可选值: opencode | deveco-code，将回退为 opencode`);
+            warn(`CLI_TYPE = "${val}" 无效，可选值: opencode | deveco-code，将回退为 deveco-code`);
             hint(`修正 Server/.env 中的 CLI_TYPE 后重试`);
         }
     } else {
-        hint(`CLI_TYPE 未设置（默认 opencode；如需切换 DevEco Code 可设置 CLI_TYPE=deveco-code）`);
+        hint(`CLI_TYPE 未设置（默认 deveco-code；如需切换 opencode 可设置 CLI_TYPE=opencode）`);
     }
 
     result.passed = allValid;

@@ -51,7 +51,7 @@ FlexRunner / TestCheck / Knowledge），无需启动 HTTP 服务，即可从终�
 | `3rdloop run pr-check --pr-url <URL> [--library-type <arkts\|flutter\|rn\|tpccplus>]` | PR 代码检视（等价前端 PR 检视面板，taskId 带 `codecheck_` 前缀） |
 | `3rdloop config list\|get\|set\|unset` | 命令配置 `.env` 配置项（默认读写 `~/.3lib/.env`） |
 | `3rdloop update [--check] [--yes] [--registry <url>]` | 自更新到 npm 最新版（尊重用户镜像源） |
-| `3rdloop doctor` | 环境自检（Node/opencode/.env/SKILL/数据目录） |
+| `3rdloop doctor` | 环境自检（Node/CLI_TYPE/AI CLI（按类型检测）/.env/SKILL/数据目录/serve 连通性） |
 | `3rdloop version` | 版本信息 |
 
 ## 全局选项
@@ -123,7 +123,7 @@ FlexRunner / TestCheck / Knowledge），无需启动 HTTP 服务，即可从终�
 - **与 `3rdloop run` 的差异**：`run` 走完整大循环（拆解→编排→审核→可重规划，
   自动生成 taskId）；`step` 只执行一步，适合把已拆好的任务按步骤手动串联。
 - **中断**：Ctrl+C 会对 FlexRunner 调用 `controlExecution('abort')` 终止当前步骤
-  并清理 opencode 子进程，退出码 130。
+  并清理 AI CLI serve 子进程，退出码 130。
 - **多次执行同一 taskId**：不会归档旧任务（与 `run` 的自动归档不同），
   每次 `step run` 在相同 loop 编号下会覆盖同名产物，建议不同尝试用不同 `--loop`。
 
@@ -194,7 +194,7 @@ TestCheck 审核）。适合已经把任务拆成步骤、且步骤之间存在 
   `orchestration_loop{N}.json`，不依赖内存实例，历史轮次可用 `--loop N`。
 - **loop.json**：编排结束后写精简状态（`isOrchestration: true`），因此
   `3rdloop list` / `3rdloop result` 也能看到编排任务。
-- **中断**：Ctrl+C 会对 Orchestrator 调用 `abort()` 并清理 opencode 子进程，
+- **中断**：Ctrl+C 会对 Orchestrator 调用 `abort()` 并清理 AI CLI serve 子进程，
   退出码 130。
 - **跨进程控制限制**：`abort`/`pause`/`resume` 优先作用于**当前进程内**正在
   运行的编排实例；无法中断另一进程的运行中任务（v1 与 `3rdloop run` 语义一致）。
@@ -431,8 +431,9 @@ export default {
 
 - **`.env`** 加载链：系统环境变量 > `~/.3lib/.env`（用户级） > 项目根 `Server/.env`。
 - **数据目录**：`~/.3lib/3rdloop/db`（Windows: `C:\Users\<用户>\.3lib\3rdloop\db`，macOS/Linux: `~/.3lib/3rdloop/db`），跨平台一致、不随执行目录变化、不随 npm 卸载清空；任务写入 `<数据目录>/task/{taskId}/`。
-- **opencode**：`3rdloop` 会自动拉起 `opencode serve`（需在项目**上一级**目录运行），
-  退出时负责清理进程树。若已存在运行中的 opencode 服务则直接复用。
+- **AI CLI（`CLI_TYPE`，默认 deveco-code）**：`3rdloop` 会自动拉起对应的 `serve`
+  （`deveco serve` / `opencode serve`，需在项目**上一级**目录运行），
+  退出时负责清理进程树。若已存在运行中的服务则直接复用。
 
 ## 环境变量
 
@@ -463,7 +464,7 @@ LLM 凭据变量（`DASHSCOPE_API_KEY` / `LLM_MODEL` 等）：按 `.env` 加载�
 ### 前置条件
 
 - Node.js >= 22
-- opencode CLI（`opencode serve` 可运行）
+- AI CLI（`opencode serve` 或 `deveco serve` 可运行，按 `CLI_TYPE`）
 - LLM 凭据（一个 `.env` 即可）
 
 ### 接入步骤

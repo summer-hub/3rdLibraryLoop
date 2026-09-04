@@ -142,10 +142,10 @@ async function cmdOrchRun({ flags, rest, projectRoot, dataDir, skillDir, jsonMod
     }
 
     const r = await _runner();
-    const ctx = r.createRunContext({ projectRoot, dataDir, skillDir, cliType: 'opencode', verbose });
+    const ctx = r.createRunContext({ projectRoot, dataDir, skillDir, verbose });
 
-    // 挂载 opencode 生命周期
-    const oc = await _ensureOpcodene(ctx, u, jsonMode, out);
+    // 挂载 AI CLI serve 生命周期
+    const oc = await _ensureCliServe(ctx, u, jsonMode, out);
     if (!oc) return EXIT.ERROR;
 
     // 信号处理
@@ -221,8 +221,8 @@ async function cmdOrchStart({ flags, rest, projectRoot, dataDir, skillDir, jsonM
     }
 
     const r = await _runner();
-    const ctx = r.createRunContext({ projectRoot, dataDir, skillDir, cliType: 'opencode', verbose });
-    const oc = await _ensureOpcodene(ctx, u, jsonMode, out);
+    const ctx = r.createRunContext({ projectRoot, dataDir, skillDir, verbose });
+    const oc = await _ensureCliServe(ctx, u, jsonMode, out);
     if (!oc) return EXIT.ERROR;
 
     let interrupted = false;
@@ -410,15 +410,15 @@ async function cmdOrchTasks({ flags, rest, dataDir, jsonMode, out, u }) {
 
 // ─── 工具 ──────────────────────────────────────────────────────────────────
 
-/** 确保 opencode serve 运行（run/start 需要执行环境；load/progress 不需要）。 */
-async function _ensureOpcodene(ctx, u, jsonMode, out) {
-    const { OpencodeManager } = await import('./opencode.js');
-    const oc = new OpencodeManager({ projectRoot: ctx.projectRoot });
+/** 确保 AI CLI serve 运行（run/start 需要执行环境；load/progress 不需要）。 */
+async function _ensureCliServe(ctx, u, jsonMode, out) {
+    const { CliServeManager } = await import('./opencode.js');
+    const oc = new CliServeManager({ projectRoot: ctx.projectRoot, cliType: ctx.cliType });
     const ocHealth = await oc.ensureRunning();
     if (!ocHealth.ok) {
         if (jsonMode) out({ ok: false, error: ocHealth.message });
         process.stderr.write(`\n错误: ${ocHealth.message}\n`);
-        process.stderr.write('请先启动 opencode serve（项目上一级目录: opencode serve）后重试。\n');
+        process.stderr.write(`请先启动 ${oc.cliType} serve（项目上一级目录: ${oc.bin} serve）后重试。\n`);
         await oc.stop();
         return null;
     }

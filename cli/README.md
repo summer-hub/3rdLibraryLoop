@@ -44,10 +44,10 @@ npm i -g @ohos-cpf/3rdloop
 3rdloop doctor
 ```
 
-`doctor` 会逐项检查 Node / opencode / `.env` 凭据 / SKILL 目录 / 数据目录，缺什么会明确提示。除此之外还需要了解：
+`doctor` 会逐项检查 Node / CLI_TYPE 配置 / AI CLI（按 `CLI_TYPE` 检测 opencode 或 deveco）/ `.env` 凭据 / SKILL 目录 / 数据目录 / serve 服务连通性，缺什么会明确提示。除此之外还需要了解：
 
 - **Node.js** >= 22
-- **opencode CLI**：`3rdloop` 会自动拉起 `opencode serve`（在项目上一级目录运行），退出时清理进程树；已存在则复用，一般无需手动管理
+- **AI CLI**（默认 `deveco`，`CLI_TYPE` 可切 `opencode`）：`3rdloop` 会自动拉起对应的 `serve` 服务（在项目上一级目录运行），退出时清理进程树；已存在则复用，一般无需手动管理
 - **LLM 凭据**：`doctor` 提示凭据缺失时，见下面"配置"一节
 
 ### 场景二：配置 —— 需要注意哪些配置项
@@ -78,8 +78,9 @@ npm i -g @ohos-cpf/3rdloop
 # LLM 模型 id
 3rdloop config set LLM_MODEL glm-5.2
 
-# 默认 CLI 类型（opencode | deveco-code，HarmonyOS 场景切 deveco-code）
-3rdloop config set CLI_TYPE deveco-code
+# 默认 CLI 类型（默认 deveco-code；如需切回 opencode）
+# 切换后 doctor 按新类型检测，run/step/orch/workflow 拉起对应 serve 并连接
+3rdloop config set CLI_TYPE opencode
 
 # 数据存储目录（默认 ~/.3lib/3rdloop/db，如团队共享目录）
 3rdloop config set 3LIB_DATA_DIR "D:\code\team\shared-db"
