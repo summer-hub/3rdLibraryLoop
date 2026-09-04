@@ -32,7 +32,7 @@ async function main() {
         console.log('[clean-vendor] vendor 目录不存在，无需清理:', VENDOR_DIR);
     }
 
-    // prepack 复制的 3rdloop web 内置前端（Web/public 副本），同样属于发布产物
+    // prepack 复制的 3rdloop serve 内置前端（Web/public 副本），同样属于发布产物
     if (fs.existsSync(WEB_DIR)) {
         console.log('——— [clean-vendor] 删除发布产物 cli/web/ ———');
         fs.rmSync(WEB_DIR, { recursive: true, force: true });

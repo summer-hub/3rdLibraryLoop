@@ -152,7 +152,7 @@ async function main() {
         `${version}\nbuilt=${new Date().toISOString()}\nsha=${hash}\n`
     );
 
-    // ── 3rdloop web 内置核心前端（Web/public → cli/web）───────────────────
+    // ── 3rdloop serve 内置核心前端（Web/public → cli/web）─────────────────
     // 核心前端进包；tag/issue/prcheck 等二级功能以扩展形式留仓库 Web/ext/，
     // 不进 npm 包（运行期经 install-ext 或仓库开发态自动挂载）。
     const WEB_SRC = path.join(PROJECT_ROOT, 'Web', 'public');
@@ -162,9 +162,9 @@ async function main() {
             fs.rmSync(WEB_DST, { recursive: true, force: true });
         }
         copyDir(WEB_SRC, WEB_DST);
-        console.log('[prepack] 复制 Web/public/ → cli/web/（3rdloop web 内置核心前端）');
+        console.log('[prepack] 复制 Web/public/ → cli/web/（3rdloop serve 内置核心前端）');
     } else {
-        console.warn('[prepack] 警告: 未找到 Web/public/，3rdloop web 将无内置前端');
+        console.warn('[prepack] 警告: 未找到 Web/public/，3rdloop serve 将无内置前端');
     }
 
     // 安全校验：确认 vendor 内无密钥文件

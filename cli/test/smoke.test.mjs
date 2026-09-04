@@ -140,6 +140,57 @@ assert.equal(pushUnknownFlag.exitCode, 1, `未知 flag 应退出码 1，实际 $
 // 清理临时工作区与隔离 HOME
 fs.rmSync(PushHome, { recursive: true, force: true });
 
+// ── run 环境预检（隔离 HOME + 临时 cwd + 无凭据 → 退出码 1 + config set 提示）──
+// 临时 cwd 必不可少：仓库根存在 Server/.env（真实凭据），detectProjectRoot 会命中仓库根
+const PreHome = fs.mkdtempSync(path.join(tmpdir(), '3rdloop-pre-'));
+const PreCwd = fs.mkdtempSync(path.join(tmpdir(), '3rdloop-pre-cwd-'));
+const preEnv = {
+    '3LIB_HOME': PreHome,
+    '3LIB_DATA_DIR': path.join(PreHome, 'db'),
+};
+// 关键：移除可能存在的系统级凭据，确保预检在测试环境必然失败
+delete process.env['DASHSCOPE_API_KEY'];
+
+// 1. 无凭据 run → 预检失败退出码 1，stderr 含修复命令
+let preStderr = '', preExit = 0;
+try {
+    execFileSync(process.execPath, [BIN, 'run', '预检冒烟测试'], {
+        encoding: 'utf-8', timeout: 20000, cwd: PreCwd,
+        env: { ...process.env, ...preEnv },
+    });
+} catch (err) {
+    preStderr = err.stderr?.toString() || '';
+    preExit = err.status ?? 1;
+}
+assert.equal(preExit, 1, `无凭据时 run 应预检失败退出码 1，实际 ${preExit}`);
+assert.match(preStderr, /环境预检未通过/, '应提示环境预检未通过');
+assert.match(preStderr, /3rdloop config set DASHSCOPE_API_KEY/, '应提示修复命令 3rdloop config set DASHSCOPE_API_KEY');
+
+// 2. --json 模式：结构化 failures（含 DASHSCOPE 项）
+let preJsonExit = 0, preJsonStdout = '';
+try {
+    preJsonStdout = execFileSync(process.execPath, [BIN, 'run', '预检冒烟测试', '--json'], {
+        encoding: 'utf-8', timeout: 20000, cwd: PreCwd,
+        env: { ...process.env, ...preEnv },
+    });
+} catch (err) {
+    preJsonStdout = err.stdout?.toString() || '';
+    preJsonExit = err.status ?? 1;
+}
+assert.equal(preJsonExit, 1, `无凭据时 run --json 应退出码 1，实际 ${preJsonExit}`);
+const preParsed = JSON.parse(preJsonStdout);
+assert.equal(preParsed.ok, false, 'JSON 应含 ok:false');
+assert.ok(Array.isArray(preParsed.failures), 'JSON 应含 failures 数组');
+assert.ok(preParsed.failures.some(f => /DASHSCOPE/.test(f.name)), 'failures 应含 DASHSCOPE 凭据项');
+
+// 3. 预检不拦截 dry-run（--print-taskdef 不触引擎，无需环境）
+const preDry = runCli(['run', 'pr-check', '--pr-url', 'https://gitcode.com/o/r/pulls/9', '--print-taskdef'], preEnv);
+assert.equal(preDry.exitCode, 0, `dry-run 不应被预检拦截，实际 ${preDry.exitCode}`);
+
+// 清理隔离资产
+fs.rmSync(PreHome, { recursive: true, force: true });
+fs.rmSync(PreCwd, { recursive: true, force: true });
+
 // ── 未知命令 → 退出码 1 ──────────────────────────────────────────
 
 const unknown = runCli(['nonexistent-command']);

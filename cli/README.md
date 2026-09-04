@@ -107,6 +107,8 @@ npm i -g @ohos-cpf/3rdloop
 
 `run` 会自动完成"任务拆解 → 编排执行 → 准出审核"的完整大循环，多轮次自动重规划直到通过；退出码 `0` 即通过。
 
+> **环境预检**：`run`/`submit`/`step run`/`orch run|start` 及工作流在正式执行前会自动做环境预检（Node 版本 / CLI_TYPE / AI CLI / LLM 凭据 / SKILL 目录 / 数据目录）。任一项不通过直接退出码 `1`，并打印对应修复命令（如 `3rdloop config set DASHSCOPE_API_KEY <sk-xxx>`）；完整自检用 `3rdloop doctor`。`--print-taskdef` 等 dry-run 不预检。
+
 任务比较耗时、不想干等？提交后立即返回 taskId（进程内继续跑，需保持进程存活），之后可用 `3rdloop progress/wait/result <taskId>` 跟进：
 
 ```bash
@@ -135,41 +137,32 @@ npm i -g @ohos-cpf/3rdloop
 
 > 提 PR 是非幂等发布操作，失败不会自动重试；执行成功后报告 `ohos-lib-pr-push-report.md` 会自动复制到执行目录。先用 `--print-taskdef` dry-run 可以核对将执行的编排定义。
 
-### 场景五：用 Web 界面操作（serve / web）
+### 场景五：用 Web 界面操作（serve）
 
-除了命令行，也可以在浏览器里使用 Web 工作台（提交任务 / 查看循环进度 / PR 检视等），由两个命令提供支撑：
-
-**`3rdloop serve` —— 启动 Server HTTP 后端**（供前端 / 脚本反向代理调用）：
+除了命令行，也可以在浏览器里使用 Web 工作台（提交任务 / 查看循环进度 / PR 检视等）。`3rdloop serve` 一条命令**同时启动** Server HTTP 后端（默认 3000）与 Web 前端（默认 8080，静态托管 + `/api/*` 反代到后端 + 扩展挂载）：
 
 ```bash
-# 只启动后端（默认 http://127.0.0.1:3000，可用 --port / 3LIB_SERVER_PORT 覆盖）
+# 后端（默认 http://127.0.0.1:3000）+ Web 前端（默认 http://localhost:8080）同时启动
 3rdloop serve
 
-# 后端 + Web 前端一起拉起（前端默认 8080，可用 --web-port / 3LIB_WEB_PORT 覆盖）
-3rdloop serve --web
-```
+# 启动后自动打开浏览器
+3rdloop serve --open
 
-> CLI 的 `run`/`submit`/`wait` 等命令保持嵌入式模式，不经此后端；两者可独立使用。
-
-**`3rdloop web` —— 启动 Web 前端服务**（静态托管 + `/api/*` 反代到后端 + 扩展挂载，默认端口 8080）：
-
-```bash
-# 启动并自动打开浏览器（--backend 默认指向 http://127.0.0.1:3000，配合 serve 使用）
-3rdloop web --open
-
-# 自定义端口 / 后端地址
-3rdloop web --port 8081 --backend http://127.0.0.1:3000
+# 自定义端口（--port 后端 / --web-port 前端，也可用 3LIB_SERVER_PORT / 3LIB_WEB_PORT 覆盖）
+3rdloop serve --port 3001 --web-port 8081
 
 # 禁用全部扩展（纯核心工作台模式）
-3rdloop web --no-ext
+3rdloop serve --no-ext
 ```
+
+> CLI 的 `run`/`submit`/`wait` 等命令保持嵌入式模式，不经此后端。
 
 扩展机制（tag / issue / prcheck 等二级目录功能以扩展形式按需安装，不随 npm 包分发）：
 
 ```bash
-3rdloop web install-ext <扩展目录>   # 安装扩展到 ~/.3lib/3rdloop/web-ext/
-3rdloop web list-ext                 # 列出可用扩展（含来源与挂载点）
-3rdloop web remove-ext <扩展名>      # 移除已安装扩展
+3rdloop serve install-ext <扩展目录>   # 安装扩展到 ~/.3lib/3rdloop/web-ext/
+3rdloop serve list-ext                 # 列出可用扩展（含来源与挂载点）
+3rdloop serve remove-ext <扩展名>      # 移除已安装扩展
 ```
 
 更多进阶用法（任务管理、`step` 单步执行、`orch` 自定义编排、工作流注册等），见仓库 `cli/README_DEVELOP.md` 或 `3rdloop <子命令> --help`。

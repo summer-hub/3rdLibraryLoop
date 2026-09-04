@@ -130,6 +130,17 @@ async function cmdOrchRun({ flags, rest, projectRoot, dataDir, skillDir, jsonMod
         return EXIT.ERROR;
     }
 
+    // ── 环境预检（引擎执行前快速失败：凭据/目录类问题直接退出码 1） ──
+    {
+        const { precheckEnv, reportPrecheckFailures } = await import('./doctor.js');
+        const pre = await precheckEnv({ projectRoot, dataDir, skillDir });
+        if (!pre.ok) {
+            if (jsonMode) out({ ok: false, error: '环境预检未通过', taskId: taskDef.taskId, failures: pre.failures });
+            else reportPrecheckFailures(pre.failures);
+            return EXIT.ERROR;
+        }
+    }
+
     if (!quiet && !jsonMode) {
         u.logProgress(`${u.C.cyan}编排任务已提交: ${u.C.reset}${u.C.bold}${taskDef.taskId}${u.C.reset}`);
         u.logProgress(`  任务定义: ${taskDefFile}`);
@@ -218,6 +229,17 @@ async function cmdOrchStart({ flags, rest, projectRoot, dataDir, skillDir, jsonM
         if (jsonMode) out({ ok: false, error: '缺少 taskId。用法: 3rdloop orch start <taskId>' });
         else process.stderr.write('缺少 taskId。用法: 3rdloop orch start <taskId>\n');
         return EXIT.ERROR;
+    }
+
+    // ── 环境预检（引擎执行前快速失败：凭据/目录类问题直接退出码 1） ──
+    {
+        const { precheckEnv, reportPrecheckFailures } = await import('./doctor.js');
+        const pre = await precheckEnv({ projectRoot, dataDir, skillDir });
+        if (!pre.ok) {
+            if (jsonMode) out({ ok: false, error: '环境预检未通过', taskId, failures: pre.failures });
+            else reportPrecheckFailures(pre.failures);
+            return EXIT.ERROR;
+        }
     }
 
     const r = await _runner();

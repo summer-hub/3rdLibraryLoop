@@ -94,6 +94,17 @@ async function cmdStepRun({ flags, rest, dataDir, skillDir, jsonMode, quiet, ver
 
     const specifiedSkill = _stringFlag(flags, 'specified-skill');
 
+    // ── 环境预检（引擎执行前快速失败：凭据/目录类问题直接退出码 1） ──
+    {
+        const { precheckEnv, reportPrecheckFailures } = await import('./doctor.js');
+        const pre = await precheckEnv({ projectRoot, dataDir, skillDir });
+        if (!pre.ok) {
+            if (jsonMode) out({ ok: false, error: '环境预检未通过', taskId, failures: pre.failures });
+            else reportPrecheckFailures(pre.failures);
+            return EXIT.ERROR;
+        }
+    }
+
     // 挂载 AI CLI serve 生命周期（复用 runner 语义，类型由 CLI_TYPE 决定）
     const r = await _runner();
     const ctx = r.createRunContext({ projectRoot, dataDir, skillDir, verbose });

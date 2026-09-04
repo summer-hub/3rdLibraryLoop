@@ -28,7 +28,8 @@ cli/
 │   ├── orch.js          # 3rdloop orch 多步骤编排（Orchestrator）
 │   ├── workflow.js      # 工作流执行器（固定编排入口，本期新增）
 │   ├── workflows.js     # 工作流注册表/加载器（目录自动加载，本期新增）
-│   ├── web.js           # 3rdloop web 前端服务（静态 + 反代 + 扩展挂载）
+│   ├── serve.js         # 3rdloop serve：同时启动 Server 后端 + Web 前端（含扩展子命令）
+│   ├── web.js           # Web 前端服务库（serve 内嵌：静态 + 反代 + 扩展挂载）
 │   ├── web-ext.js       # web 扩展机制（manifest 加载 + express 兼容 shim）
 │   └── exit-codes.js    # 退出码约定
 ├── workflows/           # 工作流注册目录（每个 .js/.mjs 自动注册一个工作流）
@@ -249,14 +250,18 @@ node cli/bin/3rdloop.mjs run <name> --print-taskdef    # 缺必填
 - **不改 SKILL**：工作流只做"参数 → taskDef"，执行细节由 `specifiedSkill` 绑定的 SKILL 承载。
   新增业务能力应注册新工作流 + 复用现有 SKILL，不改动 `Server/Skills/`。
 
-## web 命令（前端服务 + 扩展挂载）
+## serve 命令（后端 + Web 前端一体启动）
 
-- 实现：`lib/web.js`（服务与子命令）+ `lib/web-ext.js`（扩展 manifest 加载 + 轻量 express 兼容 shim），
-  分发：`cli.js` `case 'web'`（惰性 import）。基于 node:http 零新增依赖（SSE 反代语义复刻 `Web/server.js`）。
-- 命令：`3rdloop web [--port 8080] [--backend <url>] [--web-root <dir>] [--ext-root <dir>]...
+- 实现：`lib/serve.js`（命令编排：后端 + 前端 + 扩展子命令）+ `lib/web.js`（Web 前端服务库）+
+  `lib/web-ext.js`（扩展 manifest 加载 + 轻量 express 兼容 shim），分发：`cli.js` `case 'serve'`（惰性 import）。
+  后端复用 `Server/Routes/server.js` 的 createServer；前端**进程内启动**（node:http 零新增依赖，
+  SSE 反代语义复刻 `Web/server.js`，不再 spawn Web/server.js 子进程）。
+- 命令：`3rdloop serve [--port 3000] [--web-port 8080] [--web-root <dir>] [--ext-root <dir>]...
   [--ext <name,...>] [--no-ext] [--open]`；子命令 `install-ext <dir>` / `list-ext` / `remove-ext <name>`。
-- **典型模式**：仓库内 `node cli/bin/3rdloop.mjs web` = 全功能（核心前端 + `Web/ext/` 全部扩展）；
-  `3rdloop web --no-ext` = 纯后端操作（仅核心工作台，`--no-ext` 优先于 `--ext`，不受已安装扩展影响）；
+- **Web 前端随 serve 默认启动**（原独立 `3rdloop web` 命令已移除；`-w/--web` 仅兼容接受并提示；
+  用户误输 `3rdloop web` 时 cli.js 给出迁移提示并退出码 1）。
+- **典型模式**：仓库内 `node cli/bin/3rdloop.mjs serve` = 后端 + 核心前端 + `Web/ext/` 全部扩展；
+  `3rdloop serve --no-ext` = 纯后端操作（仅核心工作台，`--no-ext` 优先于 `--ext`，不受已安装扩展影响）；
   `--ext tag,issue` = 白名单挂载（未发现的名字打 stderr 警告）。
 - **设计（方案 A+D）**：核心前端（PR/仓库检视 + loop/knowledge）进 npm 包；tag/issue/prcheck 等
   二级目录功能以"扩展"形式留仓库 `Web/ext/`，**不进包、按需启用**：
@@ -264,6 +269,7 @@ node cli/bin/3rdloop.mjs run <name> --print-taskdef    # 缺必填
   - 扩展根解析：`--ext-root` > `3LIB_WEB_EXT_ROOT` > 仓库 `Web/ext`（开发态自动全量挂载）> `~/.3lib/3rdloop/web-ext`（用户安装）
   - 扩展数据目录：`<dataDir>/web-ext/<name>`（跟随 `--data-dir`）；扩展同名时先注册者优先（开发态仓库源优先于用户安装）
 - 路由优先级：`/api/ext-registry`（本地响应）→ `/<mount>` 扩展（页面/API/静态）→ `/api/*`、`/stream*` 后端反代 → 核心前端静态。
+- 启动顺序：Web 前端先监听（端口冲突在后端启动前快速失败）→ 再起 Server 后端；两者端口相同直接报错。
 - 扩展协议：`Web/ext/<name>/manifest.json`（name/title/mount/order/server/page）+ `router.cjs`
   （`module.exports.createExtRouter({ express, Database, dbDir, serverRoot, logger })`）+ `public/`。
   shim 仅支持 `get/post/put/patch/delete`（`:param` 路径参数、`req.params/query/body`、
@@ -272,7 +278,25 @@ node cli/bin/3rdloop.mjs run <name> --print-taskdef    # 缺必填
   `.gitignore` 忽略 `cli/web/`。
 - 前端导航：`Web/public/index.html` 的 `#nav-ext-section` + `navigation.js` `ExtNav` 经
   `/api/ext-registry` 动态渲染扩展入口（端点缺失/无扩展时静默隐藏，兼容旧版 `Web/server.js` 纯静态部署）。
-- 退出码：常驻服务，SIGINT→130 / SIGTERM→143；端口占用 EADDRINUSE→1。
+- 退出码：常驻服务，SIGINT→130 / SIGTERM→143（信号处理器必须在 createServer **之前**注册，
+  否则 Server 内部的退出码 0 处理器会抢先）；端口占用 EADDRINUSE→1。
+
+## 环境预检（precheck，本期新增）
+
+- 实现：`lib/doctor.js`——`collectChecks()`（doctor 与预检共用的检查集，每项含 `fix` 修复提示，
+  如 `3rdloop config set DASHSCOPE_API_KEY <sk-xxx>`）+ `precheckEnv()`（预检）+
+  `reportPrecheckFailures()`（失败报告打印，各入口共用）。
+- **触发命令**（正式执行引擎/LLM 前调用）：`run` / `submit`（含工作流正式执行）、
+  `step run`、`orch run` / `orch start`。任一项不通过直接退出码 1（区别于任务失败 2），
+  避免环境问题跑到一半才失败、被误报为任务失败。
+- **不预检的路径**：`--print-taskdef` dry-run（保持"不触引擎"约定）、`orch load`（仅落盘
+  taskDef）、`wait`/`progress`/`list`/`result` 等磁盘查询命令。
+- 语义差异（相对 doctor）：serve 未运行**不算失败**（执行命令时会自动拉起；
+  端口有响应但异常仍算失败，提示清理残留进程）。
+- LLM 凭据检查用**生效环境**（`process.env.DASHSCOPE_API_KEY`，loadEnvChain 已注入
+  系统环境变量 > `~/.3lib/.env` > 项目 `Server/.env` 三层），仅强制 `DASHSCOPE_API_KEY`
+  （`LLM_BASE_URL`/`LLM_MODEL` 引擎有内置默认值，见 `Server/Agent/SkillSelector/llm/llmClient.js`）。
+- doctor 输出同步升级：失败项附加 `修复:` 行（与预检一致），照抄命令即可配置。
 
 ## 命令家族
 
@@ -283,7 +307,7 @@ node cli/bin/3rdloop.mjs run <name> --print-taskdef    # 缺必填
 | 固定编排 | `orch run`/`load`/`start`/`progress`/控制/`tasks` | Orchestrator |
 | **工作流** | `3rdloop run <wf>`/`3rdloop workflows` | Orchestrator + 注册表 |
 | 配置 | `config list/get/set/unset` | ~/.3lib/.env 白名单读写 |
-| **前端** | `web`/`web install-ext|list-ext|remove-ext` | 静态托管 + 反代 + 扩展挂载 |
+| **服务/前端** | `serve`/`serve install-ext|list-ext|remove-ext` | Server 后端 + 静态托管 + 反代 + 扩展挂载 |
 | 运维 | `doctor`/`version`/`update` | check-env 维度（按 CLI_TYPE 检测 AI CLI + serve 连通性）+ npm registry |
 
 ## 环境约定

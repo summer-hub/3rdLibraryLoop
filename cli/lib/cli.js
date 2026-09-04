@@ -34,7 +34,6 @@ import {
     resolveSkillDir,
     generateTaskId,
     getCliVersion,
-    checkNodeVersion,
 } from './config.js';
 import { EXIT, TERMINAL_LOOP_STATES } from './exit-codes.js';
 
@@ -145,16 +144,16 @@ export async function runCli(argv) {
             return cmdConfig({ flags, rest, projectRoot, user3libHome, jsonMode, out });
 
         case 'serve':
-            return cmdServe({ flags, rest, jsonMode, dataDir });
+            return cmdServe({ flags, rest, jsonMode, dataDir, user3libHome });
 
         case 'update':
             return cmdUpdate({ flags, rest, jsonMode, out });
 
-        case 'web':
-            return cmdWeb({ flags, rest, user3libHome, dataDir, jsonMode, out });
-
         default:
             process.stderr.write(`未知命令: ${cmd}\n`);
+            if (cmd === 'web') {
+                process.stderr.write('提示: "3rdloop web" 已合并到 "3rdloop serve"（Web 前端随 serve 默认启动，扩展管理用 3rdloop serve install-ext/list-ext/remove-ext）\n');
+            }
             printHelp();
             return EXIT.ERROR;
     }
@@ -178,6 +177,19 @@ async function cmdDoctor({ projectRoot, skillDir, dataDir, quiet }) {
     const { runDoctor } = await import('./doctor.js');
     const { ok } = await runDoctor({ projectRoot, skillDir, dataDir, quiet });
     return ok ? EXIT.OK : EXIT.ERROR;
+}
+
+/**
+ * 环境预检 + 失败报告（run/submit 等引擎命令共用）。
+ * 通过返回 true；失败打印各项修复提示（--json 时输出结构化结果）并返回 false。
+ */
+async function _precheckOrReport({ projectRoot, dataDir, skillDir, jsonMode, out }) {
+    const { precheckEnv, reportPrecheckFailures } = await import('./doctor.js');
+    const pre = await precheckEnv({ projectRoot, dataDir, skillDir });
+    if (pre.ok) return true;
+    if (jsonMode) out({ ok: false, error: '环境预检未通过', failures: pre.failures });
+    else reportPrecheckFailures(pre.failures);
+    return false;
 }
 
 // ─── workflows（列出已注册工作流） ────────────────────────────────
@@ -224,11 +236,11 @@ async function cmdUpdate({ flags, rest, jsonMode, out }) {
     return result.ok ? EXIT.OK : EXIT.ERROR;
 }
 
-// ─── serve（启动 Server HTTP 后端，供前端展示）─────────────────────────
+// ─── serve（同时启动 Server HTTP 后端 + Web 前端）─────────────────
 
-async function cmdServe({ flags, rest, jsonMode, dataDir }) {
+async function cmdServe({ flags, rest, jsonMode, dataDir, user3libHome }) {
     const { cmdServe: impl } = await import('./serve.js');
-    return impl({ rest: flags.rest, jsonMode, dataDir });
+    return impl({ rest: flags.rest, jsonMode, dataDir, user3libHome });
 }
 
 // ─── run / submit ──────────────────────────────────────────────────
@@ -266,6 +278,11 @@ async function submitAndRunImpl({ flags, rest, projectRoot, dataDir, skillDir, j
         process.stderr.write('缺少任务描述。用法: 3rdloop run "生成 xxx 的 demo 场景"\n');
         return EXIT.ERROR;
     }
+
+    // ── 环境预检（引擎执行前快速失败：凭据/目录类问题直接退出码 1，
+    //    避免跑到一半才失败、被误报为任务失败退出码 2）──────────────────
+    const preOk = await _precheckOrReport({ projectRoot, dataDir, skillDir, jsonMode, out });
+    if (!preOk) return EXIT.ERROR;
 
     // skill-dir 可能来自全局 flags 已在外部解析
     const r = await runner();
@@ -622,14 +639,6 @@ async function cmdOrch({ flags, rest, projectRoot, dataDir, skillDir, jsonMode, 
     return impl({ flags, rest, projectRoot, dataDir, skillDir, jsonMode, quiet, verbose, out, u });
 }
 
-/**
- * 3rdloop web 命令二段分发（转发到 lib/web.js：前端服务 + 扩展挂载）。
- */
-async function cmdWeb({ flags, rest, user3libHome, dataDir, jsonMode, out }) {
-    const { cmdWeb: impl } = await import('./web.js');
-    return impl({ flags, rest, user3libHome, dataDir, jsonMode, out });
-}
-
 // ─── 帮助 ─────────────────────────────────────────────────────────
 
 function printHelp() {
@@ -658,11 +667,11 @@ function printHelp() {
   3rdloop workflows                     列出已注册的固定编排工作流
   3rdloop run <工作流名> [--flag <值> ...]     以固定编排执行工作流（阻塞到终态）
   3rdloop config list|get|set|unset ...  配置 .env 配置项（默认读写 ~/.3lib/.env）
-  3rdloop serve [--port N] [-w|--web] [--web-port N]  启动 Server HTTP 后端（供前端展示）
+  3rdloop serve [--port N] [--web-port N]  启动 Server 后端 + Web 前端（同时启动）
+         [--web-root <dir>] [--ext-root <dir>] [--ext <name,...>] [--no-ext] [--open]
+  3rdloop serve install-ext <dir>                安装扩展（tag/issue/prcheck 等二级功能）
+  3rdloop serve list-ext | remove-ext <name>     扩展管理
   3rdloop update [--check] [--yes] [--registry <url>]  自更新到 npm 最新版
-  3rdloop web [--port N] [--backend <url>]       启动 Web 前端服务
-  3rdloop web install-ext <dir>                  安装扩展（tag/issue/prcheck 等二级功能）
-  3rdloop web list-ext | remove-ext <name>       扩展管理
   3rdloop doctor                        环境自检
   3rdloop version                       版本信息
 

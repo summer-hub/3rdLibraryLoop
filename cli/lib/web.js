@@ -1,5 +1,5 @@
 /**
- * web.js —— 3rdloop web 命令：启动 Web 前端服务
+ * web.js —— Web 前端服务库（由 3rdloop serve 内嵌启动）
  *
  * 架构（方案 A + D 组合）：
  *   - 核心前端资产：仓库 Web/public（开发态）/ cli/web（发布态，prepack 复制）
@@ -15,12 +15,11 @@
  *   3. /api/* 与 /stream*               反向代理到后端 Server（SSE 透传）
  *   4. 其余                             核心前端静态文件
  *
- * 用法：
- *   3rdloop web [--port 8080] [--backend http://127.0.0.1:3000]
- *               [--web-root <dir>] [--ext-root <dir>]... [--open]
- *   3rdloop web install-ext <dir>    安装扩展到 ~/.3lib/3rdloop/web-ext/
- *   3rdloop web list-ext             列出可用扩展（含来源与挂载点）
- *   3rdloop web remove-ext <name>    移除已安装扩展
+ * 本模块不再提供独立 CLI 命令（原 `3rdloop web` 已合并到 `3rdloop serve`，
+ * Web 前端随 serve 默认启动）。对外导出供 serve.js 组合使用：
+ *   startWebServer()                           一站式：解析资产/加载扩展/监听端口
+ *   resolveUserExtRoot()                       用户扩展根目录解析
+ *   webExtInstall / webExtList / webExtRemove  扩展管理子命令
  */
 
 import http from 'node:http';
@@ -39,8 +38,6 @@ import {
 import { EXIT } from './exit-codes.js';
 
 const CLI_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const DEFAULT_PORT = 8080;
-const DEFAULT_BACKEND = 'http://127.0.0.1:3000';
 
 // ─── MIME ─────────────────────────────────────────────────────────
 const MIME = {
@@ -68,160 +65,24 @@ const MIME = {
 };
 
 // ═══════════════════════════════════════════════════════════════════
-// 命令入口（由 cli.js 分发）
-// ═══════════════════════════════════════════════════════════════════
-
-/**
- * @param {object} opts
- * @param {object} opts.flags - parseGlobalFlags 结果
- * @param {string[]} opts.rest - 剩余参数（含子命令位置参数与 web 专属 flags）
- * @param {string} opts.user3libHome - 用户 3lib 主目录（~/.3lib）
- * @param {string} opts.dataDir - CLI 数据目录
- * @param {boolean} opts.jsonMode
- * @param {Function} opts.out - --json 输出函数
- * @returns {Promise<number>} 退出码
- */
-export async function cmdWeb({ flags, user3libHome, dataDir, jsonMode, out }) {
-    // 注意：使用 flags.rest（全局 flags 如 --json/--data-dir 已被 parseGlobalFlags 消费）
-    let argv;
-    try {
-        argv = _parseWebArgs(flags.rest);
-    } catch (err) {
-        process.stderr.write(`${err.message}\n`);
-        _printWebHelp();
-        return EXIT.ERROR;
-    }
-    const userExtRoot = process.env['3LIB_WEB_EXT_ROOT']
-        ? path.resolve(process.env['3LIB_WEB_EXT_ROOT'])
-        : path.join(user3libHome, '3rdloop', 'web-ext');
-
-    if (argv.help) {
-        _printWebHelp();
-        return EXIT.OK;
-    }
-
-    const positional = argv.positionals;
-
-    // ── 子命令分发 ──
-    if (positional[0] === 'install-ext') {
-        return _cmdInstallExt(positional[1], { userExtRoot, jsonMode, out });
-    }
-    if (positional[0] === 'list-ext') {
-        return _cmdListExt({ userExtRoot, jsonMode, out });
-    }
-    if (positional[0] === 'remove-ext') {
-        return _cmdRemoveExt(positional[1], { userExtRoot, jsonMode, out });
-    }
-    if (positional[0] !== undefined) {
-        process.stderr.write(`未知子命令: ${positional[0]}\n`);
-        _printWebHelp();
-        return EXIT.ERROR;
-    }
-
-    // ── 启动 Web 服务 ──
-    return _startServer({ argv, userExtRoot, dataDir });
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// 参数解析
-// ═══════════════════════════════════════════════════════════════════
-
-/**
- * 解析 web 命令专属参数。
- * parseGlobalFlags 已消费全局 flags（--json/--data-dir 等），这里处理剩余部分。
- * 非法参数直接 throw，由 cmdWeb 统一捕获打印帮助。
- */
-function _parseWebArgs(rest) {
-    const opts = {
-        port: DEFAULT_PORT,
-        backend: DEFAULT_BACKEND,
-        webRoot: '',
-        extRoots: [],
-        extNames: [],
-        noExt: false,
-        open: false,
-        help: false,
-        positionals: [],
-    };
-
-    for (let i = 0; i < rest.length; i++) {
-        const arg = rest[i];
-
-        if (arg === '--port') {
-            const raw = rest[++i];
-            const n = parseInt(raw, 10);
-            if (!Number.isFinite(n) || n <= 0 || n > 65535) {
-                throw new Error(`非法端口: "${raw}"`);
-            }
-            opts.port = n;
-        } else if (arg === '--backend') {
-            const raw = rest[++i];
-            if (!raw || !/^https?:\/\//.test(raw)) {
-                throw new Error(`非法后端地址: "${raw}"（须为 http(s):// 开头）`);
-            }
-            opts.backend = raw.replace(/\/+$/, '');
-        } else if (arg === '--web-root') {
-            opts.webRoot = rest[++i] || '';
-        } else if (arg === '--ext-root') {
-            const raw = rest[++i];
-            if (raw) opts.extRoots.push(raw);
-        } else if (arg === '--no-ext') {
-            opts.noExt = true;
-        } else if (arg === '--ext') {
-            // 白名单：逗号分隔 + 可重复指定（--ext tag --ext issue 等效 --ext tag,issue）
-            const raw = rest[++i];
-            if (raw) {
-                for (const n of raw.split(',')) {
-                    const t = n.trim();
-                    if (t) opts.extNames.push(t);
-                }
-            }
-        } else if (arg === '--open') {
-            opts.open = true;
-        } else if (arg === '--help' || arg === '-h') {
-            opts.help = true;
-        } else if (arg.startsWith('--')) {
-            throw new Error(`未知选项: ${arg}（查看帮助: 3rdloop web --help）`);
-        } else {
-            opts.positionals.push(arg);
-        }
-    }
-    return opts;
-}
-
-/**
- * 应用扩展开关过滤：
- *   --no-ext   → 全部禁用（纯后端操作模式：仅核心工作台 + loop + knowledge）
- *   --ext 名称集 → 白名单，仅挂载指定扩展（未发现的名字打 warning）
- * --no-ext 优先于 --ext（同时给出时白名单被忽略）。
- *
- * @param {Array<object>} extensions - loadExtensions 发现的全部扩展
- * @param {object} argv - _parseWebArgs 结果
- * @param {(msg: string) => void} warn
- * @returns {Array<object>} 过滤后的扩展列表
- */
-function _applyExtFilter(extensions, argv, warn) {
-    if (argv.noExt) return [];
-    if (argv.extNames.length === 0) return extensions;
-
-    const known = extensions.map((e) => e.name);
-    for (const name of argv.extNames) {
-        if (!known.includes(name)) {
-            warn(`[web-ext] --ext 指定的扩展 "${name}" 未发现（可用: ${known.join(', ') || '无'}）`);
-        }
-    }
-    return extensions.filter((e) => argv.extNames.includes(e.name));
-}
-
-// ═══════════════════════════════════════════════════════════════════
 // 目录解析
 // ═══════════════════════════════════════════════════════════════════
+
+/**
+ * 用户扩展根目录（3LIB_WEB_EXT_ROOT > ~/.3lib/3rdloop/web-ext）。
+ * @param {string} user3libHome - 用户 3lib 主目录（~/.3lib）
+ */
+export function resolveUserExtRoot(user3libHome) {
+    return process.env['3LIB_WEB_EXT_ROOT']
+        ? path.resolve(process.env['3LIB_WEB_EXT_ROOT'])
+        : path.join(user3libHome, '3rdloop', 'web-ext');
+}
 
 /**
  * 核心前端资产目录。
  * 优先级：--web-root > 3LIB_WEB_ROOT > 仓库 Web/public（开发态）> cli/web（发布态内置）
  */
-function _resolveWebRoot(flagValue) {
+export function resolveWebRoot(flagValue) {
     if (flagValue) {
         const dir = path.resolve(flagValue);
         if (!fs.existsSync(dir)) throw new Error(`--web-root 目录不存在: ${dir}`);
@@ -249,7 +110,7 @@ function _resolveWebRoot(flagValue) {
  * 扩展根目录列表（优先级从高到低，同名扩展先注册者生效）。
  * 顺序：--ext-root（可多个）> 3LIB_WEB_EXT_ROOT > 仓库 Web/ext（开发态）> 用户扩展目录。
  */
-function _resolveExtRoots(extRootFlags, userExtRoot) {
+export function resolveExtRoots(extRootFlags, userExtRoot) {
     const roots = [];
     const push = (p) => {
         const r = path.resolve(p);
@@ -267,33 +128,80 @@ function _resolveExtRoots(extRootFlags, userExtRoot) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// 服务启动
+// 服务启动（由 3rdloop serve 调用）
 // ═══════════════════════════════════════════════════════════════════
 
-async function _startServer({ argv, userExtRoot, dataDir }) {
-    const warn = (msg) => process.stderr.write(`${msg}\n`);
+/**
+ * 应用扩展开关过滤：
+ *   --no-ext   → 全部禁用（纯后端操作模式：仅核心工作台 + loop + knowledge）
+ *   --ext 名称集 → 白名单，仅挂载指定扩展（未发现的名字打 warning）
+ * --no-ext 优先于 --ext（同时给出时白名单被忽略）。
+ *
+ * @param {Array<object>} extensions - loadExtensions 发现的全部扩展
+ * @param {object} opts - { noExt, extNames }
+ * @param {(msg: string) => void} warn
+ * @returns {Array<object>} 过滤后的扩展列表
+ */
+export function applyExtFilter(extensions, { noExt, extNames }, warn) {
+    if (noExt) return [];
+    if (!extNames || extNames.length === 0) return extensions;
 
-    let webRoot;
-    try {
-        webRoot = _resolveWebRoot(argv.webRoot);
-    } catch (err) {
-        process.stderr.write(`[3rdloop web] ${err.message}\n`);
-        return EXIT.ERROR;
+    const known = extensions.map((e) => e.name);
+    for (const name of extNames) {
+        if (!known.includes(name)) {
+            warn(`[web-ext] --ext 指定的扩展 "${name}" 未发现（可用: ${known.join(', ') || '无'}）`);
+        }
     }
+    return extensions.filter((e) => extNames.includes(e.name));
+}
+
+/**
+ * 一站式启动 Web 前端服务：解析前端资产 → 加载扩展 → 创建服务 → 监听端口。
+ * 由 3rdloop serve 内嵌调用（后端反代地址指向同进程的 Server 后端）。
+ *
+ * @param {object} opts
+ * @param {number} opts.port - 监听端口（必填）
+ * @param {string} opts.backend - 后端 Server 地址（必填，如 http://127.0.0.1:3000）
+ * @param {string} [opts.webRootFlag] - --web-root 覆盖
+ * @param {string[]} [opts.extRootFlags] - --ext-root 追加扩展根目录
+ * @param {string} [opts.userExtRoot] - 用户扩展根目录（resolveUserExtRoot 结果）
+ * @param {boolean} [opts.noExt] - 禁用全部扩展
+ * @param {string[]} [opts.extNames] - 白名单扩展名
+ * @param {string} [opts.dataDir] - CLI 数据目录（扩展数据落 <dataDir>/web-ext/<name>）
+ * @param {boolean} [opts.open] - 启动后自动打开浏览器
+ * @param {(msg: string) => void} [opts.log] - 日志函数（默认 stderr；--json 模式传 no-op）
+ * @param {string} [opts.tag] - 日志前缀标签
+ * @returns {Promise<import('node:http').Server>} 已监听的 http.Server（不注册信号处理，生命周期由调用方管理）
+ * @throws 前端资产缺失 / 端口被占用（EADDRINUSE）等启动错误
+ */
+export async function startWebServer({
+    port,
+    backend,
+    webRootFlag = '',
+    extRootFlags = [],
+    userExtRoot = '',
+    noExt = false,
+    extNames = [],
+    dataDir = '',
+    open = false,
+    log = (msg) => process.stderr.write(`${msg}\n`),
+    tag = '3rdloop serve',
+}) {
+    const webRoot = resolveWebRoot(webRootFlag);
 
     // 加载扩展 → 应用 --no-ext / --ext 开关 → 初始化路由
-    const extRoots = _resolveExtRoots(argv.extRoots, userExtRoot);
-    const discovered = loadExtensions(extRoots, warn).extensions;
-    const extensions = _applyExtFilter(discovered, argv, warn);
+    const extRoots = resolveExtRoots(extRootFlags, userExtRoot);
+    const discovered = loadExtensions(extRoots, log).extensions;
+    const extensions = applyExtFilter(discovered, { noExt, extNames }, log);
     for (const ext of extensions) {
-        ext.router = initExtRouter(ext, { cliRoot: CLI_ROOT, dataDir, logger: warn });
+        ext.router = initExtRouter(ext, { cliRoot: CLI_ROOT, dataDir, logger: log });
     }
     const mounted = extensions.filter((e) => e.page || e.router);
 
     const server = http.createServer((req, res) => {
-        _handleRequest(req, res, { webRoot, extensions, backend: argv.backend })
+        _handleRequest(req, res, { webRoot, extensions, backend })
             .catch((err) => {
-                process.stderr.write(`[3rdloop web] 请求处理异常: ${err.message}\n`);
+                log(`[${tag}] 请求处理异常: ${err.message}`);
                 if (!res.headersSent) {
                     res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
                 }
@@ -303,52 +211,32 @@ async function _startServer({ argv, userExtRoot, dataDir }) {
             });
     });
 
-    return await new Promise((resolve) => {
-        server.on('error', (err) => {
-            if (err.code === 'EADDRINUSE') {
-                process.stderr.write(`[3rdloop web] 端口 ${argv.port} 已被占用（可用 --port 指定其他端口）\n`);
-            } else {
-                process.stderr.write(`[3rdloop web] 服务启动失败: ${err.message}\n`);
-            }
-            resolve(EXIT.ERROR);
-        });
-
-        server.listen(argv.port, () => {
-            process.stderr.write(`[3rdloop web] 前端服务已启动: http://localhost:${argv.port}\n`);
-            process.stderr.write(`[3rdloop web] 前端资产: ${webRoot}\n`);
-            process.stderr.write(`[3rdloop web] 后端代理: ${argv.backend}（/api/*、/stream*）\n`);
-            if (argv.noExt) {
-                process.stderr.write('[3rdloop web] 扩展挂载已禁用（--no-ext）：仅核心工作台 + loop + knowledge\n');
-            } else if (argv.extNames.length > 0) {
-                if (mounted.length > 0) {
-                    const desc = mounted.map((e) => `${e.mount}（${e.title}）`).join('、');
-                    process.stderr.write(`[3rdloop web] 白名单挂载扩展 ${mounted.length}/${discovered.length} 个: ${desc}\n`);
-                } else {
-                    process.stderr.write(`[3rdloop web] 白名单未匹配到任何扩展（发现 ${discovered.length} 个，--ext: ${argv.extNames.join(', ')}）\n`);
-                }
-            } else if (mounted.length > 0) {
-                const desc = mounted.map((e) => `${e.mount}（${e.title}）`).join('、');
-                process.stderr.write(`[3rdloop web] 已挂载扩展 ${mounted.length} 个: ${desc}\n`);
-            } else {
-                process.stderr.write(
-                    '[3rdloop web] 未挂载扩展（tag/issue/prcheck 等二级功能可用 "3rdloop web install-ext <dir>" 启用）\n'
-                );
-            }
-
-            if (argv.open) _openBrowser(`http://localhost:${argv.port}`);
-        });
-
-        // 退出码与 CLI 约定对齐：130 SIGINT / 143 SIGTERM
-        const shutdown = (code) => {
-            process.stderr.write('\n[3rdloop web] 正在关闭…\n');
-            server.close(() => process.exit(code));
-            // 兜底：close 回调被长连接阻塞时强制退出
-            setTimeout(() => process.exit(code), 1500).unref();
-        };
-        process.on('SIGINT', () => shutdown(130));
-        process.on('SIGTERM', () => shutdown(143));
-        // cmdWeb 的 Promise 不 resolve：服务常驻，退出走信号处理
+    await new Promise((resolve, reject) => {
+        server.once('error', reject);
+        server.listen(port, () => resolve());
     });
+
+    log(`[${tag}] Web 前端已启动: http://localhost:${port}`);
+    log(`[${tag}] 前端资产: ${webRoot}`);
+    log(`[${tag}] 后端代理: ${backend}（/api/*、/stream*）`);
+    if (noExt) {
+        log(`[${tag}] 扩展挂载已禁用（--no-ext）：仅核心工作台 + loop + knowledge`);
+    } else if (extNames.length > 0) {
+        if (mounted.length > 0) {
+            const desc = mounted.map((e) => `${e.mount}（${e.title}）`).join('、');
+            log(`[${tag}] 白名单挂载扩展 ${mounted.length}/${discovered.length} 个: ${desc}`);
+        } else {
+            log(`[${tag}] 白名单未匹配到任何扩展（发现 ${discovered.length} 个，--ext: ${extNames.join(', ')}）`);
+        }
+    } else if (mounted.length > 0) {
+        const desc = mounted.map((e) => `${e.mount}（${e.title}）`).join('、');
+        log(`[${tag}] 已挂载扩展 ${mounted.length} 个: ${desc}`);
+    } else {
+        log(`[${tag}] 未挂载扩展（tag/issue/prcheck 等二级功能可用 "3rdloop serve install-ext <dir>" 启用）`);
+    }
+
+    if (open) _openBrowser(`http://localhost:${port}`);
+    return server;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -541,12 +429,12 @@ function _openBrowser(url) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// 子命令：install-ext / list-ext / remove-ext
+// 扩展管理子命令（由 3rdloop serve install-ext/list-ext/remove-ext 分发）
 // ═══════════════════════════════════════════════════════════════════
 
-function _cmdInstallExt(srcDir, { userExtRoot, jsonMode, out }) {
+export function webExtInstall(srcDir, { userExtRoot, jsonMode, out }) {
     if (!srcDir) {
-        process.stderr.write('用法: 3rdloop web install-ext <扩展目录>\n');
+        process.stderr.write('用法: 3rdloop serve install-ext <扩展目录>\n');
         return EXIT.ERROR;
     }
     try {
@@ -563,9 +451,9 @@ function _cmdInstallExt(srcDir, { userExtRoot, jsonMode, out }) {
     }
 }
 
-function _cmdListExt({ userExtRoot, jsonMode, out }) {
+export function webExtList({ userExtRoot, jsonMode, out }) {
     const warn = (msg) => process.stderr.write(`${msg}\n`);
-    const extRoots = _resolveExtRoots([], userExtRoot);
+    const extRoots = resolveExtRoots([], userExtRoot);
     const { extensions } = loadExtensions(extRoots, warn);
 
     const items = extensions.map((e) => ({
@@ -586,7 +474,7 @@ function _cmdListExt({ userExtRoot, jsonMode, out }) {
     if (items.length === 0) {
         process.stdout.write('暂无可用扩展。\n');
         process.stdout.write(`扩展目录（可手动放置或用 install-ext 安装）: ${userExtRoot}\n`);
-        process.stdout.write('仓库内置扩展源: <仓库>/Web/ext/，如 3rdloop web install-ext Web/ext/tag\n');
+        process.stdout.write('仓库内置扩展源: <仓库>/Web/ext/，如 3rdloop serve install-ext Web/ext/tag\n');
         return EXIT.OK;
     }
 
@@ -598,9 +486,9 @@ function _cmdListExt({ userExtRoot, jsonMode, out }) {
     return EXIT.OK;
 }
 
-function _cmdRemoveExt(name, { userExtRoot, jsonMode, out }) {
+export function webExtRemove(name, { userExtRoot, jsonMode, out }) {
     if (!name) {
-        process.stderr.write('用法: 3rdloop web remove-ext <扩展名>\n');
+        process.stderr.write('用法: 3rdloop serve remove-ext <扩展名>\n');
         return EXIT.ERROR;
     }
     try {
@@ -615,50 +503,4 @@ function _cmdRemoveExt(name, { userExtRoot, jsonMode, out }) {
         process.stderr.write(`移除失败: ${err.message}\n`);
         return EXIT.ERROR;
     }
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// 帮助
-// ═══════════════════════════════════════════════════════════════════
-
-function _printWebHelp() {
-    process.stdout.write(`
-3rdloop web —— 启动 Web 前端服务（静态托管 + /api 反代 + 扩展挂载）
-
-用法:
-  3rdloop web [选项]                     启动前端服务
-  3rdloop web install-ext <dir>          安装扩展到 ~/.3lib/3rdloop/web-ext/
-  3rdloop web list-ext                   列出可用扩展（含来源与挂载点）
-  3rdloop web remove-ext <name>          移除已安装扩展
-
-选项:
-  --port <N>          监听端口（默认 8080）
-  --backend <url>     后端 Server 地址（默认 http://127.0.0.1:3000，/api/* 与 /stream* 反代）
-  --web-root <dir>    核心前端资产目录覆盖（默认: 仓库 Web/public，发布包为内置 cli/web）
-  --ext-root <dir>    追加扩展根目录（可多次指定；目录下每个子目录是一个扩展）
-  --ext <name,...>    白名单：仅挂载指定扩展（逗号分隔，可重复指定；未发现的名字打警告）
-  --no-ext            禁用全部扩展（纯后端操作模式；优先于 --ext）
-  --open              启动后自动打开浏览器
-  -h, --help          本帮助
-
-两种典型模式:
-  本地全功能（仓库开发态）:
-      node cli/bin/3rdloop.mjs web
-      = 核心前端（Web/public：PR/仓库检视 + loop + knowledge）+ 全部扩展（Web/ext：tag/issue/prcheck）
-  纯后端操作（经 3rdloop，不受已安装扩展影响）:
-      3rdloop web --no-ext
-      = 仅核心工作台，导航栏不出现 tag/issue/prcheck 等二级功能入口
-
-扩展机制:
-  - 扩展 = 自包含目录（manifest.json + router.cjs + public/），提供 /tag、
-    /issue、/prcheck 等二级目录功能，不随 npm 包分发
-  - 加载来源优先级: --ext-root > 3LIB_WEB_EXT_ROOT > 仓库 Web/ext（开发态）> ~/.3lib/3rdloop/web-ext
-  - 扩展数据目录: <数据目录>/web-ext/<name>（跟随 --data-dir）
-  - 启用示例: 3rdloop web install-ext Web/ext/tag && 3rdloop web
-  - 前端导航栏通过 /api/ext-registry 自动渲染已挂载扩展入口
-
-环境变量:
-  3LIB_WEB_ROOT         核心前端资产目录（等效 --web-root）
-  3LIB_WEB_EXT_ROOT     用户扩展根目录（默认 ~/.3lib/3rdloop/web-ext）
-`);
 }

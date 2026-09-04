@@ -134,6 +134,17 @@ export async function cmdWorkflow({ wf, wfWords, flags, env }) {
         return EXIT.OK;
     }
 
+    // ── 环境预检（正式执行前快速失败；dry-run 已在上方返回，不预检） ──
+    {
+        const { precheckEnv, reportPrecheckFailures } = await import('./doctor.js');
+        const pre = await precheckEnv({ projectRoot: env.projectRoot, dataDir, skillDir: env.skillDir });
+        if (!pre.ok) {
+            if (jsonMode) out({ ok: false, error: '环境预检未通过', failures: pre.failures });
+            else reportPrecheckFailures(pre.failures);
+            return EXIT.ERROR;
+        }
+    }
+
     // ── 正式执行：复用 orch 链路 ────────────────────────────────────
     // taskId 缺省由 runner 生成（generateTaskId），workflow 可覆盖
     const r = await _runner();
