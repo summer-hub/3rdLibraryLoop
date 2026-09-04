@@ -31,6 +31,7 @@ cli/
 │   ├── serve.js         # 3rdloop serve：同时启动 Server 后端 + Web 前端（含扩展子命令）
 │   ├── web.js           # Web 前端服务库（serve 内嵌：静态 + 反代 + 扩展挂载）
 │   ├── web-ext.js       # web 扩展机制（manifest 加载 + express 兼容 shim）
+│   ├── mcp.js           # 3rdloop mcp：MCP Gateway 装配（install/uninstall/status）
 │   └── exit-codes.js    # 退出码约定
 ├── workflows/           # 工作流注册目录（每个 .js/.mjs 自动注册一个工作流）
 ├── scripts/
@@ -66,7 +67,33 @@ storage(用户数据目录)
 - **开发期**：`npm link` 直引仓库 `Server/` 源码（`resolveVendorServer()` 回退 `../Server`），零副本。
 - **发布期**：`prepack` 复制核心模块 → `cli/vendor/Server/` → 打包 → `postpack` 自动删除。
   `.gitignore` 忽略 vendor，手工改动无效（下次打包重新生成）。
-- `verify-deps` 双模式扫描（有 vendor 扫 vendor，否则回退 `Server/` 源码）。
+- **配套资产随包**（与 vendor/Server 平级，保证 SKILL 相对路径双模式一致）：
+  `vendor/MCP`（Gateway + scripts）、`vendor/Archive`（kb 检索引擎 + data 种子）、
+  `vendor/BadCase`（已知问题知识库种子）。依赖不装在各自子 package.json（npm 不为包内
+  文件安装依赖），统一声明在 cli/package.json，模块解析沿目录树向上命中包内 node_modules。
+  SKILL 中 `{{skillDir}}/../../../MCP/scripts/*.cjs`（skillDir = vendor/Server/Skills/<x>）
+  与 McpToolGuide 的 `Server/library → ../../MCP/config.json` 在两种模式下同路径解析成功。
+- `verify-deps` 双模式扫描（有 vendor 扫 vendor，否则回退源码；范围含 MCP/src + Archive/src）。
+
+## mcp 命令（MCP Gateway 装配）
+
+- 实现：`lib/mcp.js`，分发：`cli.js` `case 'mcp'`（惰性 import）。命令：
+  `3rdloop mcp install [--cli opencode|deveco|all] [--force]` / `uninstall [--cli ...]` / `status`。
+- **install 三步**：① 生成用户级配置 `~/.3lib/3rdloop/mcp/config.json`（scriptsDir/enginePath
+  指向包内绝对路径，knowledgeBase.dataDir 指向 `~/.3lib/3rdloop/kb-data`；已存在仅刷新路径
+  字段，保留 downstreamServers 等用户改动，--force 重置）② 种子复制 kb-data（← Archive/data）
+  与 BadCase 副本（已存在跳过，保用户数据）③ 注册 `mcp-gateway` 到
+  `~/.config/opencode/opencode.json` 与 `~/.config/deveco/deveco.jsonc`（保留其他字段，幂等）。
+- **资产定位**：`resolveAssets()` vendor 优先回退仓库（与 resolveVendorServer 同模式），
+  开发态 `3rdloop mcp install` 直接用仓库 MCP/。
+- **deveco.jsonc 为 JSONC**：readJsonc 容错解析（剥注释重试），失败提示手动处理。
+- **doctor 集成（自动装配）**：`3rdloop doctor` 默认 `fix=true`——collectChecks 的「MCP Gateway
+  装配」检查（warning: true）未通过时，自动调用 `mcpInstall` 装配并复查回填检查项；`--no-fix`
+  仅诊断。装配失败不阻断 doctor（仍为警告级，提示手动 `3rdloop mcp install`）。
+- **precheck 零副作用约定**：`precheckEnv`（run/submit/step/orch/workflow 前置）复用同一检查集
+  但**不自动装配**——任务命令不得偷偷改用户全局配置；未装配仅在 stderr 提示一行（警告级不阻断）。
+- **为什么需要用户级配置**：kb 数据与 BadCase 是可写数据，落包目录会随 npm 更新被清除；
+  scripts/engine 是代码，随包走获得更新。注册 command 指向包内入口 + 用户级 config。
 
 ## 输出契约
 
@@ -307,6 +334,7 @@ node cli/bin/3rdloop.mjs run <name> --print-taskdef    # 缺必填
 | 固定编排 | `orch run`/`load`/`start`/`progress`/控制/`tasks` | Orchestrator |
 | **工作流** | `3rdloop run <wf>`/`3rdloop workflows` | Orchestrator + 注册表 |
 | 配置 | `config list/get/set/unset` | ~/.3lib/.env 白名单读写 |
+| **MCP 装配** | `mcp install/uninstall/status` | 注册 Gateway 到 AI CLI + 种子复制 kb/BadCase 数据 |
 | **服务/前端** | `serve`/`serve install-ext|list-ext|remove-ext` | Server 后端 + 静态托管 + 反代 + 扩展挂载 |
 | 运维 | `doctor`/`version`/`update` | check-env 维度（按 CLI_TYPE 检测 AI CLI + serve 连通性）+ npm registry |
 

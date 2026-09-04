@@ -83,7 +83,7 @@
 ./scripts/port-test-demo.sh \
   --git-url https://github.com/lottie-react-native/lottie-react-native \
   --branch v7.4.0 \
-  --template-dir /Users/lalhan/Desktop/RNOH/RN3rdTemplate/0.84
+  --template-dir <本地RN3rdTemplate模板目录，如 ~/RNOH/RN3rdTemplate/0.84>
 ```
 
 ### 手动指定 demo 目录

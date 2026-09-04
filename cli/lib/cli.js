@@ -108,7 +108,7 @@ export async function runCli(argv) {
             return cmdVersion(jsonMode);
 
         case 'doctor':
-            return cmdDoctor({ projectRoot, skillDir, dataDir, quiet });
+            return cmdDoctor({ projectRoot, skillDir, dataDir, user3libHome, quiet, rest });
 
         case 'run':
             return cmdRun({ flags, rest, projectRoot, dataDir, skillDir, jsonMode, quiet, verbose, out, u });
@@ -143,8 +143,11 @@ export async function runCli(argv) {
         case 'config':
             return cmdConfig({ flags, rest, projectRoot, user3libHome, jsonMode, out });
 
+        case 'mcp':
+            return cmdMcpImpl({ rest, user3libHome, jsonMode });
+
         case 'serve':
-            return cmdServe({ flags, rest, jsonMode, dataDir, user3libHome });
+            return cmdServe({ rest, jsonMode, dataDir, user3libHome });
 
         case 'update':
             return cmdUpdate({ flags, rest, jsonMode, out });
@@ -173,9 +176,10 @@ function cmdVersion(jsonMode) {
 
 // ─── doctor ───────────────────────────────────────────────────────
 
-async function cmdDoctor({ projectRoot, skillDir, dataDir, quiet }) {
+async function cmdDoctor({ projectRoot, skillDir, dataDir, user3libHome, quiet, rest = [] }) {
     const { runDoctor } = await import('./doctor.js');
-    const { ok } = await runDoctor({ projectRoot, skillDir, dataDir, quiet });
+    const fix = !rest.includes('--no-fix');
+    const { ok } = await runDoctor({ projectRoot, skillDir, dataDir, user3libHome, quiet, fix });
     return ok ? EXIT.OK : EXIT.ERROR;
 }
 
@@ -222,6 +226,16 @@ async function cmdWorkflows({ jsonMode, out }) {
 async function cmdConfig({ flags, rest, projectRoot, user3libHome, jsonMode, out }) {
     const { cmdConfigImpl } = await import('./config-cmd.js');
     return cmdConfigImpl({ projectRoot, user3libHome, jsonMode, out, rest });
+}
+
+// ─── mcp（MCP Gateway 装配）────────────────────────────────────────
+
+/**
+ * 3rdloop mcp 命令二段分发（转发到 lib/mcp.js）。
+ */
+async function cmdMcpImpl({ rest, user3libHome, jsonMode }) {
+    const { cmdMcp } = await import('./mcp.js');
+    return cmdMcp({ rest, user3libHome, jsonMode });
 }
 
 // ─── update（自更新）─────────────────────────────────────────────
@@ -667,12 +681,15 @@ function printHelp() {
   3rdloop workflows                     列出已注册的固定编排工作流
   3rdloop run <工作流名> [--flag <值> ...]     以固定编排执行工作流（阻塞到终态）
   3rdloop config list|get|set|unset ...  配置 .env 配置项（默认读写 ~/.3lib/.env）
+  3rdloop mcp install [--cli opencode|deveco|all]  装配 MCP Gateway（注册到 AI CLI +
+          种子复制知识库数据/BadCase 到 ~/.3lib/3rdloop/，npm 安装态必需）
+  3rdloop mcp uninstall|status            移除注册 / 查看装配状态
   3rdloop serve [--port N] [--web-port N]  启动 Server 后端 + Web 前端（同时启动）
          [--web-root <dir>] [--ext-root <dir>] [--ext <name,...>] [--no-ext] [--open]
   3rdloop serve install-ext <dir>                安装扩展（tag/issue/prcheck 等二级功能）
   3rdloop serve list-ext | remove-ext <name>     扩展管理
   3rdloop update [--check] [--yes] [--registry <url>]  自更新到 npm 最新版
-  3rdloop doctor                        环境自检
+  3rdloop doctor [--no-fix]             环境自检（默认自动装配 MCP Gateway；--no-fix 仅诊断）
   3rdloop version                       版本信息
 
 工作流机制:

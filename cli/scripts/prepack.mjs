@@ -5,6 +5,16 @@
  * 作用：
  *   - 将仓库 Server/ 核心引擎复制到 cli/vendor/Server/（保持目录结构，
  *     使内部相对 import 全部保真）
+ *   - 将 MCP/（Gateway + 脚本）、Archive/（kb 检索引擎 + 种子数据）、
+ *     BadCase/（已知问题知识库种子）复制到 vendor/ 下平级目录：
+ *       vendor/Server   ← Server/ 核心模块
+ *       vendor/MCP      ← MCP Gateway（src/scripts/config.json）
+ *       vendor/Archive  ← 文档检索引擎（src/ + data/ 种子）
+ *       vendor/BadCase  ← 已知问题知识库种子数据
+ *     平级布局使 SKILL.md 中的相对路径
+ *     `{{skillDir}}/../../../MCP/scripts/...`（skillDir=vendor/Server/Skills/<x>）
+ *     与 McpToolGuide 的 `Server/library → ../../MCP/config.json`
+ *     在 npm 安装态与仓库开发态行为一致。
  *   - 写入 vendor/VERSION（关联 Server 代码版本，防漂移）
  *   - 校验清理 vendor 内的密钥/敏感文件
  *
@@ -54,17 +64,22 @@ const EXCLUDE = [
     '.git',
 ];
 
-function shouldExclude(rel) {
+function shouldExclude(rel, isTopLevel = false) {
     const base = path.basename(rel);
     if (base === '.env' || base.startsWith('.env.')) return true;
     if (base === '.signing') return true;
-    if (base === 'node_modules' || base === 'db' || base === '.git') return true;
+    if (base === 'node_modules' || base === '.git') return true;
+    // 运行时数据目录：仅排除复制根第一层的 db/（开发期残留的 SQLite 数据）。
+    // 注意 Archive/src/db 是源码目录，嵌套层不能排除。
+    if (isTopLevel && base === 'db') return true;
     // 开发测试产物
     if (base === '__tests__') return true;
     if (base === 'test.js' || base.startsWith('test-')) return true;
     if (base.startsWith('repro_')) return true;
     // 内部 AI 文档
     if (base === 'AGENTS.md') return true;
+    // 包管理锁文件（依赖统一声明在 cli/package.json，vendor 内不携带）
+    if (base === 'package-lock.json') return true;
     return false;
 }
 
@@ -72,8 +87,9 @@ function shouldExclude(rel) {
  * 递归复制目录（跳过排除项）。
  * @param {string} src
  * @param {string} dst
+ * @param {boolean} [isTop] - 当前 src 是否为复制根（控制 db/ 等仅顶层排除项）
  */
-function copyDir(src, dst) {
+function copyDir(src, dst, isTop = true) {
     if (!fs.existsSync(src)) {
         console.error(`[prepack] 警告: 源目录不存在，已跳过: ${src}`);
         return;
@@ -83,12 +99,12 @@ function copyDir(src, dst) {
 
     for (const entry of entries) {
         const rel = entry.name;
-        if (shouldExclude(rel)) continue;
+        if (shouldExclude(rel, isTop)) continue;
         const srcPath = path.join(src, rel);
         const dstPath = path.join(dst, rel);
 
         if (entry.isDirectory()) {
-            copyDir(srcPath, dstPath);
+            copyDir(srcPath, dstPath, false);
         } else {
             fs.copyFileSync(srcPath, dstPath);
         }
@@ -175,6 +191,31 @@ async function main() {
         process.exit(1);
     }
 
+    // ── 配套资产：MCP Gateway / Archive 检索引擎 / BadCase 知识库种子 ──────
+    // 平级复制到 vendor/ 下（vendor/MCP、vendor/Archive、vendor/BadCase），
+    // 与 vendor/Server 平级以保证相对路径（{{skillDir}}/../../../MCP、
+    // McpToolGuide 的 ../../MCP/config.json）在安装态可解析。
+    // 依赖不装在各自子 package.json（npm 不为包内文件安装依赖），
+    // 统一声明在 cli/package.json（node 模块解析沿目录树向上命中包内 node_modules）。
+    const ASSETS = [
+        { src: 'MCP', dst: 'MCP', desc: 'MCP Gateway（src/scripts/config.json）' },
+        { src: 'Archive', dst: 'Archive', desc: '文档检索引擎（src + data 种子）' },
+        { src: 'BadCase', dst: 'BadCase', desc: '已知问题知识库种子（rn）' },
+    ];
+    for (const { src, dst, desc } of ASSETS) {
+        const srcDir = path.join(PROJECT_ROOT, src);
+        const dstDir = path.join(VENDOR_DIR, dst);
+        if (!fs.existsSync(srcDir)) {
+            console.warn(`[prepack] 警告: 未找到 ${src}/，跳过（npm 包将缺少 ${desc}）`);
+            continue;
+        }
+        if (fs.existsSync(dstDir)) {
+            fs.rmSync(dstDir, { recursive: true, force: true });
+        }
+        copyDir(srcDir, dstDir);
+        console.log(`[prepack] 复制 ${src}/ → vendor/${dst}/（${desc}）`);
+    }
+
     console.log('[prepack] 完成。');
     console.log(`[prepack] 版本: ${version}, 校验: ${hash}`);
     console.log(`[prepack] vendor 目录: ${VENDOR_DIR}`);
@@ -200,10 +241,20 @@ function _hashDir(dir) {
     return hash.digest('hex').slice(0, 16);
 }
 
+/** 安全扫描跳过的知识内容目录（文档/知识库数据，文件名含 key/credential 属正常语义）。 */
+const SCAN_SKIP_DIRS = new Set([
+    'Archive/data',   // 知识库文档种子
+    'BadCase',        // 已知问题知识库
+]);
+
 /** 扫描 vendor 内是否有敏感文件。 */
 function _scanSecurity(dir) {
     const issues = [];
+    const relBase = path.relative(VENDOR_DIR, dir);
+    if (SCAN_SKIP_DIRS.has(relBase)) return issues;
     const walk = (d) => {
+        const rel = path.relative(VENDOR_DIR, d);
+        if (SCAN_SKIP_DIRS.has(rel)) return;
         for (const entry of fs.readdirSync(d, { withFileTypes: true })) {
             const full = path.join(d, entry.name);
             if (entry.isDirectory()) {

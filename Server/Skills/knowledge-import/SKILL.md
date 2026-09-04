@@ -305,7 +305,7 @@ experiences/{知识总结}
 | 参数 | 值 |
 |------|-----|
 | `issueList` | 4.5.1 构造的 JSON 数组 |
-| `knowledgeDir` | `BadCase/rn` 的绝对路径（相对 3rdLibraryLoop 仓库根解析） |
+| `knowledgeDir` | `BadCase/rn` 绝对路径。探测顺序：① `~/.3lib/3rdloop/BadCase/rn`（npm 安装态用户副本，`3rdloop mcp install` 生成）② `{{skillDir}}/../../../BadCase/rn`（仓库开发态） |
 
 ### 4.5.3 记录泛化产出
 

@@ -2,7 +2,7 @@
 name: ohos-lib-pr-push
 description: 'GitCode 三方库自动提 PR 工具。工作区为 fork 仓库克隆：在代码修改完成后复用当前分支提交推送，自动总结修改点、在源仓库（上游）创建 Issue、必要时同步更新 CHANGELOG（条目附 Issue 链接）、从 fork 向源仓库创建绑定 Issue 的 PR、评论 Start build 触发 CI。USE FOR: 三方库适配/修复/用例补充等本地修改完成后，从 fork 向 GitCode 源仓库（如 CPF-RN 组织仓库）自动提交 PR。'
 license: Apache-2.0
-compatibility: 需要 Node.js 18+（执行 scripts/gitcode-api.cjs），需要 git 命令行，需要 GitCode API Token（默认读取 3rdLibraryLoop/Server/.env 的 GIT_TOKEN）
+compatibility: 需要 Node.js 18+（执行 scripts/gitcode-api.cjs），需要 git 命令行，需要 GitCode API Token（优先取环境变量 GIT_TOKEN，可用 3rdloop config set GIT_TOKEN 配置；仓库开发态回退读取 3rdLibraryLoop/Server/.env）
 metadata:
   author: LoopEngine
   version: "1.5.0"
@@ -23,7 +23,7 @@ metadata:
 |------|------|------|------|
 | `workspaceDir` | string | ✅ | 本地工作区（git 仓库根目录）绝对路径，修改已在该目录完成 |
 | `upstreamUrl` | string | ❌ | 源仓库（上游）URL（如 `https://gitcode.com/CPF-RN/rntpc_react-native-image-crop-picker`）。不提供时按 Phase 1.1 的上游推断规则确定 |
-| `token` | string | ❌ | GitCode Token。不提供时读取 `3rdLibraryLoop/Server/.env` 的 `GIT_TOKEN`（见 Phase 1） |
+| `token` | string | ❌ | GitCode Token。不提供时按优先级取：环境变量 `GIT_TOKEN`（`3rdloop config set GIT_TOKEN <token>`）→ `3rdLibraryLoop/Server/.env`（仓库开发态）（见 Phase 1） |
 | `baseBranch` | string | ❌ | PR 目标（上游）分支。默认为上游与当前分支同名的分支（见 Phase 1.5） |
 | `branchName` | string | ❌ | **已废弃自动生成新分支**：默认使用当前分支。仅当用户明确要求指定分支名时才生效，且仍不得切换已有工作分支 |
 | `commitMessage` | string | ❌ | 提交信息。默认由修改点总结自动生成 |
@@ -89,8 +89,9 @@ Phase 8: 生成报告
 按优先级取值：
 
 1. 用户显式传入的 `token` 参数
-2. 读取 `{3rdLibraryLoop根目录}/3rdLibraryLoop/Server/.env` 中的 `GIT_TOKEN`（该目录通常是 `/Users/lalhan/Desktop/3rdLibraryLoop/3rdLibraryLoop/Server/.env`，亦可从本 SKILL 目录向上回溯：`SKILL 目录 = Server/Skills/ohos-lib-pr-push`，故 `.env` 位于 `../../../.env`）
-3. 都没有 → **终止并提示用户提供 Token**
+2. 环境变量 `GIT_TOKEN`（`3rdloop config set GIT_TOKEN <token>` 写入 `~/.3lib/.env` 后即注入环境，npm 安装态与仓库开发态通用）
+3. 读取 `{3rdLibraryLoop根目录}/3rdLibraryLoop/Server/.env` 中的 `GIT_TOKEN`（仅仓库开发态；亦可从本 SKILL 目录向上回溯：`SKILL 目录 = Server/Skills/ohos-lib-pr-push`，故 `.env` 位于 `../../../.env`）
+4. 都没有 → **终止并提示用户提供 Token（推荐 `3rdloop config set GIT_TOKEN <token>`）**
 
 ### 1.3 获取 Token 用户信息
 

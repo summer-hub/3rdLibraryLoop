@@ -29,7 +29,7 @@ metadata:
 | `outputDir` | string | ✅ | 输出目录绝对路径 |
 | `interfaceDocPath` | string | ✅ | 接口规格说明文档路径 |
 | `repoName` | string | ✅ | 仓库名称 |
-| `knowledgeDir` | string | ❌ | 已知问题知识库根目录绝对路径，默认 `BadCase/rn`（相对 3rdLibraryLoop 仓库根） |
+| `knowledgeDir` | string | ❌ | 已知问题知识库根目录绝对路径。默认按以下顺序探测第一个存在的路径：① `~/.3lib/3rdloop/BadCase/rn`（npm 安装态用户副本，`3rdloop mcp install` 生成）② `{{skillDir}}/../../../BadCase/rn`（仓库开发态） |
 
 ---
 
@@ -38,7 +38,7 @@ metadata:
 - **前置 SKILL**: `rn-library-interface-analyzer`（阶段 1 已生成接口规格说明文档）
 - **输入文件**: `接口规格说明.md`（位于 outputDir）
 - **仓库源码**: 已克隆到 `{outputDir}/source/ohos/`（鸿蒙化）+ `{outputDir}/source/RN/`（上游原库）
-- **知识库**: `{knowledgeDir}`（默认 `BadCase/rn`），结构如下：
+- **知识库**: `{knowledgeDir}`（默认探测顺序：`~/.3lib/3rdloop/BadCase/rn` → `{{skillDir}}/../../../BadCase/rn`），结构如下：
 
 ```
 {knowledgeDir}/

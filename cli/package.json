@@ -1,6 +1,6 @@
 {
     "name": "@ohos-cpf/3rdloop",
-    "version": "0.0.7",
+    "version": "0.0.9",
     "description": "3rdLibraryLoop 三方库自动化检视 CLI：嵌入式复用核心引擎，任务生命周期管理（submit/run/wait/progress/abort/list/result/doctor）",
     "type": "module",
     "license": "MIT",
@@ -43,9 +43,13 @@
         "test": "node --test test/*.mjs"
     },
     "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.0.0",
         "@opencode-ai/sdk": "^1.18.6",
         "better-sqlite3": "^13.0.1",
+        "chokidar": "^4.0.0",
         "dotenv": "^17.0.0",
-        "openai": "^4.0.0"
+        "jieba-wasm": "^2.4.0",
+        "openai": "^4.0.0",
+        "typescript": "^5.5.4"
     }
 }

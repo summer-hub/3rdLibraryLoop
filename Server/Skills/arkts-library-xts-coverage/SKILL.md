@@ -35,16 +35,16 @@ metadata:
 ## 执行命令
 
 ```bash
-node "{{workspaceRoot}}/MCP/scripts/analyze-xts-coverage.cjs" --libroot "{{libroot}}" [--output "{{output}}"] [--title "{{title}}"] [--mode auto|ast|regex] [--lib "{{库名}}"]
+node "{{skillDir}}/../../../MCP/scripts/analyze-xts-coverage.cjs" --libroot "{{libroot}}" [--output "{{output}}"] [--title "{{title}}"] [--mode auto|ast|regex] [--lib "{{库名}}"]
 ```
 
 或从已有 interface-spec.json 生成：
 
 ```bash
-node "{{workspaceRoot}}/MCP/scripts/analyze-xts-coverage.cjs" --spec "{{spec}}" --libroot "{{libroot}}" [--output "{{output}}"]
+node "{{skillDir}}/../../../MCP/scripts/analyze-xts-coverage.cjs" --spec "{{spec}}" --libroot "{{libroot}}" [--output "{{output}}"]
 ```
 
-其中 `{{workspaceRoot}}` = `3rdLibraryLoop` 工作区根目录。
+其中 `{{skillDir}}` = SKILL.md 所在目录；脚本位于 SKILL 目录向上三级的 `MCP/scripts/`（仓库开发态与 npm 安装态路径一致）。
 
 ---
 

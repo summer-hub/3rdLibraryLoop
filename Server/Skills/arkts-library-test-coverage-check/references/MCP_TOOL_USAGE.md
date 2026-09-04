@@ -2,6 +2,8 @@
 
 本文档说明本 SKILL 可复用的 MCP 脚本工具，用于接口覆盖率分析和测试文件扫描，避免重复造轮子。
 
+> `{{skillDir}}` = 本 SKILL 目录；脚本统一位于 SKILL 目录向上三级的 `MCP/scripts/`（仓库开发态与 npm 安装态路径一致）。
+
 ---
 
 ## 可用 MCP 脚本工具
@@ -17,7 +19,7 @@
 **调用方式**：
 
 ```bash
-node "{{workspaceRoot}}/MCP/scripts/analyze-demo-coverage.cjs" \
+node "{{skillDir}}/../../../MCP/scripts/analyze-demo-coverage.cjs" \
   --libroot "{{libroot}}" \
   --output "{{outputDir}}/demo-coverage-report.md"
 ```
@@ -49,7 +51,7 @@ node "{{workspaceRoot}}/MCP/scripts/analyze-demo-coverage.cjs" \
 **调用方式**：
 
 ```bash
-node "{{workspaceRoot}}/MCP/scripts/analyze-xts-coverage.cjs" \
+node "{{skillDir}}/../../../MCP/scripts/analyze-xts-coverage.cjs" \
   --libroot "{{libroot}}" \
   --output "{{outputDir}}/xts-coverage-report.md"
 ```

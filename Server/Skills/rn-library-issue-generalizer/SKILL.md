@@ -27,7 +27,7 @@ metadata:
 | 参数 | 必填 | 说明 |
 |------|------|------|
 | `issueList` | ✅ | 案例清单。三种格式任选：① JSON 数组 `[{"description": "...", "prUrl": "..."}]` ② 清单文件路径（每行一条：`问题描述 <空格/Tab> PR链接`，兼容 Markdown 链接 `[描述](url)` 与裸 URL） ③ 多行文本（同②格式） |
-| `knowledgeDir` | ✅ | 知识库根目录绝对路径（如 `BadCase/rn`）。目录无 `INDEX.md` 时视为**冷启动**，自动初始化分级结构；已有 `INDEX.md` 时读取现有规则执行归类比对（Phase 4） |
+| `knowledgeDir` | ✅ | 知识库根目录**可写**绝对路径。默认探测顺序：① `~/.3lib/3rdloop/BadCase/rn`（npm 安装态用户副本，`3rdloop mcp install` 生成）② `{{skillDir}}/../../../BadCase/rn`（仓库开发态）。目录无 `INDEX.md` 时视为**冷启动**，自动初始化分级结构；已有 `INDEX.md` 时读取现有规则执行归类比对（Phase 4） |
 | `gitcodeToken` | ❌ | GitCode API Token。访问私有仓库或遇速率限制时使用 |
 
 ---
@@ -45,7 +45,7 @@ metadata:
 > ⚠️ **所有新增/修改文件**都必须存放在 `{knowledgeDir}` 内。知识库采用**分级结构**（一级索引 + 二级知识）：
 
 ```
-{knowledgeDir}/                       # 通常为 BadCase/rn/
+{knowledgeDir}/                       # 默认 ~/.3lib/3rdloop/BadCase/rn（npm 态）或仓库 BadCase/rn（开发态）
 ├── INDEX.md                          # 一级：分类 + 规则/案例索引（不含具体知识）
 ├── rules/                            # 二级：规则知识
 │   └── R-{XX}-{规则名}.md            #   检查点/特征 + 案例索引行

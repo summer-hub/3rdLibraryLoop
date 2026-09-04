@@ -37,22 +37,30 @@
 
 ### 0.3 MCP Gateway 配置方法
 
-若 MCP Gateway 未配置，需在 `~/.config/opencode/opencode.json` 的 `mcp` 节点中添加：
+若 MCP Gateway 未配置，**优先执行一条命令自动注册**（npm 安装态与仓库开发态通用）：
+
+```bash
+3rdloop mcp install
+```
+
+该命令会生成用户级 Gateway 配置（`~/.3lib/3rdloop/mcp/config.json`，知识库数据落在 `~/.3lib/3rdloop/kb-data`，跨版本更新不丢失），并把 `mcp-gateway` 注册到 `~/.config/opencode/opencode.json` 与 `~/.config/deveco/deveco.jsonc`。
+
+手动配置（备用）：在 `~/.config/opencode/opencode.json` 的 `mcp` 节点中添加（路径替换为实际 Gateway 位置，npm 安装态为包内 `vendor/MCP/`，仓库开发态为仓库 `MCP/`）：
 
 ```json
 "mcp-gateway": {
   "command": [
     "node",
-    "/Users/lalhan/Desktop/3rdLibraryLoop/3rdLibraryLoop/MCP/src/index.js",
+    "<Gateway根目录>/MCP/src/index.js",
     "--config",
-    "/Users/lalhan/Desktop/3rdLibraryLoop/3rdLibraryLoop/MCP/config.json"
+    "~/.3lib/3rdloop/mcp/config.json"
   ],
   "enabled": true,
   "type": "local"
 }
 ```
 
-配置后需**重启 opencode** 才能让 AI 会话发现并调用 MCP 工具。
+配置后需**重启 opencode/deveco serve** 才能让 AI 会话发现并调用 MCP 工具。
 
 ---
 

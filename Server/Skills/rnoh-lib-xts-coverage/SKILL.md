@@ -68,9 +68,8 @@ node "{{skillDir}}/../../../MCP/scripts/rn-analyze-test-coverage.cjs" \
 ```
 
 其中：
-- `{{skillDir}}` = SKILL.md 所在目录
+- `{{skillDir}}` = SKILL.md 所在目录（脚本位于其向上三级的 `MCP/scripts/`）
 - `{{libroot}}` = RN 三方库的鸿蒙化仓库根目录
-- `{{workspaceRoot}}` = `3rdLibraryLoop` 工作区根目录
 
 ---
 
