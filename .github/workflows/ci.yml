@@ -1,0 +1,63 @@
+# CI —— 统一校验流水线（F-29）
+#
+# 设计：本工作流**只负责环境准备与调用统一入口** `npm run ci`，
+# 不在此处堆砌具体检查命令。原因：CI 平台配置（GitHub Actions / GitLab CI /
+# GitCode 流水线）语法各不相同，把校验逻辑写在平台配置里会导致：
+#   - 迁移平台时要重写一遍校验；
+#   - 本地跑不出与 CI 一致的结果（"我本地是好的"）。
+# 因此真正的校验在 scripts/ci.mjs，各平台只需调用它。
+#
+# 若本项目托管在 GitCode，可在其流水线配置中执行同一条命令：
+#   npm ci && npm run ci
+# （本文件保留以便镜像到 GitHub 或作为配置范例。）
+
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          # 使用 lockfile 锁定的依赖树（可复现构建，对应 F-05）
+          cache: npm
+
+      - name: Install dependencies (root)
+        run: npm ci
+
+      - name: Install dependencies (Server)
+        run: cd Server && npm ci
+
+      - name: Verify (lint + all test suites)
+        run: npm run ci
+
+      - name: Coverage baseline (non-gating)
+        # 覆盖率在本阶段只建立基线并暴露缺口，不作为门禁（见 docs/ROADMAP.md F-31）
+        run: npm run coverage
+        continue-on-error: true
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-baseline
+          path: |
+            coverage-*.txt
+          if-no-files-found: ignore

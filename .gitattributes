@@ -1,0 +1,63 @@
+# 换行符与文本属性统一策略（F-32）
+#
+# 背景：仓库同时服务 Windows 主开发与 macOS/Linux 用户（见 Archive 中
+# macos-* 经验条目、cli/lib/update.js 的 win32 分支），但此前**没有 .gitattributes**，
+# 行为完全依赖各人本机的 `core.autocrlf`。后果：
+#   - 同一文件在不同机器上换行符不同 → 整文件 diff 噪音、合并冲突；
+#   - shell 脚本被 CRLF 破坏（`bash: $'\r': command not found`）。
+# 本文件使行为**不再依赖开发者本机配置**。
+#
+# 重要：仓库内的存储形态是 LF（core.autocrlf=true 在 add 时已把 CRLF 归一为 LF），
+# 因此新增本文件**不会**产生整仓库改动——工作区现有 CRLF 文件的规范化结果与
+# 已存储内容一致。下一次 checkout 起，工作区统一为 LF。
+
+# 默认：自动识别文本，检出为 LF
+* text=auto eol=lf
+
+# 源码 / 文档 / 配置：显式 LF（跨平台一致，避免脚本被 CRLF 破坏）
+*.js    text eol=lf
+*.mjs   text eol=lf
+*.cjs   text eol=lf
+*.ts    text eol=lf
+*.json  text eol=lf
+*.jsonl text eol=lf
+*.md    text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.html  text eol=lf
+*.css   text eol=lf
+*.sh    text eol=lf
+*.env   text eol=lf
+.env.example text eol=lf
+*.gitattributes text eol=lf
+.gitignore      text eol=lf
+
+# Windows 专有脚本：必须 CRLF（cmd.exe 对 LF 的解析不可靠）
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+# 二进制：禁止任何转换（否则图片/数据库会被破坏）
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.webp  binary
+*.zip   binary
+*.tgz   binary
+*.gz    binary
+*.pdf   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.exe   binary
+*.dll   binary
+*.so    binary
+*.node  binary
+*.db    binary
+*.sqlite binary
+
+# 生成/依赖目录不参与语言统计与 diff 展示
+node_modules/ -linguist-vendored
+cli/vendor/   -linguist-vendored
+cli/web/      -linguist-vendored

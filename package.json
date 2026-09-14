@@ -4,10 +4,26 @@
     "type": "module",
     "private": true,
     "scripts": {
-        "test:m1": "node test/m1/run-all.mjs"
+        "test": "node test/run-all.mjs",
+        "test:m1": "node test/m1/run-all.mjs",
+        "test:m2": "node test/m2/run-all.mjs",
+        "test:m3": "node test/m3/run-all.mjs",
+        "test:m4": "node test/m4/run-all.mjs",
+        "test:m5": "node test/m5-phase2/run-all.mjs",
+        "test:m6": "node test/m6-phase3/run-all.mjs",
+        "test:m7": "node test/m7-phase4/run-all.mjs",
+        "test:unit": "node Server/Agent/SkillSelector/__tests__/test-pure-logic.js",
+        "lint": "biome lint",
+        "lint:fix": "biome lint --write",
+        "coverage": "node scripts/coverage.mjs",
+        "ci": "node scripts/ci.mjs",
+        "verify": "npm run lint && npm run test"
     },
     "dependencies": {
         "@opencode-ai/sdk": "^1.18.6",
         "better-sqlite3": "^13.0.1"
+    },
+    "devDependencies": {
+        "@biomejs/biome": "^2.5.13"
     }
 }
