@@ -245,6 +245,7 @@ git merge main feat/multi-agent-monolith   # 拉齐前置成果
 | **F-29** | CI：接入 GitCode 流水线（或 `.github/workflows` 备用），至少跑 `node --check` 全量语法 + `npm test` + 编码检查 + `git grep` 禁止项（7594 埋点、admin123） | PR 必过；故意引入 `admin123` 能被拦住 |
 | **F-30** | Lint/格式化：引入 ESLint 或 Biome，先 `warn` 后 `error` 渐进收紧 | `npm run lint` 无 error |
 | **F-31** | 测试覆盖率基线：当前测试 ~600 行 / 源码 83k 行（≈0.7%），先把 Orchestrator / SseHub / DbUse 三个模块拉到有实质覆盖 | 核心模块行覆盖 ≥60%（仅这三模块） |
+| **F-32** | 跨平台换行符与文本属性缺失：`core.autocrlf=true` 且**无 `.gitattributes`**（已实测确认）。仓库同时服务 Windows 主开发与 macOS/Linux 用户（见 `cli/AGENTS.md` 的 `macos-bash-replace-build-ps1`、`macos-bsd-diff-q-illegal-option` 经验条目），会导致整文件换行符抖动、diff 噪音、shell 脚本被 CRLF 破坏 | 新增 `.gitattributes`：`* text=auto eol=lf`，对 `*.sh`/`*.mjs`/`*.cjs` 强制 `eol=lf`，二进制类型标 `binary`；可选 `git add --renormalize .` 一次性对齐 | `git status` 在跨平台 checkout 后无换行符抖动；`.sh` 脚本不出现 `\r`；新增文件均按规则归一 |
 
 ---
 
