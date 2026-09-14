@@ -165,6 +165,65 @@ class OrchestratorController {
         return true;
     }
 
+    /**
+     * shutdown — 优雅停机：终止全部活跃编排并等待收尾（F-04）。
+     *
+     * 由 server.js 的优雅关闭流程调用。对每个 RUNNING/LOADED 的编排器执行
+     * abortAndWait：中断远端会话 → 归档 → 回收会话 → 落盘。所有编排器并行处理，
+     * 共享同一个 timeoutMs 预算（总耗时 ≈ timeoutMs，而非累加）。
+     *
+     * 已处于终态的编排器只等待持久化链落盘，不做中止。
+     *
+     * @param {object} [opts]
+     * @param {number} [opts.timeoutMs=25000] - 整体等待预算
+     * @returns {Promise<{total: number, active: number, settled: object[], timedOut: number}>}
+     */
+    async shutdown({ timeoutMs = 25000 } = {}) {
+        const active = [];
+        const terminal = [];
+
+        for (const [taskId, orch] of this._orchestrators) {
+            if (orch.status === OrchestratorStatus.RUNNING || orch.status === OrchestratorStatus.LOADED) {
+                active.push({ taskId, orch });
+            } else {
+                terminal.push({ taskId, orch });
+            }
+        }
+
+        console.log(
+            `[OrchestratorController] 优雅停机: 活跃编排 ${active.length} 个，终态 ${terminal.length} 个`
+        );
+
+        // 活跃编排：中止并等待收尾（并行，共享同一预算）
+        const settled = await Promise.allSettled(
+            active.map(async ({ taskId, orch }) => {
+                const t0 = Date.now();
+                const r = await orch.abortAndWait({ timeoutMs });
+                const cost = Date.now() - t0;
+                console.log(
+                    `[OrchestratorController] 停机收尾: taskId=${taskId} status=${r.status} ` +
+                    `inFlight=${r.inFlight} pendingBg=${r.pending} 耗时=${cost}ms`
+                );
+                return { taskId, ...r, costMs: cost };
+            })
+        );
+
+        // 终态编排：仅确保在途持久化写链落盘
+        await Promise.allSettled(terminal.map(({ orch }) => orch.flushPersistence()));
+
+        const timedOut = settled.filter(
+            (s) => s.status === 'rejected'
+                || (s.status === 'fulfilled' && (s.value.pending > 0 || s.value.inFlight > 0))
+        ).length;
+
+        return {
+            total: this._orchestrators.size,
+            active: active.length,
+            settled: settled.map((s) => (s.status === 'fulfilled' ? s.value : { error: String(s.reason?.message || s.reason) })),
+            timedOut
+        };
+    }
+
     // ─── 供 FlexRunnerController 跨域查询 ──────────────────────────────
 
     /**

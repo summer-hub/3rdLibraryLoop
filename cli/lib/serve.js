@@ -180,19 +180,28 @@ export async function cmdServe({ rest = [], jsonMode = false, dataDir = '', user
     // 必须在 createServer 之前注册：Server 内部也注册了 SIGINT/SIGTERM 处理器
     // （退出码 0），先注册者先执行，保证 CLI 约定的 130/143 退出码语义。
     let webServer = null;
+    let backendServer = null;
     let shuttingDown = false;
-    const onSignal = (sig) => {
+    const onSignal = async (sig) => {
         if (shuttingDown) return;
         shuttingDown = true;
+        const exitCode = sig === 'SIGINT' ? 130 : 143;
         try {
             // 立即停止 Web 服务并断开存量连接（含 SSE 反代长连接）
             webServer?.close();
             webServer?.closeAllConnections?.();
         } catch { /* 尽力而为 */ }
-        process.exit(sig === 'SIGINT' ? 130 : 143);
+        // F-04：先让后端优雅收尾（中止在途编排、归档并回收远端会话、状态落盘），
+        // 再按 CLI 约定退出。此前直接 process.exit 会让后端清理逻辑完全没有机会执行。
+        try {
+            if (typeof backendServer?.gracefulShutdown === 'function') {
+                await backendServer.gracefulShutdown({ timeoutMs: 30000 });
+            }
+        } catch { /* 尽力而为 */ }
+        process.exit(exitCode);
     };
-    process.once('SIGINT', () => onSignal('SIGINT'));
-    process.once('SIGTERM', () => onSignal('SIGTERM'));
+    process.once('SIGINT', () => { onSignal('SIGINT'); });
+    process.once('SIGTERM', () => { onSignal('SIGTERM'); });
 
     // json 模式下静默 Web 启动横幅（stdout 只放结构化启动信息）
     const log = jsonMode ? () => {} : (msg) => process.stderr.write(`${msg}\n`);
@@ -219,7 +228,8 @@ export async function cmdServe({ rest = [], jsonMode = false, dataDir = '', user
         // dataDir 已通过 3LIB_DATA_DIR env 注入（见上），Server 内部所有默认
         // createStorage() 均落到用户数据目录；skillDir 沿用包内 vendor 默认
         // （npm 更新自动获得新 SKILL，不与 CLI 的 3LIB_SKILL_DIR 联动）
-        await serverModule.createServer({ port: serverPort });
+        // 保留引用：F-04 停机时需调用其 gracefulShutdown 完成编排收尾
+        backendServer = await serverModule.createServer({ port: serverPort });
 
         if (jsonMode) {
             process.stdout.write(JSON.stringify({

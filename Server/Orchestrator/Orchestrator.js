@@ -921,6 +921,84 @@ class Orchestrator {
     }
 
     /**
+     * flushPersistence — 等待在途持久化写入链落盘（F-04 优雅停机用）。
+     *
+     * `_persistState` 是 fire-and-forget 的 Promise 链，进程直接退出会丢失
+     * 最后一次状态写入（例如步骤终态），因此停机前必须显式等待。
+     *
+     * @returns {Promise<void>}
+     */
+    async flushPersistence() {
+        try {
+            await this._persistChain;
+        } catch {
+            // _persistChain 内部错误已在 run() 中吞掉并记日志，此处仅保证等待完成
+        }
+    }
+
+    /**
+     * abortAndWait — 终止编排并等待真正停下来（F-04 优雅停机用）。
+     *
+     * 与 abort() 的区别：abort() 只是置位并通知在途 runner；本方法进一步：
+     *   1. 等到编排进入终态（status 不再是 running）；
+     *   2. 等到所有在途步骤（_inFlight）清空——否则 start() 可能已写出终态，
+     *      而步骤执行体仍在退出途中；
+     *   3. 排空各步骤 runner 的后台任务（经验总结 + 远端会话归档回收）；
+     *   4. 等待持久化链落盘。
+     *
+     * 所有等待受 timeoutMs 约束，超时即返回；由上层（server.js）用硬超时兜底，
+     * 避免停机被单个卡死步骤无限拖住。
+     *
+     * @param {object} [opts]
+     * @param {number} [opts.timeoutMs=60000] - 最长等待时间
+     * @param {number} [opts.pollMs=100]      - 状态轮询间隔
+     * @returns {Promise<{status: string, inFlight: number, drained: number, pending: number}>}
+     */
+    async abortAndWait({ timeoutMs = 60000, pollMs = 100 } = {}) {
+        const deadline = Date.now() + Math.max(0, timeoutMs);
+
+        if (this._status === OrchestratorStatus.LOADED) {
+            // 已加载未启动：直接标记终止，避免停机窗口内被 start() 拉起
+            this._aborted = true;
+            this._status = OrchestratorStatus.ABORTED;
+            this._endTime = nowCST();
+            this._emit(SSE_EVENT.TASK_ABORTED, this.getProgress());
+            await this._persistState();
+            await this._deleteOwnerFile();
+        } else if (this._status === OrchestratorStatus.RUNNING) {
+            await this.abort();
+            while (Date.now() < deadline
+                && (this._status === OrchestratorStatus.RUNNING || this._inFlight.size > 0)) {
+                await new Promise((resolve) => setTimeout(resolve, pollMs));
+            }
+        }
+
+        // 排空各步骤 runner 的后台任务（经验总结 + 会话回收）
+        const runners = [];
+        for (const node of this._nodes.values()) {
+            const runner = node._runner;
+            if (runner && typeof runner.drainBackgroundTasks === 'function') {
+                runners.push(runner);
+            }
+        }
+        const drains = await Promise.allSettled(
+            runners.map((r) => r.drainBackgroundTasks(Math.max(0, deadline - Date.now())))
+        );
+        let pending = 0;
+        for (const d of drains) {
+            if (d.status === 'fulfilled' && d.value) pending += d.value.pending || 0;
+        }
+
+        await this.flushPersistence();
+        return {
+            status: this._status,
+            inFlight: this._inFlight.size,
+            drained: runners.length - pending,
+            pending
+        };
+    }
+
+    /**
      * pause — 暂停编排执行。
      *
      * 暂停所有运行中的步骤（在步骤边界生效）。

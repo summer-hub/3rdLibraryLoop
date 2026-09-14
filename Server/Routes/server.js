@@ -169,20 +169,66 @@ export async function createServer(options = {}) {
             resolve(server);
         });
 
-        // ─── 优雅关闭：释放 SSE 连接 + 存储连接 ──────────────────────────
-        const shutdown = () => {
+        // ─── 优雅关闭（F-04）─────────────────────────────────────────────
+        // 原实现只 destroy SSE + close storage 就 process.exit(0)，导致：
+        //   - 在途编排被硬杀，远端 opencode 会话成为孤儿（无人 abort/回收）
+        //   - 最后一次编排状态写入（_persistChain 在途）被丢弃
+        // 现按「停收新请求 → 中止在途编排并等收尾 → 落盘 → 关存储」顺序收口，
+        // 并有硬超时兜底，避免个别卡死步骤无限拖住停机。
+        let shuttingDown = false;
+        const gracefulShutdown = async ({ timeoutMs = 30000, exitCode = null } = {}) => {
+            if (shuttingDown) return;
+            shuttingDown = true;
             console.log('[Server] 正在关闭...');
-            sseHub.destroy();
-            server.close(() => {
-                if (storage && typeof storage.close === 'function') {
-                    storage.close().finally(() => process.exit(0));
-                } else {
-                    process.exit(0);
+
+            const hardTimer = setTimeout(() => {
+                console.error(`[Server] 优雅关闭超时（${timeoutMs}ms），强制退出`);
+                process.exit(exitCode ?? 0);
+            }, timeoutMs);
+            hardTimer.unref?.();
+
+            try {
+                // 1) 断开全部 SSE 长连接（否则 server.close() 会一直等到连接自然结束）
+                sseHub.destroy();
+
+                // 2) 停止接受新连接
+                await new Promise((resolve) => {
+                    server.close(() => resolve());
+                    server.closeIdleConnections?.();
+                });
+
+                // 3) 中止在途编排并等待收尾（含远端会话中断、归档与回收）
+                const budget = Math.max(1000, timeoutMs - 3000);
+                const result = await orchestratorController.shutdown({ timeoutMs: budget });
+                if (result.active > 0) {
+                    console.log(
+                        `[Server] 编排收尾完成: 活跃 ${result.active}/${result.total}，` +
+                        `超时未收尾 ${result.timedOut} 个`
+                    );
                 }
-            });
+            } catch (err) {
+                console.error(`[Server] 关闭过程异常: ${err.message}`);
+            } finally {
+                try {
+                    if (storage && typeof storage.close === 'function') {
+                        await storage.close();
+                    }
+                } catch (err) {
+                    console.error(`[Server] 关闭存储连接失败: ${err.message}`);
+                }
+                clearTimeout(hardTimer);
+                console.log('[Server] 已关闭');
+                if (exitCode != null) process.exit(exitCode);
+            }
         };
-        process.on('SIGINT', shutdown);
-        process.on('SIGTERM', shutdown);
+
+        // 暴露给宿主（如 cli/lib/serve.js）：由其信号处理器调用后再以 130/143 退出，
+        // 保证「CLI 的退出码约定」与「Server 的优雅收尾」两者兼得。
+        server.gracefulShutdown = gracefulShutdown;
+
+        const onSignal = () => { gracefulShutdown().catch(() => process.exit(0)); };
+        process.on('SIGINT', onSignal);
+        process.on('SIGTERM', onSignal);
     });
 }
 

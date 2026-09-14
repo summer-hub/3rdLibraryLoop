@@ -246,6 +246,13 @@ class FlexRunner {
     #remoteAborted = false;
 
     /**
+     * @type {Set<Promise<void>>} 在途后台任务（F-04：经验总结 + 会话回收）。
+     * 这些任务不阻塞 executeStart 返回，但优雅停机时必须排空——
+     * 否则进程退出会中断会话回收，在 opencode 侧留下未归档的孤儿会话。
+     */
+    #backgroundTasks = new Set();
+
+    /**
      * 构造函数 — 创建 FlexRunner 实例。
      *
      * 支持两种使用方式：
@@ -584,9 +591,12 @@ class FlexRunner {
                     const skillDir = this.#matchedSkillDir;
                     // F-03：标记「会话收尾已交给后台总结」，使 executeStart 尾部不重复收尾
                     this.#summarizeDispatched = true;
-                    this._summarizeAndPersist(summaryFilePath, skillDir, sid).catch((err) => {
+                    // F-04：登记在途后台任务，供优雅停机排空（producer 在 finally 中自注销）
+                    const bg = this._summarizeAndPersist(summaryFilePath, skillDir, sid).catch((err) => {
                         this._log('warn', `后台经验总结/持久化异常: ${err.message}`);
                     });
+                    this.#backgroundTasks.add(bg);
+                    bg.finally(() => this.#backgroundTasks.delete(bg));
                 } else {
                     this._log('warn', `checkResult 未通过（loopCount=${loopCount}）`);
                 }
@@ -901,6 +911,32 @@ class FlexRunner {
             this._log('error', `invokeSkill 异常: ${err.message}`);
             return false;
         }
+    }
+
+    /**
+     * drainBackgroundTasks — 排空在途后台任务（F-04 优雅停机用）。
+     *
+     * 等待经验总结（含会话归档与远端回收）完成。超时后返回，不阻塞停机流程——
+     * 调用方（Orchestrator）有更上层的整体超时兜底。
+     *
+     * @param {number} [timeoutMs=15000] - 最长等待时间
+     * @returns {Promise<{drained: boolean, pending: number}>}
+     */
+    async drainBackgroundTasks(timeoutMs = 15000) {
+        const deadline = Date.now() + Math.max(0, timeoutMs);
+        while (this.#backgroundTasks.size > 0 && Date.now() < deadline) {
+            await Promise.allSettled([...this.#backgroundTasks]);
+            if (this.#backgroundTasks.size > 0) {
+                // 任务已 settle 但 finally 注销尚未执行完毕，让出一拍
+                await this._sleep(20);
+            }
+        }
+        return { drained: this.#backgroundTasks.size === 0, pending: this.#backgroundTasks.size };
+    }
+
+    /** 是否仍有在途后台任务（优雅停机判定用） */
+    get hasBackgroundTasks() {
+        return this.#backgroundTasks.size > 0;
     }
 
     /**
