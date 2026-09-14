@@ -678,10 +678,6 @@ class Orchestrator {
             return;
         }
 
-        // #region agent log
-        fetch('http://127.0.0.1:7594/ingest/461ba96d-dcca-4412-802c-154cfd42eb29',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0305de'},body:JSON.stringify({sessionId:'0305de',runId:'debug',location:'Orchestrator.js:468',message:'_executeNode finished',data:{node:node.stepId,success,retryCount:node.retryCount,maxRetries:node.maxRetries,nextStepId:node.nextStepId,failStepId:node.failStepId,status:node.status},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
-
         if (success) {
             // 成功 → 走 nextStepId
             this._activateNextStep(node, node.nextStepId);
@@ -740,10 +736,6 @@ class Orchestrator {
             return;
         }
 
-        // #region agent log
-        fetch('http://127.0.0.1:7594/ingest/461ba96d-dcca-4412-802c-154cfd42eb29',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0305de'},body:JSON.stringify({sessionId:'0305de',runId:'debug',location:'Orchestrator.js:504',message:'_activateNextStep entry',data:{from:fromNode.stepId,next:nextStepId,allowCompleted,forceDependCheck,nextStatus:nextNode.status,nextIsPending:nextNode.isPending},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
-
         // nextStepId 成功路径：激活待执行节点（PENDING/READY），
         // 或重试修复链中已 FAILED 但未用尽 maxRetries 的节点
         // （如 failStepId 跳回修复后成功后，再次走 nextStepId 到原失败节点）。
@@ -752,9 +744,6 @@ class Orchestrator {
                 nextNode.status === NodeStatus.FAILED &&
                 nextNode.retryCount < nextNode.maxRetries;
             if (!canReenterFromFailed) {
-                // #region agent log
-                fetch('http://127.0.0.1:7594/ingest/461ba96d-dcca-4412-802c-154cfd42eb29',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0305de'},body:JSON.stringify({sessionId:'0305de',runId:'post-fix',location:'Orchestrator.js:515',message:'BLOCKED: not pending and cannot reenter from failed',data:{from:fromNode.stepId,next:nextStepId,nextStatus:nextNode.status,nextIsPending:nextNode.isPending,retryCount:nextNode.retryCount,maxRetries:nextNode.maxRetries},timestamp:Date.now()})}).catch(()=>{});
-                // #endregion
                 // 已执行或运行中（且非失败可重试），不重复激活
                 return;
             }
@@ -763,17 +752,11 @@ class Orchestrator {
         // failStepId 修复路径：允许重复执行已 completed/failed 节点，
         // 但跳过正在运行/已就绪（避免重复入队）
         if (allowCompleted && (nextNode.isRunning || nextNode.status === NodeStatus.READY)) {
-            // #region agent log
-            fetch('http://127.0.0.1:7594/ingest/461ba96d-dcca-4412-802c-154cfd42eb29',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0305de'},body:JSON.stringify({sessionId:'0305de',runId:'debug',location:'Orchestrator.js:522',message:'H3 BLOCKED: allowCompleted target running/ready',data:{from:fromNode.stepId,next:nextStepId,nextStatus:nextNode.status},timestamp:Date.now()})}).catch(()=>{});
-            // #endregion
             return;
         }
 
         // 聚合条件：目标节点的所有前置依赖必须已完成（fan-in）
         if (forceDependCheck && !this._allDependenciesCompleted(nextNode)) {
-            // #region agent log
-            fetch('http://127.0.0.1:7594/ingest/461ba96d-dcca-4412-802c-154cfd42eb29',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0305de'},body:JSON.stringify({sessionId:'0305de',runId:'debug',location:'Orchestrator.js:527',message:'H2 BLOCKED: deps not all completed',data:{from:fromNode.stepId,next:nextStepId,deps:nextNode.dependencies},timestamp:Date.now()})}).catch(()=>{});
-            // #endregion
             this._log('info',
                 `步骤 ${fromNode.stepId} → 步骤 ${nextStepId} 尚有未完成的前置依赖，等待聚合`);
             return;
