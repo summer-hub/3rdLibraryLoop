@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@opencode-ai/sdk": "^1.18.10",
+    "better-sqlite3": "^13.0.1",
     "dotenv": "^17.4.2",
     "openai": "^4.67.0"
   }

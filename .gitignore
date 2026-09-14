@@ -2,7 +2,11 @@
 node_modules/
 
 # Lock files
-package-lock.json
+# 注意：package-lock.json 必须入库（F-05）。
+# 本项目用 npm 安装（README / start-services.mjs 均走 npm install），
+# 锁定版本才能保证「同一 commit → 同一依赖树」的可复现构建；
+# 此前把 lockfile 一并忽略，导致 clone 后依赖漂移、无法复现问题。
+# 仅在确实使用其他包管理器时才忽略其 lockfile。
 yarn.lock
 pnpm-lock.yaml
 

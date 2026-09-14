@@ -135,6 +135,16 @@ npm install
 cd Server && npm install
 ```
 
+> 📌 **`package-lock.json` 已入库**，CI / 生产环境请用 `npm ci` 而非 `npm install`：
+> `npm ci` 严格按 lockfile 安装，保证「同一 commit → 同一依赖树」，可复现问题现场。
+> 修改依赖后需把更新后的 lockfile 一起提交。
+
+> 🧩 本仓库存在两个 npm 包（根目录 + `Server/`），二者都要安装：
+> 根目录提供 `@opencode-ai/sdk` 与 `better-sqlite3`（引擎运行时依赖），
+> `Server/` 提供 `dotenv` / `openai` / `better-sqlite3` 等。
+> `better-sqlite3` 是原生模块，安装时会下载预编译二进制；若失败需本机具备
+> C++ 构建工具链（Windows: MSVC Build Tools；Linux: build-essential）。
+
 > 💡 也可以跳过手动安装，直接运行第 3 步的环境检测脚本，会自动检测并安装缺失依赖。
 
 ### 2. 配置环境变量
