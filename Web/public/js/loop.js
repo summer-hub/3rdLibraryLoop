@@ -9,6 +9,8 @@ var State = {
     loops: [], filteredLoops: [], selectedTaskId: null,
     currentProgress: null, orchProgress: null, selectedStepId: null,
     activeDetailTab: 'detail', brainPlan: null,
+    /* Phase 2：按步骤累积的多 Agent 协作数据（key = stepId 字符串） */
+    agentByStep: {},
     sseSource: null, pollTimer: null,
     activeMainTab: 'rounds',
     graphNodes: [], graphEdges: [], nodePositions: {},
@@ -521,6 +523,7 @@ function renderDetailPanel() {
     if (State.activeDetailTab==='detail') renderDetailTab(s);
     else if (State.activeDetailTab==='control') renderControlTab(s);
     else if (State.activeDetailTab==='files') renderFilesTab(s);
+    else if (State.activeDetailTab==='agents') renderAgentsTab(s);
 }
 
 function renderDetailTab(step) {
@@ -894,6 +897,18 @@ function connectSSE(tid) {
             stopPolling();loadLoopProgress(tid);loadLoopList();});
         es.addEventListener('loop:error',function(e){try{var d=JSON.parse(e.data);toast('error','大循环出错: '+(d.error||''));}catch(x){}stopPolling();loadLoopProgress(tid);loadLoopList();});
         es.addEventListener('orch:step:status',function(e){try{var d=JSON.parse(e.data);toast('info','步骤 '+d.stepId+': '+statusLabel(d.status));if(State.selectedLoop==null)loadOrchestratorProgress(tid);}catch(x){}});
+
+        /* ─── Phase 2：多 Agent 协作事件（未启用多 Agent 时不会到达） ───
+           设计取向：**纯前端累积 + 按需重绘**。
+           协作事件是高频细粒度事件（派发/结果/评审各一条），若每条都重绘整张步骤图，
+           会在大 fan-out 任务下把主线程打满。因此这里只往 State.agentByStep 里累积，
+           并且仅当"用户正看着该步骤的 Agent 面板"时才重绘。 */
+        es.addEventListener('orch:agent:topology',function(e){try{var d=JSON.parse(e.data);agentStore(d.stepId).topology=d;agentStore(d.stepId).plan=d.plan;agentTouch(d.stepId);}catch(x){}});
+        es.addEventListener('orch:agent:assign',function(e){try{var d=JSON.parse(e.data);var s=agentStore(d.stepId);s.assigns.push({stageId:d.stageId,role:d.role,round:d.round,attempt:d.attempt,at:Date.now()});agentTouch(d.stepId);}catch(x){}});
+        es.addEventListener('orch:agent:message',function(e){try{var d=JSON.parse(e.data);var s=agentStore(d.stepId);s.messages.push(d);if(s.messages.length>200)s.messages.splice(0,s.messages.length-200);agentTouch(d.stepId);}catch(x){}});
+        es.addEventListener('orch:agent:result',function(e){try{var d=JSON.parse(e.data);var s=agentStore(d.stepId);s.results.push(d);agentTouch(d.stepId);}catch(x){}});
+        es.addEventListener('orch:agent:review',function(e){try{var d=JSON.parse(e.data);var s=agentStore(d.stepId);s.reviews.push(d);agentTouch(d.stepId);}catch(x){}});
+        es.addEventListener('orch:agent:summary',function(e){try{var d=JSON.parse(e.data);var s=agentStore(d.stepId);s.summaries.push(d);agentTouch(d.stepId);}catch(x){}});
         es.addEventListener('orch:task:complete',function(){toast('success','编排任务完成');if(State.selectedLoop==null)loadOrchestratorProgress(tid);loadLoopProgress(tid);loadLoopList();});
         es.addEventListener('orch:task:error',function(){toast('error','编排任务出错');if(State.selectedLoop==null)loadOrchestratorProgress(tid);loadLoopProgress(tid);loadLoopList();});
         es.addEventListener('orch:task:aborted',function(){toast('warn','编排任务已终止');if(State.selectedLoop==null)loadOrchestratorProgress(tid);loadLoopProgress(tid);loadLoopList();});
@@ -1091,6 +1106,179 @@ window.switchToOrchTab=switchToOrchTab;
 window.switchToBrainTab=switchToBrainTab;
 window.showModal=showModal;
 window.copySessionId=copySessionId;
+
+/* ─── Phase 2：多 Agent 协作视图 ──────────────────────────────────────
+ *
+ * 目标：把「谁跟谁说了什么」画出来。三块内容：
+ *   1. **角色子图**：本步骤用了哪个协作计划、哪些阶段、哪个阶段是否决门；
+ *   2. **角色时间线**：每个角色会话的开始/结束/耗时/所用 SKILL/失败归因；
+ *   3. **协作拓扑**：角色之间的消息边（含驳回边），以及被单独统计的广播。
+ *
+ * 数据来源全部是 SSE 协作事件 + 后端 `getAgentTopology()` 快照，
+ * 前端**不做任何推断**（例如不猜"这次评审是驳回还是通过"）——
+ * 事件里带什么就显示什么，避免前端与后端语义漂移。
+ */
+function agentStore(stepId) {
+    var k = String(stepId);
+    if (!State.agentByStep) State.agentByStep = {};
+    if (!State.agentByStep[k]) {
+        State.agentByStep[k] = { topology:null, plan:null, assigns:[], messages:[], results:[], reviews:[], summaries:[], fetched:false };
+    }
+    return State.agentByStep[k];
+}
+
+function agentHasData(stepId) {
+    var s = State.agentByStep && State.agentByStep[String(stepId)];
+    return !!(s && (s.plan || s.results.length || s.topology));
+}
+
+/* 事件到达后：只在用户正看该步骤的 Agent 面板时重绘（避免高频事件打满主线程） */
+function agentTouch(stepId) {
+    if (State.activeDetailTab!=='agents') return;
+    if (String(State.selectedStepId)!==String(stepId)) return;
+    renderAgentsTab(getStep());
+}
+
+/* 兜底拉取：SSE 只覆盖"本次订阅期间"的事件，历史轮次需要向后端要快照 */
+async function fetchAgentTopology(stepId) {
+    if (!State.selectedTaskId) return;
+    var s = agentStore(stepId);
+    if (s.fetched) return;
+    s.fetched = true;
+    try {
+        var r = await fetch('/api/orchestrator/agent-topology?taskId='+encodeURIComponent(State.selectedTaskId)+'&stepId='+encodeURIComponent(stepId));
+        if (!r.ok) return;
+        var d = await r.json();
+        if (d && d.available && d.topology) {
+            s.topology = d.topology;
+            s.plan = d.plan || null;
+            s.results = d.stageRuns || [];
+            if (State.activeDetailTab==='agents') renderAgentsTab(getStep());
+        }
+    } catch(e) { /* 端点不可用（旧后端）时静默：面板会显示"暂无协作数据" */ }
+}
+
+function fnRoleLabel(roleId) {
+    var map = { planner:'🧭 规划者', retriever:'🔍 检索者', coder:'🔨 执行者', reviewer:'🧪 评审者', verifier:'✅ 验证者', supervisor:'🎛 编排者' };
+    return map[roleId] || ('🤖 ' + roleId);
+}
+
+function fnStageStatus(r) {
+    if (r.note==='gate_retry') return '<span class="agent-badge warn">结论不可解析，重跑</span>';
+    if (r.success) return '<span class="agent-badge ok">成功</span>';
+    return '<span class="agent-badge bad">'+escapeHtml(r.failureKind||'失败')+'</span>';
+}
+
+function renderAgentsTab(step) {
+    if (!step) { $('detailContent').innerHTML='<div class="detail-empty">请选择一个步骤节点</div>'; return; }
+    var s = agentStore(step.stepId);
+    if (!agentHasData(step.stepId)) {
+        $('detailContent').innerHTML =
+            '<div class="detail-section"><h4>🤖 Agent 协作</h4>'+
+            '<div class="detail-empty">本步骤暂无多 Agent 协作数据。<br>'+
+            '<span class="muted">多 Agent 默认关闭：用 <code>MULTI_AGENT_ENABLED=1</code> 启动后端，'+
+            '或在任务定义的步骤上加 <code>"multiAgent": true</code>。</span></div></div>';
+        fetchAgentTopology(step.stepId);
+        return;
+    }
+
+    var h = '';
+
+    // ── 1. 协作计划与角色子图 ──
+    if (s.plan) {
+        h += '<div class="detail-section"><h4>协作计划：'+escapeHtml(s.plan.name||s.plan.id)+'</h4>'+
+             '<div class="muted" style="font-size:11px;margin-bottom:8px;">'+
+             '主阶段 '+escapeHtml(s.plan.primaryStage||'—')+' ・ 最多修订 '+escapeHtml(String(s.plan.maxRevisions))+' 次 ・ '+
+             '阶段上限 '+escapeHtml(String(s.plan.maxRoleRuns))+' 个会话</div>'+
+             '<div class="agent-flow">';
+        (s.plan.stages||[]).forEach(function(st,i){
+            if (i>0) h+='<span class="agent-arrow">→</span>';
+            h+='<span class="agent-node'+(st.reviews?' gate':'')+'" title="'+escapeHtml(st.role)+'">'+
+               escapeHtml(fnRoleLabel(st.role).replace(/^\S+\s/,''))+
+               (st.reviews?'<span class="agent-gate-mark">否决门</span>':'')+
+               (st.optional?'<span class="agent-opt-mark">可选</span>':'')+
+               '</span>';
+        });
+        h += '</div></div>';
+    }
+
+    // ── 2. 角色时间线 ──
+    if (s.results.length) {
+        h += '<div class="detail-section"><h4>角色时间线 ('+s.results.length+' 次会话)</h4><div class="agent-timeline">';
+        s.results.forEach(function(r){
+            h += '<div class="agent-row">'+
+                 '<span class="agent-role">'+escapeHtml(fnRoleLabel(r.role))+'</span>'+
+                 '<span class="agent-stage muted">'+escapeHtml(r.stageId||'')+'</span>'+
+                 '<span class="agent-round muted">'+(r.round>0?('第 '+r.round+' 次修订'):'首轮')+'</span>'+
+                 fnStageStatus(r)+
+                 (r.skillName?'<span class="agent-skill">'+escapeHtml(r.skillName)+'</span>':'<span class="agent-skill muted">无 SKILL</span>')+
+                 (r.durationMs!=null?'<span class="agent-dur muted">'+(r.durationMs/1000).toFixed(1)+'s</span>':'')+
+                 (r.sessionId?'<span class="agent-session"><a href="#" onclick="copySessionId(\''+escapeHtml(r.sessionId)+'\');return false;" title="点击复制会话 ID">'+
+                    escapeHtml(String(r.sessionId).slice(0,18))+'…</a></span>':'')+
+                 (r.error?'<div class="agent-err">'+escapeHtml(r.error)+'</div>':'')+
+                 '</div>';
+        });
+        h += '</div></div>';
+    }
+
+    // ── 3. 评审记录 ──
+    if (s.reviews.length) {
+        h += '<div class="detail-section"><h4>评审结论 ('+s.reviews.length+')</h4>';
+        s.reviews.forEach(function(v){
+            var verdict = v.parsed===false ? '结论不可解析' : (v.approved===true?'通过':'不通过');
+            var cls = v.parsed===false ? 'warn' : (v.approved===true?'ok':'bad');
+            h += '<div class="agent-review"><span class="agent-badge '+cls+'">'+escapeHtml(verdict)+'</span>'+
+                 '<span class="muted">'+escapeHtml(v.stageId+' → '+v.target)+'</span>';
+            if (v.reasons && v.reasons.length) {
+                h += '<ul class="agent-reasons">'+v.reasons.map(function(r){return '<li>'+escapeHtml(r)+'</li>';}).join('')+'</ul>';
+            }
+            h += '</div>';
+        });
+        h += '</div>';
+    }
+
+    // ── 4. 协作拓扑（消息边） ──
+    var topo = s.topology && s.topology.topology ? s.topology.topology : s.topology;
+    if (topo && topo.edges) {
+        h += '<div class="detail-section"><h4>协作拓扑</h4>'+
+             '<div class="muted" style="font-size:11px;margin-bottom:8px;">'+
+             '每条边 = 一个角色向另一个角色发出的消息（数字为次数）。广播不展开为伪边。</div>'+
+             '<div class="agent-edges">';
+        if (topo.edges.length === 0) {
+            h += '<div class="muted" style="font-size:12px;">暂无定向交互</div>';
+        }
+        topo.edges.forEach(function(e){
+            h += '<div class="agent-edge">'+
+                 '<span class="agent-edge-from">'+escapeHtml(fnRoleLabel(e.from))+'</span>'+
+                 '<span class="agent-arrow">→</span>'+
+                 '<span class="agent-edge-to">'+escapeHtml(fnRoleLabel(e.to))+'</span>'+
+                 '<span class="agent-edge-count">×'+e.count+'</span>'+
+                 '<span class="agent-edge-intents muted">'+escapeHtml(Object.keys(e.intents||{}).join(', '))+'</span>'+
+                 '</div>';
+        });
+        h += '</div>';
+        if (topo.broadcasts && topo.broadcasts.length) {
+            h += '<div class="agent-broadcasts muted">广播：'+
+                 topo.broadcasts.map(function(b){return escapeHtml(fnRoleLabel(b.from)+' '+b.intent+'×'+b.count);}).join(' ・ ')+
+                 '</div>';
+        }
+        h += '</div>';
+    }
+
+    // ── 5. 有效状态（协作成功与否独立于步骤状态展示）──
+    if (s.summaries.length) {
+        var last = s.summaries[s.summaries.length-1];
+        h += '<div class="detail-section"><h4>协作摘要</h4><div class="kv-list">'+
+             '<div class="k">计划</div><div class="v">'+escapeHtml(last.plan||'—')+'</div>'+
+             '<div class="k">角色会话数</div><div class="v">'+(last.roleRuns!=null?last.roleRuns:'—')+'</div>'+
+             '<div class="k">修订次数</div><div class="v">'+escapeHtml(JSON.stringify(last.revisions||{}))+'</div>'+
+             '<div class="k">失败归因</div><div class="v">'+escapeHtml(last.failureKind||'无')+'</div>'+
+             (last.error?'<div class="k">原因</div><div class="v" style="color:var(--red);">'+escapeHtml(last.error)+'</div>':'')+
+             '</div></div>';
+    }
+
+    $('detailContent').innerHTML = h;
+}
 
 /* ─── 循环控制台懒加载初始化（由 ViewMode.set('loop') 触发） ────────── */
 var _loopInited = false;

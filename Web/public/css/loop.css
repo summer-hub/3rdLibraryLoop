@@ -576,3 +576,67 @@ button.sm { padding: 3px 8px; font-size: 10px; }
 
 /* ─── 通用辅助（基础定义由 theme.css 管理） ──────────────────────── */
 .muted { color: var(--text2); }
+
+/* ─── Phase 2：多 Agent 协作视图 ──────────────────────────────────── */
+/* 角色子图：阶段节点横向排列，溢出可横向滚动（避免长计划把面板撑破） */
+.agent-flow {
+    display: flex; align-items: center; gap: 6px;
+    overflow-x: auto; padding: 4px 2px 8px;
+}
+.agent-node {
+    position: relative;
+    flex: 0 0 auto;
+    padding: 6px 10px; border-radius: 6px;
+    background: var(--bg2); border: 1px solid var(--border);
+    font-size: 12px; white-space: nowrap;
+}
+.agent-node.gate { border-color: var(--orange); }
+.agent-arrow { flex: 0 0 auto; color: var(--text2); font-size: 12px; }
+.agent-gate-mark, .agent-opt-mark {
+    display: block; font-size: 10px; line-height: 1.2; margin-top: 2px;
+}
+.agent-gate-mark { color: var(--orange); }
+.agent-opt-mark { color: var(--text2); }
+
+/* 角色时间线 */
+.agent-timeline { display: flex; flex-direction: column; gap: 6px; }
+.agent-row {
+    display: grid;
+    grid-template-columns: 110px 70px 90px auto 1fr;
+    align-items: center; gap: 8px;
+    padding: 6px 8px; border-radius: 6px;
+    background: var(--code-bg); font-size: 12px;
+}
+.agent-role { font-weight: 600; }
+.agent-stage, .agent-round, .agent-dur { font-size: 11px; }
+.agent-skill { font-size: 11px; color: var(--blue); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agent-session { font-size: 11px; }
+.agent-err {
+    grid-column: 1 / -1; color: var(--red); font-size: 11px;
+    background: var(--red-light); padding: 4px 6px; border-radius: 4px;
+    word-break: break-word;
+}
+.agent-badge {
+    display: inline-block; padding: 1px 6px; border-radius: 10px;
+    font-size: 11px; background: var(--bg2); border: 1px solid var(--border);
+}
+.agent-badge.ok { color: var(--green); border-color: var(--green); }
+.agent-badge.bad { color: var(--red); border-color: var(--red); }
+.agent-badge.warn { color: var(--orange); border-color: var(--orange); }
+
+/* 评审记录 */
+.agent-review { padding: 6px 8px; border-radius: 6px; background: var(--code-bg); margin-bottom: 6px; font-size: 12px; }
+.agent-reasons { margin: 6px 0 0 16px; padding: 0; font-size: 12px; line-height: 1.6; }
+
+/* 协作拓扑：消息边 */
+.agent-edges { display: flex; flex-direction: column; gap: 4px; }
+.agent-edge {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 5px 8px; border-radius: 6px; background: var(--code-bg); font-size: 12px;
+}
+.agent-edge-count { font-weight: 600; color: var(--blue); }
+.agent-edge-intents { font-size: 11px; }
+.agent-broadcasts {
+    margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--border);
+    font-size: 11px; line-height: 1.6;
+}
