@@ -1,0 +1,164 @@
+# 3rdLibraryLoop —— 企业级部署（Phase 4）
+#
+# 只列 Phase 4 新增的 6 个服务 + 4 个基础设施组件。
+# **启动方式**（需要真实基础设施，本机无法跑通全部）：
+#   docker compose -f deploy/docker-compose.yml up -d
+#
+# 端口分配与 `Server/Distributed/ServiceHost.js` 的 SERVICE_DEFINITIONS
+# 严格一致（8080~8085），并由 test/m7-phase4 的一致性用例守护——
+# 端口在两处各写一遍而无人校验，是部署事故的常见来源。
+
+services:
+  # ── 基础设施 ──────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-3libloop}
+      POSTGRES_USER: ${POSTGRES_USER:-3lib}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?必须显式提供，不提供默认口令}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # 幂等迁移脚本（可重复执行）
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-3lib} -d ${POSTGRES_DB:-3libloop}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    # 至少一次语义依赖持久化：AOF everysec 是"性能与可靠"的折中
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    ports:
+      - "6379:6379"
+
+  # 产物对象存储（S3 兼容，本地用 MinIO）
+  minio:
+    image: minio/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?必须显式提供}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?必须显式提供}
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  # ── 服务（6 个，必须覆盖 SERVICE_DEFINITIONS 的全部条目）──────────────
+  gateway-svc:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    command: ["node", "Server/Distributed/bootstrap.js", "gateway-svc"]
+    environment: &common_env
+      NODE_ENV: production
+      DISTRIBUTED_ENABLED: "1"
+      DISTRIBUTED_LEASE: postgres
+      DISTRIBUTED_QUEUE: redis-streams
+      DISTRIBUTED_TOKEN: redis
+      POSTGRES_URL: postgres://${POSTGRES_USER:-3lib}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-3libloop}
+      REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: http://minio:9000
+      POD_NAME: ${HOSTNAME:-gateway-1}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  orchestrator-svc:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    command: ["node", "Server/Distributed/bootstrap.js", "orchestrator-svc"]
+    environment:
+      <<: *common_env
+      ORCHESTRATOR_PORT: "8081"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+
+  agent-runtime-svc:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    command: ["node", "Server/Distributed/bootstrap.js", "agent-runtime-svc"]
+    environment:
+      <<: *common_env
+      AGENT_RUNTIME_PORT: "8082"
+    depends_on:
+      redis: { condition: service_healthy }
+    ports:
+      - "8082:8082"
+    restart: unless-stopped
+
+  artifact-svc:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    command: ["node", "Server/Distributed/bootstrap.js", "artifact-svc"]
+    environment:
+      <<: *common_env
+      ARTIFACT_PORT: "8083"
+    depends_on:
+      minio: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+    ports:
+      - "8083:8083"
+    restart: unless-stopped
+
+  knowledge-svc:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    command: ["node", "Server/Distributed/bootstrap.js", "knowledge-svc"]
+    environment:
+      <<: *common_env
+      KNOWLEDGE_PORT: "8084"
+    depends_on:
+      postgres: { condition: service_healthy }
+    ports:
+      - "8084:8084"
+    restart: unless-stopped
+
+  notify-svc:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    command: ["node", "Server/Distributed/bootstrap.js", "notify-svc"]
+    environment:
+      <<: *common_env
+      NOTIFY_PORT: "8085"
+    depends_on:
+      redis: { condition: service_healthy }
+    ports:
+      - "8085:8085"
+    # 推送服务无状态 → 可任意水平扩展（HPA 的目标就是这个 Deployment）
+    deploy:
+      replicas: 2
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:

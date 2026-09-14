@@ -1,0 +1,123 @@
+# Helm values —— 与 Server/Distributed/ServiceHost.js 的 SERVICE_DEFINITIONS 对应。
+#
+# 设计约定：
+#   - 每个服务的 `port` 必须与其 `portEnv` 的值一致（宿主按环境变量读端口）；
+#   - 有状态/长任务的服务（orchestrator / agent-runtime）单独给更长的宽限期；
+#   - 密钥**不在** values 里出现，只引用已存在的 Secret。
+
+image:
+  repository: registry.example.com/3libloop
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+# 全局环境（所有服务共享）。密钥类变量一律来自 existingSecret。
+env:
+  NODE_ENV: production
+  DISTRIBUTED_ENABLED: "1"
+  DISTRIBUTED_LEASE: postgres
+  DISTRIBUTED_QUEUE: redis-streams
+  DISTRIBUTED_TOKEN: redis
+  MAX_CONCURRENT_SESSIONS: "50"
+  MAX_SESSIONS_PER_TASK: "8"
+  MAX_SESSIONS_PER_ROLE: "0"
+  TRACE_SAMPLE_RATE: "0.1"
+  S3_ENDPOINT: http://minio:9000
+  S3_BUCKET: 3lib-artifacts
+
+# 已存在的 Secret 名（含 POSTGRES_URL / REDIS_URL / S3_SECRET_KEY 等）
+existingSecret: 3lib-secrets
+
+resources:
+  requests: { cpu: 100m, memory: 256Mi }
+  limits: { cpu: "1", memory: 1Gi }
+
+serviceAccount:
+  create: true
+  name: ""
+
+# 6 个服务。`terminalGraceSeconds` 与租约 TTL 同量级：保证正常下线不留待接管租约。
+services:
+  gateway-svc:
+    enabled: true
+    replicas: 2
+    port: 8080
+    portEnv: GATEWAY_PORT
+    resources:
+      requests: { cpu: 100m, memory: 256Mi }
+      limits: { cpu: "1", memory: 1Gi }
+  orchestrator-svc:
+    enabled: true
+    replicas: 3
+    port: 8081
+    portEnv: ORCHESTRATOR_PORT
+    terminalGraceSeconds: 30
+    env:
+      # 实例数 3 → 每实例 17，全局不超过 50
+      MAX_CONCURRENT_SESSIONS: "17"
+    resources:
+      requests: { cpu: 200m, memory: 512Mi }
+      limits: { cpu: "2", memory: 2Gi }
+  agent-runtime-svc:
+    enabled: true
+    replicas: 4
+    port: 8082
+    portEnv: AGENT_RUNTIME_PORT
+    terminalGraceSeconds: 120
+    resources:
+      requests: { cpu: 500m, memory: 1Gi }
+      limits: { cpu: "4", memory: 4Gi }
+  artifact-svc:
+    enabled: true
+    replicas: 2
+    port: 8083
+    portEnv: ARTIFACT_PORT
+    resources:
+      requests: { cpu: 100m, memory: 256Mi }
+      limits: { cpu: "1", memory: 1Gi }
+  knowledge-svc:
+    enabled: true
+    replicas: 2
+    port: 8084
+    portEnv: KNOWLEDGE_PORT
+    resources:
+      requests: { cpu: 200m, memory: 512Mi }
+      limits: { cpu: "2", memory: 2Gi }
+  notify-svc:
+    enabled: true
+    replicas: 2
+    port: 8085
+    portEnv: NOTIFY_PORT
+    # 无状态 → 可激进伸缩
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 10
+      targetCPUUtilizationPercentage: 60
+    resources:
+      requests: { cpu: 100m, memory: 256Mi }
+      limits: { cpu: "1", memory: 1Gi }
+
+autoscaling:
+  agentRuntime:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 12
+    targetCPUUtilizationPercentage: 70
+
+ingress:
+  enabled: true
+  className: nginx
+  host: loop.example.com
+  annotations:
+    # SSE 必须关闭缓冲，否则事件被攒着不发（前端表现为"没有进度"）
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+
+# 灰度：canary 权重由发布脚本改这里（0 = 关闭）
+canary:
+  enabled: false
+  weight: 0
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1

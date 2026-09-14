@@ -1,0 +1,13 @@
+apiVersion: v2
+name: 3rdlibloop
+description: 3rdLibraryLoop —— 多 Agent 编排 + 高并发 + 分布式（Phase 4）
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords: [agent, orchestration, harmonyos, arkts]
+maintainers:
+  - name: summor
+annotations:
+  # 服务名与端口必须与 Server/Distributed/ServiceHost.js 的 SERVICE_DEFINITIONS 一致；
+  # 由 test/m7-phase4 的一致性用例守护（在 chart 里改端口而不改代码会在 CI 里被拦下）
+  "3libloop.io/service-definitions": "gateway-svc:8080,orchestrator-svc:8081,agent-runtime-svc:8082,artifact-svc:8083,knowledge-svc:8084,notify-svc:8085"

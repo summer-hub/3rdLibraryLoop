@@ -1,0 +1,353 @@
+# K8s 部署清单（Phase 4）—— 单文件形式便于评审与校验
+#
+# 覆盖 6 个服务 + 基础设施连接 + HPA + 灰度。服务名与端口必须与
+# Server/Distributed/ServiceHost.js 的 SERVICE_DEFINITIONS 一致
+# （由 test/m7-phase4 的一致性用例守护）。
+#
+# 应用：kubectl apply -f deploy/k8s/all-in-one.yaml
+#
+# ⚠️ 密钥一律来自 Secret，**不得**把口令写进 ConfigMap 或清单。
+#    创建 Secret（示例）：
+#      kubectl -n 3libloop create secret generic 3lib-secrets \
+#        --from-literal=POSTGRES_URL='postgres://...' \
+#        --from-literal=REDIS_URL='redis://...' \
+#        --from-literal=S3_SECRET_KEY='...'
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: 3libloop
+  labels:
+    app.kubernetes.io/part-of: 3rdlibraryloop
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: 3lib-config
+  namespace: 3libloop
+data:
+  NODE_ENV: "production"
+  DISTRIBUTED_ENABLED: "1"
+  DISTRIBUTED_LEASE: "postgres"
+  DISTRIBUTED_QUEUE: "redis-streams"
+  DISTRIBUTED_TOKEN: "redis"
+  MAX_CONCURRENT_SESSIONS: "50"
+  MAX_SESSIONS_PER_TASK: "8"
+  MAX_SESSIONS_PER_ROLE: "0"
+  TRACE_SAMPLE_RATE: "0.1"
+  S3_ENDPOINT: "http://minio:9000"
+  S3_BUCKET: "3lib-artifacts"
+
+---
+# ── gateway-svc ──────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway-svc
+  namespace: 3libloop
+  labels: { app: gateway-svc }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: gateway-svc }
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  template:
+    metadata:
+      labels: { app: gateway-svc }
+    spec:
+      containers:
+        - name: gateway-svc
+          image: registry.example.com/3libloop:1.0.0
+          command: ["node", "Server/Distributed/bootstrap.js", "gateway-svc"]
+          ports:
+            - { name: http, containerPort: 8080 }
+          envFrom:
+            - configMapRef: { name: 3lib-config }
+            - secretRef: { name: 3lib-secrets }
+          env:
+            - name: POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+          readinessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests: { cpu: "100m", memory: "256Mi" }
+            limits: { cpu: "1", memory: "1Gi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway-svc
+  namespace: 3libloop
+spec:
+  selector: { app: gateway-svc }
+  ports:
+    - { name: http, port: 8080, targetPort: http }
+
+---
+# ── orchestrator-svc ────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orchestrator-svc
+  namespace: 3libloop
+  labels: { app: orchestrator-svc }
+spec:
+  replicas: 3
+  selector:
+    matchLabels: { app: orchestrator-svc }
+  template:
+    metadata:
+      labels: { app: orchestrator-svc }
+    spec:
+      # 优雅停机：先停止接单，再等租约释放。30s 与 LeaseStore 默认 TTL 同量级，
+      # 保证"正常下线"不会留下需要靠过期才被接管的租约。
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: orchestrator-svc
+          image: registry.example.com/3libloop:1.0.0
+          command: ["node", "Server/Distributed/bootstrap.js", "orchestrator-svc"]
+          ports:
+            - { name: http, containerPort: 8081 }
+          envFrom:
+            - configMapRef: { name: 3lib-config }
+            - secretRef: { name: 3lib-secrets }
+          env:
+            - name: POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            # 每个实例的进程内并发上限 = 全局上限 / 实例数，避免 3 实例把
+            # 进程内 50 的上限放大成 150（Phase 4 的核心动机之一）
+            - name: MAX_CONCURRENT_SESSIONS
+              value: "17"
+          readinessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            requests: { cpu: "200m", memory: "512Mi" }
+            limits: { cpu: "2", memory: "2Gi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orchestrator-svc
+  namespace: 3libloop
+spec:
+  selector: { app: orchestrator-svc }
+  ports:
+    - { name: http, port: 8081, targetPort: http }
+
+---
+# ── agent-runtime-svc ───────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-runtime-svc
+  namespace: 3libloop
+  labels: { app: agent-runtime-svc }
+spec:
+  replicas: 4
+  selector:
+    matchLabels: { app: agent-runtime-svc }
+  template:
+    metadata:
+      labels: { app: agent-runtime-svc }
+    spec:
+      terminationGracePeriodSeconds: 120
+      containers:
+        - name: agent-runtime-svc
+          image: registry.example.com/3libloop:1.0.0
+          command: ["node", "Server/Distributed/bootstrap.js", "agent-runtime-svc"]
+          ports:
+            - { name: http, containerPort: 8082 }
+          envFrom:
+            - configMapRef: { name: 3lib-config }
+            - secretRef: { name: 3lib-secrets }
+          env:
+            - name: POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+          resources:
+            requests: { cpu: "500m", memory: "1Gi" }
+            limits: { cpu: "4", memory: "4Gi" }
+
+---
+# ── artifact-svc ────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: artifact-svc
+  namespace: 3libloop
+  labels: { app: artifact-svc }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: artifact-svc }
+  template:
+    metadata:
+      labels: { app: artifact-svc }
+    spec:
+      containers:
+        - name: artifact-svc
+          image: registry.example.com/3libloop:1.0.0
+          command: ["node", "Server/Distributed/bootstrap.js", "artifact-svc"]
+          ports:
+            - { name: http, containerPort: 8083 }
+          envFrom:
+            - configMapRef: { name: 3lib-config }
+            - secretRef: { name: 3lib-secrets }
+          resources:
+            requests: { cpu: "100m", memory: "256Mi" }
+            limits: { cpu: "1", memory: "1Gi" }
+
+---
+# ── knowledge-svc ───────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: knowledge-svc
+  namespace: 3libloop
+  labels: { app: knowledge-svc }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: knowledge-svc }
+  template:
+    metadata:
+      labels: { app: knowledge-svc }
+    spec:
+      containers:
+        - name: knowledge-svc
+          image: registry.example.com/3libloop:1.0.0
+          command: ["node", "Server/Distributed/bootstrap.js", "knowledge-svc"]
+          ports:
+            - { name: http, containerPort: 8084 }
+          envFrom:
+            - configMapRef: { name: 3lib-config }
+            - secretRef: { name: 3lib-secrets }
+          resources:
+            requests: { cpu: "200m", memory: "512Mi" }
+            limits: { cpu: "2", memory: "2Gi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: knowledge-svc
+  namespace: 3libloop
+spec:
+  selector: { app: knowledge-svc }
+  ports:
+    - { name: http, port: 8084, targetPort: http }
+
+---
+# ── notify-svc（无状态 → HPA 的主要目标）───────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notify-svc
+  namespace: 3libloop
+  labels: { app: notify-svc }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: notify-svc }
+  template:
+    metadata:
+      labels: { app: notify-svc }
+    spec:
+      containers:
+        - name: notify-svc
+          image: registry.example.com/3libloop:1.0.0
+          command: ["node", "Server/Distributed/bootstrap.js", "notify-svc"]
+          ports:
+            - { name: http, containerPort: 8085 }
+          envFrom:
+            - configMapRef: { name: 3lib-config }
+            - secretRef: { name: 3lib-secrets }
+          env:
+            - name: POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+          resources:
+            requests: { cpu: "100m", memory: "256Mi" }
+            limits: { cpu: "1", memory: "1Gi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notify-svc
+  namespace: 3libloop
+spec:
+  selector: { app: notify-svc }
+  ports:
+    - { name: http, port: 8085, targetPort: http }
+
+---
+# ── HPA ─────────────────────────────────────────────────────────────────
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: agent-runtime-svc
+  namespace: 3libloop
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: agent-runtime-svc }
+  minReplicas: 2
+  maxReplicas: 12
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }
+  # 缩容更保守：会话是长任务，激进缩容会让在途会话被中断
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30
+    scaleDown:
+      stabilizationWindowSeconds: 300
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: notify-svc
+  namespace: 3libloop
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: notify-svc }
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 60 }
+
+---
+# ── Ingress（灰度：按 header 分流到 canary）─────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: 3lib-ingress
+  namespace: 3libloop
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    # SSE 必须关闭缓冲，否则事件会被 Ingress 攒着不发（前端表现为"没有进度"）
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+spec:
+  rules:
+    - host: loop.example.com
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service: { name: gateway-svc, port: { number: 8080 } }
+          - path: /stream
+            pathType: Prefix
+            backend:
+              service: { name: notify-svc, port: { number: 8085 } }
