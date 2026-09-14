@@ -29,6 +29,7 @@ const { IssueDB, reloadInternalDevelopers, reloadFrameworkRepos } = require('./d
 const { fetchOrgIssues, ORGANIZATIONS } = require('./gitcodeApi.cjs');
 const { classifyByAI, setServerCliPath, LABELS, LABEL_KEYS } = require('./issueClassifier.cjs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 
 // ── 数据库单例（延迟初始化；目录由宿主注入，默认值仅兜底） ──────────────────
 
@@ -36,10 +37,59 @@ const DB_DIR = path.resolve(__dirname, '../../db/Issue');
 let db = null;
 
 /**
- * 刷新操作的管理密码（可通过环境变量覆盖）
- * 默认值仅用于本地开发，生产环境务必通过 ISSUE_ADMIN_PASSWORD 环境变量设置
+ * 刷新/批量编辑/分类操作的管理密码（F-02）。
+ *
+ * 只从环境变量 ISSUE_ADMIN_PASSWORD 读取，**不提供内置默认值**：
+ * 原先的 `|| 'admin123'` 会让任何能访问该服务的人在默认配置下直接执行
+ * 刷新、批量编辑与 AI 分类。未配置时管理接口一律拒绝（503），不回退弱口令。
  */
-const ADMIN_PASSWORD = process.env.ISSUE_ADMIN_PASSWORD || 'admin123';
+const ADMIN_PASSWORD = String(process.env.ISSUE_ADMIN_PASSWORD || '').trim();
+
+/** 密码校验失败限流（按来源 IP），抑制暴力尝试 */
+const ADMIN_FAIL_WINDOW_MS = 5 * 60 * 1000;
+const ADMIN_FAIL_MAX = 5;
+const _adminFails = new Map(); // ip -> { count, firstAt }
+
+/**
+ * 校验管理密码。
+ * @param {object} req - express 兼容请求对象
+ * @param {string} password - 请求体中的 password
+ * @returns {{ok: boolean, status?: number, message?: string}}
+ */
+function verifyAdminPassword(req, password) {
+  if (!ADMIN_PASSWORD) {
+    return {
+      ok: false,
+      status: 503,
+      message: '管理接口未启用：服务端未配置 ISSUE_ADMIN_PASSWORD 环境变量',
+    };
+  }
+
+  const ip = String(req.ip || (req.socket && req.socket.remoteAddress) || 'unknown');
+  const now = Date.now();
+  const rec = _adminFails.get(ip);
+  if (rec && now - rec.firstAt <= ADMIN_FAIL_WINDOW_MS && rec.count >= ADMIN_FAIL_MAX) {
+    return { ok: false, status: 429, message: '密码错误次数过多，请 5 分钟后再试' };
+  }
+
+  // 定长安全比较，避免时序侧信道
+  const given = Buffer.from(String(password || ''), 'utf8');
+  const expected = Buffer.from(ADMIN_PASSWORD, 'utf8');
+  const ok = given.length === expected.length && given.length > 0 &&
+    crypto.timingSafeEqual(given, expected);
+
+  if (!ok) {
+    if (!rec || now - rec.firstAt > ADMIN_FAIL_WINDOW_MS) {
+      _adminFails.set(ip, { count: 1, firstAt: now });
+    } else {
+      rec.count += 1;
+    }
+    return { ok: false, status: 403, message: '密码错误' };
+  }
+
+  _adminFails.delete(ip);
+  return { ok: true };
+}
 
 // ── Excel 导出（CSV 格式，兼容 Excel 打开） ────────────────────────────────────
 // 不引入第三方依赖，使用 CSV + BOM 方式，Excel 可正确识别中文
@@ -368,11 +418,12 @@ function createIssueRouter({ express, dbDir, serverRoot }) {
     try {
       const { org, password } = req.body || {};
 
-      // 密码校验
-      if (!password || password !== ADMIN_PASSWORD) {
-        return res.status(403).json({
+      // 密码校验（F-02：未配置 ISSUE_ADMIN_PASSWORD 时拒绝，不回退弱口令）
+      const refreshAuth = verifyAdminPassword(req, password);
+      if (!refreshAuth.ok) {
+        return res.status(refreshAuth.status).json({
           success: false,
-          message: '密码错误，无权执行刷新操作',
+          message: refreshAuth.status === 403 ? '密码错误，无权执行刷新操作' : refreshAuth.message,
         });
       }
 
@@ -522,11 +573,12 @@ function createIssueRouter({ express, dbDir, serverRoot }) {
     try {
       const { org, issueUrls, password, fields } = req.body || {};
 
-      // 密码校验
-      if (!password || password !== ADMIN_PASSWORD) {
-        return res.status(403).json({
+      // 密码校验（F-02）
+      const annotateAuth = verifyAdminPassword(req, password);
+      if (!annotateAuth.ok) {
+        return res.status(annotateAuth.status).json({
           success: false,
-          message: '密码错误，无权执行批量编辑操作',
+          message: annotateAuth.status === 403 ? '密码错误，无权执行批量编辑操作' : annotateAuth.message,
         });
       }
 
@@ -603,11 +655,12 @@ function createIssueRouter({ express, dbDir, serverRoot }) {
     try {
       const { org, password, cliType } = req.body || {};
 
-      // 密码校验
-      if (!password || password !== ADMIN_PASSWORD) {
-        return res.status(403).json({
+      // 密码校验（F-02）
+      const classifyAuth = verifyAdminPassword(req, password);
+      if (!classifyAuth.ok) {
+        return res.status(classifyAuth.status).json({
           success: false,
-          message: '密码错误，无权执行分类操作',
+          message: classifyAuth.status === 403 ? '密码错误，无权执行分类操作' : classifyAuth.message,
         });
       }
 

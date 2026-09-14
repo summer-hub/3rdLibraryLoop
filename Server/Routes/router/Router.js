@@ -73,6 +73,43 @@ class ResponseContext {
 }
 
 /**
+ * 判断 Origin 是否为本机回环来源（任意端口）。
+ *
+ * 后端仅监听 127.0.0.1，正常访问路径是同源反向代理（无需 CORS）。
+ * 此处保留回环来源的 CORS 仅用于本地直连调试（如页面跑在 8080、直调 3000）。
+ * 不再无条件返回 `*`：那会让任意网页读取本机引擎 API 的响应。
+ *
+ * @param {string|undefined} origin
+ * @returns {boolean}
+ */
+function isLoopbackOrigin(origin) {
+    if (!origin) return false;
+    let host;
+    try {
+        host = new URL(origin).hostname.toLowerCase();
+    } catch {
+        return false;
+    }
+    return host === '127.0.0.1' || host === '::1' || host === 'localhost' || host === '[::1]';
+}
+
+/**
+ * 解析允许的跨域来源：环境变量 3LIB_ALLOWED_ORIGINS（逗号分隔）显式追加，
+ * 其余一律要求回环来源。
+ * @param {string|undefined} origin
+ * @returns {string|null} 允许放行的 Origin，或 null
+ */
+function resolveAllowedOrigin(origin) {
+    if (!origin) return null;
+    const extra = String(process.env['3LIB_ALLOWED_ORIGINS'] || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+    if (extra.includes(origin)) return origin;
+    return isLoopbackOrigin(origin) ? origin : null;
+}
+
+/**
  * 将路径转为正则 + 参数名数组
  * /api/tasks/:taskId → { regex: /^\/api\/tasks\/([^/]+)$/, keys: ['taskId'] }
  * /api/files/*       → { regex: /^\/api\/files\/(.*)$/, keys: [0] }
@@ -134,17 +171,32 @@ class Router {
 
         // CORS 预检
         if (req.method === 'OPTIONS') {
-            res.writeHead(204, {
-                'Access-Control-Allow-Origin': '*',
+            const allowOrigin = resolveAllowedOrigin(req.headers.origin);
+            // 带 Origin 却不在允许列表 → 明确拒绝；无 Origin 的普通 OPTIONS 不是预检，照常放行
+            if (req.headers.origin && !allowOrigin) {
+                res.writeHead(403, { 'Content-Type': 'application/json; charset=utf-8' });
+                res.end(JSON.stringify({ error: '跨域来源不被允许（仅允许本机回环来源）' }));
+                return true;
+            }
+            const headers = {
                 'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-            });
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Auth-Token'
+            };
+            if (allowOrigin) {
+                headers['Access-Control-Allow-Origin'] = allowOrigin;
+                headers['Vary'] = 'Origin';
+            }
+            res.writeHead(204, headers);
             res.end();
             return true;
         }
 
-        // 注入 CORS 头到所有响应
-        res.setHeader('Access-Control-Allow-Origin', '*');
+        // 仅对允许的来源回显 CORS 头（不再无条件 `*`）
+        const corsOrigin = resolveAllowedOrigin(req.headers.origin);
+        if (corsOrigin) {
+            res.setHeader('Access-Control-Allow-Origin', corsOrigin);
+            res.setHeader('Vary', 'Origin');
+        }
 
         // 查找匹配路由
         for (const route of this.routes) {

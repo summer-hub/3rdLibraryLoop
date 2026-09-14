@@ -25,6 +25,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
@@ -162,6 +163,9 @@ export function applyExtFilter(extensions, { noExt, extNames }, warn) {
  * @param {object} opts
  * @param {number} opts.port - 监听端口（必填）
  * @param {string} opts.backend - 后端 Server 地址（必填，如 http://127.0.0.1:3000）
+ * @param {string} [opts.host] - 监听地址（默认 127.0.0.1；也可用环境变量 3LIB_WEB_HOST）。
+ *   非回环地址会对外暴露全部 API 与 SSE，因此必须同时配置访问令牌（否则拒绝启动）。
+ * @param {string} [opts.accessToken] - 访问令牌（默认取环境变量 3LIB_ACCESS_TOKEN）
  * @param {string} [opts.webRootFlag] - --web-root 覆盖
  * @param {string[]} [opts.extRootFlags] - --ext-root 追加扩展根目录
  * @param {string} [opts.userExtRoot] - 用户扩展根目录（resolveUserExtRoot 结果）
@@ -177,6 +181,8 @@ export function applyExtFilter(extensions, { noExt, extNames }, warn) {
 export async function startWebServer({
     port,
     backend,
+    host = '',
+    accessToken = '',
     webRootFlag = '',
     extRootFlags = [],
     userExtRoot = '',
@@ -198,8 +204,20 @@ export async function startWebServer({
     }
     const mounted = extensions.filter((e) => e.page || e.router);
 
+    // ─── F-02: 监听地址与访问令牌 ───────────────────────────────────────
+    // 默认仅回环。非回环（对外可达）必须显式提供令牌，否则拒绝启动——
+    // 本服务会无反代 /api/* 与 /stream*，暴露即等于交出引擎 API 与实时事件流。
+    const bindHost = String(host || process.env['3LIB_WEB_HOST'] || '127.0.0.1').trim();
+    const token = String(accessToken || process.env['3LIB_ACCESS_TOKEN'] || '').trim();
+    if (!isLoopbackHost(bindHost) && !token) {
+        throw new Error(
+            `拒绝启动：host=${bindHost} 会对外暴露全部 API 与 SSE，但未配置访问令牌。` +
+            `请省略 --host（默认仅监听 127.0.0.1），或设置环境变量 3LIB_ACCESS_TOKEN 后重试。`
+        );
+    }
+
     const server = http.createServer((req, res) => {
-        _handleRequest(req, res, { webRoot, extensions, backend })
+        _handleRequest(req, res, { webRoot, extensions, backend, accessToken: token })
             .catch((err) => {
                 log(`[${tag}] 请求处理异常: ${err.message}`);
                 if (!res.headersSent) {
@@ -213,12 +231,14 @@ export async function startWebServer({
 
     await new Promise((resolve, reject) => {
         server.once('error', reject);
-        server.listen(port, () => resolve());
+        server.listen(port, bindHost, () => resolve());
     });
 
-    log(`[${tag}] Web 前端已启动: http://localhost:${port}`);
+    const shownHost = isLoopbackHost(bindHost) ? 'localhost' : bindHost;
+    log(`[${tag}] Web 前端已启动: http://${shownHost}:${port} （监听 ${bindHost}）`);
     log(`[${tag}] 前端资产: ${webRoot}`);
     log(`[${tag}] 后端代理: ${backend}（/api/*、/stream*）`);
+    log(`[${tag}] 访问控制: ${token ? '已启用令牌门禁（3LIB_ACCESS_TOKEN）' : '未启用（仅回环地址可达）'}`);
     if (noExt) {
         log(`[${tag}] 扩展挂载已禁用（--no-ext）：仅核心工作台 + loop + knowledge`);
     } else if (extNames.length > 0) {
@@ -235,7 +255,7 @@ export async function startWebServer({
         log(`[${tag}] 未挂载扩展（tag/issue/prcheck 等二级功能可用 "3rdloop serve install-ext <dir>" 启用）`);
     }
 
-    if (open) _openBrowser(`http://localhost:${port}`);
+    if (open) _openBrowser(`http://${shownHost}:${port}`);
     return server;
 }
 
@@ -243,7 +263,71 @@ export async function startWebServer({
 // 请求路由
 // ═══════════════════════════════════════════════════════════════════
 
-async function _handleRequest(req, res, { webRoot, extensions, backend }) {
+// ─── F-02: 访问控制辅助 ────────────────────────────────────────────────────
+
+const TOKEN_COOKIE = '3lib_token';
+
+/** 判断 host 是否为本机回环地址 */
+export function isLoopbackHost(host) {
+    const h = String(host || '').trim().toLowerCase().replace(/^\[|\]$/g, '');
+    return h === '127.0.0.1' || h === '::1' || h === 'localhost';
+}
+
+/** 定长安全比较（避免时序侧信道；长度不同或无值直接 false） */
+function _safeEqual(a, b) {
+    const ba = Buffer.from(String(a), 'utf8');
+    const bb = Buffer.from(String(b), 'utf8');
+    if (ba.length !== bb.length || ba.length === 0) return false;
+    return crypto.timingSafeEqual(ba, bb);
+}
+
+/** 从 Authorization / X-Auth-Token / Cookie / query 中提取访问令牌 */
+function _extractToken(req, url) {
+    const auth = String(req.headers.authorization || '');
+    if (auth.toLowerCase().startsWith('bearer ')) return auth.slice(7).trim();
+    const hdr = req.headers['x-auth-token'];
+    if (hdr) return String(hdr).trim();
+    for (const part of String(req.headers.cookie || '').split(';')) {
+        const idx = part.indexOf('=');
+        if (idx === -1) continue;
+        if (part.slice(0, idx).trim() === TOKEN_COOKIE) {
+            return decodeURIComponent(part.slice(idx + 1).trim());
+        }
+    }
+    return url.searchParams.get('token') || '';
+}
+
+/**
+ * 令牌门禁。未配置令牌时放行（此时只可能监听回环地址，见 startWebServer 校验）。
+ * 支持 `?token=` 一次性换取 HttpOnly Cookie 并 302 剥离 URL 中的令牌。
+ * @returns {boolean} 是否放行
+ */
+function _enforceAuth(req, res, url, accessToken) {
+    if (!accessToken) return true;
+
+    const fromQuery = url.searchParams.get('token');
+    if (fromQuery && _safeEqual(fromQuery, accessToken)) {
+        const clean = new URL(url);
+        clean.searchParams.delete('token');
+        res.writeHead(302, {
+            'Set-Cookie': `${TOKEN_COOKIE}=${encodeURIComponent(accessToken)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=2592000`,
+            'Location': clean.pathname + (clean.search || ''),
+        });
+        res.end();
+        return false;
+    }
+
+    if (_safeEqual(_extractToken(req, url), accessToken)) return true;
+
+    res.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({
+        success: false,
+        message: '未授权：缺少或错误的访问令牌（请以 http://<host>:<port>/?token=<3LIB_ACCESS_TOKEN> 打开一次完成授权）',
+    }));
+    return false;
+}
+
+async function _handleRequest(req, res, { webRoot, extensions, backend, accessToken = '' }) {
     const url = new URL(req.url, `http://localhost`);
     let pathname;
     try {
@@ -252,6 +336,9 @@ async function _handleRequest(req, res, { webRoot, extensions, backend }) {
         pathname = url.pathname;
     }
     const lower = pathname.toLowerCase();
+
+    // 0. 访问门禁（配置了令牌时生效，必须先于所有路由）
+    if (!_enforceAuth(req, res, url, accessToken)) return;
 
     // 1. 扩展注册表（本地响应，前端导航用）
     if (lower === '/api/ext-registry') {
