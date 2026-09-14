@@ -223,6 +223,29 @@ class FlexRunner {
     #pollIntervalMs = POLL_INTERVAL_MS;
 
     /**
+     * @type {boolean} 是否已完成会话收尾（abort/删除）。
+     * F-03：同一次执行可能同时走「失败路径的任务尾部收尾」与「后台经验总结的 finally 收尾」，
+     * 用此标志保证 abortSession / deleteSession 各只调用一次。
+     */
+    #sessionFinalized = false;
+
+    /**
+     * @type {boolean} 是否保留远端会话（跳过 deleteSession）。
+     * 默认 false（回收）；置 true 便于排障时保留 opencode 侧会话现场。
+     * 来源：initContext({ keepSessions }) 或环境变量 3LIB_KEEP_SESSIONS=1。
+     */
+    #keepSessions = false;
+
+    /**
+     * @type {boolean} 是否已把会话收尾交给后台经验总结（F-03）。
+     * 成功路径下 executeStart 不再重复收尾，避免与 _summarizeAndPersist 的 finally 冲突。
+     */
+    #summarizeDispatched = false;
+
+    /** @type {boolean} 远端会话是否已被中止（F-03：避免收尾时重复 abortSession） */
+    #remoteAborted = false;
+
+    /**
      * 构造函数 — 创建 FlexRunner 实例。
      *
      * 支持两种使用方式：
@@ -342,7 +365,8 @@ class FlexRunner {
             knowledgeManager,
             pollIntervalMs,
             mcpConfigPath,
-            onSessionCreated
+            onSessionCreated,
+            keepSessions
         } = params;
 
         if (!taskId) {
@@ -393,6 +417,10 @@ class FlexRunner {
         this.#aborted = false;
         this.#matchedSkillDir = null;
         this.#onSessionCreated = typeof onSessionCreated === 'function' ? onSessionCreated : null;
+        // F-03：会话回收策略。keepSessions=true 时保留远端会话（仅排障用）
+        this.#keepSessions = keepSessions === true
+            || process.env['3LIB_KEEP_SESSIONS'] === '1';
+        this.#sessionFinalized = false;
         this.#pollIntervalMs = typeof pollIntervalMs === 'number' && pollIntervalMs > 0
             ? pollIntervalMs
             : POLL_INTERVAL_MS;
@@ -554,6 +582,8 @@ class FlexRunner {
                     // capture sessionId 防止实例复用时被覆盖
                     const sid = this.#sessionId;
                     const skillDir = this.#matchedSkillDir;
+                    // F-03：标记「会话收尾已交给后台总结」，使 executeStart 尾部不重复收尾
+                    this.#summarizeDispatched = true;
                     this._summarizeAndPersist(summaryFilePath, skillDir, sid).catch((err) => {
                         this._log('warn', `后台经验总结/持久化异常: ${err.message}`);
                     });
@@ -583,6 +613,17 @@ class FlexRunner {
 
         // 递增执行计数，供下一次调用使用
         this.#executeStep++;
+
+        // ── F-03：会话收尾 ──
+        // 成功路径由后台经验总结的 finally 收尾（它还要复用同一 session 追加总结 prompt）；
+        // 其余路径（失败 / 终止 / 未派发总结的成功）在此立即收尾。
+        const summarizeOwnsCleanup =
+            finalStatus === StepStatus.COMPLETED && this.#summarizeDispatched;
+        if (!summarizeOwnsCleanup) {
+            await this._finalizeSession(
+                this.#aborted ? 'aborted' : (success ? 'success' : 'failed')
+            );
+        }
 
         // 成功 → nextStepId；失败 → failStepId（与 Orchestrator 的失败流转语义对齐）
         const nextStepId = success ? this.#nextStepId : this.#failStepId;
@@ -827,8 +868,16 @@ class FlexRunner {
             // 指定工作目录为 taskDir，确保 opencode session 的文件操作（git clone 等）在 db/task/{taskId}/ 下执行
             // const { sessionId } = await this.#cli.startSession(title, prompt, { cwd: this.#taskDir });
             const { sessionId } = await this.#cli.startSession(title, prompt);
-            this.#sessionId = sessionId
+            this.#sessionId = sessionId;
             this._log('debug', `Session 已创建: ${sessionId}`);
+
+            // F-03：startSession 本身是异步的，期间可能已收到终止请求。此窗口内若不立即
+            // 回收，会留下一个仍在运行（并持续消耗 token）的远端会话。
+            if (this.#aborted) {
+                this._log('warn', `Session ${sessionId} 创建后发现已终止，立即回收`);
+                await this._finalizeSession('aborted');
+                return false;
+            }
 
             // 实时通知编排层（静默失败，不影响主流程）
             if (this.#onSessionCreated) {
@@ -851,6 +900,74 @@ class FlexRunner {
         } catch (err) {
             this._log('error', `invokeSkill 异常: ${err.message}`);
             return false;
+        }
+    }
+
+    /**
+     * _finalizeSession — 会话收尾（F-03）：归档 → 中断 → 删除。
+     *
+     * 为什么必须做：修改前 deleteSession 在整个生产代码中**没有调用方**，每个步骤
+     * 每次尝试都会在 opencode serve 上留下一个永不回收的会话；N 步 × M 重试 × K 轮
+     * 大循环会让单进程 opencode 线性累积会话直至被拖垮。
+     *
+     * 关键顺序与取舍：
+     *   1. **先归档再删除**。checkSessionStatus 只在检测到 completed/error 时才
+     *      `_autoArchive`，超时/终止路径不会归档。若直接删除远端会话，对话记录
+     *      将永久丢失。故此处先 `getSessionMessages()` 全量拉取落本地
+     *      `db/Session/<id>.jsonl`（增量去重，幂等）。
+     *   2. **归档失败则跳过删除**。宁可有界泄漏一个远端会话，也不丢审计记录；
+     *      异常会以 warn 明确暴露，便于人工清理。
+     *   3. 非成功路径先 `abortSession`，立刻停止远端继续消耗 token。
+     *   4. 全程 best-effort：任何异常只记日志，绝不影响步骤结果与失败链流转。
+     *
+     * 幂等由 `#sessionFinalized` 保证：同一次执行可能同时经过「executeStart 尾部
+     * 收尾」与「后台经验总结 finally 收尾」，两者只会真正执行一次。
+     *
+     * 本地归档始终保留（deleteSession 只作用于远端），故前端的历史回看
+     * （getSessionContent 读本地 jsonl）不受影响。
+     *
+     * @param {'success'|'failed'|'aborted'|'timeout'} reason - 收尾原因（决定是否 abort）
+     * @returns {Promise<void>}
+     * @private
+     */
+    async _finalizeSession(reason) {
+        if (this.#sessionFinalized) return;
+        const sessionId = this.#sessionId;
+        this.#sessionFinalized = true;
+        if (!sessionId) return;
+
+        // 1. 非成功路径：先中断远端会话（已在 controlExecution('abort') 中中止过则跳过）
+        if (reason !== 'success' && !this.#remoteAborted) {
+            try {
+                await this.#cli.abortSession(sessionId);
+                this.#remoteAborted = true;
+            } catch (err) {
+                this._log('warn', `会话收尾: abortSession 失败（忽略）id=${sessionId}: ${err.message}`);
+            }
+        }
+
+        if (this.#keepSessions) {
+            this._log('info', `会话收尾: keepSessions=true，保留远端会话 id=${sessionId}（reason=${reason}）`);
+            return;
+        }
+
+        // 2. 删除前确保对话已归档到本地
+        let archived = false;
+        try {
+            await this.#cli.getSessionMessages(sessionId);
+            archived = true;
+        } catch (err) {
+            this._log('warn',
+                `会话收尾: 归档失败，跳过删除以保全对话记录 id=${sessionId}: ${err.message}`);
+        }
+        if (!archived) return;
+
+        // 3. 删除远端会话（本地归档保留）
+        try {
+            await this.#cli.deleteSession(sessionId);
+            this._log('info', `会话收尾完成(${reason}): 已归档并回收远端会话 id=${sessionId}`);
+        } catch (err) {
+            this._log('warn', `会话收尾: deleteSession 失败（忽略）id=${sessionId}: ${err.message}`);
         }
     }
 
@@ -968,10 +1085,12 @@ class FlexRunner {
                 this.#aborted = true;
                 this.#paused = false;
                 this._log('warn', '⏹  执行已终止');
-                // 若有活跃 session，尝试中止
+                // 若有活跃 session，立即中止远端（不等轮询周期）；
+                // F-03：置 #remoteAborted，避免收尾阶段重复 abort
                 if (this.#sessionId) {
                     try {
                         await this.#cli.abortSession(this.#sessionId);
+                        this.#remoteAborted = true;
                         this._log('info', `已中止 Session: ${this.#sessionId}`);
                     } catch (err) {
                         this._log('warn', `中止 Session 失败: ${err.message}`);
@@ -1508,12 +1627,12 @@ class FlexRunner {
      * @private
      */
     async _summarizeAndPersist(summaryFilePath, skillDir, sessionId) {
-        // 终止已请求 → 不再向 session 追加经验总结 prompt（避免终止后又触发新的 AI 生成）
-        if (this.#aborted) {
-            this._log('info', '_summarizeAndPersist: 已终止，跳过后台经验总结');
-            return;
-        }
         try {
+            // 终止已请求 → 不再向 session 追加经验总结 prompt（避免终止后又触发新的 AI 生成）
+            if (this.#aborted) {
+                this._log('info', '_summarizeAndPersist: 已终止，跳过后台经验总结');
+                return;
+            }
             const summarized = await this._summarizeExperience(summaryFilePath, skillDir, sessionId);
             if (!summarized) {
                 this._log('warn', '后台经验总结未生成（超时/失败），跳过知识持久化');
@@ -1523,6 +1642,12 @@ class FlexRunner {
             this._log('info', '✅ 后台经验总结完成，知识已持久化');
         } catch (err) {
             this._log('warn', `_summarizeAndPersist 异常: ${err.message}`);
+        } finally {
+            // F-03：成功路径的会话收尾放在这里。经验总结仍要复用同一个 session
+            // （sendAndWaitMessage 追加总结 prompt），必须等总结结束才能回收；
+            // 失败/终止路径由 executeStart 尾部收尾。#sessionFinalized 保证幂等。
+            await this._finalizeSession(this.#aborted ? 'aborted' : 'success')
+                .catch((err) => this._log('warn', `会话收尾异常: ${err.message}`));
         }
     }
 
