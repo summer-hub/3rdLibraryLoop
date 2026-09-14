@@ -13,8 +13,9 @@
 │  ┌────────────────────────────────────────────────────────┐  │
 │  │ loadTask       加载任务 JSON，构建步骤节点，验证引用     │  │
 │  │ start          启动编排，主调度循环                      │  │
-│  │ _scheduleLoop  收集 READY 步骤 → 并行执行 → 激活后续    │  │
-│  │ _executeNode   单步执行（含重试），循环检测             │  │
+│  │ _scheduleLoop  流水线调度（Promise.race 感知任意完成）   │  │
+│  │ _executeNode   单步执行（含并发准入与失败链跳转）        │  │
+│  │ _detectCycles  加载期静态环检测（next/fail/depend）     │  │
 │  │ _activateNext  成功→nextStepId / 失败→failStepId       │  │
 │  │ abort/pause/resume  编排级控制                          │  │
 │  │ updateStepConfig     修改未执行步骤配置                 │  │
@@ -104,24 +105,53 @@ Server/Routes/
 
 1. **loadTask**：解析 JSON → 构建 StepNode → 验证引用完整性 → 识别入口步骤
 2. **start**：入口步骤标记 READY → 进入调度循环
-3. **_scheduleLoop**：每轮收集所有 READY 步骤 → `Promise.all` 并行执行
+3. **_scheduleLoop**：**流水线式**调度——首轮把全部 READY 节点投入执行，
+   之后 `Promise.race` 感知任意节点完成并重新扫描；节点完成时其尾部级联已
+   立即启动新就绪的后继节点，**不再等整批结束**（总耗时趋近 DAG 关键路径）
 4. **_executeNode**：
-   - 循环检测（同一步骤不重复执行）
-   - 创建 FlexRunner → 重试循环直到成功或用尽 maxRetries
+   - 创建 FlexRunner → 单次执行
    - 成功 → 标记 COMPLETED → 激活 nextStepId
-   - 失败 → 标记 FAILED → 激活 failStepId（若非 0）
+   - 失败 → 未达 maxRetries 则激活 failStepId（修复链），达上限则终止链
 5. 报告传递：前置步骤的 `resultPath` 自动赋值给后续步骤的 `inputReport`
 
-### 循环检测
+### 循环检测（F-18 更正）
 
-- 每个 (taskId, stepId) 组合在执行路径中只允许出现一次
-- 若 nextStepId/failStepId 指向已执行过的步骤，标记为 BLOCKED
-- 全局执行次数上限 200 次作为兜底保护
+> ⚠️ 本节此前把"重复步骤 → BLOCKED"归因于 `_execPathTrace` Set。该字段**确实只被
+> 声明与 clear、从未被读取**（死代码），但**不能说"该检测从未生效"**——实施这一语义的
+> 真实机制在 `_activateNextStep()`：
+> ```js
+> if (!allowCompleted && !nextNode.isPending) {
+>     const canReenterFromFailed = nextNode.status === FAILED && nextNode.retryCount < nextNode.maxRetries;
+>     if (!canReenterFromFailed) return;   // 已 COMPLETED 的节点不会被 nextStepId 再次激活
+> }
+> ```
+> 也就是说"每一步在成功路径上只执行一次"是**成立的**（实测：`1 → 2 → 1` 双方均成功时
+> `globalExecCount === 2` 即收敛）。**允许重复执行**的只有两条显式路径：
+> `failStepId` 修复链（`allowCompleted: true`）与 FAILED 且未用尽 `maxRetries` 的节点。
+> 这也正是为什么不能照原文档字面实现"一律只执行一次"——那会破坏修复链。
 
-### 死锁检测
+- **加载期静态环检测**（`_detectCycles()`，新增）：对 `nextStepId ∪ failStepId ∪ dependId`
+  求强连通分量；任一 SCC 大小 > 1 或存在自环即记为一个环。
+  - `dependId` 的边方向是 **dep → 本节点**（语义是"我依赖 dep"，执行方向相反）。
+    方向写反会与 `nextStepId` 组合出**假环**（线性链会被误判成环）。
+  - **环不报错**（修复链天然成环），只 warn 并把 `cycles` 写入 `getProgress()` 与
+    `getPersistableState()`，便于发现"nextStepId 写错指回前序步骤"这类编排错误。
+- **运行时兜底**：全局执行次数上限 `GLOBAL_EXEC_LIMIT=200` + 每步骤 `maxRetries`。
+  （实测：双方均失败且 `failStepId` 互指的 ping-pong 环恰好在上限 200 次处有界停止。）
 
-- 调度循环中若无 READY 步骤也无 RUNNING 步骤 → 结束
-- 结束后检查：全部 COMPLETED → COMPLETED，否则 → DEADLOCKED 或 FAILED
+### 死锁检测（F-27 细化）
+
+调度循环中若无 READY 步骤也无 RUNNING 步骤 → 结束。随后按**可归因性**区分两类终局：
+
+| 终局 | 条件 | 说明 |
+|------|------|------|
+| `COMPLETED` | 全部步骤 COMPLETED | 正常结束 |
+| `FAILED` | 存在 FAILED 步骤 | **失败链终止**（如某步失败且 `failStepId=0`）。原因会指名失败步骤，并说明有多少后续步骤因前置失败而未执行 |
+| `DEADLOCKED` | 无 FAILED，但仍有 PENDING | 真死锁：pending 步骤的前置永远无法满足，且无失败步骤可归因 |
+
+> 旧实现把 `FAILED`/`DEADLOCKED` 两种情况一律报为 `DEADLOCKED`，并给出含糊原因
+> "可能死锁或失败链终止"。这会让"某步失败、链正常终止"这一**常见且合理**的结局
+> 被显示成"死锁"，误导运维去排查调度器缺陷。现已拆开并给出可操作的原因。
 
 ## SSE 事件
 
@@ -168,21 +198,30 @@ Server/Routes/
 - `flexRunnerFactory`：可选，测试时注入 mock FlexRunner
 - `sessionSemaphore`：可选，Session 并发信号量（默认进程级全局单例，见下）
 
-### 全局 Session 并发限制
+### 全局 Session 并发限制（F-06 / F-07 / F-08 更新）
 
 - **进程级信号量**（`Semaphore` 类，模块级单例 `globalSessionSemaphore`）：跨所有编排任务共享
-- 所有 FlexRunner `executeStart()`（即活跃 opencode Session）总数不超过上限
-- 上限通过环境变量 `MAX_CONCURRENT_SESSIONS` 配置，默认 50
-- 场景：仓库检视类任务单任务 fan-out 5 个并发步骤；多任务同时提交时统一限流排队
-- 排队策略：FIFO，槽位由 `release()` 直接转移给队首等待者（不超发）；等待超 100ms 记录 info 日志
-- 状态查询：`getSessionSemaphoreStats()`（模块导出）返回 `{ active, limit, waiting, utilization }`，
-  经 `GET /api/stats/session/concurrency` 暴露，前端顶栏「🔀 并发」pill 15s 轮询展示（≥80% 橙色、打满红色脉冲）
+- 覆盖范围：不仅 `executeStart()`，**经验总结复用同一 session 的调用**
+  （`sendAndWaitMessage`，发生在步骤槽位释放之后）也会自行再取一个槽位——
+  否则真实并发会话数可达上限的 2 倍
+- 上限配置：
+  - 全局：`MAX_CONCURRENT_SESSIONS`，默认 50
+  - **单任务配额**：`MAX_SESSIONS_PER_TASK`，默认 8（防止单个大 fan-out 任务独占全部槽位饿死其他任务）
+  - **获取超时**：`SEMAPHORE_ACQUIRE_TIMEOUT_MS`，默认 15 分钟（0 = 无限等待）
+    ——没有超时的话，任何僵死会话会永久占用槽位，累计到上限后所有新任务永久饿死
+- 排队策略：按等待顺序扫描派发，**跳过会违反任务配额的等待者**（避免队头阻塞），
+  因此不是严格 FIFO——这是为隔离性做的有意取舍
+- 释放采用**租约式**：`acquire()` 返回带 `release()` 的租约，调用方无需记住 key，
+  也避免了"释放次数与获取次数不匹配"导致的计数漂移（`release()` 幂等）
+- 状态查询：`getSessionSemaphoreStats()` 返回
+  `{ active, limit, perTaskLimit, waiting, utilization, totalAcquired, totalTimedOut, avgWaitedMs, perTask }`，
+  经 `GET /api/stats/session/concurrency` 暴露，前端顶栏「🔀 并发」pill 轮询展示
 
 ### 优化点
 
-1. **并行执行**：无依赖的步骤通过 `Promise.all` 并行执行
-2. **循环检测**：执行路径追踪，防止无限循环
-3. **全局执行上限**：兜底保护，防止极端场景
+1. **流水线调度**：任一节点完成即刻级联启动其后继（`Promise.race`），不等整批
+2. **静态环检测**：加载期识别任务定义中的环并暴露（见上）
+3. **全局执行上限**：`GLOBAL_EXEC_LIMIT=200` 兜底，防止极端场景
 4. **报告自动传递**：前置 resultPath 自动赋值给后续 inputReport
 5. **配置可修改**：未执行步骤支持动态修改依赖关系
-6. **实时进度**：SSE 推送，前端无需轮询
+6. **实时进度**：SSE 推送（含背压保护与可合并事件），前端无需轮询

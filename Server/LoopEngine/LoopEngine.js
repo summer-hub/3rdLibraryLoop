@@ -33,6 +33,7 @@
 
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 
 import { Brain, BrainStatus } from '../Brain/index.js';
 import { TestCheck, CheckStatus } from '../TestCheck/index.js';
@@ -51,6 +52,7 @@ export const LoopStatus = Object.freeze({
     PASSED: 'passed',           // 准出通过，循环结束
     FAILED: 'failed',           // 达到最大循环次数仍未通过
     ABORTED: 'aborted',         // 被手动终止
+    INTERRUPTED: 'interrupted', // F-24：进程重启导致执行中断（只有执行体能推进的状态被迫收敛）
     ERROR: 'error'              // 循环过程出错
 });
 
@@ -70,6 +72,26 @@ const SSE_EVENT = Object.freeze({
 
 /** 默认最大循环次数 */
 const DEFAULT_MAX_LOOPS = 3;
+
+/**
+ * F-22：准出审核自身出错（status=error，如选型失败/SKILL 执行失败/报告读不到）时的
+ * 最大尝试次数。审核"没跑起来"与审核"判定不通过"是两件完全不同的事：
+ *   - 判定不通过 → 应进入下一轮重规划（消耗轮次）
+ *   - 审核出错   → 重试；仍失败则终止并如实报告，**不应消耗轮次**，
+ *                  更不能被当作"准出审核未通过"去驱动一次编造失败原因的重规划。
+ * 可由环境变量 LOOP_CHECK_MAX_ATTEMPTS 覆盖（≥1）。
+ */
+const DEFAULT_CHECK_MAX_ATTEMPTS = 2;
+
+/**
+ * F-24：恢复时需要被投影为 interrupted 的"进行中"状态集合。
+ * 这些状态的推进只可能由循环执行体完成，重启后执行体已不存在。
+ */
+const RESTORABLE_ACTIVE_STATES = new Set([
+    LoopStatus.PLANNING,
+    LoopStatus.EXECUTING,
+    LoopStatus.CHECKING,
+]);
 
 /**
  * ABORTED_ERROR —— 大循环终止专用错误。
@@ -156,12 +178,94 @@ class LoopEngine {
     }
 
     /**
+     * F-23：计算步骤图指纹（用于检测"重规划产出与之前完全相同的计划"）。
+     *
+     * 只纳入决定执行行为的字段；忽略描述里的空白差异与步骤顺序
+     * （按 stepId 排序后再拼接，避免同一张图因序列化顺序不同被判为不同）。
+     *
+     * @param {object} taskDef
+     * @returns {string}
+     * @private
+     */
+    _fingerprintTaskDef(taskDef) {
+        const steps = Array.isArray(taskDef?.steps) ? taskDef.steps : [];
+        const normalized = steps
+            .map((s) => [
+                String(s.stepId ?? ''),
+                String(s.dependId ?? 0),
+                String(s.nextStepId ?? 0),
+                String(s.failStepId ?? 0),
+                String(s.specifiedSkill || ''),
+                String(s.taskDescription || '').replace(/\s+/g, ' ').trim(),
+            ].join('\u0001'))
+            .sort();
+        return createHash('sha256').update(normalized.join('\u0002')).digest('hex').slice(0, 16);
+    }
+
+    /**
+     * F-23：检查本轮计划是否与之前某轮重复。
+     *
+     * @param {LoopContext} ctx
+     * @param {number} loopNum - 当前轮次
+     * @param {{taskDef: object}} planningResult
+     * @returns {{fingerprint: string, matchedLoop: number}|null}
+     * @private
+     */
+    _checkOscillation(ctx, loopNum, planningResult) {
+        // 首轮没有"上一轮"，且允许通过环境变量关闭该检测
+        if (process.env.LOOP_DETECT_OSCILLATION === '0') return null;
+
+        const fingerprint = this._fingerprintTaskDef(planningResult?.taskDef);
+        if (!Array.isArray(ctx.planFingerprints)) ctx.planFingerprints = [];
+
+        const matched = ctx.planFingerprints.find((p) => p.fingerprint === fingerprint);
+        // 无论是否重复都要登记本轮，供后续轮次比较
+        ctx.planFingerprints.push({ loop: loopNum, fingerprint });
+
+        // 首轮（loopNum === 0）即使指纹与历史相同也无历史可比；只有 loopNum > 0 且命中才算振荡
+        if (loopNum > 0 && matched) {
+            return { fingerprint, matchedLoop: matched.loop };
+        }
+        return null;
+    }
+
+    /**
      * 获取循环上下文。
      * @param {string} taskId
      * @returns {LoopContext|undefined}
      */
     getLoop(taskId) {
         return this._loops.get(taskId);
+    }
+
+    /**
+     * F-22：准出审核自身的最大尝试次数（≥1）。
+     * @returns {number}
+     * @private
+     */
+    _checkMaxAttempts() {
+        const n = parseInt(process.env.LOOP_CHECK_MAX_ATTEMPTS ?? '', 10);
+        return Number.isFinite(n) && n >= 1 ? n : DEFAULT_CHECK_MAX_ATTEMPTS;
+    }
+
+    /**
+     * F-24：把持久化里读到的状态投影为「恢复后可自洽」的状态。
+     *
+     * - planning / executing / checking → interrupted（执行体已不存在，无法推进）
+     * - aborting → aborted（无法继续"等待中止完成"）
+     * - 其余终态（passed/failed/aborted/error/interrupted）原样保留
+     * - 未知/空值 → idle
+     *
+     * @param {string|undefined} status
+     * @returns {string}
+     * @private
+     */
+    _projectRestoredStatus(status) {
+        if (!status) return LoopStatus.IDLE;
+        if (status === LoopStatus.ABORTING) return LoopStatus.ABORTED;
+        if (RESTORABLE_ACTIVE_STATES.has(status)) return LoopStatus.INTERRUPTED;
+        const known = Object.values(LoopStatus);
+        return known.includes(status) ? status : LoopStatus.IDLE;
     }
 
     /**
@@ -403,6 +507,31 @@ class LoopEngine {
                         throw new ABORTED_ERROR('Brain 拆解完成前收到终止请求');
                     }
 
+                    // ── F-23：计划振荡检测 ──
+                    // 若本轮重规划产出的步骤图与**之前某轮完全相同**，那么再跑一遍
+                    // 几乎必然得到同样的失败结果——继续消耗剩余轮次毫无意义。
+                    // 原实现没有任何计划比较，相同计划会一路烧到 maxLoops。
+                    const oscillation = this._checkOscillation(ctx, loopNum, planningResult);
+                    if (oscillation) {
+                        round.planFingerprint = oscillation.fingerprint;
+                        round.oscillatedWith = oscillation.matchedLoop;
+                        ctx.oscillated = true;
+                        ctx.status = LoopStatus.ERROR; // 复用 F-22 的 ERROR 分支，避免被改写为"达到最大循环次数"
+                        ctx.error =
+                            `计划振荡：第 ${loopNum + 1} 轮重规划产出的步骤图与第 ` +
+                            `${oscillation.matchedLoop + 1} 轮完全相同（指纹 ${oscillation.fingerprint}），` +
+                            `不再重复执行以免空耗轮次。通常需要人工介入：` +
+                            `检查验收标准是否可达、或补充失败信息以让重规划产生实质变化。`;
+                        round.endTime = nowCST();
+                        ctx.currentLoop++;
+                        this._log('error', ctx.error);
+                        this._emit(channel, SSE_EVENT.LOOP_ERROR, {
+                            taskId, loop: loopNum, error: ctx.error
+                        });
+                        await this._persistLoopState(ctx);
+                        break;
+                    }
+
                     // ── 阶段 2：Orchestrator 编排执行 ──
                     ctx.status = LoopStatus.EXECUTING;
                     await this._persistLoopState(ctx);
@@ -426,9 +555,42 @@ class LoopEngine {
                         taskId, loop: loopNum
                     });
 
-                    const checkResult = await this._runTestCheck(ctx, orchestratorResult);
+                    // F-22：审核"出错"与审核"判定不通过"必须分开处理。
+                    // 出错（status=error）时先重试审核本身；重试仍失败则标记本轮
+                    // checkErrored，既不消耗轮次去重规划，也不谎报"准出未通过"。
+                    const maxCheckAttempts = this._checkMaxAttempts();
+                    let checkResult = null;
+                    for (let attempt = 1; attempt <= maxCheckAttempts; attempt++) {
+                        checkResult = await this._runTestCheck(ctx, orchestratorResult);
+                        const checkErrored = checkResult.status === CheckStatus.ERROR;
+                        if (!checkErrored) break;
+
+                        this._log('warn',
+                            `第 ${loopNum + 1} 轮准出审核出错（第 ${attempt}/${maxCheckAttempts} 次）: ` +
+                            `${checkResult.error || '未知原因'}`);
+                        // 终止请求时不重试（没必要再打一次 SKILL）
+                        if (this.isAborted(taskId) || attempt === maxCheckAttempts) break;
+                    }
+
                     round.checkResult = checkResult;
                     round.passed = checkResult.passed;
+                    round.checkErrored = checkResult.status === CheckStatus.ERROR;
+
+                    // ── 审核自身出错且重试仍失败：终止并如实报告 ──
+                    if (round.checkErrored) {
+                        ctx.status = LoopStatus.ERROR;
+                        ctx.error = `准出审核未能完成（已尝试 ${maxCheckAttempts} 次）：` +
+                            `${checkResult.error || '未知原因'}。这是审核环节故障，` +
+                            `不代表任务产物未通过验收。`;
+                        round.endTime = nowCST();
+                        ctx.currentLoop++;
+                        this._log('error', ctx.error);
+                        this._emit(channel, SSE_EVENT.LOOP_ERROR, {
+                            taskId, loop: loopNum, error: ctx.error
+                        });
+                        await this._persistLoopState(ctx);
+                        break;
+                    }
 
                     // ── 判断是否准出通过 ──
                     if (checkResult.passed) {
@@ -476,10 +638,18 @@ class LoopEngine {
             if (ctx.aborted) {
                 ctx.status = LoopStatus.ABORTED;
                 this._emit(channel, SSE_EVENT.LOOP_ABORTED, { taskId });
+            } else if (ctx.status === LoopStatus.ERROR) {
+                // F-22：审核环节故障已在上面设置 ERROR，保留其准确原因，不再覆盖为
+                // "准出审核仍未通过"（那会让人误以为产物被判定不合格）。
+                this._log('warn', `大循环以 ERROR 结束: ${ctx.error}`);
             } else {
                 const lastRound = ctx.rounds[ctx.rounds.length - 1];
                 if (lastRound && lastRound.passed) {
                     ctx.status = LoopStatus.PASSED;
+                } else if (lastRound && lastRound.checkErrored) {
+                    // 兜底：本轮审核出错（异常路径进入），同样不谎报"未通过"
+                    ctx.status = LoopStatus.ERROR;
+                    ctx.error = ctx.error || '准出审核未完成（审核环节故障），无法判定是否准出';
                 } else {
                     ctx.status = LoopStatus.FAILED;
                     ctx.error = `达到最大循环次数 ${ctx.maxLoops}，准出审核仍未通过`;
@@ -610,7 +780,12 @@ class LoopEngine {
                     checkPassed: r.checkResult ? r.checkResult.passed : null,
                     checkStatus: r.checkResult ? r.checkResult.status : null,
                     checkId: r.checkResult ? r.checkResult.checkId : null,
-                    checkSessionId: r.checkResult ? r.checkResult.sessionId || null : null
+                    checkSessionId: r.checkResult ? r.checkResult.sessionId || null : null,
+                    // F-22：审核环节是否故障（供恢复/展示时区分"未通过"与"没能审核"）
+                    checkErrored: r.checkErrored === true ? true : null,
+                    // F-23：计划指纹与振荡来源（供排障与历史查询）
+                    planFingerprint: r.planFingerprint || null,
+                    oscillatedWith: typeof r.oscillatedWith === 'number' ? r.oscillatedWith : null
                 };
             })
         };
@@ -664,8 +839,17 @@ class LoopEngine {
         } else {
             // ── 后续轮：重规划 ──
             const lastRound = ctx.rounds[ctx.rounds.length - 1];
-            const lastCheckResult = lastRound ? lastRound.checkResult : null;
             const lastOrchResult = lastRound ? lastRound.orchestratorResult : null;
+            // F-22：只有"真实的判定不通过"才作为 replan 的失败依据。
+            // 审核出错时 checkResult 里没有 failedCriteria，若照常传给 Brain，
+            // replan prompt 会断言"上一轮准出审核未通过"并诱导模型编造失败原因。
+            const lastCheckResult = (lastRound && lastRound.checkResult && !lastRound.checkErrored)
+                ? lastRound.checkResult
+                : null;
+            if (lastRound && lastRound.checkErrored) {
+                this._log('warn',
+                    'Brain 重规划: 上一轮审核出错（无真实失败清单），不向其传递审核结论');
+            }
 
             this._log('info', `Brain 重规划: taskId=${ctx.taskId}, loop=${ctx.currentLoop}`);
 
@@ -959,13 +1143,18 @@ class LoopEngine {
                 skillDirectory: state.skillDirectory || '',
                 maxLoops: state.maxLoops || DEFAULT_MAX_LOOPS,
                 currentLoop: state.currentLoop || 0,
-                // 恢复时 aborting（中止中的过渡态）归一化为 aborted：
-                // 重启后循环执行体已不存在，无法也不应继续"等待中止完成"
-                status: state.status === LoopStatus.ABORTING
-                    ? LoopStatus.ABORTED
-                    : (state.status || LoopStatus.IDLE),
+                // F-24：恢复时把"进行中"状态一律投影为终态 INTERRUPTED。
+                //
+                // 原因：重启后循环执行体已不复存在（计划中的 execution body 不在内存里），
+                // 而 planning/executing/checking 都是**只有执行体才能推进**的状态。
+                // 原实现原样保留这些状态，于是崩溃后该任务会永远显示"运行中"：
+                // 既不会有人推进它，前端也无法判断它其实已经中断。
+                // aborting（中止中的过渡态）同理——无法继续"等待中止完成"，直接归一为 aborted。
+                status: this._projectRestoredStatus(state.status),
                 startTime: state.startTime || null,
                 endTime: state.endTime || null,
+                error: state.error || null,
+                aborted: state.status === LoopStatus.ABORTING,
                 rounds: Array.isArray(state.rounds) ? state.rounds.map(r => ({
                     loop: r.loop,
                     startTime: r.startTime,
@@ -997,11 +1186,14 @@ class LoopEngine {
                         summary: r.checkSummary || '',
                         sessionId: r.checkSessionId || ''
                     } : null,
+                    // F-22：恢复"本轮审核是故障"这一事实（不随 checkResult 一起丢失）
+                    checkErrored: r.checkErrored === true,
+                    // F-23：恢复计划指纹，使重启后的振荡检测仍然有效
+                    planFingerprint: r.planFingerprint || null,
+                    oscillatedWith: typeof r.oscillatedWith === 'number' ? r.oscillatedWith : null,
                     passed: r.passed || false,
                     error: r.error || null
-                })) : [],
-                error: state.error || null,
-                aborted: false
+                })) : []
             };
 
             this._loops.set(taskId, ctx);
@@ -1020,6 +1212,11 @@ class LoopEngine {
                     }
                 }
             }
+            // ── F-23：从历史轮次重建计划指纹，使重启后的振荡检测仍然有效 ──
+            ctx.planFingerprints = ctx.rounds
+                .filter((r) => r.planFingerprint)
+                .map((r) => ({ loop: r.loop, fingerprint: r.planFingerprint }));
+
             return ctx;
         } catch {
             return null;
@@ -1057,7 +1254,12 @@ class LoopEngine {
                 orchestratorStatus: r.orchestratorResult?.status || null,
                 checkPassed: r.checkResult?.passed ?? null,
                 checkSummary: r.checkResult?.summary || null,
-                improvementSuggestions: r.checkResult?.improvementSuggestions || []
+                improvementSuggestions: r.checkResult?.improvementSuggestions || [],
+                // F-22：区分"审核判定不通过"与"审核环节故障"
+                checkErrored: r.checkErrored === true,
+                // F-23：计划指纹与振荡来源轮次（供调用方/前端排障）
+                planFingerprint: r.planFingerprint || null,
+                oscillatedWith: typeof r.oscillatedWith === 'number' ? r.oscillatedWith : null
             })),
             finalCheckResult: lastPassedRound
                 ? lastPassedRound.checkResult

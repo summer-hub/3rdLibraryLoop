@@ -26,10 +26,37 @@ class OpenCodeCLI {
     static _loggerName = 'OpenCodeCLI';
 
     /**
+     * F-06：单请求默认超时（ms）。可为 options.requestTimeoutMs 或环境变量
+     * OPENCODE_REQUEST_TIMEOUT_MS 覆盖；0 表示不超时。
+     *
+     * @opencode-ai/sdk 的 createOpencodeClient 默认设置 `req.timeout = false`
+     * （见其 dist/client.js 的 customFetch），即**主动关闭请求超时**——这是为
+     * 长耗时 AI 请求设计的，代价是任何网络僵死都会让 await 永不返回，从而让
+     * 调用方（FlexRunner 步骤）永久占用进程级并发槽位、进而拖死整个进程。
+     * 因此在适配器层通过 SDK 暴露的 fetch 钩子把超时补回来。
+     */
+    static DEFAULT_REQUEST_TIMEOUT_MS = 120000;
+
+    /** 「本次请求不设超时」——仅供确实长耗时的同步 prompt 使用 */
+    static NO_TIMEOUT = 0;
+
+    /**
+     * 长耗时同步请求（session.prompt，等待 AI 完整回复）的超时（ms）。
+     * 默认 30 分钟，可由环境变量 OPENCODE_LONG_REQUEST_TIMEOUT_MS 覆盖（0=不超时）。
+     * 之所以不直接 NO_TIMEOUT：同步 prompt 一旦僵死会连带拖住调用方与其并发槽位，
+     * 必须有一个（哪怕很宽的）上界。
+     */
+    static LONG_REQUEST_TIMEOUT_MS = 30 * 60 * 1000;
+
+    /** 用于逐请求覆盖超时的自定义头（0 = 不超时） */
+    static TIMEOUT_HEADER = 'x-3lib-timeout-ms';
+
+    /**
      * @param {object} options
      * @param {string} [options.host]    - opencode 服务主机
      * @param {string} [options.port]    - opencode 服务端口
      * @param {string} [options.baseUrl] - 完整 baseUrl，优先级高于 host/port
+     * @param {number} [options.requestTimeoutMs] - 单请求超时（0=不超时）
      * @param {import('../../DbUse/MessageArchive.js').default} [options.archive] - 消息存档服务
      */
     constructor(options = {}) {
@@ -44,14 +71,103 @@ class OpenCodeCLI {
         this.archive = options.archive ?? new MessageArchive();
         // 记录各 session 首次进入 busy/retry 的时间戳（ms），用于"busy 停滞兜底"判定
         this._busySince = {};
+        // ── F-06：请求超时与取消 ──
+        const envTimeout = parseInt(process.env.OPENCODE_REQUEST_TIMEOUT_MS ?? '', 10);
+        this.requestTimeoutMs = options.requestTimeoutMs != null
+            ? Number(options.requestTimeoutMs)
+            : (Number.isFinite(envTimeout) ? envTimeout : this.constructor.DEFAULT_REQUEST_TIMEOUT_MS);
+        /** @type {AbortController|null} 外部（FlexRunner.abort）注入的取消源 */
+        this._abortController = null;
+        // 长耗时同步 prompt 的超时（F-06）：宽上界，避免僵死永久占用并发槽位
+        const envLong = parseInt(process.env.OPENCODE_LONG_REQUEST_TIMEOUT_MS ?? '', 10);
+        this.longRequestTimeoutMs = Number.isFinite(envLong)
+            ? envLong
+            : this.constructor.LONG_REQUEST_TIMEOUT_MS;
         this._init();
+    }
+
+    // ─── F-06：超时与取消 ─────────────────────────────────────────────────────
+
+    /**
+     * 注入外部取消源。触发后所有在途请求会立即被 abort（而非等超时）。
+     * @param {AbortSignal} signal
+     */
+    setAbortSignal(signal) {
+        if (!signal) return;
+        if (!this._abortController) this._abortController = new AbortController();
+        const ctrl = this._abortController;
+        if (signal.aborted) {
+            ctrl.abort(signal.reason);
+            return;
+        }
+        signal.addEventListener('abort', () => ctrl.abort(signal.reason), { once: true });
+    }
+
+    /** 立即取消所有在途请求（幂等）。 */
+    abortInFlight(reason = 'aborted by caller') {
+        if (this._abortController) {
+            this._abortController.abort(new Error(reason));
+        }
+    }
+
+    /**
+     * 构造带超时/取消语义的 fetch。
+     *
+     * 语义：
+     *   - 请求头 `x-3lib-timeout-ms` 可逐请求覆盖超时；`0` 表示本次不超时（长耗时 prompt 用）
+     *   - 未带该头时使用 requestTimeoutMs
+     *   - 与 setAbortSignal 注入的外部取消源联动，abort 时立即中断在途请求
+     *
+     * @param {number} defaultTimeoutMs
+     * @returns {typeof fetch}
+     * @private
+     */
+    _makeFetch(defaultTimeoutMs) {
+        const TIMEOUT_HEADER = this.constructor.TIMEOUT_HEADER;
+        return async (req) => {
+            const raw = req.headers?.get?.(TIMEOUT_HEADER);
+            let timeoutMs = defaultTimeoutMs;
+            if (raw != null) {
+                const n = Number(raw);
+                if (Number.isFinite(n)) timeoutMs = n;
+            }
+
+            const ctrl = new AbortController();
+            const ext = this._abortController?.signal;
+            let timer = null;
+            const onExtAbort = () => ctrl.abort(ext?.reason);
+            if (ext) {
+                if (ext.aborted) onExtAbort();
+                else ext.addEventListener('abort', onExtAbort, { once: true });
+            }
+            if (timeoutMs > 0 && !ctrl.signal.aborted) {
+                timer = setTimeout(() => {
+                    ctrl.abort(new Error(
+                        `opencode 请求超时（${timeoutMs}ms）: ${req.method || 'GET'} ${new URL(req.url).pathname}`
+                    ));
+                }, timeoutMs);
+            }
+            try {
+                // 复制原请求并挂上我们的 signal（不能直接改 req.signal）
+                const next = new Request(req, { signal: ctrl.signal });
+                return await fetch(next);
+            } finally {
+                if (timer) clearTimeout(timer);
+                if (ext) ext.removeEventListener('abort', onExtAbort);
+            }
+        };
     }
 
     // ─── 初始化 ────────────────────────────────────────────────────────────────
 
     _init() {
         try {
-            this.client = createOpencodeClient({ baseUrl: this.baseUrl });
+            // F-06：通过 SDK 暴露的 fetch 钩子注入超时/取消语义。
+            // 不传 fetch 时 SDK 会用自己的 customFetch 把 req.timeout 设为 false（无超时）。
+            this.client = createOpencodeClient({
+                baseUrl: this.baseUrl,
+                fetch: this._makeFetch(this.requestTimeoutMs),
+            });
         } catch (error) {
             this._log('error', `初始化失败: ${error.message}`);
             throw error;
@@ -234,7 +350,9 @@ class OpenCodeCLI {
                     parts: [{ type: 'text', text: message }],
                     noReply: false
                 },
-                url: `/session/${sessionId}/message`
+                url: `/session/${sessionId}/message`,
+                // F-06：同步等待 AI 完整回复属长耗时请求，用宽上界覆盖默认短超时
+                headers: { [this.constructor.TIMEOUT_HEADER]: String(this.longRequestTimeoutMs) }
             });
             const assistantMsg = result.data;
             // 从 parts 中提取文本内容

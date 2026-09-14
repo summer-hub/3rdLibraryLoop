@@ -150,10 +150,11 @@ function extractImports(content, packageName) {
     if (m[2] === 'show') {
       const names = m[3].split(',').map(s => s.trim()).filter(Boolean);
       imports.showList = imports.showList || new Set();
-      names.forEach(n => imports.showList.add(n));
+      // 块体而非简写体：简写体隐含返回 Set.add() 的返回值，语义上具误导性
+      names.forEach(n => { imports.showList.add(n); });
     } else if (m[2] === 'hide') {
       const names = m[3].split(',').map(s => s.trim()).filter(Boolean);
-      names.forEach(n => imports.hideList.add(n));
+      names.forEach(n => { imports.hideList.add(n); });
     } else if (m[2] === 'as') {
       const alias = m[3].trim();
       imports.aliased.set(alias, pkgName);

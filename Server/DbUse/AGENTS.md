@@ -29,7 +29,6 @@ Server/DbUse/
 ├── index.js                 # 入口：createStorage() 门面工厂 + 全量导出
 ├── StorageManager.js        # 存储管理器：根目录解析 + 适配器实例缓存
 ├── MessageArchive.js        # 兼容门面（代理 SessionStore，供旧 CLI 使用）
-├── test.js                  # 功能验证测试（临时目录，自动清理）
 ├── adapters/                # 存储格式适配器
 │   ├── BaseAdapter.js       # 抽象基类：根目录/工具方法/接口契约
 │   ├── FileAdapter.js       # 原始文件读写（文本/二进制）
@@ -43,7 +42,7 @@ Server/DbUse/
 
 ## 存储布局
 
-所有数据默认写入 workspace 根下 `db/` 目录（自动创建）：
+所有数据默认写入 `Server/DbUse/` 上溯 3 层（即仓库的**上一级目录**）下的 `db/` 目录（自动创建），可由 `3LIB_DATA_DIR` 或 `createStorage({ rootDir })` 覆盖：
 
 ```
 db/
@@ -298,19 +297,20 @@ await storage.close();
 
 ## 测试
 
+`Server/DbUse/test.js` 已不存在（模块自带的临时目录验证脚本已移除），DbUse 相关验收并入仓库级 M3 套件，在仓库根执行：
+
 ```bash
-node Server/DbUse/test.js
+npm run test:m3          # 等价于 node test/m3/run-all.mjs
 ```
 
-测试写入临时目录 `db_test_tmp/`，结束自动清理，不污染真实 `db/`。
+**验证项（位于 `test/m3/`，各自使用临时目录，不污染真实数据目录）：**
+1. `SqliteAdapter` `busy_timeout`：默认 5000ms、`SQLITE_BUSY_TIMEOUT_MS` 覆盖、非法/0/负值回退默认（`f17-sqlite-connections.test.mjs`）
+2. 跨进程并发写同一 DB 文件不报 `SQLITE_BUSY`；`Orchestrator` 向 FlexRunner 注入共享 storage；`KnowledgeManager` 为进程级单例（`f17-sqlite-connections.test.mjs`）
+3. `TaskStepStore` 的 `seq` 分配竞态（`f16-seq-race.test.mjs`）
+4. 预编译语句缓存：同一 SQL 不重复 `prepare`、缓存有界、`close()` 后清空，且不改变 `get/all/exec/upsert` 行为（`f18-cycle-and-stmt-cache.test.mjs`）
+5. `JsonAdapter` 原子写与知识库持久化（`f14-f15-atomic-json.test.mjs` / `f25-knowledge-loop.test.mjs`）
 
-**验证项：**
-1. `StorageManager` 实例缓存（同 `type+subDir` 返回同一实例）
-2. `SessionStore` 消息归档 + 去重 + 卡死检测
-3. `TaskStepStore` CRUD + 状态流转 + 统计
-4. `MessageArchive` 代理兼容性
-5. `FileAdapter` 原始文件写入/读取（含 `createFile` 原子性、`appendFile`）
-6. `StorageManager.closeAll()`
+> `SessionStore` / `MessageArchive` / `StorageManager` / `FileAdapter` 当前**无独立验收用例**。
 
 ## 依赖
 

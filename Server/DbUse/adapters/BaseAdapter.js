@@ -26,7 +26,8 @@ class BaseAdapter {
         if (options.baseDir) {
             this.baseDir = options.baseDir;
         } else {
-            // 默认：本文件 (Server/DbUse/adapters/) 上溯 4 层到 workspace 根 → db/
+            // 默认：本文件 (Server/DbUse/adapters/) 上溯 4 层 = **仓库所在目录的上一级** → 其下的 db/
+            // （注意：不是"仓库根"——实测默认 baseDir 为 <仓库父目录>\db）
             const here = dirname(fileURLToPath(import.meta.url));
             this.baseDir = join(here, '..', '..', '..', '..', 'db');
         }

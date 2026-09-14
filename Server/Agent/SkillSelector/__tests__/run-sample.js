@@ -22,7 +22,7 @@ const TASK = '对 rntpc_async-storage 进行版本差异分析，对比 br_rnoh0
 
 // 场景 B（预期 hit=false）：Go 库可行性分析（语言否决）
 // const TASK = '分析gitserver这个Go开源库能否移植到鸿蒙平台，输出鸿蒙化可行性报告';
-// 场景 C（预期 hit=false）：汇总报告（动作类型否决 + 分差检查）
+// 场景 C（预期 hit=false）：汇总报告（动作类型否决；分差已不参与命中判定）
 // const TASK = '汇总规范合规性检视结果（compliance-review.json）和业务逻辑检视结果（logic-review.json），生成完整的代码检视报告文档（code-review-report.md）。报告需覆盖仓库内所有核心 ArkTS 源码文件，所有问题需按严重程度分级（Blocker/Critical/Major/Minor），并给出具体的修改建议或代码示例';
 const SKILL_DIRECTORY = 'Skills';
 

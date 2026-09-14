@@ -41,6 +41,8 @@ import { hostname } from 'node:os';
 import { FlexRunner } from '../FlexRunner/FlexRunner.js';
 import { StepNode, NodeStatus } from './StepNode.js';
 import { nowCST } from '../library/cstTime.js';
+import { AbortTree } from '../library/AbortTree.js';
+import { RoleLimiter } from '../Agent/Runtime/RoleLimiter.js';
 
 // ─── 常量 ────────────────────────────────────────────────────────────────────
 
@@ -63,7 +65,22 @@ const SSE_EVENT = Object.freeze({
     TASK_PROGRESS: 'orch:task:progress',
     TASK_COMPLETE: 'orch:task:complete',
     TASK_ERROR: 'orch:task:error',
-    TASK_ABORTED: 'orch:task:aborted'
+    TASK_ABORTED: 'orch:task:aborted',
+    // ── Phase 2：多 Agent 协作事件（未启用多 Agent 时不会产生）──
+    /** 步骤的角色子图拓扑（谁参与、什么计划） */
+    AGENT_TOPOLOGY: 'orch:agent:topology',
+    /** 派发任务给某角色 */
+    AGENT_ASSIGN: 'orch:agent:assign',
+    /** 角色收到协作消息（回放的可视化入口） */
+    AGENT_MESSAGE: 'orch:agent:message',
+    /** 协作消息投递失败（异常可见，绝不静默） */
+    AGENT_MESSAGE_FAILED: 'orch:agent:message_failed',
+    /** 某角色执行完成 */
+    AGENT_RESULT: 'orch:agent:result',
+    /** 评审结论（含驳回理由） */
+    AGENT_REVIEW: 'orch:agent:review',
+    /** 步骤级协作摘要（角色数/修订次数/失败归因） */
+    AGENT_SUMMARY: 'orch:agent:summary'
 });
 
 /** 全局执行次数上限（防止极端循环场景） */
@@ -72,74 +89,261 @@ const GLOBAL_EXEC_LIMIT = 200;
 /** 默认全局 Session 并发上限（可通过环境变量 MAX_CONCURRENT_SESSIONS 覆盖） */
 const DEFAULT_MAX_CONCURRENT_SESSIONS = 50;
 
+/** 默认单任务 Session 并发上限（可通过 MAX_SESSIONS_PER_TASK 覆盖；0=不限制） */
+const DEFAULT_MAX_SESSIONS_PER_TASK = 8;
+
+/** 默认等待并发槽位的超时（ms），可通过 SEMAPHORE_ACQUIRE_TIMEOUT_MS 覆盖；0=无限等待 */
+const DEFAULT_ACQUIRE_TIMEOUT_MS = 15 * 60 * 1000;
+
+/**
+ * F-26：属主心跳间隔（ms），可由 OWNER_HEARTBEAT_MS 覆盖。
+ * 与 OrchestratorController 的 OWNER_STALE_MS 配合：心跳间隔必须显著小于过期阈值，
+ * 否则正常运行的属主会被误判为已死。
+ */
+const DEFAULT_OWNER_HEARTBEAT_MS = 30000;
+
+/**
+ * 默认持久化合并窗口（ms），可通过 PERSIST_DEBOUNCE_MS 覆盖；0=关闭合并（每次都立即写）。
+ *
+ * 取值依据：步骤状态变更（_emitStepStatus）在 fan-out 场景下同一 tick 内会连发多次，
+ * 300ms 足以把它们并成一次写，又短于前端 SSE 刷新感知（进度事件本身不经此路径）。
+ */
+const DEFAULT_PERSIST_DEBOUNCE_MS = 300;
+
+/**
+ * 解析持久化合并窗口。
+ *
+ * 优先级：显式传入（deps.persistDebounceMs） > 环境变量 PERSIST_DEBOUNCE_MS > 默认值。
+ * 显式传入与合法环境变量均以"是否为有限非负数"判定，非法值回退默认值（不抛错，
+ * 避免一个笔误的环境变量让整个编排起不来）。
+ *
+ * @param {number|string|undefined} override - 构造参数覆盖值
+ * @returns {number} 合并窗口（ms），0 表示关闭合并
+ */
+function resolvePersistDebounceMs(override) {
+    const pick = (v) => {
+        if (v === undefined || v === null || v === '') return null;
+        const n = Number(v);
+        return Number.isFinite(n) && n >= 0 ? n : null;
+    };
+    return pick(override) ?? pick(process.env.PERSIST_DEBOUNCE_MS) ?? DEFAULT_PERSIST_DEBOUNCE_MS;
+}
+
 // ─── 全局 Session 并发信号量 ─────────────────────────────────────────────────
 
 /**
- * Semaphore — 异步信号量（FIFO 排队）。
+ * SessionSemaphore — 带「全局上限 + 单任务配额 + 获取超时」的异步信号量。
  *
- * 进程级单例（跨所有编排任务共享）：并行步骤 fan-out / 多任务同时提交时，
- * 活跃的 opencode Session（即正在执行的 FlexRunner executeStart）总数
- * 不超过上限，防止 AI 会话数无节制叠加（5 维并发 × N 个仓库）。
+ * 进程级单例（跨所有编排任务共享），限制同时活跃的 opencode Session 数
+ * （即正在执行的 FlexRunner.executeStart 以及复用同一 session 的经验总结）。
+ *
+ * 相比初版（纯 FIFO + 无超时 + 无配额）的三处强化：
+ *   1. **获取超时**（F-06）：acquire 支持 timeoutMs。没有超时的话，任何僵死的
+ *      请求会永久占用槽位，累计到上限后整个进程的所有新任务永久饿死。
+ *   2. **单任务配额**（F-08）：避免单个 fan-out 50 的仓库检视任务独占全部槽位、
+ *      把其他任务饿死（无隔离时"全局上限"实际退化为"先到先得独占"）。
+ *   3. **租约式释放**（防错配）：acquire 返回带 release() 的租约，调用方无需
+ *      记住 key，也不会出现"释放次数与获取次数不匹配"导致的计数漂移。
+ *
+ * 排队策略：按等待顺序扫描，跳过会违反配额的等待者（避免队头阻塞），
+ * 因此不是严格 FIFO——这是为了隔离性做的有意取舍。
  */
 class Semaphore {
     /**
-     * @param {number} limit - 并发上限（≥1）
+     * @param {object} [opts]
+     * @param {number} [opts.limit]        - 全局并发上限（≥1）
+     * @param {number} [opts.perTaskLimit] - 单任务并发上限（0=不限制）
      */
-    constructor(limit = DEFAULT_MAX_CONCURRENT_SESSIONS) {
+    constructor({ limit, perTaskLimit } = {}) {
         this._limit = Math.max(1, Number(limit) || DEFAULT_MAX_CONCURRENT_SESSIONS);
+        this._perTaskLimit = Number.isFinite(Number(perTaskLimit))
+            ? Math.max(0, Number(perTaskLimit))
+            : DEFAULT_MAX_SESSIONS_PER_TASK;
         this._active = 0;
-        /** @type {Array<() => void>} */
+        /** @type {Array<{resolve: Function, settled: boolean, timer: any, key: string|null, enqueuedAt: number}>} */
         this._queue = [];
+        /** @type {Map<string, number>} 单任务活跃数 */
+        this._activeByKey = new Map();
+        /** 累计统计（可观测性） */
+        this._totalAcquired = 0;
+        this._totalTimedOut = 0;
+        this._waitedMsTotal = 0;
     }
 
     get limit() { return this._limit; }
     get active() { return this._active; }
-    get waiting() { return this._queue.length; }
+    get waiting() { return this._queue.filter((w) => !w.settled).length; }
+    get perTaskLimit() { return this._perTaskLimit; }
 
-    /**
-     * 获取一个槽位；上限已满时排队等待。
-     * @returns {Promise<void>}
-     */
-    async acquire() {
-        if (this._active < this._limit) {
-            this._active++;
-            return;
-        }
-        await new Promise(resolve => this._queue.push(resolve));
-        // 被唤醒时槽位已由 release 直接转移给本等待者，_active 不再递增
+    /** 某任务的活跃会话数 */
+    activeForKey(key) {
+        if (key == null) return 0;
+        return this._activeByKey.get(String(key)) ?? 0;
     }
 
     /**
-     * 释放槽位；有等待者时直接转移（保证 FIFO 且不超发）。
+     * 尝试把槽位派发给队列中可启动的等待者。
+     * 同一 tick 内同步完成，因此不存在超发窗口。
+     * @private
      */
-    release() {
-        const next = this._queue.shift();
-        if (next) {
-            next();
-        } else {
-            this._active = Math.max(0, this._active - 1);
+    _dispatch() {
+        for (let i = 0; i < this._queue.length; i++) {
+            const w = this._queue[i];
+            if (w.settled) {
+                this._queue.splice(i, 1);
+                i--;
+                continue;
+            }
+            if (this._active >= this._limit) return;
+            if (w.key != null && this._perTaskLimit > 0
+                && this.activeForKey(w.key) >= this._perTaskLimit) {
+                continue; // 该任务配额已满：跳过它，不让它阻塞后面的等待者
+            }
+            this._queue.splice(i, 1);
+            i--;
+            this._active++;
+            if (w.key != null) {
+                const k = String(w.key);
+                this._activeByKey.set(k, (this._activeByKey.get(k) ?? 0) + 1);
+            }
+            if (w.timer) clearTimeout(w.timer);
+            w.settled = true;
+            this._waitedMsTotal += Date.now() - w.enqueuedAt;
+            this._totalAcquired++;
+            w.resolve(true);
         }
+    }
+
+    /**
+     * 获取一个槽位。
+     *
+     * @param {object} [opts]
+     * @param {number} [opts.timeoutMs=0] - 等待超时（ms）；0 表示无限等待
+     * @param {string|null} [opts.key]    - 归属键（通常为 taskId），用于单任务配额
+     * @returns {Promise<{ok: boolean, waitedMs: number, reason?: string, release: () => void}>}
+     */
+    async acquire({ timeoutMs = 0, key = null } = {}) {
+        const t0 = Date.now();
+        const lease = {
+            released: false,
+            release: () => {
+                if (lease.released) return;
+                lease.released = true;
+                this._active = Math.max(0, this._active - 1);
+                if (key != null) {
+                    const k = String(key);
+                    const n = (this._activeByKey.get(k) ?? 1) - 1;
+                    if (n <= 0) this._activeByKey.delete(k); else this._activeByKey.set(k, n);
+                }
+                this._dispatch();
+            },
+        };
+
+        if (this._active < this._limit
+            && (key == null || this._perTaskLimit === 0 || this.activeForKey(key) < this._perTaskLimit)) {
+            this._active++;
+            if (key != null) {
+                const k = String(key);
+                this._activeByKey.set(k, (this._activeByKey.get(k) ?? 0) + 1);
+            }
+            this._totalAcquired++;
+            return { ok: true, waitedMs: 0, release: lease.release };
+        }
+
+        let timer = null;
+        const waiter = { resolve: null, settled: false, timer: null, key, enqueuedAt: t0 };
+        const ok = await new Promise((resolve) => {
+            waiter.resolve = resolve;
+            this._queue.push(waiter);
+            if (timeoutMs > 0) {
+                timer = setTimeout(() => {
+                    if (waiter.settled) return;
+                    waiter.settled = true;
+                    const i = this._queue.indexOf(waiter);
+                    if (i !== -1) this._queue.splice(i, 1);
+                    this._totalTimedOut++;
+                    resolve(false);
+                }, timeoutMs);
+                waiter.timer = timer;
+            }
+        });
+        if (timer) clearTimeout(timer);
+
+        const waitedMs = Date.now() - t0;
+        if (!ok) {
+            return { ok: false, waitedMs, reason: 'timeout', release: () => {} };
+        }
+        return { ok: true, waitedMs, release: lease.release };
+    }
+
+    /** 并发占用快照（供 HTTP 统计接口 / 前端展示） */
+    stats() {
+        const perTask = {};
+        for (const [k, v] of this._activeByKey) perTask[k] = v;
+        return {
+            active: this._active,
+            limit: this._limit,
+            perTaskLimit: this._perTaskLimit,
+            waiting: this.waiting,
+            utilization: this._limit > 0 ? Math.round((this._active / this._limit) * 100) : 0,
+            totalAcquired: this._totalAcquired,
+            totalTimedOut: this._totalTimedOut,
+            avgWaitedMs: this._totalAcquired > 0
+                ? Math.round(this._waitedMsTotal / this._totalAcquired)
+                : 0,
+            perTask,
+        };
+    }
+
+    /** 兼容旧 API：无租约地释放一个全局槽位（不推荐，仅用于遗留调用点） */
+    release() {
+        this._active = Math.max(0, this._active - 1);
+        this._dispatch();
     }
 }
 
 /** 进程级全局 Session 并发信号量（所有 Orchestrator 实例共享） */
-const globalSessionSemaphore = new Semaphore(
-    Number(process.env.MAX_CONCURRENT_SESSIONS) || DEFAULT_MAX_CONCURRENT_SESSIONS
-);
+const globalSessionSemaphore = new Semaphore({
+    limit: Number(process.env.MAX_CONCURRENT_SESSIONS) || DEFAULT_MAX_CONCURRENT_SESSIONS,
+    perTaskLimit: process.env.MAX_SESSIONS_PER_TASK != null && process.env.MAX_SESSIONS_PER_TASK !== ''
+        ? Number(process.env.MAX_SESSIONS_PER_TASK)
+        : DEFAULT_MAX_SESSIONS_PER_TASK,
+});
 
 /**
  * 查询全局 Session 并发占用快照（供 HTTP 统计接口 / 前端顶栏展示）。
- * @returns {{active: number, limit: number, waiting: number, utilization: number}}
+ * @returns {{active: number, limit: number, waiting: number, utilization: number,
+ *            perTaskLimit: number, perTask: object, totalTimedOut: number, avgWaitedMs: number}}
  */
 export function getSessionSemaphoreStats() {
-    return {
-        active: globalSessionSemaphore.active,
-        limit: globalSessionSemaphore.limit,
-        waiting: globalSessionSemaphore.waiting,
-        utilization: globalSessionSemaphore.limit > 0
-            ? Math.round((globalSessionSemaphore.active / globalSessionSemaphore.limit) * 100)
-            : 0
-    };
+    return globalSessionSemaphore.stats();
+}
+
+/**
+ * 进程级共享的角色级限流器（Phase 3，第三级限流）。
+ *
+ * 上限来源：`MAX_SESSIONS_PER_ROLE`（统一默认）与 `ROLE_LIMIT_<ROLE>`（单角色）。
+ * **全部默认 0 = 不限制**，即未配置时行为与 Phase 2 完全一致——与
+ * `MULTI_AGENT_ENABLED` 一样遵循"合并代码不改变默认行为"的原则。
+ */
+const globalRoleLimiter = new RoleLimiter();
+
+/**
+ * 进程级角色限流统计（经 `GET /api/stats/agents` 暴露）。
+ * @returns {object}
+ */
+export function getRoleLimiterStats() {
+    return globalRoleLimiter.getStats();
+}
+
+/**
+ * 运行期调整某角色的并发上限（运维手段：发现某角色饿死其它角色时可即时放宽/收紧）。
+ * @param {string} roleId
+ * @param {number} limit - 0 = 不限制
+ * @returns {number} 生效后的上限
+ */
+export function setRoleLimit(roleId, limit) {
+    return globalRoleLimiter.setLimit(roleId, limit);
 }
 
 // ─── Orchestrator 类 ─────────────────────────────────────────────────────────
@@ -151,6 +355,9 @@ class Orchestrator {
      * @param {object} [deps.storage]     - 存储门面（可选，无则不持久化）
      * @param {function} [deps.flexRunnerFactory] - FlexRunner 工厂函数（可选，测试用）
      * @param {object} [deps.sessionSemaphore] - Session 并发信号量（可选，默认进程级全局单例）
+     * @param {function} [deps.multiAgentRunnerFactory] - 多 Agent 运行器工厂（Phase 2，可选）
+     * @param {boolean} [deps.multiAgentEnabled] - 是否启用多 Agent（默认读环境变量 MULTI_AGENT_ENABLED）
+     * @param {object} [deps.roleRegistry] - 角色注册表（Phase 2，可选）
      */
     constructor(deps = {}) {
         this.sseHub = deps.sseHub || null;
@@ -158,6 +365,46 @@ class Orchestrator {
         this.flexRunnerFactory = deps.flexRunnerFactory || null;
         // 全局 Session 并发限制（进程级共享；测试可注入自定义信号量）
         this.sessionSemaphore = deps.sessionSemaphore || globalSessionSemaphore;
+
+        // ── Phase 2：多 Agent 协作（默认关闭 → 行为与 Phase 1 完全一致）──
+        /**
+         * @type {function|null} 多 Agent 运行器工厂。
+         * 签名 `(node, inputReport, ctx) => Promise<Runner>`；
+         * 未注入时使用内置的 `MultiAgentRunner`（惰性加载，避免未启用时引入依赖）。
+         */
+        this.multiAgentRunnerFactory = deps.multiAgentRunnerFactory || null;
+        /**
+         * @type {boolean} 是否启用多 Agent。
+         * 默认读 `MULTI_AGENT_ENABLED`（需显式为 '1' 或 'true'）。
+         * 采用"默认关闭"是刻意的：合并代码不应顺带改变生产行为；
+         * 启用是显式决策，且现有 5 个测试套件（389 条断言）在关闭态必须全绿。
+         */
+        this.multiAgentEnabled = deps.multiAgentEnabled === undefined
+            ? (process.env.MULTI_AGENT_ENABLED === '1' || String(process.env.MULTI_AGENT_ENABLED).toLowerCase() === 'true')
+            : deps.multiAgentEnabled === true;
+        /** @type {object|null} 角色注册表（Phase 2） */
+        this.roleRegistry = deps.roleRegistry || null;
+        /** @type {object} 多 Agent 相关统计 */
+        this._multiAgentStats = { steps: 0, roleRuns: 0, revisions: 0, failures: {} };
+
+        // ── Phase 3：高并发能力 ──
+        /**
+         * @type {AbortTree} 取消树（task → step → role → HTTP 请求）。
+         *
+         * 与 Phase 1 的"平铺式取消"相比，树的关键增益是**取消后新派生的节点立即为取消态**：
+         * 平铺实现里 `abort()` 只遍历当时正在运行的节点，此后被激活的步骤仍会照常启动
+         * （Phase 1 靠编排层的 `_aborted` 标志兜底，但角色会话层没有等价保护）。
+         */
+        this.abortTree = deps.abortTree || new AbortTree();
+        /** @type {AbortNode|null} 任务级取消节点（步骤级节点挂在它下面） */
+        this._taskAbortNode = null;
+        /**
+         * @type {object|null} Phase 3：角色级限流器（第三级限流）。
+         * 未注入时由 `_createMultiAgentRunner` 使用进程级共享实例。
+         */
+        this.roleLimiter = deps.roleLimiter || null;
+        /** @type {object|null} Phase 3：会话事件源（事件驱动替代轮询） */
+        this.sessionEvents = deps.sessionEvents || null;
 
         // ── 任务元信息 ──
         /** @type {string} */
@@ -190,8 +437,22 @@ class Orchestrator {
         this._aborted = false;
         /** @type {string|null} 失败原因 */
         this._error = null;
-        /** @type {Set<string>} 已参与过的执行路径节点（用于循环检测） */
-        this._execPathTrace = new Set();
+        /**
+         * @type {string[][]} 任务定义中检测到的**环**（F-18）。
+         *
+         * 背景澄清：项目文档曾把"重复步骤 → 阻塞"归因于一个 `_execPathTrace` 字段，
+         * 而该字段只被声明与 clear、从未被读取（死代码）。但**并非**"该语义未生效"——
+         * 真正实施它的是 `_activateNextStep()` 的守卫：已 COMPLETED 的节点不会被
+         * `nextStepId` 再次激活（只有 failStepId 修复链与 FAILED 未耗尽重试两条
+         * 显式路径允许重复执行）。因此这里不是"补上缺失的检测"，而是补上一项
+         * **语义正确且原本确实缺失**的能力：加载期识别任务定义中的环。
+         *
+         * 环本身合法（failStepId 修复链就是环），但需要显式暴露出来，因为
+         *   - 环会让任务在 GLOBAL_EXEC_LIMIT 内反复执行，耗时远超预期；
+         *   - 无意的环（nextStepId 写错指回前面步骤）是常见的 taskDef 编排错误。
+         * 运行时兜底仍由 GLOBAL_EXEC_LIMIT(200) 与每节点 maxRetries 负责。
+         */
+        this._cycles = [];
         /** @type {Set<string>} 修复步骤集合：被其它步骤 failStepId 指向的 stepId。
          *  这些节点语义上"仅由某步骤失败时经 failStepId 进入"，不应被 dependId fan-out 并行激活。 */
         this._fixStepIds = new Set();
@@ -200,12 +461,29 @@ class Orchestrator {
          *  _scheduleLoop 通过 Promise.race 感知任意节点完成，无需等整批结束。 */
         this._inFlight = new Map();
 
-        // ── 持久化串行化 ──
+        // ── 持久化串行化 + 写合并 ──
         // _persistState 可能被并发调用（如步骤状态变更回调中 fire-and-forget 触发）。
         // 多个 writeFile 同时操作同一文件会导致截断/拼接竞态，产生损坏的 JSON。
         // 用 Promise 链串行化所有持久化写入，后一次等待前一次完成后再执行。
         /** @type {Promise<void>} */
         this._persistChain = Promise.resolve();
+
+        /** @type {any} F-26：属主心跳定时器（unref，不阻止进程退出） */
+        this._ownerHeartbeatTimer = null;
+        // 写合并（F-11）：_emitStepStatus 每次步骤状态变更都会触发持久化，而每次
+        // 持久化要写两份含全部步骤完整 history 的 JSON（orchestration_loop{N}.json +
+        // orchestration.json）。N 步任务下即为 ~4N 次"全量文件"写、总字节 O(N²)。
+        // 窗口内合并为一次写入，且写入时才取最新快照（见 _persistStateNow）。
+        /** @type {number} 合并窗口（ms），0 = 关闭合并（每次都立即写） */
+        this._persistDebounceMs = resolvePersistDebounceMs(deps.persistDebounceMs);
+        /** @type {NodeJS.Timeout|null} 待触发的合并定时器 */
+        this._persistTimer = null;
+        /** @type {boolean} 是否处于一个合并窗口内（窗口内后续请求被吸收） */
+        this._persistPending = false;
+        /** @type {number} 实际落盘次数（可观测/可测试） */
+        this._persistWrites = 0;
+        /** @type {number} 被合并掉的持久化请求数（可观测/可测试） */
+        this._persistCoalesced = 0;
     }
 
     // ─── 只读 getter ───────────────────────────────────────────────────
@@ -341,12 +619,117 @@ class Orchestrator {
         this._error = null;
         this._aborted = false;
         this._globalExecCount = 0;
-        this._execPathTrace.clear();
+        // F-18：加载期静态环检测（取代从未生效的 _execPathTrace）
+        this._detectCycles();
 
         this._log('info', `任务已加载: taskId=${this._taskId}, 步骤数=${this._nodes.size}, 入口步骤=${this._entryStepIds.join(',')}`);
 
-        // 持久化初始状态
-        await this._persistState();
+        // 持久化初始状态（关键跃迁：任务定义落盘后才能被其他进程/重启发现，强制立即写）
+        await this._persistState({ force: true });
+    }
+
+    /**
+     * F-18：加载期静态环检测。
+     *
+     * 边集合 = nextStepId ∪ failStepId ∪ dependId（仅保留指向已定义步骤的边）。
+     * 用迭代式 DFS 找出所有环（Tarjan 风格的强连通分量思路）：任一 SCC 大小 > 1，
+     * 或节点存在自环，即为一个环。
+     *
+     * 语义取舍：**环不报错**。failStepId 修复链（A 失败→B 修复→回 A 重试）天然成环，
+     * 报错会误伤正确用法。这里只做"显式暴露"：warn 日志 + 写入 progress，
+     * 让编排者能立刻发现"任务定义里有个环，可能不是有意的"。
+     *
+     * 运行时兜底不变：GLOBAL_EXEC_LIMIT(200) + 每节点 maxRetries。
+     *
+     * @private
+     */
+    _detectCycles() {
+        this._cycles = [];
+        const nodes = [...this._nodes.values()];
+        /** 邻接表：stepId → 后继 stepId[] */
+        const adj = new Map();
+        for (const n of nodes) adj.set(n.stepId, []);
+        for (const n of nodes) {
+            // nextStepId / failStepId 本身就是"执行顺序"边：n → target
+            for (const target of [n.nextStepId, n.failStepId]) {
+                if (target !== '0' && this._nodes.has(target)) adj.get(n.stepId).push(target);
+            }
+            // dependId 的方向必须反过来：语义是"n 依赖 dep"，因此执行方向是 dep → n。
+            // 若误当作 n → dep，会与 nextStepId 组合出**假环**——
+            // 例如线性链 1→2→3（2.dependId=1、3.dependId=2）会被误判成环。
+            for (const dep of n.dependencies) {
+                if (this._nodes.has(dep)) adj.get(dep).push(n.stepId);
+            }
+        }
+
+        // Tarjan 强连通分量（迭代实现，避免深图递归爆栈）
+        const index = new Map();
+        const low = new Map();
+        const onStack = new Set();
+        const stack = [];
+        let counter = 0;
+
+        for (const startNode of nodes) {
+            if (index.has(startNode.stepId)) continue;
+
+            /** @type {Array<{id: string, edgeIdx: number}>} */
+            const callStack = [{ id: startNode.stepId, edgeIdx: 0 }];
+            index.set(startNode.stepId, counter);
+            low.set(startNode.stepId, counter);
+            counter++;
+            stack.push(startNode.stepId);
+            onStack.add(startNode.stepId);
+
+            while (callStack.length > 0) {
+                const frame = callStack[callStack.length - 1];
+                const edges = adj.get(frame.id) ?? [];
+
+                if (frame.edgeIdx < edges.length) {
+                    const next = edges[frame.edgeIdx];
+                    frame.edgeIdx++;
+                    if (!index.has(next)) {
+                        index.set(next, counter);
+                        low.set(next, counter);
+                        counter++;
+                        stack.push(next);
+                        onStack.add(next);
+                        callStack.push({ id: next, edgeIdx: 0 });
+                    } else if (onStack.has(next)) {
+                        low.set(frame.id, Math.min(low.get(frame.id), index.get(next)));
+                    }
+                } else {
+                    callStack.pop();
+                    if (callStack.length > 0) {
+                        const parent = callStack[callStack.length - 1];
+                        low.set(parent.id, Math.min(low.get(parent.id), low.get(frame.id)));
+                    }
+                    if (low.get(frame.id) === index.get(frame.id)) {
+                        const scc = [];
+                        let popped;
+                        do {
+                            popped = stack.pop();
+                            onStack.delete(popped);
+                            scc.push(popped);
+                        } while (popped !== frame.id);
+                        // SCC 大小 > 1 → 环；自环（大小为 1 且自指）也计入
+                        if (scc.length > 1) {
+                            this._cycles.push(scc.sort((a, b) => Number(a) - Number(b)));
+                        } else if ((adj.get(scc[0]) ?? []).includes(scc[0])) {
+                            this._cycles.push(scc);
+                        }
+                    }
+                }
+            }
+        }
+
+        if (this._cycles.length > 0) {
+            const desc = this._cycles.map((c) => `[${c.join(' → ')}]`).join('、');
+            this._log('warn',
+                `检测到 ${this._cycles.length} 个环: ${desc}。` +
+                `环本身合法（failStepId 修复链即为此形态），但会导致步骤反复执行；` +
+                `若并非有意，请检查 nextStepId / failStepId 是否指回前序步骤。` +
+                `运行时由全局执行上限 ${GLOBAL_EXEC_LIMIT} 与各步骤 maxRetries 兜底。`);
+        }
     }
 
     /**
@@ -402,18 +785,25 @@ class Orchestrator {
             this._endTime = nowCST();
             this._log('warn', 'start: 任务在启动前已被终止，不执行任何步骤');
             this._emit(SSE_EVENT.TASK_ABORTED, this.getProgress());
-            await this._persistState();
+            // 关键跃迁（任务终态）：必须立即落盘，不能被合并窗口延迟
+            await this._persistState({ force: true });
             return { status: this._status, summary: this.getProgress() };
         }
 
         this._status = OrchestratorStatus.RUNNING;
         this._startTime = nowCST();
+        // Phase 3：建立任务级取消节点（步骤级节点在其下派生）。
+        // 在 emit/persist 之前建立，保证"一启动即可被级联取消"。
+        this._taskAbortNode = this.abortTree.createRoot(`task:${this._taskId}`);
         this._emit(SSE_EVENT.TASK_START, this.getProgress());
-        await this._persistState();
+        // 关键跃迁（编排启动）：立即落盘，使 running 状态与 owner.json 一起可见
+        await this._persistState({ force: true });
         // 写入属主标记（pid/hostname）：标识本编排由当前进程执行。
         // 服务重启时 restoreFromDisk 据此判定 running 任务的归属——
         // 属主进程仍存活（如 3rdloop run 嵌入式 CLI）则跳过，不误标 FAILED。
         await this._writeOwnerFile();
+        // F-26：启动属主心跳，使归属判定同时具备「pid 存活」与「心跳新鲜」两个证据
+        this._startOwnerHeartbeat();
 
         try {
             // 初始就绪：将所有入口步骤标记为 ready
@@ -447,14 +837,38 @@ class Orchestrator {
             if (allCompleted) {
                 this._status = OrchestratorStatus.COMPLETED;
             } else {
-                // 检查是否死锁
+                // 既未全部成功，也无 running/ready：分两种情况，语义完全不同。
+                //
+                // 旧实现把两者一律标为 DEADLOCKED 并给出"可能死锁或失败链终止"的
+                // 含糊原因，导致"某步失败且无 failStepId、链正常终止"这种**常见且
+                // 合理**的结局被报成"死锁"——运维看到"死锁"会去排查调度器缺陷，
+                // 实际只是产物没通过。这里拆开：
+                //   - 存在 FAILED 步骤 → FAILED（失败链终止），原因点明是哪些步骤失败；
+                //   - 不存在 FAILED 但仍有 PENDING 步骤 → 才是真死锁（前置永远无法满足）。
                 const hasRunning = Array.from(this._nodes.values()).some(n => n.isRunning);
                 const hasReady = Array.from(this._nodes.values()).some(n => n.status === NodeStatus.READY);
-                if (!hasRunning && !hasReady) {
-                    this._status = OrchestratorStatus.DEADLOCKED;
-                    this._error = '所有步骤已停止，但存在未完成的步骤（可能死锁或失败链终止）';
-                } else {
+                if (hasRunning || hasReady) {
                     this._status = OrchestratorStatus.FAILED;
+                } else {
+                    const failedNodes = Array.from(this._nodes.values())
+                        .filter(n => n.status === NodeStatus.FAILED);
+                    const pendingNodes = Array.from(this._nodes.values())
+                        .filter(n => n.status === NodeStatus.PENDING);
+
+                    if (failedNodes.length > 0) {
+                        this._status = OrchestratorStatus.FAILED;
+                        const desc = failedNodes
+                            .map(n => `step${n.stepId}（${n.error || '未达成功条件'}）`)
+                            .join('、');
+                        this._error = `失败链终止：${desc}。` +
+                            (pendingNodes.length > 0
+                                ? ` 另有 ${pendingNodes.length} 个后续步骤因前置失败而未能执行。`
+                                : '');
+                    } else {
+                        this._status = OrchestratorStatus.DEADLOCKED;
+                        this._error = `死锁：${pendingNodes.length} 个步骤仍为 pending，` +
+                            `但其前置依赖无法满足（无失败步骤可归因，请检查依赖图是否存在不可达前置）。`;
+                    }
                 }
             }
             this._emit(SSE_EVENT.TASK_COMPLETE, {
@@ -464,7 +878,8 @@ class Orchestrator {
         }
 
         this._log('info', `── 编排执行结束: status=${this._status} ──`);
-        await this._persistState();
+        // 关键跃迁（任务终态）：立即落盘，确保服务重启时读到的是真实终态而非中间态
+        await this._persistState({ force: true });
         // 已到终态，属主标记失效，清理（先持久化终态再清理，崩溃窗口内重启仍可正确判定）
         await this._deleteOwnerFile();
         return { status: this._status, summary: this.getProgress() };
@@ -488,6 +903,12 @@ class Orchestrator {
         for (const node of this._nodes.values()) {
             node.releaseRunner();
         }
+        // Phase 3：释放取消树的根节点。
+        // 不释放会让 `getStats().orphans` 恒 ≥ 1（根节点在任务结束后必然是
+        // "已取消但未摘除"），使这个本该回答"有没有泄漏"的指标失去分辨力——
+        // **一个永远不为零的泄漏指标等于没有指标**。
+        this._taskAbortNode?.dispose();
+        this._taskAbortNode = null;
         this._disposed = true;
     }
 
@@ -508,12 +929,35 @@ class Orchestrator {
      * @private
      */
     async _scheduleLoop() {
+        let limitReported = false;
         while (!this._aborted) {
-            // 全局执行次数保护
+            // ── 全局执行次数保护 ──
+            //
+            // ⚠️ 这里修掉了一个**在高并发下才会暴露的严重缺陷**（Phase 3 压测发现）：
+            // 早先的实现是「达到上限 → 记错误 → 直接 return」，即**放弃所有在途步骤的等待**。
+            // 触发链路：任务的就绪步骤数 > GLOBAL_EXEC_LIMIT(200) 时，第一轮就把
+            // 200 个步骤 kick 出去（`_globalExecCount` 同步自增到 200），
+            // 某个步骤完成后回到循环顶部 → 命中上限 → **立即返回**。
+            // 实测（260 个步骤、200 个在途会话）：`start()` 返回时
+            // `completed=1 / running=199 / ready=60`，编排报告"已结束"，
+            // 而 **199 个会话仍在运行** —— 上层据此 dispose/持久化并认为可以停机，
+            // 真实部署下就是"编排显示完成，实际有近 200 个会话继续烧 token"。
+            //
+            // 正确的语义是：**停止启动新步骤，但必须把在途步骤等完**。
+            // 这样 GLOBAL_EXEC_LIMIT 仍然是"总执行次数上限"（防环能力不变），
+            // 而"编排结束"重新成为可信信号。
             if (this._globalExecCount >= GLOBAL_EXEC_LIMIT) {
-                this._error = `全局执行次数已达上限 ${GLOBAL_EXEC_LIMIT}，可能存在无限循环`;
-                this._log('error', this._error);
-                return;
+                if (!limitReported) {
+                    limitReported = true;
+                    this._error = `全局执行次数已达上限 ${GLOBAL_EXEC_LIMIT}，不再启动新步骤（等待在途步骤收尾）`;
+                    this._log('error', this._error);
+                }
+                if (this._inFlight.size === 0) {
+                    this._log('info', '调度循环结束：已达全局执行上限且在途步骤全部收尾');
+                    return;
+                }
+                await Promise.race(this._inFlight.values());
+                continue;
             }
 
             // 启动所有就绪节点
@@ -622,28 +1066,59 @@ class Orchestrator {
             // running 记录先行写入，进程崩溃/重启时 db 中保留崩溃前真实状态。
             await this._persistStepDb(node);
 
-            // ── 全局 Session 并发限制 ──
-            // 进程级信号量：并行 fan-out 步骤 / 多任务同时提交时，
-            // 活跃 opencode Session 总数不超过 MAX_CONCURRENT_SESSIONS（默认 5）
-            const semWaitStart = Date.now();
-            await this.sessionSemaphore.acquire();
-            const semWaited = Date.now() - semWaitStart;
+            // ── Session 并发准入（全局上限 + 单任务配额 + 获取超时）──
+            // F-06/F-08：等待槽位必须有超时——否则任何僵死会话会永久占用槽位，
+            // 累计到上限后整个进程的所有新任务永久饿死；同时按 taskId 限配额，
+            // 避免单个大 fan-out 任务独占全部槽位把其他任务饿死。
+            //
+            // Phase 2：多 Agent 运行器声明 `managesOwnConcurrency = true` 时，
+            // **跳过**这里的预占——因为它会在一个步骤内创建 N 个角色会话，
+            // 每个角色各自取槽位。若此处仍预占一个，就会出现"槽位被重复占用"：
+            // 全局上限 50 的配置实际只能跑十几个会话（见 MultiAgentRunner 文档）。
+            const delegatesConcurrency = runner.managesOwnConcurrency === true;
+            let sem;
+            if (delegatesConcurrency) {
+                sem = { ok: true, waitedMs: 0, release() {} };
+                this._log('debug',
+                    `步骤 ${node.stepId} 的运行器自行管理会话并发（多 Agent），跳过编排层槽位预占`);
+            } else {
+                const acquireTimeoutMs = Number(process.env.SEMAPHORE_ACQUIRE_TIMEOUT_MS);
+                sem = await this.sessionSemaphore.acquire({
+                    timeoutMs: Number.isFinite(acquireTimeoutMs) && acquireTimeoutMs >= 0
+                        ? acquireTimeoutMs
+                        : DEFAULT_ACQUIRE_TIMEOUT_MS,
+                    key: this._taskId,
+                });
+            }
+            const semWaited = sem.waitedMs;
+            if (!sem.ok) {
+                this._log('error',
+                    `步骤 ${node.stepId} 等待并发槽位超时（${semWaited}ms，` +
+                    `active=${this.sessionSemaphore.active}/${this.sessionSemaphore.limit}，` +
+                    `本任务占用=${this.sessionSemaphore.activeForKey?.(this._taskId) ?? '?'}）`);
+                throw new Error(`等待并发槽位超时（${semWaited}ms）`);
+            }
             if (semWaited > 100) {
                 this._log('info', `步骤 ${node.stepId} 等待并发槽位 ${semWaited}ms（active=${this.sessionSemaphore.active}/${this.sessionSemaphore.limit}）`);
             }
 
             // 等待槽位期间收到终止请求 → 不启动 executeStart（session 将不会被创建）
             if (this._aborted) {
-                this.sessionSemaphore.release();
+                sem.release();
                 this._log('warn', `步骤 ${node.stepId} 在等待并发槽位时被终止，跳过执行`);
                 throw new Error('步骤被终止（等待并发槽位期间收到终止请求）');
             }
 
+            // 说明（F-07）：经验总结（fire-and-forget）复用同一 session 调
+            // sendAndWaitMessage，且发生在 executeStart 返回、槽位释放之后。
+            // 为把它计入并发上限，FlexRunner 持有同一信号量并**自行再取一个槽位**
+            // （见 _summarizeExperience），因此总并发 = 执行中步骤 + 在途总结，
+            // 两者共用同一上限，不会出现"上限翻倍"的超发。
             let result;
             try {
                 result = await runner.executeStart();
             } finally {
-                this.sessionSemaphore.release();
+                sem.release();
             }
             resultPath = result.resultPath;
             success = result.success;
@@ -665,8 +1140,48 @@ class Orchestrator {
             this._log('error', `步骤 ${node.stepId} 执行异常: ${err.message}`);
         }
 
+        // ── Phase 2/3：先把协作结论**取回来**，再决定步骤的失败原因 ──
+        // 顺序很关键：多 Agent 运行器以「返回 success:false」表达失败（而不是抛异常），
+        // 因此 `errorMsg` 在异常路径之外是 null。若不从协作摘要里回填，
+        // `node.error` 会一直是 null —— 表现为"步骤失败了但看不到任何原因"，
+        // 直接违背 F-27 确立的"失败必须可归因"原则（实测：挂起会话被超时回收后
+        // 步骤 error 为空，只能靠翻协作面板才知道是角色超时）。
+        const runnerRef = node._runner;
+        let collab = null;
+        if (runnerRef && typeof runnerRef.getCollaborationSummary === 'function') {
+            try {
+                collab = runnerRef.getCollaborationSummary();
+            } catch (err) {
+                this._log('warn', `采集协作摘要失败（不影响流程）: ${err.message}`);
+            }
+        }
+        if (!success && !errorMsg && collab?.error) {
+            errorMsg = `[协作失败 ${collab.failureKind || '未知'}] ${collab.error}`;
+        }
+
         // 标记完成状态
         node.markFinished({ success, resultPath, sessionId, error: errorMsg, metrics });
+
+        // 协作结论快照到节点上：运行器实例会在编排结束后被 dispose
+        // （`node._runner = null`），若只留在运行器上，用户事后点开步骤详情就什么都看不到。
+        if (collab) {
+            try {
+                node.collaborationSummary = collab;
+                node.agentTopology = {
+                    plan: collab.plan || null,
+                    topology: collab.topology || null,
+                    stageRuns: collab.stageRuns || []
+                };
+                const s = this._multiAgentStats;
+                s.steps++;
+                s.roleRuns += collab.roleRuns || 0;
+                s.revisions += Object.values(collab.revisions || {}).reduce((a, b) => a + b, 0);
+                if (collab.failureKind) s.failures[collab.failureKind] = (s.failures[collab.failureKind] || 0) + 1;
+            } catch (err) {
+                this._log('warn', `记录协作摘要失败（不影响流程）: ${err.message}`);
+            }
+        }
+
         this._emitStepStatus(node);
 
         // 步骤终态：实时落 SQLite（completed/error + 输出/metrics/耗时）
@@ -852,6 +1367,27 @@ class Orchestrator {
      * @private
      */
     async _createFlexRunner(node, inputReport) {
+        // ── Phase 2：多 Agent 运行器分派（**优先级高于注入的 flexRunnerFactory**）──
+        // 顺序必须如此：多 Agent 是"把步骤展开为角色子图"的**运行器实现选择**，
+        // 而 flexRunnerFactory 是"给我一个单角色运行器"的注入点。
+        // 若先看 flexRunnerFactory 就会短路掉分派：明明开了多 Agent，
+        // 却因为测试/上层注入了工厂而静默退回单角色（实测踩到过，见 C3/C6 用例）。
+        // 判定顺序（步骤级配置优先于全局开关）：
+        //   1. node.multiAgent === false → 强制单角色（即使全局已启用）
+        //   2. node.multiAgent === true  → 强制多 Agent
+        //   3. 否则跟随 this.multiAgentEnabled（默认关闭）
+        const wantMultiAgent = node.multiAgent === null
+            ? this.multiAgentEnabled
+            : node.multiAgent;
+
+        if (wantMultiAgent) {
+            const runner = await this._createMultiAgentRunner(node, inputReport);
+            if (runner) return runner;
+            // 多 Agent 创建失败（如未安装依赖 / 计划名写错）时不静默跳过，
+            // 而是记录后回退单角色，保证"任务能跑完"优先于"必须用多 Agent"。
+            this._log('warn', `步骤 ${node.stepId} 多 Agent 运行器创建失败，回退单角色模式`);
+        }
+
         // 支持注入工厂（测试用）
         if (this.flexRunnerFactory) {
             return this.flexRunnerFactory(node, inputReport);
@@ -873,6 +1409,12 @@ class Orchestrator {
             maxRetries: node.maxRetries,
             // 大循环索引，传递给 FlexRunner 用于区分各轮产物文件
             bigLoopIndex: this._loopCount,
+            // F-07：共享进程级信号量，使经验总结的会话占用也计入并发上限
+            sessionSemaphore: this.sessionSemaphore,
+            // F-17：注入共享存储门面。不注入时每个 FlexRunner 都会自行
+            // createStorage() → 各自的 StorageManager → 各自一个指向同一个
+            // store.db 的 SQLite 连接；并发 50 步就是 50 个连接，写竞争被显著放大。
+            storage: this.storage,
             // Session 创建后实时同步到 StepNode 并推送 SSE，保证运行中前端能拿到 sessionId
             onSessionCreated: (sessionId) => {
                 node.sessionId = sessionId || '';
@@ -880,6 +1422,99 @@ class Orchestrator {
             }
         });
         return runner;
+    }
+
+    /**
+     * 创建并初始化多 Agent 运行器（Phase 2）。
+     *
+     * @param {StepNode} node
+     * @param {string} inputReport
+     * @returns {Promise<object|null>} 运行器；无法创建时返回 null（调用方回退单角色）
+     * @private
+     */
+    async _createMultiAgentRunner(node, inputReport) {
+        const onEvent = (type, data) => this._emit(type, data);
+
+        try {
+            let runner;
+            if (this.multiAgentRunnerFactory) {
+                runner = await this.multiAgentRunnerFactory(node, inputReport, {
+                    sessionSemaphore: this.sessionSemaphore,
+                    storage: this.storage,
+                    onEvent,
+                    taskId: this._taskId,
+                    // Phase 3
+                    roleLimiter: this._roleLimiterInstance(),
+                    sessionEvents: this.sessionEvents,
+                    abortTree: this.abortTree,
+                    taskAbortNode: this._taskAbortNode
+                });
+            } else {
+                // 惰性加载：未启用多 Agent 时完全不加载该模块（及其依赖）
+                const mod = await import('../Agent/Supervisor/MultiAgentRunner.js');
+                runner = new mod.MultiAgentRunner({
+                    sessionSemaphore: this.sessionSemaphore,
+                    onEvent,
+                    // Phase 3：三级限流 / 事件驱动 / 取消树
+                    roleLimiter: this._roleLimiterInstance(),
+                    sessionEvents: this.sessionEvents,
+                    abortTree: this.abortTree,
+                    taskAbortNode: this._taskAbortNode,
+                    ...(this.roleRegistry ? { registry: this.roleRegistry } : {})
+                });
+            }
+            if (!runner) return null;
+
+            await runner.initContext({
+                taskId: this._taskId,
+                stepId: Number(node.stepId) || 0,
+                dependId: Number(node.dependencies[0]) || 0,
+                nextStepId: Number(node.nextStepId) || 0,
+                failStepId: Number(node.failStepId) || 0,
+                taskDescription: node.taskDescription,
+                skillDirectory: node.skillDirectory,
+                specifiedSkill: node.specifiedSkill,
+                taskDir: node.taskDir,
+                inputReport,
+                maxRetries: node.maxRetries,
+                bigLoopIndex: this._loopCount,
+                // Phase 2：步骤级协作计划覆盖
+                collaboration: node.collaboration,
+                // F-07/F-17：信号量与共享存储门面按同一约定注入
+                sessionSemaphore: this.sessionSemaphore,
+                storage: this.storage,
+                onSessionCreated: (sessionId) => {
+                    // 多 Agent 时 node.sessionId 记录**主阶段**会话，
+                    // 与 Phase 1 的"该步骤的会话"语义保持可类比（前端无需改判空逻辑）
+                    node.sessionId = sessionId || '';
+                    this._emitStepStatus(node);
+                }
+            });
+
+            // 运行器上的协作元信息挂到节点，供 getProgress / 持久化 / 前端拓扑图读取
+            node._agentRunner = runner;
+            return runner;
+        } catch (err) {
+            this._log('error', `创建多 Agent 运行器失败: ${err.message}`);
+            return null;
+        }
+    }
+
+    /**
+     * 取角色级限流器实例（进程级共享单例）。
+     *
+     * 为什么必须**跨编排器共享**：角色级限流的目的正是"防止贵角色挤死关键角色"，
+     * 而"挤死"是**进程级**现象——若每个编排器各持一个限流器，
+     * 10 个任务就是 10 倍的角色并发，限流形同虚设。
+     *
+     * @returns {RoleLimiter}
+     * @private
+     */
+    _roleLimiterInstance() {
+        if (!this.roleLimiter) {
+            this.roleLimiter = globalRoleLimiter;
+        }
+        return this.roleLimiter;
     }
 
     // ─── 控制操作 ──────────────────────────────────────────────────────
@@ -903,6 +1538,16 @@ class Orchestrator {
         this._aborted = true;
         this._log('warn', '⏹  编排执行已被终止');
 
+        // Phase 3：先做**级联取消**（取消树），再做平铺通知。
+        // 顺序刻意的：级联取消是同步的、且会让**此后新派生**的节点立即为取消态；
+        // 平铺通知（controlExecution）依赖 runner 自身实现且只覆盖"当前正在运行"的节点。
+        // 两者并存而不是替换，是因为 FlexRunner 仍以 #aborted 标志为权威判据，
+        // 移除它会改变 Phase 1 的既有语义（M1 的 008 条断言依赖它）。
+        if (this._taskAbortNode) {
+            const cancelled = this.abortTree.abort('编排被终止');
+            this._log('info', `取消树级联取消 ${cancelled} 个节点`);
+        }
+
         // 终止当前运行中的步骤。
         // 注意：这里只通知 FlexRunner 终止（设置 #aborted + abortSession），
         // 不再直接调用 node.markFinished —— 由 _executeNode 统一负责 markFinished，
@@ -921,18 +1566,27 @@ class Orchestrator {
     }
 
     /**
-     * flushPersistence — 等待在途持久化写入链落盘（F-04 优雅停机用）。
+     * flushPersistence — 先冲刷待写入的合并窗口，再等待在途持久化写入链落盘（F-04 优雅停机用）。
      *
-     * `_persistState` 是 fire-and-forget 的 Promise 链，进程直接退出会丢失
-     * 最后一次状态写入（例如步骤终态），因此停机前必须显式等待。
+     * 两件事：
+     *   1. force 写一次（F-11）：合并窗口内可能还挂着一个未触发的定时器，
+     *      若直接退出进程，最后一次状态（如步骤终态）会丢；
+     *   2. 等待 _persistChain 排空：_persistState 对外是 fire-and-forget 的 Promise 链，
+     *      调用后并不保证已落盘。
      *
      * @returns {Promise<void>}
      */
     async flushPersistence() {
         try {
+            // 收口待触发的合并窗口并落盘最新状态（F-11）；窗口已收口时幂等无副作用
+            await this.flushPersistWindow();
+        } catch {
+            // 错误已在 _persistStateNow 中吞掉并记日志
+        }
+        try {
             await this._persistChain;
         } catch {
-            // _persistChain 内部错误已在 run() 中吞掉并记日志，此处仅保证等待完成
+            // _persistChain 内部错误已在 _persistStateNow 中吞掉并记日志，此处仅保证等待完成
         }
     }
 
@@ -963,10 +1617,21 @@ class Orchestrator {
             this._status = OrchestratorStatus.ABORTED;
             this._endTime = nowCST();
             this._emit(SSE_EVENT.TASK_ABORTED, this.getProgress());
-            await this._persistState();
+            // 关键跃迁（任务终态）：立即落盘，不被合并窗口延迟
+            await this._persistState({ force: true });
             await this._deleteOwnerFile();
-        } else if (this._status === OrchestratorStatus.RUNNING) {
-            await this.abort();
+        } else {
+            if (this._status === OrchestratorStatus.RUNNING) {
+                await this.abort();
+            }
+            // 等待在途步骤清空。
+            //
+            // ⚠️ 这里刻意**不**以"状态是否 RUNNING"为前置条件——这是修掉的一个真实缺陷：
+            // 早先的分支是 `else if (this._status === RUNNING) { abort(); while (...status===RUNNING || inFlight>0) ... }`，
+            // 于是当调用方已经先调过 `abort()`（状态已是 aborted）再调 `abortAndWait()` 时，
+            // **整个等待循环被跳过**：方法会立刻返回，而 `inFlight` 仍 > 0。
+            // 表现为"调用方以为所有步骤都收尾了，实际上还有会话在退出途中"
+            // ——正是 `abortAndWait` 存在的意义被抹掉的场景（实测 inFlight=1 却 0ms 返回）。
             while (Date.now() < deadline
                 && (this._status === OrchestratorStatus.RUNNING || this._inFlight.size > 0)) {
                 await new Promise((resolve) => setTimeout(resolve, pollMs));
@@ -1155,12 +1820,97 @@ class Orchestrator {
             error: this._error,
             currentStepId: this._currentStepId,
             globalExecCount: this._globalExecCount,
+            // F-18：把检测到的环暴露给前端/调用方，便于发现"非有意的环"
+            cycles: this._cycles,
             stats,
             steps
         };
     }
 
     // ─── 内部工具 ──────────────────────────────────────────────────────
+
+    /**
+     * 取某步骤的多 Agent 协作拓扑（Phase 2，前端「Agent 协作」面板的数据源）。
+     *
+     * 数据来自 `_executeNode` 在步骤结束时**快照到节点上**的协作结论
+     * （见那里的说明：运行器实例会被 dispose，必须把结论复制出来）。
+     * 因此本方法对**任何状态**的步骤都可用，包括早已完成的历史步骤。
+     *
+     * @param {string|number} stepId
+     * @returns {{available: boolean, reason?: string, stepId?: string, status?: string,
+     *   plan?: object|null, topology?: object|null, stageRuns?: object[], collaboration?: object|null}}
+     */
+    getAgentTopology(stepId) {
+        const node = this.getNode(stepId);
+        if (!node) {
+            return { available: false, reason: `步骤 "${stepId}" 不存在` };
+        }
+        const summary = node.collaborationSummary || null;
+        if (!summary) {
+            return {
+                available: false,
+                stepId: node.stepId,
+                status: node.status,
+                reason: '该步骤未启用多 Agent 协作（或尚未执行完成）'
+            };
+        }
+        return {
+            available: true,
+            stepId: node.stepId,
+            status: node.status,
+            plan: summary.plan || null,
+            topology: summary.topology || null,
+            stageRuns: summary.stageRuns || [],
+            collaboration: summary
+        };
+    }
+
+    /**
+     * 多 Agent 协作的累计统计（跨步骤）。
+     * @returns {object}
+     */
+    getMultiAgentStats() {
+        return {
+            enabled: this.multiAgentEnabled,
+            ...this._multiAgentStats,
+            failures: { ...this._multiAgentStats.failures },
+            perStep: [...this._nodes.values()]
+                .filter((n) => n.collaborationSummary)
+                .map((n) => ({
+                    stepId: n.stepId,
+                    status: n.status,
+                    plan: n.collaborationSummary.plan,
+                    roleRuns: n.collaborationSummary.roleRuns,
+                    revisions: n.collaborationSummary.revisions,
+                    failureKind: n.collaborationSummary.failureKind
+                }))
+        };
+    }
+
+    /**
+     * Phase 3：并发与取消的可观测快照。
+     *
+     * 四个指标各自回答一个具体问题（这也是它们被选中的原因）：
+     * | 指标 | 回答的问题 |
+     * |---|---|
+     * | `abortTree.orphans` | 有没有"已取消但没从树上摘掉"的会话（泄漏信号） |
+     * | `roleLimiter.queueWaitP95Ms` | 角色级限流是否过紧（等待 P95 是否已经到了分钟级） |
+     * | `roleLimiter.slotHoldP95Ms` | 贵角色是否在霸占槽位 |
+     * | `session.active/limit/waiting` | 全局是否已饱和（waiting 持续 > 0 即为饱和） |
+     *
+     * @returns {object}
+     */
+    getConcurrencyStats() {
+        const limiter = this._roleLimiterInstance();
+        return {
+            taskId: this._taskId,
+            status: this._status,
+            session: typeof this.sessionSemaphore?.stats === 'function' ? this.sessionSemaphore.stats() : null,
+            roles: limiter.getStats(),
+            abort: this.abortTree.getStats(),
+            multiAgent: this.getMultiAgentStats()
+        };
+    }
 
     /**
      * 提取 FlexRunner 的简要状态信息。
@@ -1311,6 +2061,8 @@ class Orchestrator {
             currentStepId: this._currentStepId,
             globalExecCount: this._globalExecCount,
             entryStepIds: [...this._entryStepIds],
+            // F-18：环信息随状态落盘，重启恢复后仍可查
+            cycles: this._cycles,
             steps: Array.from(this._nodes.values()).map(n => n.toJSON()),
             persistedAt: nowCST()
         };
@@ -1319,28 +2071,146 @@ class Orchestrator {
     /**
      * 持久化当前编排状态到 db/task/{taskId}/orchestration_loop{L}.json
      * 同时写入最新快照 db/task/{taskId}/orchestration.json（兼容恢复逻辑）
+     *
+     * 合并语义（F-11）：
+     *   - 默认进入合并窗口（默认 300ms，PERSIST_DEBOUNCE_MS 可调，0 = 立即写），
+     *     采用**尾部合并**：窗口内多次调用只落盘一次，且落盘时取最新的内存状态
+     *     （快照在 _persistStateNow 的写入闭包内实时取，不在调用时刻捕获）；
+     *   - force=true（关键跃迁：任务终态、编排启动/加载、优雅停机）绕过窗口立即写，
+     *     并 await 落盘完成，确保不会被后续合并"吃掉"。
+     *
+     * @param {object} [opts]
+     * @param {boolean} [opts.force=false] - 强制立即写入（不合并），并等待写完成
+     * @returns {Promise<void>}
      * @private
      */
-    async _persistState() {
+    async _persistState({ force = false } = {}) {
         if (!this.storage || !this._taskId) return;
-        // 串行化：将本次写入追加到 _persistChain 末尾，确保同一时刻只有一个 writeFile 在执行。
-        // 防止并发写入同一文件时因 O_TRUNC 截断产生损坏的 JSON。
-        const run = async () => {
-            try {
-                const state = this.getPersistableState();
-                const json = this.storage.json('task');
-                // 按大循环轮次独立保存（保留历史）
-                await json.write(`${this._taskId}/orchestration_loop${this._loopCount}`, state);
-                // 同时写入最新快照（兼容已有 load/restore 逻辑）
-                await json.write(`${this._taskId}/orchestration`, state);
-            } catch (err) {
-                this._log('warn', `_persistState 失败: ${err.message}`);
-            }
-        };
-        // 错误吞掉，避免一条失败链阻断后续写入
-        this._persistChain = this._persistChain.then(run, run);
-        // 对外仍 await，使调用方（如 loadTask/start/restoreState 中的 await）能感知完成
+
+        // 立即写：force（关键跃迁）或合并已关闭。
+        // 立即写会顺带收口当前窗口（本次写的已是最新状态，窗口再写一次纯属浪费），
+        // 因此一次 force 恰好产生一次落盘。
+        if (force || this._persistDebounceMs <= 0) {
+            this._cancelPersistWindow();
+            this._chainPersist();
+            return this._persistChain;
+        }
+
+        // 已有待落盘的窗口：本次请求被吸收（这就是"写合并"）
+        if (this._persistPending) {
+            this._persistCoalesced++;
+            return this._persistChain;
+        }
+
+        // 开启一个合并窗口：只排定时器、**不**立刻落盘。
+        // 尾部合并（trailing debounce）：窗口结束时统一写一次，取的是当时的最新状态，
+        // 因此 N 次连发最多产生 1 次写（若窗口内发生 force，则被 force 那一次取代）。
+        this._persistPending = true;
+        this._schedulePersist();
+        return this._persistChain;
+    }
+
+    /**
+     * 把一次落盘追加到串行化写链末尾。
+     *
+     * 串行化（而非并发写）是必须的：多个 writeFile 同时操作同一文件会因 O_TRUNC
+     * 截断产生损坏的 JSON。错误吞掉，避免一条失败链阻断后续写入。
+     * @private
+     */
+    _chainPersist() {
+        this._persistChain = this._persistChain.then(
+            () => this._persistStateNow(),
+            () => this._persistStateNow()
+        );
+    }
+
+    /**
+     * 收口当前合并窗口并落盘一次（窗口的"尾部写"）。
+     *
+     * 幂等：窗口已收口（_persistPending 为 false）时直接返回，不会重复写。
+     *
+     * @returns {Promise<void>}
+     * @private
+     */
+    async flushPersistWindow() {
+        if (!this.storage || !this._taskId) return;
+        if (this._persistTimer !== null) {
+            clearTimeout(this._persistTimer);
+            this._persistTimer = null;
+        }
+        if (!this._persistPending) return;
+        this._persistPending = false;
+        this._chainPersist();
         await this._persistChain;
+    }
+
+    /**
+     * 安排一次窗口结束后的合并写入。timer.unref() 保证它不阻止进程退出
+     * （长时间空闲的编排不应因为一个待写定时器而让进程无法自然结束）。
+     * @private
+     */
+    _schedulePersist() {
+        this._persistTimer = setTimeout(() => {
+            this._persistTimer = null;
+            this.flushPersistWindow().catch((err) => {
+                this._log('warn', `持久化状态失败: ${err.message}`);
+            });
+        }, this._persistDebounceMs);
+        this._persistTimer.unref?.();
+    }
+
+    /**
+     * 收口当前合并窗口：取消待触发的定时器并清空窗口标记（不落盘）。
+     *
+     * 必须与 _schedulePersist 成对使用——只清定时器不清标记，会让定时器回调
+     * 误判"窗口仍有效"从而再排一次窗口（形成每 debounceMs 写一次的定时循环）。
+     * @private
+     */
+    _cancelPersistWindow() {
+        if (this._persistTimer !== null) {
+            clearTimeout(this._persistTimer);
+            this._persistTimer = null;
+        }
+        this._persistPending = false;
+    }
+
+    /**
+     * 真正执行一次落盘（内部已串行化，调用方无需重复排队）。
+     *
+     * 快照在写入时刻取（而非调用时刻捕获），因此合并窗口内的多次状态变更
+     * 最终落盘的一定是最后一次的状态。
+     * @private
+     */
+    async _persistStateNow() {
+        try {
+            const state = this.getPersistableState();
+            const json = this.storage.json('task');
+            // 按大循环轮次独立保存（保留历史）
+            await json.write(`${this._taskId}/orchestration_loop${this._loopCount}`, state);
+            // 同时写入最新快照（兼容已有 load/restore 逻辑）
+            await json.write(`${this._taskId}/orchestration`, state);
+            this._persistWrites++;
+        } catch (err) {
+            this._log('warn', `_persistState 失败: ${err.message}`);
+        }
+    }
+
+    /**
+     * 持久化合并统计（F-11 可观测性）。
+     *
+     * `writes` 为实际落盘次数（每次落盘含 loop 快照 + 最新快照两份文件），
+     * `coalesced` 为被合并窗口吸收掉的持久化请求数。调优/回归测试据此判断
+     * 写入放大是否被真正消除。
+     *
+     * @returns {{writes: number, coalesced: number, debounceMs: number, pending: boolean}}
+     */
+    getPersistStats() {
+        return {
+            writes: this._persistWrites,
+            coalesced: this._persistCoalesced,
+            debounceMs: this._persistDebounceMs,
+            pending: this._persistPending,
+        };
     }
 
     /**
@@ -1359,9 +2229,42 @@ class Orchestrator {
             await this.storage.json('task').write(`${this._taskId}/owner`, {
                 pid: process.pid,
                 hostname: hostname(),
+                // F-26：除 pid/hostname 外，额外记录启动时间与心跳时间戳。
+                // 仅凭 `process.kill(pid, 0)` 判断"属主是否存活"存在 **pid 复用**风险：
+                // 属主进程早已死亡，其 pid 恰好被系统分配给一个无关进程，
+                // 于是该任务会被误判为"仍在执行"而永久不被恢复。
+                // 心跳时间戳使判定不再只依赖 pid：超期未更新即视为属主已死。
+                startedAt: this._startTime || new Date().toISOString(),
+                heartbeatAt: new Date().toISOString(),
                 wroteAt: new Date().toISOString()
             });
         } catch { /* 静默失败 */ }
+    }
+
+    /**
+     * F-26：启动属主心跳（定时刷新 owner.json 的 heartbeatAt）。
+     *
+     * 心跳让"属主是否仍在执行"有了**时间维度**的证据，而不是只能依赖 pid 存活探测
+     * （后者会被 pid 复用欺骗）。心跳是 unref 的，不会阻止进程退出。
+     * @private
+     */
+    _startOwnerHeartbeat() {
+        if (this._ownerHeartbeatTimer) return;
+        const intervalMs = Number(process.env.OWNER_HEARTBEAT_MS) > 0
+            ? Number(process.env.OWNER_HEARTBEAT_MS)
+            : DEFAULT_OWNER_HEARTBEAT_MS;
+        this._ownerHeartbeatTimer = setInterval(() => {
+            this._writeOwnerFile().catch(() => {});
+        }, intervalMs);
+        this._ownerHeartbeatTimer.unref?.();
+    }
+
+    /** @private */
+    _stopOwnerHeartbeat() {
+        if (this._ownerHeartbeatTimer) {
+            clearInterval(this._ownerHeartbeatTimer);
+            this._ownerHeartbeatTimer = null;
+        }
     }
 
     /**
@@ -1369,6 +2272,7 @@ class Orchestrator {
      * @private
      */
     async _deleteOwnerFile() {
+        this._stopOwnerHeartbeat();
         if (!this.storage || !this._taskId) return;
         try {
             await this.storage.json('task').delete(`${this._taskId}/owner`);
@@ -1405,7 +2309,6 @@ class Orchestrator {
         this._currentStepId = state.currentStepId || null;
         this._globalExecCount = state.globalExecCount || 0;
         this._entryStepIds = Array.isArray(state.entryStepIds) ? [...state.entryStepIds] : [];
-        this._execPathTrace.clear();
         this._aborted = false;
 
         // 重建步骤节点
@@ -1450,6 +2353,9 @@ class Orchestrator {
         }
         // 防御：老持久化状态的 entryStepIds 可能误含修复步骤，恢复时过滤掉
         this._entryStepIds = (this._entryStepIds || []).filter(id => !this._fixStepIds.has(String(id)));
+
+        // F-18：重新计算环（不信任持久化里的旧值——步骤图可能已在磁盘上被改动）
+        this._detectCycles();
 
         // RUNNING 状态在重启后无法恢复执行上下文，标记为 FAILED。
         // 例外：queryOnly 只读查询（如 Web 进程查询 CLI 进程正在执行的任务）——
@@ -1516,7 +2422,7 @@ class Orchestrator {
     }
 }
 
-export { Orchestrator, SSE_EVENT };
+export { Orchestrator, SSE_EVENT, Semaphore };
 export { default as StepNode } from './StepNode.js';
 export { NodeStatus } from './StepNode.js';
 export default Orchestrator;

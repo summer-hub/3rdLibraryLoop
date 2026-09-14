@@ -37,6 +37,8 @@ import fs from 'node:fs/promises';
 
 import { nowCST } from '../library/cstTime.js';
 import { createLogger } from '../Routes/library/logger.js';
+// Phase 3：会话完成等待（事件驱动为主、轮询兜底）
+import { SessionWaiter, DEFAULT_SAFETY_POLL_MS } from '../library/SessionWaiter.js';
 
 // dotenv 为可选依赖：生产环境加载 .env，未安装时跳过（如纯 mock 测试场景）
 try {
@@ -87,6 +89,34 @@ async function _loadKnowledgeManager() {
     return _KnowledgeManager;
 }
 
+/** @type {Promise<object>|null} 进程级共享的 KnowledgeManager 实例（F-17） */
+let _sharedKnowledgeManagerPromise = null;
+
+/**
+ * 取得进程级共享的 KnowledgeManager（F-17）。
+ *
+ * 并发安全：用「promise 单例」而非「实例单例」——多个 FlexRunner 可能在同一
+ * 事件循环轮次内同时触发首次初始化，若先判断再 await 初始化再赋值，
+ * 会并发构造出多个实例（正是要避免的情况）。缓存 promise 可保证只初始化一次。
+ *
+ * @returns {Promise<object>}
+ */
+async function _getSharedKnowledgeManager() {
+    if (!_sharedKnowledgeManagerPromise) {
+        _sharedKnowledgeManagerPromise = (async () => {
+            const KnowledgeManager = await _loadKnowledgeManager();
+            const km = new KnowledgeManager();
+            await km.init();
+            return km;
+        })().catch((err) => {
+            // 初始化失败不缓存失败结果，允许后续调用重试
+            _sharedKnowledgeManagerPromise = null;
+            throw err;
+        });
+    }
+    return _sharedKnowledgeManagerPromise;
+}
+
 async function _loadMcpToolGuide() {
     if (!_McpToolGuide) {
         const mod = await import('../library/McpToolGuide.js');
@@ -124,6 +154,25 @@ const POLL_INTERVAL_MS = 5000;
 
 /** 轮询超时（ms），单个步骤最多等待 1.5 小时 */
 const POLL_TIMEOUT_MS = 90 * 60 * 1000;
+
+/**
+ * F-07：经验总结因取不到并发槽位而被跳过的哨兵返回值。
+ * 用独立 Symbol 而非 null，避免与「CLI 返回 null」混淆。
+ */
+const SKIPPED_DUE_TO_SLOT = Symbol('skipped-due-to-slot');
+
+/** 经验总结等待并发槽位的超时（ms），可由 SEMAPHORE_ACQUIRE_TIMEOUT_MS 覆盖 */
+const SUMMARY_SLOT_TIMEOUT_MS = 5 * 60 * 1000;
+
+// ─── F-25：跨任务经验注入的预算 ──────────────────────────────────────────────
+/** 最多注入的经验条数（KNOWLEDGE_TOP_K 可覆盖） */
+const DEFAULT_KNOWLEDGE_TOP_K = 3;
+/** 最低相关性得分，过滤弱相关噪声（KNOWLEDGE_MIN_SCORE 可覆盖） */
+const DEFAULT_KNOWLEDGE_MIN_SCORE = 2;
+/** 单条经验正文最大字符数 */
+const DEFAULT_KNOWLEDGE_MAX_CHARS = 1500;
+/** 所有经验正文合计字符预算（防止经验库膨胀后撑爆 prompt） */
+const DEFAULT_KNOWLEDGE_TOTAL_CHARS = 4000;
 
 // ─── FlexRunner 类 ──────────────────────────────────────────────────────────
 
@@ -213,6 +262,35 @@ class FlexRunner {
     /** @type {string|null} 匹配到的最佳 SKILL 目录 */
     #matchedSkillDir = null;
 
+    /**
+     * @type {string} 执行本次步骤的 Agent 角色 id（Phase 2）。
+     * 为空串表示单角色模式（Phase 1 行为）。仅用于会话标题与可观测性，
+     * 不改变执行语义。
+     */
+    #roleId = '';
+
+    /**
+     * @type {string} 角色指令（Phase 2）。非空时作为 prompt 的**首节**注入，
+     * 使同一份任务描述在不同角色下产生不同的行为基线（评审员只判定、执行者只实现）。
+     */
+    #rolePrompt = '';
+
+    /**
+     * @type {string[]|null} SKILL 准入名单（Phase 2）。
+     *
+     * 为 null 时不限制（Phase 1 行为）。非 null 时，匹配到的 SKILL 必须在名单内，
+     * 否则**降级为无 SKILL 模式**并 warn——刻意不做候选池预过滤：
+     * 预过滤需要改 SkillSelector 的 LLM 提示词，风险面大且会改变选优质量；
+     * 事后准入校验的语义更简单也更可测：「越权 SKILL 绝不被静默使用」。
+     */
+    #skillAllowList = null;
+
+    /**
+     * @type {string} 本角色实际使用的 SKILL 名（Phase 2，供协作层归因）。
+     * 空串 = 无 SKILL 模式。
+     */
+    #usedSkillName = '';
+
     /** @type {object|null} 本次执行收割的结构化指标（来自 meta .json 旁车文件，通用键值对） */
     #metrics = null;
 
@@ -221,6 +299,22 @@ class FlexRunner {
 
     /** @type {number} 轮询间隔（ms） */
     #pollIntervalMs = POLL_INTERVAL_MS;
+
+    /**
+     * @type {number} Phase 3：事件模式下的兜底轮询间隔（ms）。
+     * 事件是主路径，轮询只负责「事件丢失时不至于永久挂住」，因此间隔远大于普通轮询。
+     */
+    #safetyPollMs = DEFAULT_SAFETY_POLL_MS;
+
+    /**
+     * @type {object|null} Phase 3：opencode 会话事件源。
+     * 需实现 `subscribe(sessionId, onEvent) => unsubscribe`；
+     * 未注入时退化为纯轮询（但已是"先查后睡"版本）。
+     */
+    #sessionEvents = null;
+
+    /** @type {object|null} 最近一次会话等待的统计（事件/轮询各自胜出次数），供可观测性读取 */
+    #lastWaitStats = null;
 
     /**
      * @type {boolean} 是否已完成会话收尾（abort/删除）。
@@ -244,6 +338,20 @@ class FlexRunner {
 
     /** @type {boolean} 远端会话是否已被中止（F-03：避免收尾时重复 abortSession） */
     #remoteAborted = false;
+
+    /**
+     * @type {object|null} F-07：进程级 Session 并发信号量（由 Orchestrator 注入）。
+     * 用于把「经验总结复用同一 session」的占用也计入并发上限——
+     * 该路径发生在 executeStart 返回、槽位释放之后，若不单独取槽位，
+     * 真实并发会话数可达上限的 2 倍。
+     */
+    #sessionSemaphore = null;
+
+    /**
+     * @type {AbortController|null} F-06：本次执行的取消源。
+     * 注入 CLI 后，abort 会立即中断在途 HTTP 请求，而不是等下一个轮询周期。
+     */
+    #abortController = null;
 
     /**
      * @type {Set<Promise<void>>} 在途后台任务（F-04：经验总结 + 会话回收）。
@@ -310,6 +418,14 @@ class FlexRunner {
     get initialized() { return this.#initialized; }
     /** @returns {object|null} 本次执行收割的结构化指标（无则 null） */
     get metrics() { return this.#metrics; }
+    /** @returns {string} 执行本次步骤的 Agent 角色 id（Phase 2；单角色模式为空串） */
+    get roleId() { return this.#roleId; }
+    /** @returns {string} 本角色实际使用的 SKILL 名（空串 = 无 SKILL 模式） */
+    get usedSkillName() { return this.#usedSkillName; }
+    /** @returns {string[]|null} SKILL 准入名单（null = 不限制） */
+    get skillAllowList() { return this.#skillAllowList; }
+    /** @returns {object|null} 最近一次会话等待的统计（mode/waitedMs/polls/events） */
+    get lastWaitStats() { return this.#lastWaitStats; }
 
     /**
      * 设置 Session 创建后的回调（可在 initContext 之后注入）。
@@ -373,7 +489,16 @@ class FlexRunner {
             pollIntervalMs,
             mcpConfigPath,
             onSessionCreated,
-            keepSessions
+            keepSessions,
+            sessionSemaphore,
+            // ── Phase 2：多 Agent 角色化执行（缺省不影响 Phase 1 行为） ──
+            roleId,
+            rolePrompt,
+            skillAllowList,
+            initialExecuteStep,
+            // ── Phase 3：并发与可观测 ──
+            sessionEvents,
+            safetyPollMs
         } = params;
 
         if (!taskId) {
@@ -414,7 +539,13 @@ class FlexRunner {
         this.#nextStepId = Number(nextStepId) || 0;
         this.#failStepId = Number(failStepId) || 0;
         this.#bigLoopIndex = Number(bigLoopIndex) || 0;
-        this.#executeStep = 0;
+        // Phase 2：允许调用方指定初始执行序号（产物文件名中的 loopCount）。
+        // 多 Agent 协作中每个角色会话是一个**独立的新 FlexRunner 实例**，
+        // 若不允许指定，各实例的 loopCount 都从 0 开始，同一角色的多次重做会
+        // 覆盖同一份 `..._result_0_{role}.md`，评审者就无法对比"改前/改后"。
+        this.#executeStep = Number.isInteger(initialExecuteStep) && initialExecuteStep >= 0
+            ? initialExecuteStep
+            : 0;
         this.#retryTimes = 0;
         this.#startTime = null;
         this.#endTime = null;
@@ -428,9 +559,26 @@ class FlexRunner {
         this.#keepSessions = keepSessions === true
             || process.env['3LIB_KEEP_SESSIONS'] === '1';
         this.#sessionFinalized = false;
+        // F-07：共享信号量（未注入则不额外限流，行为与修改前一致）
+        this.#sessionSemaphore = sessionSemaphore || null;
+        // Phase 2：角色化执行参数。三者缺省时与 Phase 1 完全等价。
+        this.#roleId = typeof roleId === 'string' ? roleId : '';
+        this.#rolePrompt = typeof rolePrompt === 'string' ? rolePrompt : '';
+        if (Array.isArray(skillAllowList)) {
+            this.#skillAllowList = skillAllowList.map((s) => String(s));
+        } else {
+            this.#skillAllowList = null;
+        }
+        this.#usedSkillName = '';
         this.#pollIntervalMs = typeof pollIntervalMs === 'number' && pollIntervalMs > 0
             ? pollIntervalMs
             : POLL_INTERVAL_MS;
+        // Phase 3：会话事件源与兜底轮询间隔（缺省时行为与 Phase 1 等价）
+        this.#sessionEvents = sessionEvents || null;
+        this.#safetyPollMs = typeof safetyPollMs === 'number' && safetyPollMs > 0
+            ? safetyPollMs
+            : DEFAULT_SAFETY_POLL_MS;
+        this.#lastWaitStats = null;
 
         // ── 初始化其他内部依赖（支持注入，便于测试；未注入时惰性加载） ──
         if (cli) {
@@ -440,6 +588,17 @@ class FlexRunner {
             this.#cli = new CLIController();
         }
 
+        // F-06：为本次执行建立取消源并注入 CLI，使 abort 能中断在途 HTTP。
+        // 适配器不支持时静默降级（信号量超时仍能兜住僵死，只是要等超时）。
+        this.#abortController = new AbortController();
+        if (typeof this.#cli.setAbortSignal === 'function') {
+            try {
+                this.#cli.setAbortSignal(this.#abortController.signal);
+            } catch (err) {
+                this._log('warn', `注入取消源失败（降级为仅轮询检查）: ${err.message}`);
+            }
+        }
+
         if (skillSelector) {
             this.#skillSelector = skillSelector;
         } else {
@@ -447,13 +606,15 @@ class FlexRunner {
             this.#skillSelector = new SkillSelectorAgent();
         }
 
-        // 知识沉淀管理器（支持注入，便于测试；未注入时惰性加载 + init）
+        // 知识沉淀管理器（支持注入，便于测试；未注入时用进程级共享实例）
+        // F-17：改为进程级共享。原实现每个 FlexRunner 都 new 一个 KnowledgeManager
+        // 并 init()——而 init() 内部会 createStorage()，于是每个并发步骤都额外
+        // 持有一个 StorageManager 与 SQLite 连接，同时知识索引的读改写也会
+        // 在多实例之间互相覆盖（后者的正确性由 F-15 的串行锁兜住，但连接数是纯浪费）。
         if (knowledgeManager) {
             this.#knowledgeManager = knowledgeManager;
         } else {
-            const KnowledgeManager = await _loadKnowledgeManager();
-            this.#knowledgeManager = new KnowledgeManager();
-            await this.#knowledgeManager.init();
+            this.#knowledgeManager = await _getSharedKnowledgeManager();
         }
 
         // MCP 工具引导（支持注入；未注入时惰性加载，用 mcpConfigPath 或默认路径）
@@ -539,21 +700,21 @@ class FlexRunner {
             }
 
             // ── 构建文件路径（按大循环轮次区分，避免跨轮覆盖） ──
-            resultPath = path.join(
-                this.#taskDir,
-                `stepId${this.#stepId}_loop${this.#bigLoopIndex}_result_${loopCount}.md`
-            );
-            const summaryFilePath = path.join(
-                this.#taskDir,
-                `stepId${this.#stepId}_loop${this.#bigLoopIndex}_Summary_${loopCount}.md`
-            );
-            const metaFilePath = path.join(
-                this.#taskDir,
-                `stepId${this.#stepId}_loop${this.#bigLoopIndex}_meta_${loopCount}.json`
-            );
+            // Phase 2：角色化执行时追加 `_{roleId}` 区分同一步骤内不同角色的产物。
+            // 不追加会让 Planner/Coder/Reviewer 在同一个 stepId+loop+retry 上互相覆盖产物，
+            // 而"Reviewer 判定 Coder 的产物"正是协作的语义基础。
+            resultPath = this.#artifactPath('result', loopCount);
+            const summaryFilePath = this.#artifactPath('Summary', loopCount);
+            const metaFilePath = this.#artifactPath('meta', loopCount, 'json');
 
             // ── 收集历史执行文档（第 N 次执行时传入之前的结果/经验） ──
             const historyDocs = await this._collectHistoryDocs(loopCount);
+
+            // ── F-25：取回跨任务历史经验，注入 prompt 让模型复用（闭环的关键一环）──
+            const knowledgeDocs = await this._collectKnowledgeDocs(
+                this.#taskDescription,
+                this.#matchedSkillDir
+            );
 
             // ── 步骤 2：invokeSkill（生成 result .md） ──
             await this._waitIfPaused();
@@ -562,7 +723,7 @@ class FlexRunner {
                     this.#taskDescription,
                     this.#matchedSkillDir,
                     this.#inputReport || undefined,
-                    { resultFilePath: resultPath, metaFilePath, historyDocs }
+                    { resultFilePath: resultPath, metaFilePath, historyDocs, knowledgeDocs }
                 );
 
                 if (!invoked) {
@@ -706,7 +867,20 @@ class FlexRunner {
             return null;
         }
 
-        this._log('info', `matchSkill 完成 — 最佳 Skill: ${selection.best.name} (${bestDir})`);
+        // ── Phase 2：角色 SKILL 准入校验 ──
+        // 匹配结果超出角色能力边界时不静默使用，而是降级为无 SKILL 模式并明确告警。
+        // 上层（Supervisor）据此把"角色越权"归因为计划问题，而不是编码能力问题。
+        const skillName = selection.best.name || path.basename(bestDir);
+        if (this.#skillAllowList && !this.#skillAllowList.includes(skillName)) {
+            this._log('warn',
+                `matchSkill: 匹配到 SKILL "${skillName}"，但不在角色 ${this.#roleId || '(未命名)'} 的可用范围内，` +
+                `降级为无 SKILL 模式（可用：${this.#skillAllowList.slice(0, 8).join('、')}` +
+                `${this.#skillAllowList.length > 8 ? ` 等 ${this.#skillAllowList.length} 个` : ''}）`);
+            return null;
+        }
+
+        this.#usedSkillName = skillName;
+        this._log('info', `matchSkill 完成 — 最佳 Skill: ${skillName} (${bestDir})`);
         return bestDir;
     }
 
@@ -738,6 +912,15 @@ class FlexRunner {
 
         this._log('debug', `specifiedSkill 开始 — 指定 Skill: "${specifiedSkill}"`);
 
+        // ── Phase 2：角色 SKILL 准入校验（前置，避免白跑一遍目录扫描） ──
+        // 指定 SKILL 越权时直接拒绝并降级，理由与 matchSkill 中的准入校验一致。
+        if (this.#skillAllowList && !this.#skillAllowList.includes(String(specifiedSkill).trim())) {
+            this._log('warn',
+                `specifiedSkill: 指定 SKILL "${specifiedSkill}" 不在角色 ${this.#roleId || '(未命名)'} 的可用范围内，` +
+                `降级为无 SKILL 模式`);
+            return null;
+        }
+
         try {
             // ── 1. 目录名精确匹配 ──
             const directDir = path.resolve(skillDirectory, specifiedSkill);
@@ -746,6 +929,7 @@ class FlexRunner {
                 const stat = await fs.stat(directSkillMd);
                 if (stat.isFile()) {
                     this._log('debug', `specifiedSkill 完成 — 目录名匹配: ${directDir}`);
+                    this.#usedSkillName = path.basename(directDir);
                     return directDir;
                 }
             } catch {
@@ -776,6 +960,7 @@ class FlexRunner {
                             const name = nameMatch[1].trim().replace(/^['"]|['"]$/g, '');
                             if (name.toLowerCase() === target) {
                                 this._log('info', `specifiedSkill 完成 — name 匹配: ${name} (${dirPath})`);
+                                this.#usedSkillName = name;
                                 return dirPath;
                             }
                         }
@@ -871,7 +1056,8 @@ class FlexRunner {
             }
 
             // ── 2. 构建 prompt（含历史执行文档） ──
-            const title = `task=${this.#taskId}|step=${this.#stepId}|bigLoop=${this.#bigLoopIndex}|retry=${this.#executeStep}`;
+            const title = `task=${this.#taskId}|step=${this.#stepId}|bigLoop=${this.#bigLoopIndex}|retry=${this.#executeStep}` +
+                (this.#roleId ? `|role=${this.#roleId}` : '');
             const prompt = this._buildPrompt(taskDescription, skillDir, reportPath, filePaths);
 
             // ── 3. 创建 Session 并发送初始 prompt ──
@@ -937,6 +1123,45 @@ class FlexRunner {
     /** 是否仍有在途后台任务（优雅停机判定用） */
     get hasBackgroundTasks() {
         return this.#backgroundTasks.size > 0;
+    }
+
+    /**
+     * #withSessionSlot — 在持有 Session 并发槽位的前提下执行 fn（F-07）。
+     *
+     * 经验总结复用同一 session 调 sendAndWaitMessage，属真实的"活跃会话"占用，
+     * 但它发生在 executeStart 返回、步骤槽位释放之后。若不单独取槽位，
+     * 真实并发会话数可达全局上限的 2 倍（步骤 + 总结）。
+     *
+     * 未注入信号量时直接执行（不改变既有行为，便于单测与独立使用）。
+     * 取不到槽位（超时）时**跳过总结并返回哨兵**——经验总结是可选的旁路，
+     * 绝不能因为它而拖住或影响步骤结果与流转。
+     *
+     * @param {(why: string) => void} onSkip - 跳过时的日志回调
+     * @param {() => Promise<any>} fn
+     * @returns {Promise<any|typeof SKIPPED_DUE_TO_SLOT>}
+     */
+    async #withSessionSlot(onSkip, fn) {
+        if (!this.#sessionSemaphore || typeof this.#sessionSemaphore.acquire !== 'function') {
+            return fn();
+        }
+        const envTimeout = Number(process.env.SEMAPHORE_ACQUIRE_TIMEOUT_MS);
+        const timeoutMs = Number.isFinite(envTimeout) && envTimeout >= 0 ? envTimeout : SUMMARY_SLOT_TIMEOUT_MS;
+        let lease;
+        try {
+            lease = await this.#sessionSemaphore.acquire({ timeoutMs, key: this.#taskId });
+        } catch (err) {
+            onSkip(`获取并发槽位异常（${err.message}）`);
+            return SKIPPED_DUE_TO_SLOT;
+        }
+        if (!lease.ok) {
+            onSkip(`等待并发槽位超时（${lease.waitedMs}ms，并发已满）`);
+            return SKIPPED_DUE_TO_SLOT;
+        }
+        try {
+            return await fn();
+        } finally {
+            lease.release();
+        }
     }
 
     /**
@@ -1121,6 +1346,16 @@ class FlexRunner {
                 this.#aborted = true;
                 this.#paused = false;
                 this._log('warn', '⏹  执行已终止');
+                // F-06：先中断在途 HTTP，让卡在请求里的 await 立即失败并退出，
+                // 而不是等下一个轮询周期（最长一个 pollInterval）才被感知。
+                try {
+                    if (typeof this.#cli.abortInFlight === 'function') {
+                        this.#cli.abortInFlight('执行已终止');
+                    }
+                    this.#abortController?.abort(new Error('执行已终止'));
+                } catch (err) {
+                    this._log('warn', `中断在途请求失败: ${err.message}`);
+                }
                 // 若有活跃 session，立即中止远端（不等轮询周期）；
                 // F-03：置 #remoteAborted，避免收尾阶段重复 abort
                 if (this.#sessionId) {
@@ -1464,14 +1699,102 @@ class FlexRunner {
      * @returns {string} 拼接后的 prompt 文本
      * @private
      */
+    /**
+     * _collectKnowledgeDocs — 取回与本次步骤相关的**跨任务历史经验**（F-25）。
+     *
+     * 背景：经验原本只被写入（persistKnowledge），检索入口只有 HTTP 路由，
+     * Agent 主链路从不消费，所谓"跨任务复用"实际靠人工导入。这里把检索接回执行链路。
+     *
+     * 预算控制：条数与总字符数都设上限，避免经验库膨胀后把 prompt 撑爆
+     * （步长内已有 DB 级 SKILL 上下文，不能无限叠加）。
+     *
+     * 失败降级：任何异常都只 warn 并返回空数组——经验是"锦上添花"，
+     * 绝不能因为它取不到而让步骤失败。
+     *
+     * @param {string} taskDescription
+     * @param {string|null} skillDir
+     * @returns {Promise<Array<{taskDescription: string, docPath: string, score: number, content: string}>>}
+     * @private
+     */
+    async _collectKnowledgeDocs(taskDescription, skillDir) {
+        if (!this.#knowledgeManager || typeof this.#knowledgeManager.searchExperiences !== 'function') {
+            return [];
+        }
+        try {
+            const topK = Number(process.env.KNOWLEDGE_TOP_K) > 0
+                ? Number(process.env.KNOWLEDGE_TOP_K)
+                : DEFAULT_KNOWLEDGE_TOP_K;
+            const hits = await this.#knowledgeManager.searchExperiences({
+                query: taskDescription,
+                skillDir,
+                limit: topK,
+                minScore: DEFAULT_KNOWLEDGE_MIN_SCORE,
+                withContent: true,
+                maxContentChars: DEFAULT_KNOWLEDGE_MAX_CHARS,
+            });
+            if (!Array.isArray(hits) || hits.length === 0) return [];
+
+            // 总预算裁剪：逐条累加，超预算即停止（保留高分条目）
+            const out = [];
+            let budget = DEFAULT_KNOWLEDGE_TOTAL_CHARS;
+            for (const h of hits) {
+                const body = String(h.content || '').trim();
+                if (!body) continue;
+                if (body.length > budget) break;
+                budget -= body.length;
+                out.push({
+                    taskDescription: h.taskDescription || '',
+                    docPath: h.docPath || '',
+                    score: h.score,
+                    content: body,
+                });
+            }
+            if (out.length > 0) {
+                this._log('info',
+                    `已注入 ${out.length} 条历史经验（源自跨任务知识库，用于避免重复踩坑）`);
+            }
+            return out;
+        } catch (err) {
+            this._log('warn', `取回历史经验失败（忽略，不影响执行）: ${err.message}`);
+            return [];
+        }
+    }
+
     _buildPrompt(taskDescription, skillDir, reportPath, filePaths = {}) {
-        const parts = [
-            `## 任务描述\n${taskDescription}`
-        ];
+        const parts = [];
+
+        // Phase 2：角色指令作为**首节**注入。
+        // 顺序刻意放在"任务描述"之前：角色决定行为基线（评审员只判定、执行者只实现、
+        // 验证者只报告证据），而任务描述决定本次做什么；先立规矩再派活，
+        // 否则同一份任务描述会在不同角色下产生同样的行为（角色化失效）。
+        // 未设置 rolePrompt 时（Phase 1 路径）本分支不生效，prompt 逐字节不变。
+        if (this.#rolePrompt) {
+            const roleTag = this.#roleId ? `（角色：${this.#roleId}）` : '';
+            parts.push(`## 你的角色${roleTag}\n${this.#rolePrompt}`);
+        }
+
+        parts.push(`## 任务描述\n${taskDescription}`);
 
         // 工作目录：告知 AI 当前工作目录路径，所有文件操作（git clone、读写文件等）均在此目录下执行
         if (this.#taskDir) {
             parts.push(`## 工作目录\n${this.#taskDir}\n\n所有文件操作（git clone、读写文件等）请在此目录下执行。`);
+        }
+
+        // F-25：注入跨任务历史经验（有 SKILL / 无 SKILL 两种模式都适用）。
+        // 放在最前部的"任务描述/工作目录"之后、SKILL 指令之前，让模型先看到前人踩过的坑，
+        // 再读 SKILL 的具体步骤。内容已在 _collectKnowledgeDocs 里做过条数与字符预算裁剪。
+        if (Array.isArray(filePaths.knowledgeDocs) && filePaths.knowledgeDocs.length > 0) {
+            const blocks = filePaths.knowledgeDocs.map((doc, i) => {
+                const head = `### 经验 ${i + 1}（相似度得分 ${doc.score}）`;
+                const src = doc.taskDescription ? `\n来源任务：${doc.taskDescription}` : '';
+                return `${head}${src}\n${doc.content}`;
+            });
+            parts.push(
+                `## 历史经验（来自既往同类任务，请优先参考以避免重复踩坑）\n\n` +
+                `${blocks.join('\n\n')}\n\n` +
+                `⚠️ 以上经验来自**其它任务**，请结合当前任务实际情况判断适用性；` +
+                `如与当前任务描述或 SKILL 指令冲突，以当前任务与 SKILL 为准。`
+            );
         }
 
         if (skillDir) {
@@ -1735,7 +2058,11 @@ class FlexRunner {
                 return false;
             }
 
-            const result = await this.#cli.sendAndWaitMessage(sessionId, summaryPrompt);
+            const result = await this.#withSessionSlot(
+                (why) => this._log('warn', `_summarizeExperience: ${why}，跳过经验总结（不影响步骤结果）`),
+                () => this.#cli.sendAndWaitMessage(sessionId, summaryPrompt)
+            );
+            if (result === SKIPPED_DUE_TO_SLOT) return false;
 
             // 等待 AI 回复期间收到终止请求 → 不再等待文件生成（session 已被远程中止）
             if (this.#aborted) {
@@ -1802,6 +2129,31 @@ class FlexRunner {
     }
 
     /**
+     * 计算本次执行的产物路径（Phase 2 抽出，供 executeStart 与 _collectHistoryDocs 共用）。
+     *
+     * 命名规则（**单角色模式下与 Phase 1 逐字节一致**）：
+     *   - 单角色：`stepId{N}_loop{L}_{kind}_{R}.{ext}`
+     *   - 角色化：`stepId{N}_loop{L}_{kind}_{R}_{roleId}.{ext}`
+     *
+     * 复用同一函数而不是各写一份模板，是因为"产物路径"有两个消费者
+     * （产出方 executeStart、收集历史方 _collectHistoryDocs）；一旦两处模板漂移，
+     * 表现为"历史结果文档路径永远收集不到"这种静默失效。
+     *
+     * @param {string} kind - 'result' | 'Summary' | 'meta'
+     * @param {number} loopCount - 步骤内重试次数
+     * @param {string} [ext='md'] - 扩展名
+     * @returns {string} 绝对路径
+     * @private
+     */
+    #artifactPath(kind, loopCount, ext = 'md') {
+        const suffix = this.#roleId ? `_${this.#roleId}` : '';
+        return path.join(
+            this.#taskDir,
+            `stepId${this.#stepId}_loop${this.#bigLoopIndex}_${kind}_${loopCount}${suffix}.${ext}`
+        );
+    }
+
+    /**
      * 收集当前大循环内的历史结果文档路径，供 _buildPrompt 使用。
      *
      * 收集范围：仅当前大循环轮次内，本次执行之前的重试结果（retry < loopCount）
@@ -1817,14 +2169,12 @@ class FlexRunner {
      */
     async _collectHistoryDocs(loopCount) {
         const docs = [];
-        const prefix = `stepId${this.#stepId}`;
 
         // ── 收集当前大循环内的重试历史（仅路径，不读取内容） ──
+        // Phase 2：用 #artifactPath 复用与 executeStart 完全相同的命名规则，
+        // 否则角色化执行时这里会永远找不到文件（历史文档静默失效）。
         for (let n = 0; n < loopCount; n++) {
-            const resultPath = path.join(
-                this.#taskDir,
-                `${prefix}_loop${this.#bigLoopIndex}_result_${n}.md`
-            );
+            const resultPath = this.#artifactPath('result', n);
             try {
                 await fs.access(resultPath);
                 docs.push({ type: 'result', loop: n, path: resultPath });
@@ -1843,32 +2193,47 @@ class FlexRunner {
     /**
      * 轮询 opencode Session 状态，直到完成或超时。
      *
+     * Phase 3 改动（**行为可见的改进，有断言守护**）：
+     *   - 交给 `SessionWaiter` 统一处理，语义从 `sleep → check` 改为 `check → sleep`。
+     *     原实现对**已经完成**的会话仍要等满一个轮询间隔（默认 5s）才发现，
+     *     这是"单步完成感知延迟 ~5s"的直接来源；改成先查后睡后，
+     *     已完成会话的感知延迟降到一次 RTT。
+     *   - 注入了会话事件源（`sessionEvents.subscribe`）时走**事件驱动**：
+     *     完成事件到达即返回，不再等轮询间隔；同时保留更大间隔的兜底轮询，
+     *     防止事件丢失导致步骤挂到超时。
+     *   - 中止检查不再受轮询间隔约束（专门的中止监听立即返回）。
+     *
+     * 未注入事件源时行为与 Phase 1 等价（只是不再有初始的整间隔盲区）。
+     *
      * @param {string} sessionId
      * @returns {Promise<boolean>} 是否完成
      * @private
      */
     async _pollSession(sessionId) {
-        const deadline = Date.now() + POLL_TIMEOUT_MS;
+        const waiter = new SessionWaiter({
+            poll: (sid) => this.#cli.checkSessionStatus(sid),
+            subscribe: this.#sessionEvents?.subscribe
+                ? (sid, onEvent) => this.#sessionEvents.subscribe(sid, onEvent)
+                : null,
+            pollIntervalMs: this.#pollIntervalMs,
+            safetyPollMs: this.#safetyPollMs,
+            // 保留 Phase 1 的单步轮询超时语义（90 分钟）——改成"无限等待"会是
+            // 一次静默的行为回退：僵死会话将永远不会被放弃。
+            timeoutMs: POLL_TIMEOUT_MS,
+            logger: (level, msg) => this._log(level, `_pollSession: ${msg}`)
+        });
 
-        while (Date.now() < deadline) {
-            if (this.#aborted) return false;
-
-            await this._sleep(this.#pollIntervalMs);
-
-            try {
-                const { status } = await this.#cli.checkSessionStatus(sessionId);
-                if (status === 'completed') {
-                    return true;
-                }
-                if (status === 'unknown') {
-                    this._log('debug', `Session ${sessionId} 状态未知，继续等待…`);
-                }
-            } catch (err) {
-                this._log('warn', `轮询 Session 状态失败: ${err.message}`);
-            }
+        const r = await waiter.wait(sessionId, { isAborted: () => this.#aborted });
+        this.#lastWaitStats = waiter.getStats();
+        if (!r.completed) {
+            this._log('warn',
+                `Session ${sessionId} 未在超时时间内完成（reason=${r.reason} mode=${r.mode} ` +
+                `waited=${r.waitedMs}ms polls=${r.polls} events=${r.events}）`);
+        } else {
+            this._log('debug',
+                `Session ${sessionId} 完成（mode=${r.mode} waited=${r.waitedMs}ms polls=${r.polls} events=${r.events}）`);
         }
-
-        return false;
+        return r.completed;
     }
 
     /**
@@ -1917,4 +2282,7 @@ class FlexRunner {
 }
 
 export { FlexRunner, ControlType, StepStatus };
+// 仅供测试：验证"进程级共享 KnowledgeManager"单例语义（F-17）。
+// 生产代码不应直接调用——请通过 initContext({ knowledgeManager }) 注入。
+export { _getSharedKnowledgeManager as __getSharedKnowledgeManagerForTest };
 export default FlexRunner;

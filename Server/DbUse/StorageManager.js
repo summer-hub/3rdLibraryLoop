@@ -31,7 +31,7 @@ import FileAdapter from './adapters/FileAdapter.js';
 class StorageManager {
     /**
      * @param {object} [options]
-     * @param {string} [options.rootDir] - 存储根目录绝对路径。默认 workspace 根下 db/
+     * @param {string} [options.rootDir] - 存储根目录绝对路径。默认落在**仓库所在目录的上一级**下的 db/
      */
     constructor(options = {}) {
         if (options.rootDir) {
@@ -43,7 +43,8 @@ class StorageManager {
             // MessageArchive 等）统一落到用户数据目录，而非模块相对路径。
             this.rootDir = resolve(process.env['3LIB_DATA_DIR']);
         } else {
-            // 本文件 (Server/DbUse/) 上溯 3 层到 workspace 根 → db/
+            // 本文件 (Server/DbUse/) 上溯 3 层 = **仓库所在目录的上一级** → 其下的 db/
+            // （注意：不是"仓库根"——实测默认 rootDir 为 <仓库父目录>\db）
             const here = dirname(fileURLToPath(import.meta.url));
             this.rootDir = join(here, '..', '..', '..', 'db');
         }

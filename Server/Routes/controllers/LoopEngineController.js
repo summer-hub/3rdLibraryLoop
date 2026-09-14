@@ -213,7 +213,9 @@ class LoopEngineController {
                     if (ctx) {
                         const terminalStates = [
                             LoopStatus.PASSED, LoopStatus.FAILED,
-                            LoopStatus.ABORTED, LoopStatus.ABORTING, LoopStatus.ERROR
+                            LoopStatus.ABORTED, LoopStatus.ABORTING,
+                            // F-24：中断（进程重启导致）同样是终态
+                            LoopStatus.INTERRUPTED, LoopStatus.ERROR
                         ];
                         if (terminalStates.includes(ctx.status)) {
                             await this._registerTask({
@@ -244,12 +246,13 @@ class LoopEngineController {
                     }
                 }
 
-                // 从内存移除已进入终态的大循环实例（PASSED/FAILED/ABORTED/ERROR）。
+                // 从内存移除已进入终态的大循环实例（PASSED/FAILED/ABORTED/INTERRUPTED/ERROR）。
                 // 历史列表由注册表提供，不依赖内存 _engines。
                 if (engine) {
                     const terminalStates = [
                         LoopStatus.PASSED, LoopStatus.FAILED,
-                        LoopStatus.ABORTED, LoopStatus.ABORTING, LoopStatus.ERROR
+                        LoopStatus.ABORTED, LoopStatus.ABORTING,
+                        LoopStatus.INTERRUPTED, LoopStatus.ERROR
                     ];
                     const ctx = engine.getLoop(taskId);
                     if (ctx && terminalStates.includes(ctx.status)) {

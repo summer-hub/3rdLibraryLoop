@@ -269,6 +269,27 @@ class CLIController {
     getAdapter() {
         return this.adapter;
     }
+
+    /**
+     * F-06：注入外部取消源，使 abort 能中断在途 HTTP 请求
+     * （而非只在步骤边界被感知）。适配器不支持时静默降级。
+     * @param {AbortSignal} signal
+     */
+    setAbortSignal(signal) {
+        if (typeof this.adapter.setAbortSignal === 'function') {
+            this.adapter.setAbortSignal(signal);
+        }
+    }
+
+    /**
+     * F-06：立即取消所有在途请求（幂等）。适配器不支持时静默降级。
+     * @param {string} [reason]
+     */
+    abortInFlight(reason) {
+        if (typeof this.adapter.abortInFlight === 'function') {
+            this.adapter.abortInFlight(reason);
+        }
+    }
 }
 
 export { CLIController, OpenCodeCLI, DevEcoCodeCLI };

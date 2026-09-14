@@ -2,7 +2,7 @@
 /**
  * libraryTestScan.js — 三方库接口/Demo/XTS 覆盖率扫描统一入口
  *
- * 在线依赖 gitcode 仓库 lalhanOrz/3rdLibraryLoop 下的 12 个 cjs 分析脚本，
+ * 在线依赖 gitcode 仓库 summor/3rdLibraryLoop 下的 MCP/scripts 分析脚本（当前 13 个 .cjs），
  * 运行时按需下载到本地缓存目录（保持相对 require 依赖可解析），以子进程方式
  * 调用对应脚本，实现对 ArkTS / React Native / Flutter 三类库的：
  *   - api  : 接口规格说明书生成（render-spec-doc）
@@ -35,9 +35,9 @@
  *   └──────────┴───────────────────────────────────┴─────────────────────────────────────┘
  *
  * 在线源（gitcode）:
- *   https://gitcode.com/lalhanOrz/3rdLibraryLoop/tree/main/MCP/scripts
+ *   https://gitcode.com/summor/3rdLibraryLoop/tree/main/MCP/scripts
  *   原始内容下载走 api/v5 端点（避开 raw 端点的 WAF 预览限制）:
- *   https://gitcode.com/api/v5/repos/lalhanOrz/3rdLibraryLoop/raw/MCP/scripts/<file>?ref=main
+ *   https://gitcode.com/api/v5/repos/summor/3rdLibraryLoop/raw/MCP/scripts/<file>?ref=main
  *
  * 使用示例:
  *   # ArkTS 接口规格说明书
@@ -63,7 +63,10 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 // ── 仓库与下载配置 ──────────────────────────────────────────
-const REPO_OWNER = 'lalhanOrz';
+// 注意：必须指向**本项目的权威仓库**（summor/3rdLibraryLoop）。
+// 早先指向 lalhanOrz/3rdLibraryLoop（历史命名空间），该仓库并非本项目当前远端，
+// 会导致脚本按需下载到**过期**的分析脚本。
+const REPO_OWNER = 'summor';
 const REPO_NAME = '3rdLibraryLoop';
 const SCRIPTS_SUBDIR = 'MCP/scripts';
 const SCRIPTS_REPO_URL = `https://gitcode.com/${REPO_OWNER}/${REPO_NAME}.git`;

@@ -30,6 +30,7 @@ import dotenv from 'dotenv';
 
 import { LLMClient } from '../Agent/SkillSelector/llm/llmClient.js';
 import { nowCST } from '../library/cstTime.js';
+import { BoundedRegistry } from '../library/BoundedRegistry.js';
 import { createStorage } from '../DbUse/index.js';
 import { SkillExecutor } from './SkillExecutor.js';
 import { AnalysisStrategies } from './AnalysisStrategies.js';
@@ -39,6 +40,30 @@ import { PlanPersistence } from './PlanPersistence.js';
 // 加载 Server/.env（本文件在 Brain/ 下，上两级目录为 Server/）
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
+
+/**
+ * 内存计划缓存上限（F-12），可通过 BRAIN_MAX_PLANS 覆盖；≤0/非法值回退默认值。
+ *
+ * 取值依据：BrainPlan 含 analysis/taskDef（步骤数组）/validation，量级数十 KB。
+ * 200 条约为 10MB 量级上限，足够覆盖当前一次大循环（最多几十轮）与最近一批任务；
+ * 更早的计划已落盘（brain.json / brain_loop{n}.json），loadPlan / listPlans 会
+ * 从磁盘补齐，因此淘汰只影响"是否需要读盘"，不影响功能正确性。
+ */
+const DEFAULT_BRAIN_MAX_PLANS = 200;
+
+/**
+ * 解析内存计划缓存上限。
+ * @param {number|string|undefined} override - 构造参数覆盖值（测试注入）
+ * @returns {number}
+ */
+function resolveMaxPlans(override) {
+    const pick = (v) => {
+        if (v === undefined || v === null || v === '') return null;
+        const n = Number(v);
+        return Number.isInteger(n) && n > 0 ? n : null;
+    };
+    return pick(override) ?? pick(process.env.BRAIN_MAX_PLANS) ?? DEFAULT_BRAIN_MAX_PLANS;
+}
 
 /**
  * Brain 拆解状态常量
@@ -60,6 +85,7 @@ export class Brain {
      * @param {object}   [deps.sseHub]          - SseHub 实例（可选，用于推送拆解进度）
      * @param {string}   [deps.skillDirectory]  - SKILL 目录路径（用于拆解时上下文）
      * @param {object}   [deps.cli]             - CLIController 实例（可选，不传则惰性加载）
+     * @param {number}   [deps.maxPlans]        - 内存计划缓存上限（默认 200 / BRAIN_MAX_PLANS）
      */
     constructor(deps = {}) {
         this.llm = deps.llm || new LLMClient();
@@ -68,8 +94,15 @@ export class Brain {
         this.skillDirectory = deps.skillDirectory ||
             path.resolve(__dirname, '..', 'Skills');
 
-        /** @type {Map<string, BrainPlan>} key = planId */
-        this._plans = new Map();
+        /**
+         * @type {BoundedRegistry} key = planId，有界 LRU 缓存（F-12）。
+         *
+         * 原先为裸 Map 且只在 planTask/replanTask 里 set、从不 delete：一次长跑
+         * （每轮重规划都新增一个 planId）会让本进程内存随拆解次数单调增长。
+         * 计划本身已持久化到 db/task/{taskId}/brain*.json，内存只是读盘加速，
+         * 因此按 LRU 有界淘汰是安全的（淘汰后 loadPlan 会自动回读磁盘并回填）。
+         */
+        this._plans = new BoundedRegistry({ max: resolveMaxPlans(deps.maxPlans) });
 
         /** 当前状态 */
         this._status = BrainStatus.IDLE;
@@ -108,6 +141,14 @@ export class Brain {
      */
     getPlan(planId) {
         return this._plans.get(planId);
+    }
+
+    /**
+     * 内存计划缓存快照（F-12 可观测性）：当前条数 / 上限 / 已淘汰数。
+     * @returns {{size: number, max: number, ttlMs: number, evicted: number, skipped: number, protected: number}}
+     */
+    getRegistryStats() {
+        return this._plans.stats();
     }
 
     // ─── SSE 推送辅助 ──────────────────────────────────────────────────

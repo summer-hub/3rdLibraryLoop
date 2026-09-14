@@ -27,7 +27,27 @@ class StreamController {
      */
     async subscribeTask(req, res) {
         const { taskId } = req.params;
-        const userId = req.query.userId || 'anonymous';
+
+        // F-10：连接身份不再退化为共享常量。
+        // 初版 `req.query.userId || 'anonymous'` 使所有浏览器连接共用同一个
+        // 'anonymous' 桶，于是"单用户上限 10"实际变成了**全进程 10 连接硬上限**，
+        // 第 11 个订阅者（任意标签页/任意任务）都会被拒。
+        // 现在：查询参数仍可用于"同一客户端多标签页"的场景，但缺省时按连接生成
+        // 独立标识；真正的保护边界是 SseHub 的全局连接上限。
+        // 注意：查询参数不是安全边界（客户端可伪造），仅用于归组与展示。
+        const userId = String(req.query.userId || `conn-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`);
+
+        // F-10：**先准入、后写响应头**。
+        // 初版先调 res.stream() 发出 200 + SSE 头，再 subscribe，被限流时既无法
+        // 返回 429，还把 error 事件广播给了该频道的其他订阅者，被拒客户端只能
+        // 看到"连上即断"，触发 EventSource 自动重连风暴。
+        const admission = this.sseHub.canSubscribe(userId);
+        if (!admission.ok) {
+            return res.error(429, admission.message, {
+                code: admission.errorCode,
+                retryAfterSeconds: 5,
+            });
+        }
 
         // 响应头已在 ResponseContext.stream() 中设置
         res.stream();
@@ -42,12 +62,8 @@ class StreamController {
         });
 
         if (!result.ok) {
-            // 订阅被拒（限流等），已写入流头无法改 HTTP 状态码，
-            // 通过 SSE 事件通知客户端后关闭连接
-            this.sseHub.emit(taskId, 'error', {
-                code: result.errorCode,
-                message: result.message
-            });
+            // 到这里响应头已发出（无法改状态码）：直接结束流即可。
+            // 不再向频道广播 error——那会打扰其他正常订阅者。
             res.raw.end();
         }
     }

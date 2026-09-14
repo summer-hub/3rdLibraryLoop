@@ -5,13 +5,13 @@
     "type": "module",
     "license": "MIT",
     "author": "LalHan <hanle12@huawei.com>",
-    "homepage": "https://gitcode.com/lalhanOrz/3rdLibraryLoop",
+    "homepage": "https://gitcode.com/summor/3rdLibraryLoop",
     "repository": {
         "type": "git",
-        "url": "git+https://gitcode.com/lalhanOrz/3rdLibraryLoop.git"
+        "url": "git+https://gitcode.com/summor/3rdLibraryLoop.git"
     },
     "bugs": {
-        "url": "https://gitcode.com/lalhanOrz/3rdLibraryLoop/issues"
+        "url": "https://gitcode.com/summor/3rdLibraryLoop/issues"
     },
     "keywords": [
         "3rdlibrary",

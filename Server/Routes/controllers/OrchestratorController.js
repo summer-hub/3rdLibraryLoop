@@ -23,6 +23,57 @@ import { Orchestrator, OrchestratorStatus } from '../../Orchestrator/Orchestrato
 import { StorageManager } from '../../DbUse/index.js';
 
 /**
+ * F-26：属主心跳过期阈值（ms），可由 OWNER_STALE_MS 覆盖。
+ *
+ * 必须显著大于 Orchestrator 的心跳间隔（默认 30s），否则正常运行的属主会被
+ * 误判为已死。默认 5 分钟 = 10 个心跳周期，足以容忍偶发慢写与短暂 GC 停顿。
+ */
+const DEFAULT_OWNER_STALE_MS = 5 * 60 * 1000;
+import { BoundedRegistry } from '../../library/BoundedRegistry.js';
+
+/**
+ * 内存中常驻的 Orchestrator 实例上限（F-12），可通过 MAX_LIVE_ORCHESTRATORS 覆盖。
+ *
+ * 取值依据：单个终态 Orchestrator 仍持有全部 StepNode 元信息（含各次尝试的 history），
+ * 数十个步骤的任务实例量级为几十 KB。50 个足以覆盖「最近执行的一批任务」的热查询
+ * （前端历史列表默认每页 20 条，点开某任务的进度/步骤详情命中内存），同时把常驻内存
+ * 钉在 10MB 量级以内；更早的历史由 SQLite 任务注册表 + 磁盘 orchestration.json 分页提供，
+ * 不依赖内存实例（progress() 本来就会从磁盘恢复只读快照）。
+ */
+const DEFAULT_MAX_LIVE_ORCHESTRATORS = 50;
+
+/**
+ * 解析「内存编排器实例上限」。
+ * @param {number|string|undefined} override - 构造参数覆盖值（测试/定制注入）
+ * @returns {number}
+ */
+function resolveMaxLiveOrchestrators(override) {
+    const pick = (v) => {
+        if (v === undefined || v === null || v === '') return null;
+        const n = Number(v);
+        return Number.isInteger(n) && n > 0 ? n : null;
+    };
+    return pick(override) ?? pick(process.env.MAX_LIVE_ORCHESTRATORS) ?? DEFAULT_MAX_LIVE_ORCHESTRATORS;
+}
+
+/**
+ * 判断编排器是否已进入终态（可被内存注册表淘汰）。
+ *
+ * RUNNING / LOADED / IDLE 一律视为活跃：它们要么有在途的步骤执行，要么还等着被
+ * start()，被淘汰会让调用方拿不到实例（无法 start/abort/查询进度），因此宁可
+ * 暂时超过上限也不淘汰（BoundedRegistry 的 isProtected 语义）。
+ *
+ * @param {Orchestrator} orch
+ * @returns {boolean}
+ */
+function isTerminalOrchestrator(orch) {
+    if (!orch) return false;
+    return orch.status !== OrchestratorStatus.RUNNING
+        && orch.status !== OrchestratorStatus.LOADED
+        && orch.status !== OrchestratorStatus.IDLE;
+}
+
+/**
  * OrchestratorController
  */
 class OrchestratorController {
@@ -32,6 +83,7 @@ class OrchestratorController {
      * @param {object} [deps.storage]  - 存储门面
      * @param {function} [deps.flexRunnerFactory] - FlexRunner 工厂（测试用）
      * @param {string} [deps.skillDirectory] - 默认 SKILL 根目录（taskDef 未指定 skillDirectory 时兜底）
+     * @param {number} [deps.maxLiveOrchestrators] - 内存常驻编排器实例上限（默认 50 / MAX_LIVE_ORCHESTRATORS）
      */
     constructor(deps = {}) {
         this.sseHub = deps.sseHub || null;
@@ -39,8 +91,26 @@ class OrchestratorController {
         this.flexRunnerFactory = deps.flexRunnerFactory || null;
         this.skillDirectory = deps.skillDirectory || '';
 
-        /** @type {Map<string, Orchestrator>} key = taskId */
-        this._orchestrators = new Map();
+        /**
+         * @type {BoundedRegistry} key = taskId，有界 LRU 注册表（F-12）。
+         *
+         * 原先用裸 Map 且只在 disposeOrchestrator(removeInstance:true) 时删除条目：
+         * 大循环路径只 dispose 重型引用不移除实例，restoreFromDisk 更会把**每一个**
+         * 历史任务都装回内存 —— 常驻实例数随服务生命周期内的任务总数单调增长。
+         * 改用有界注册表后，超限时按 LRU 淘汰终态实例（历史仍可从注册表/磁盘查询）。
+         */
+        this._orchestrators = new BoundedRegistry({
+            max: resolveMaxLiveOrchestrators(deps.maxLiveOrchestrators),
+            isProtected: (_taskId, orch) => !isTerminalOrchestrator(orch),
+            onEvict: (taskId, orch) => {
+                // 淘汰前释放重型引用，避免被淘汰实例仍持有 FlexRunner/LLM/CLI 引用
+                try {
+                    orch.dispose();
+                } catch (err) {
+                    console.warn(`[OrchestratorController] 淘汰时 dispose 失败: taskId=${taskId}, error=${err.message}`);
+                }
+            },
+        });
     }
 
     // ─── 辅助方法 ──────────────────────────────────────────────────────
@@ -143,9 +213,12 @@ class OrchestratorController {
      * SkillSelector Agent / LLMClient / Storage 可被 GC 回收。保留磁盘持久化与
      * Orchestrator 的轻量元信息（getProgress / getStepInfo 仍可用）。
      *
+     * 注意（F-12）：默认不删除注册表条目——保留轻量实例供历史查询，实例数由
+     * BoundedRegistry 的上限按 LRU 兜底（超限时优先淘汰终态实例）。
+     *
      * @param {string} taskId - 任务 ID
      * @param {object} [opts]
-     * @param {boolean} [opts.removeInstance=false] - 是否同时从内存 Map 移除编排器实例
+     * @param {boolean} [opts.removeInstance=false] - 是否同时从内存注册表移除编排器实例
      * @returns {boolean} 是否找到并处理了该任务
      */
     disposeOrchestrator(taskId, opts = {}) {
@@ -163,6 +236,18 @@ class OrchestratorController {
             this._orchestrators.delete(taskId);
         }
         return true;
+    }
+
+    /**
+     * 获取内存编排器注册表的观测快照（F-12）。
+     *
+     * 暴露 size/bound 便于测试与线上观测：`skipped` 持续增长说明上限偏紧
+     * （有活跃实例挡着淘汰），`evicted` 增长说明淘汰路径在正常工作。
+     *
+     * @returns {{size: number, max: number, ttlMs: number, evicted: number, skipped: number, protected: number}}
+     */
+    getRegistryStats() {
+        return this._orchestrators.stats();
     }
 
     /**
@@ -601,6 +686,45 @@ class OrchestratorController {
     }
 
     /**
+     * GET /api/orchestrator/agent-topology?taskId=&stepId=
+     *
+     * Phase 2：返回某步骤的多 Agent 协作拓扑（计划 / 角色时间线 / 消息边）。
+     *
+     * 与 `/step-detail` 分开的原因：`step-detail` 依赖**存活的** runner 实例
+     * 拉取实时会话内容，而协作拓扑在步骤结束后仍需可查（已快照到节点上）。
+     * 合在一起会让"已完成步骤查不到协作记录"这种反直觉行为出现。
+     * 省略 `stepId` 时返回整个任务的协作概览（各步骤一行）。
+     */
+    async agentTopology(req, res) {
+        const { taskId } = req.query;
+        const stepId = req.query.stepId;
+
+        if (!taskId) return res.error(400, 'taskId 为必填项');
+
+        let orch;
+        try {
+            orch = this._getOrchestrator(taskId);
+        } catch (err) {
+            return res.error(404, err.message);
+        }
+
+        try {
+            if (stepId == null || stepId === '') {
+                const stats = typeof orch.getMultiAgentStats === 'function'
+                    ? orch.getMultiAgentStats()
+                    : { enabled: false, perStep: [] };
+                return res.json({ status: 'ok', available: stats.perStep.length > 0, taskId, ...stats });
+            }
+            const detail = typeof orch.getAgentTopology === 'function'
+                ? orch.getAgentTopology(stepId)
+                : { available: false, reason: '当前编排器不支持协作拓扑查询' };
+            res.json({ status: 'ok', taskId, ...detail });
+        } catch (err) {
+            res.error(500, err.message);
+        }
+    }
+
+    /**
      * POST /api/orchestrator/update-step
      * 修改未执行步骤的配置
      *
@@ -829,11 +953,18 @@ class OrchestratorController {
     /**
      * 判断 running 状态的持久化任务是否有仍存活的"外部属主进程"。
      *
-     * owner.json 由 Orchestrator.start() 写入（pid/hostname），终态时删除：
+     * owner.json 由 Orchestrator.start() 写入（pid/hostname/startedAt/heartbeatAt），
+     * 运行期由属主心跳定时刷新，终态时删除：
      *   - 无 owner.json → 老任务（机制上线前创建）或已正常收尾 → false（维持中断语义）
      *   - pid 已死（同机）→ 属主进程已崩溃，清理残留文件后返回 false
-     *   - pid 存活且非当前进程 → 外部进程（如 3rdloop run）仍在执行 → true
+     *   - pid 存活但**心跳超期**（F-26）→ 判为 pid 复用/属主假死，清理残留后返回 false
+     *   - pid 存活且心跳新鲜且非当前进程 → 外部进程（如 3rdloop run）仍在执行 → true
      *   - hostname 不同（共享数据目录跨机部署）→ 本机 pid 探测无意义，保守返回 true
+     *
+     * F-26 为什么必须看心跳：仅凭 `process.kill(pid, 0)` 判活存在 **pid 复用**风险——
+     * 属主进程早已死亡，其 pid 恰被系统分配给一个无关进程，于是该任务会被永久
+     * 误判为"仍在执行"，既不恢复也不标失败，成为幽灵任务。心跳提供了独立于 pid
+     * 的时间证据：超期即认定属主已死。
      *
      * @param {string} taskId
      * @returns {Promise<boolean>}
@@ -852,7 +983,16 @@ class OrchestratorController {
         if (owner.pid === process.pid) return false;
 
         // 异机属主：pid 属于另一台机器，本机探测会误判无关进程，保守视为存活
+        // （跨机场景下心跳文件也可能因时钟偏差不可靠，故此处不引入心跳判定）
         if (owner.hostname && owner.hostname !== hostname()) return true;
+
+        const staleMs = Number(process.env.OWNER_STALE_MS) > 0
+            ? Number(process.env.OWNER_STALE_MS)
+            : DEFAULT_OWNER_STALE_MS;
+        const heartbeatRaw = owner.heartbeatAt || owner.wroteAt || null;
+        const heartbeatAt = heartbeatRaw ? Date.parse(heartbeatRaw) : NaN;
+        const heartbeatFresh = Number.isFinite(heartbeatAt)
+            && (Date.now() - heartbeatAt) <= staleMs;
 
         // 同机：探测属主进程死活（EPERM = 进程存在但属其他用户）
         let alive = false;
@@ -862,13 +1002,29 @@ class OrchestratorController {
         } catch (err) {
             alive = err.code === 'EPERM';
         }
-        if (!alive) {
-            // 属主已崩溃但未及清理 → 删除残留，交由调用方维持 RUNNING→FAILED 语义
+
+        const cleanUp = async (reason) => {
+            console.warn(`[OrchestratorController] 清理属主标记: taskId=${taskId}, ${reason}`);
             try {
                 await this.storage.json('task').delete(`${taskId}/owner`);
             } catch { /* ignore */ }
             return false;
+        };
+
+        if (!alive) {
+            // 属主已崩溃但未及清理 → 删除残留，交由调用方维持 RUNNING→FAILED 语义
+            return cleanUp('属主进程已不存在');
         }
+
+        // 心跳超期（含缺失）：判为 pid 复用或属主假死，按"属主已死"处理
+        if (!heartbeatFresh) {
+            return cleanUp(
+                heartbeatRaw
+                    ? `心跳超期（最后心跳 ${heartbeatRaw}，阈值 ${staleMs}ms），判为 pid 复用或属主假死`
+                    : `owner.json 缺少心跳时间戳（旧版格式），无法确认属主仍存活`
+            );
+        }
+
         return true;
     }
 
@@ -882,6 +1038,11 @@ class OrchestratorController {
      *   - 恢复后回写注册表：进程死亡导致 start().finally() 中的终态回写未执行，
      *     registry 停留在 loaded/running 的记录修正为恢复后的终态（含 metrics、
      *     interrupted 标记）；未入库的老任务补录摘要。
+     *
+     * 内存上限（F-12）：仍逐个恢复（历史必须可查询），但恢复出的实例统一进入
+     * 有界注册表 `_orchestrators`（默认上限 DEFAULT_MAX_LIVE_ORCHESTRATORS=50，
+     * MAX_LIVE_ORCHESTRATORS 可调）。恢复顺序即磁盘目录顺序，超限时被淘汰的是
+     * 更早（更旧）的终态实例，其历史依旧可从注册表/磁盘查询，不丢数据。
      *
      * 跨进程属主检测（RUNNING 状态专属）：
      *   3rdloop run（嵌入式 CLI）在独立进程中执行编排、共享同一 db/ 目录，

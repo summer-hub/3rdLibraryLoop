@@ -77,7 +77,7 @@ Server/FlexRunner/
 | 常量 | 默认值 | 说明 |
 |------|------|------|
 | `DEFAULT_MAX_RETRIES` | `3` | 默认最大重试次数 |
-| `POLL_INTERVAL_MS` | `3000` | 轮询间隔（ms） |
+| `POLL_INTERVAL_MS` | `5000` | 轮询间隔（ms） |
 | `POLL_TIMEOUT_MS` | `5400000` | 单步轮询超时 90 分钟（仓库级检视 SKILL 单步可达 20-30 分钟） |
 
 #### 构造
@@ -108,10 +108,12 @@ new FlexRunner(config?)
 | `maxRetries` | `number` | | 最大重试次数（默认 3） |
 | `dependId` | `number` | | 依赖步骤 ID（0 = 无依赖） |
 | `nextStepId` | `number` | | 下一步骤 ID（0 = 无下一步） |
+| `failStepId` | `number` | | 失败跳转步骤 ID（0 = 失败即终止） |
+| `bigLoopIndex` | `number` | | 大循环索引（默认 0，由 LoopEngine 传递） |
 | `cli` | `CLIController` | | 注入自定义 CLI 控制器（测试用） |
 | `skillSelector` | `Agent` | | 注入自定义 Skill 选择器 |
 | `storage` | `Storage` | | 注入自定义存储层 |
-| `pollIntervalMs` | `number` | | 轮询间隔 ms（默认 3000） |
+| `pollIntervalMs` | `number` | | 轮询间隔 ms（默认 5000） |
 
 **`executeStart()` — 驱动单次执行流程**
 
@@ -122,14 +124,15 @@ new FlexRunner(config?)
 1. `matchSkill` → 匹配最佳 Skill（传入 `specifiedSkill` 时跳过，直接解析指定 SKILL）
 2. `invokeSkill` → 通过 opencode 执行 Skill，生成 result `.md`（同时下发可选的 meta `.json` 指标文件路径约定）
 3. `checkResult` → 读取 result `.md`，判断成功/失败；成功后收割 meta `.json` 为 `metrics`（通用键值对，后端不解释语义）
-4. `persistKnowledge` → 读取 Summary `.md`，持久化经验
+4. （后台异步、fire-and-forget）`_summarizeAndPersist` → `_summarizeExperience` 向同一 Session 追加经验总结 prompt 生成 Summary `.md`，再由 `persistKnowledge` 读取并持久化经验；不阻塞 `executeStart` 返回
 5. 返回 `{ resultPath, success, nextStepId, metrics }`
 
 **结构化指标（metrics）契约**：初始 prompt 中下发 `stepId{X}_loop{L}_meta_{N}.json` 路径；SKILL 若约定了结构化结论指标（如 code-check 的 `mergeLevel`、仓库检查的 `score`），由 AI 以 JSON 对象写入。后端 `_harvestMetrics` 校验后**原样**透传（`executeStart` 返回值 → Orchestrator `StepNode.metrics` → SSE/progress/持久化 JSON），新增领域字段后端零改动。
 
-**文件命名**（按循环次数 `loopCount` 区分）：
-- 结果文件: `stepId{stepId}_result_{loopCount}.md`
-- 摘要文件: `stepId{stepId}_Summary_{loopCount}.md`
+**文件命名**（按大循环轮次 `bigLoopIndex` + 步骤内重试次数 `loopCount` 区分）：
+- 结果文件: `stepId{stepId}_loop{bigLoopIndex}_result_{loopCount}.md`
+- 摘要文件: `stepId{stepId}_loop{bigLoopIndex}_Summary_{loopCount}.md`
+- 指标文件: `stepId{stepId}_loop{bigLoopIndex}_meta_{loopCount}.json`（可选）
 
 **返回值：**
 
@@ -137,7 +140,8 @@ new FlexRunner(config?)
 {
   resultPath: string,   // 结果文件路径
   success: boolean,     // 是否成功
-  nextStepId: number    // 成功→nextStepId；失败→dependId（回依赖步骤重试）
+  nextStepId: number,   // 成功→nextStepId；失败→failStepId（0 = 失败即终止）
+  metrics: object|null  // 本次执行收割的结构化指标（无则 null）
 }
 ```
 
@@ -157,11 +161,11 @@ new FlexRunner(config?)
 
 流程：① 健康检查 → ② 构建 prompt（含历史执行文档）→ ③ 创建 opencode Session → ④ 轮询等待完成。返回 `boolean`。
 
-第 N 次执行时，自动收集历史 `result .md` 作为上下文传入 prompt，避免重复踩坑。
+第 N 次执行时，自动收集本次大循环内之前重试的 `result .md` **路径**（不读取内容）传入 prompt，由 AI 自行读取参考，避免重复踩坑。
 
 **`checkResult(resultFilePath)` — 判断执行结果**
 
-读取 result `.md`，查找 `## 执行状态` 标题下的值：`成功` → `true`，`失败` → `false`，文件不存在或无法解析 → `false`。
+读取 result `.md`，按优先级匹配执行状态：① `## 执行状态` 标题下的独立行；② `## 执行状态: 成功` 内联写法；③ 文件末尾 10 行内的 `状态: 成功` 行。状态值归一化：`成功` → `true`，`失败` → `false`；已知中间态（`部分通过` / `源库构建问题` / `环境不可用` / `设备不可用`）**视为成功**（产物已完成，记 warn）；其他未知状态值、文件不存在或无法解析 → `false`。
 
 **`persistKnowledge(summaryFilePath)` — 持久化经验**
 
@@ -206,6 +210,9 @@ new FlexRunner(config?)
 | `stepId` | `number` | 当前步骤 ID |
 | `dependId` | `number` | 依赖步骤 ID |
 | `nextStepId` | `number` | 下一步骤 ID |
+| `failStepId` | `number` | 失败跳转步骤 ID |
+| `bigLoopIndex` | `number` | 大循环索引（0 = 首轮） |
+| `metrics` | `object\|null` | 本次执行收割的结构化指标 |
 | `executeStep` | `number` | 当前已执行步骤序号 |
 | `resultPath` | `string` | 最新结果文件路径 |
 | `sessionId` | `string` | 会话 ID |
@@ -217,9 +224,9 @@ new FlexRunner(config?)
 |------|------|
 | `_ensureInitialized()` | 检查是否已调用 `initContext` |
 | `_persistStep(patch)` | 增量持久化步骤记录到 `db/TaskStep/`，静默失败 |
-| `_buildPrompt(...)` | 构建 opencode prompt（任务描述 + SKILL 目录 + 文件路径 + 历史文档） |
-| `_collectHistoryDocs(loopCount)` | 收集当前 loop 之前的历史 `result .md` 作为上下文 |
-| `_pollSession(sessionId)` | 轮询 Session 状态直到完成或超时（10 分钟） |
+| `_buildPrompt(...)` | 构建 opencode prompt（任务描述 + SKILL 目录 + 文件路径 + 历史文档路径） |
+| `_collectHistoryDocs(loopCount)` | 收集本大循环内 `retry < loopCount` 的 `result .md` **路径**（不读内容）作为上下文 |
+| `_pollSession(sessionId)` | 轮询 Session 状态直到完成或超时（90 分钟） |
 | `_waitIfPaused()` | 暂停时阻塞等待，直到 resume 或 abort |
 | `_sleep(ms)` | Promise 版 sleep |
 | `_log(level, message)` | 统一日志输出（带 CST 时间戳和 taskId 前缀） |
@@ -241,11 +248,11 @@ export { default } from './FlexRunner.js';
 
 `executeStart()` 为单次执行，不内部循环。外部执行机构通过 `canRetry()` 判断是否继续重试，根据返回的 `nextStepId` 决定流转方向：
 - **成功** → `nextStepId`（前进到下一步骤）
-- **失败** → `dependId`（回到依赖步骤重试）
+- **失败** → `failStepId`（跳转修复步骤；`failStepId = 0` 时即终止，不再重试）
 
 ### 3. 历史文档累积
 
-第 N 次执行时，`_collectHistoryDocs` 自动收集 `loop 0 ~ N-1` 的 `result .md`，拼入 prompt 作为上下文，使 AI 能参考之前的执行结果和失败原因，避免重复踩坑。
+第 N 次执行时，`_collectHistoryDocs` 自动收集**同一大循环轮次内** `retry 0 ~ N-1` 的 `result .md` **路径**（只传路径，由 AI 自行读取），拼入 prompt 作为上下文，使 AI 能参考之前的执行结果和失败原因，避免重复踩坑。上一轮大循环的历史不在收集范围内。
 
 ### 4. 步骤边界控制
 
@@ -340,11 +347,12 @@ db/
     ├── <sessionId>.jsonl           # opencode 对话消息流
     └── <sessionId>.meta.json       # 会话元信息
 
-{taskDir}/
-├── stepId{stepId}_result_0.md      # 第 1 次执行结果
-├── stepId{stepId}_Summary_0.md     # 第 1 次执行摘要
-├── stepId{stepId}_result_1.md      # 第 2 次执行结果（重试）
-├── stepId{stepId}_Summary_1.md     # 第 2 次执行摘要
+{taskDir}/                              # 默认 = <数据目录>/task/{taskId}
+├── stepId{stepId}_loop{bigLoopIndex}_result_0.md    # 本轮大循环第 1 次执行结果
+├── stepId{stepId}_loop{bigLoopIndex}_Summary_0.md   # 本轮大循环第 1 次执行摘要
+├── stepId{stepId}_loop{bigLoopIndex}_meta_0.json    # 本轮大循环第 1 次执行结构化指标（可选）
+├── stepId{stepId}_loop{bigLoopIndex}_result_1.md    # 本轮大循环第 2 次执行结果（重试）
+├── stepId{stepId}_loop{bigLoopIndex}_Summary_1.md   # 本轮大循环第 2 次执行摘要
 └── ...
 ```
 

@@ -117,6 +117,8 @@ CLI_TYPE=deveco-code node Server/Routes/server.js --port 3000 # shell 环境变�
 | `deleteSession(sessionId)` | `object` | 删除 Session |
 | `getType()` | `'opencode'` \| `'deveco-code'` | 返回当前 CLI 类型 |
 | `getAdapter()` | `OpenCodeCLI` \| `DevEcoCodeCLI` | 返回底层适配器实例 |
+| `setAbortSignal(signal)` | `void` | 注入外部取消源（`AbortSignal`），使 abort 能立即中断在途 HTTP 请求；适配器不支持时静默降级 |
+| `abortInFlight(reason?)` | `void` | 立即取消所有在途请求（幂等）；适配器不支持时静默降级 |
 
 > `startSession` 内部会异步调用 `StatsService.incrementSessionCount()` 记录调用次数，统计失败不影响主流程。
 

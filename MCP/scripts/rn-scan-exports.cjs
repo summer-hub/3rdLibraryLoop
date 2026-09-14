@@ -138,6 +138,7 @@ rn-scan-exports.cjs
     --output ./api-diff.md
 `);
         process.exit(0);
+        break;  // 显式阻断穿透：process.exit 在运行时不可能返回，但静态分析无法得知
       default:
         opts.dirs.push(args[i]); i += 1;
     }

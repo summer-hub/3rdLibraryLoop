@@ -87,11 +87,10 @@ class TaskStepStore {
         await this._init();
         const now = new Date().toISOString();
         const id = step.id || randomUUID();
-        const seq = await this._nextSeq(step.taskId);
         const row = {
             id,
             task_id: step.taskId,
-            seq,
+            seq: null, // 在同步事务内分配（见下）
             name: step.name ?? null,
             type: step.type ?? null,
             status: step.status ?? 'pending',
@@ -105,17 +104,41 @@ class TaskStepStore {
             updated_at: now,
             meta: step.meta != null ? JSON.stringify(step.meta) : null
         };
-        await this.sqlite.upsert('task_steps', row);
-        return this._rowToObj(row);
-    }
 
-    /** 获取同任务内下一个 seq */
-    async _nextSeq(taskId) {
-        const row = await this.sqlite.get(
-            'SELECT MAX(seq) AS max_seq FROM task_steps WHERE task_id = ?',
-            [taskId]
+        // F-16：seq 分配必须与插入在同一同步事务内完成。
+        //
+        // 原实现是「await _nextSeq()（SELECT MAX(seq)+1）→ await upsert()」两步，
+        // 中间存在 await 间隙：同一任务的两个步骤并行创建时会读到同一个 MAX，
+        // 于是得到重复 seq（列表按 seq 排序时顺序不确定）。
+        // better-sqlite3 是同步的，把两步放进一个同步事务即可原子化。
+        const db = await this.sqlite.getDb();
+        const insert = db.prepare(
+            `INSERT OR REPLACE INTO task_steps
+             (${Object.keys(row).join(', ')})
+             VALUES (${Object.keys(row).map(() => '?').join(', ')})`
         );
-        return (row?.max_seq ?? 0) + 1;
+        // ⚠️ 必须用 BEGIN IMMEDIATE（而非默认的 deferred）：
+        // 本事务是"先 SELECT 再 INSERT"，deferred 模式下先在读锁上执行 SELECT，
+        // 随后 INSERT 需要**升级**为写锁；若期间别的连接提交了写事务，升级会立即
+        // 失败并抛 SQLITE_BUSY —— 而 busy_timeout 对升级冲突无效。
+        // 实测（三进程各写 150 条到同一 DB）deferred 下会随机丢几十条记录，
+        // 改用 IMMEDIATE 后每次都是精确 450 条。
+        const run = db.transaction(() => {
+            // 幂等：同一 id 重复创建时保留原 seq，避免"再次登记把顺序打乱"
+            const existing = db.prepare('SELECT seq FROM task_steps WHERE id = ?').get(id);
+            if (existing) {
+                row.seq = existing.seq;
+            } else {
+                const next = db
+                    .prepare('SELECT COALESCE(MAX(seq), 0) + 1 AS next_seq FROM task_steps WHERE task_id = ?')
+                    .get(step.taskId);
+                row.seq = next.next_seq;
+            }
+            insert.run(...Object.values(row));
+        });
+        run.immediate();
+
+        return this._rowToObj(row);
     }
 
     /**

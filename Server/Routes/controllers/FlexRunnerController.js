@@ -1,9 +1,56 @@
 import { FlexRunner, ControlType } from '../../FlexRunner/FlexRunner.js';
 import { OrchestratorStatus } from '../../Orchestrator/Orchestrator.js';
 import { nowCST } from '../../library/cstTime.js';
+import { BoundedRegistry } from '../../library/BoundedRegistry.js';
 import { createZipBuffer } from '../library/zipArchive.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+
+/**
+ * 内存 FlexRunner 实例上限（F-12），可通过 FLEXRUNNER_MAX_RUNNERS 覆盖。
+ *
+ * 取值依据：`_runners` 只由 /api/flexrunner/init 写入，而此前唯一删除路径是
+ * DELETE /api/flexrunner/runner —— 前端每次 init 都新增一个条目，跑过的单步任务
+ * 全部常驻。单个 FlexRunner 持有 CLI 适配器与 SkillSelector 引用，量级远大于
+ * 轻量元信息，故上限取 100（覆盖最近一批单步调试任务），超出时按 LRU 淘汰
+ * 已结束（canRetry() 为 false）的实例。
+ */
+const DEFAULT_MAX_RUNNERS = 100;
+
+/**
+ * 解析内存 FlexRunner 实例上限。
+ * @param {number|string|undefined} override - 构造参数覆盖值（测试注入）
+ * @returns {number}
+ */
+function resolveMaxRunners(override) {
+    const pick = (v) => {
+        if (v === undefined || v === null || v === '') return null;
+        const n = Number(v);
+        return Number.isInteger(n) && n > 0 ? n : null;
+    };
+    return pick(override) ?? pick(process.env.FLEXRUNNER_MAX_RUNNERS) ?? DEFAULT_MAX_RUNNERS;
+}
+
+/**
+ * 判断一个 FlexRunner 是否已经结束（可被内存注册表淘汰）。
+ *
+ * 判据用公开 API `canRetry()`：它在"重试次数已用尽"或"已被 abort"时返回 false，
+ * 这两种情况都意味着实例不会再有 executeStart 调用，淘汰后调用方只会看到
+ * 404（与显式 DELETE 后的行为一致），不会出现"实例被踢掉导致执行中断"。
+ * 注意：`endTime` 不为空并不等于结束——单次执行返回后仍可重试。
+ *
+ * @param {FlexRunner} runner
+ * @returns {boolean}
+ */
+function isRunnerFinished(runner) {
+    if (!runner || typeof runner.canRetry !== 'function') return false;
+    try {
+        return runner.canRetry() === false;
+    } catch {
+        // canRetry 抛错（实例半初始化）时保守视为"未结束"，不淘汰
+        return false;
+    }
+}
 
 /**
  * FlexRunnerController —— FlexRunner 执行控制器
@@ -26,16 +73,29 @@ class FlexRunnerController {
      * @param {object} [deps] - 共享依赖
      * @param {object} [deps.orchestratorController] - OrchestratorController 实例（用于从编排器中查找 FlexRunner）
      * @param {object} [deps.storage] - Storage 实例（用于在没有活跃 runner 时直接读取 session 归档）
+     * @param {number} [deps.maxRunners] - 内存实例上限（默认 100 / FLEXRUNNER_MAX_RUNNERS）
      */
     constructor(deps = {}) {
-        /** @type {Map<string, FlexRunner>} key = `${taskId}::${stepId}` */
-        this._runners = new Map();
-        /** @type {Map<string, {logs:string[], status:string}>} key = taskId */
-        this._taskLogs = new Map();
+        /**
+         * @type {BoundedRegistry} key = `${taskId}::${stepId}`，有界 LRU 注册表（F-12）。
+         * 超限时淘汰已结束的实例（isProtected 挡住仍在重试窗口内的实例）。
+         */
+        this._runners = new BoundedRegistry({
+            max: resolveMaxRunners(deps.maxRunners),
+            isProtected: (_key, runner) => !isRunnerFinished(runner),
+        });
         /** @type {object|null} OrchestratorController 实例 */
         this._orchestratorController = deps.orchestratorController || null;
         /** @type {object|null} Storage 实例 */
         this._storage = deps.storage || null;
+    }
+
+    /**
+     * 内存 FlexRunner 注册表快照（F-12 可观测性）。
+     * @returns {{size: number, max: number, ttlMs: number, evicted: number, skipped: number, protected: number}}
+     */
+    getRegistryStats() {
+        return this._runners.stats();
     }
 
     // ─── 辅助方法 ──────────────────────────────────────────────────────

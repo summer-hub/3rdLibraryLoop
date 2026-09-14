@@ -131,10 +131,16 @@ taskDef.replanInfo = {
 - **不消费 `acceptanceCriteria`**：StepNode 构造函数未声明 acceptanceCriteria 实例属性，通过 `...stepDef` 展开后被丢弃
 - **调度逻辑**：
   - 入口步骤 = `dependId === '0'` 或 dependId 指向不存在节点
-  - 并行执行 = 所有 READY 节点 `Promise.all`
-  - 成功 → 激活 `nextStepId`；失败（重试耗尽）→ 激活 `failStepId`
-  - 循环检测 = `_execPathTrace` Set，重复 stepId → `markBlocked`
-  - 全局上限 = `GLOBAL_EXEC_LIMIT = 200`
+  - 流水线调度 = 首轮启动全部 READY 节点，之后 `Promise.race` 感知任意完成并级联启动后继
+    （节点完成即刻启动依赖它的下一步，不等整批结束；总耗时趋近 DAG 关键路径）
+  - 成功 → 激活 `nextStepId`；失败（未达 `maxRetries`）→ 激活 `failStepId`（修复链）
+  - 环检测 = 加载期静态检测（`_detectCycles()`，对 nextStepId ∪ failStepId ∪ dependId 求强连通分量）；
+    环**不报错**（failStepId 修复链天然成环），仅 warn 并通过 `getProgress().cycles` 暴露
+    —— 注意：`dependId` 的边方向是「被依赖者 → 依赖者」，写反会造出假环
+  - 重复执行控制 = `_activateNextStep()` 守卫：已 COMPLETED 的节点不会被 `nextStepId`
+    再次激活；允许重复的只有 failStepId 修复链与 FAILED 未耗尽 `maxRetries` 的节点
+    （旧文档把这条语义归因于 `_execPathTrace`，但该字段是死代码）
+  - 全局上限 = `GLOBAL_EXEC_LIMIT = 200`（运行时兜底）
 
 `specifiedSkill` 的执行链路：StepNode → `Orchestrator._createFlexRunner` → `FlexRunner.initContext({ specifiedSkill })` → `executeStart` 中 `_resolveSpecifiedSkill` 直接解析该 SKILL（目录名精确匹配优先，其次 frontmatter name 匹配），跳过 SkillSelector 自动匹配；解析失败降级为无 SKILL 模式。
 

@@ -10,7 +10,7 @@
 - **xts** — XTS / 测试用例覆盖率分析
 - **demo** — Demo 覆盖率分析
 
-工具本身不实现分析逻辑，而是在线依赖 gitcode 仓库 [`lalhanOrz/3rdLibraryLoop`](https://gitcode.com/lalhanOrz/3rdLibraryLoop/tree/main/MCP/scripts) 下的 13 个 cjs 分析脚本。每次执行时通过 **git clone + sparse checkout** 只拉取 `MCP/scripts` 子目录，然后以子进程方式调用对应脚本完成分析。走 git 协议，不受 gitcode API 匿名限流影响，**无需 token**。
+工具本身不实现分析逻辑，而是在线依赖 gitcode 仓库 [`summor/3rdLibraryLoop`](https://gitcode.com/summor/3rdLibraryLoop/tree/main/MCP/scripts) 下的 13 个 cjs 分析脚本。每次执行时通过 **git clone + sparse checkout** 只拉取 `MCP/scripts` 子目录，然后以子进程方式调用对应脚本完成分析。走 git 协议，不受 gitcode API 匿名限流影响，**无需 token**。
 
 ```
 用户输入
@@ -221,7 +221,7 @@ node libraryTestScan.js arkts api \
 通过 **git clone + sparse checkout** 只拉取脚本仓库的 `MCP/scripts` 子目录：
 
 ```
-git clone --depth 1 --branch main --no-checkout https://gitcode.com/lalhanOrz/3rdLibraryLoop.git
+git clone --depth 1 --branch main --no-checkout https://gitcode.com/summor/3rdLibraryLoop.git
 git sparse-checkout init --no-cone
 echo "/MCP/scripts/" > .git/info/sparse-checkout
 git checkout main
@@ -469,7 +469,7 @@ npm install
 
 ```bash
 # 1. 确认 git 能访问 gitcode
-git ls-remote https://gitcode.com/lalhanOrz/3rdLibraryLoop.git HEAD
+git ls-remote https://gitcode.com/summor/3rdLibraryLoop.git HEAD
 
 # 2. 若报 407（Proxy Authentication Required）→ 代理认证问题
 #    检查代理配置：
@@ -535,7 +535,7 @@ git config --global --unset https.proxy
 
 所有 cjs 脚本位于 gitcode 仓库：
 
-> https://gitcode.com/lalhanOrz/3rdLibraryLoop/tree/main/MCP/scripts
+> https://gitcode.com/summor/3rdLibraryLoop/tree/main/MCP/scripts
 
 | 脚本 | 平台 | 功能 |
 |------|------|------|

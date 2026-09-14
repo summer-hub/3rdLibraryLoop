@@ -71,10 +71,8 @@
 │       └── loop.js
 │
 ├── Archive/                        # 本地文档检索引擎（SQLite FTS5）
-├── db/                             # 运行时数据目录
-│   ├── Knowledge/                  # 经验知识库
-│   ├── Session/                    # 对话存档（jsonl + meta）
-│   └── task/                       # 任务产物
+│
+├── （仓库内无 db/：运行时数据目录默认落在仓库外，见「🗄️ 存储架构」）
 │
 ├── package.json
 ├── AGENTS.md
@@ -105,13 +103,13 @@ flowchart LR
 
 | 层级 | 技术 | 说明 |
 |------|------|------|
-| **运行时** | Node.js ≥ 22 | ESM 模块，内置 `node:sqlite` |
+| **运行时** | Node.js ≥ 22 | ESM 模块；SQLite 走 `better-sqlite3`（原生模块，非内置 `node:sqlite`） |
 | **LLM** | 百炼 / DashScope（GLM-5.1） | OpenAI 兼容端点，ReAct 推理 |
 | **CLI 引擎** | opencode | 统一适配器封装 |
 | **存储** | JSON / JSONL / SQLite / File | 四层适配器架构，统一管理 |
 | **实时通信** | SSE（Server-Sent Events） | 按任务频道分组推送 |
 | **前端** | 原生 HTML/CSS/JS | 无框架依赖，静态托管 |
-| **文档检索** | SQLite FTS5 + BM25 | Archive 模块，jieba-wasm 分词 |
+| **文档检索** | SQLite FTS5 + BM25 | Archive 模块，jieba-wasm 分词；该模块 SQLite 走 Node 内置 `node:sqlite` |
 
 ---
 
@@ -123,7 +121,7 @@ flowchart LR
 
 | 工具 | 版本要求 | 安装方式 |
 |------|---------|---------|
-| **Node.js** | ≥ 22（需内置 `node:sqlite`） | [nodejs.org](https://nodejs.org/) 或 `nvm install 22` |
+| **Node.js** | ≥ 22 | [nodejs.org](https://nodejs.org/) 或 `nvm install 22`（`cli/package.json` 的 `engines` 与 `3rdloop doctor` 均要求 ≥ 22） |
 | **opencode** | 任意版本 | `npm install -g opencode` |
 | **devecocli** | ≥ 1.2 | `npm install -g @deveco/deveco-cli` |
 
@@ -308,10 +306,19 @@ curl -X POST http://127.0.0.1:3000/api/loopengine/start \
 └─────────────────────────────────────────────┘
 ```
 
+### 数据目录位置
+
+数据目录**不在仓库内**，由 `StorageManager` 解析（优先级：`options.rootDir` > `3LIB_DATA_DIR` > 默认值），CLI 侧默认值独立：
+
+| 运行方式 | 默认数据目录 | 覆盖方式 |
+|---------|-------------|---------|
+| 服务端（`Server/Routes/server.js` 及引擎内部 `createStorage()`） | 仓库**上一级目录**下的 `db/`（`Server/DbUse/` 上溯 3 层） | `3LIB_DATA_DIR` 环境变量 / `createStorage({ rootDir })` |
+| CLI（`3rdloop`） | `~/.3lib/3rdloop/db`（用户级，跨平台；由 `cli/lib/config.js` 的 `resolveDataDir()` 解析） | `--data-dir` / `3LIB_DATA_DIR` / `3rdloop config set 3LIB_DATA_DIR` |
+
 ### 数据目录布局
 
 ```
-db/
+<数据目录>/
 ├── Knowledge/              # 经验知识库
 │   ├── index.json          # 经验索引（全部记录摘要）
 │   └── kn_xxxx.json        # 单条经验详情

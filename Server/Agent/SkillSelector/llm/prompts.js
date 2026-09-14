@@ -152,8 +152,10 @@ const SKILL_RANKING_PROMPT = `你是一个严格的 SKILL 评分专家。下面�
  * @returns {string}
  */
 export function renderTemplate(template, params) {
+  // Object.hasOwn 替代 Object.prototype.hasOwnProperty.call（F-30 lint）：
+  // 语义等价但更简洁，且不依赖对原型方法的显式借用。Node ≥16.9 提供，本项目要求 ≥22。
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) =>
-    Object.prototype.hasOwnProperty.call(params, key) ? String(params[key]) : ''
+    Object.hasOwn(params, key) ? String(params[key]) : ''
   );
 }
 

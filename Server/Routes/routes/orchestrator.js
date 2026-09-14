@@ -48,6 +48,8 @@ export function createOrchestratorRouter(dependencies) {
     router.get('/step-detail',  controller.stepDetail.bind(controller));
     router.get('/step-history', controller.stepHistory.bind(controller));
     router.get('/tasks',        controller.tasks.bind(controller));
+    // Phase 2：多 Agent 协作拓扑（步骤结束/实例回收后仍可查）
+    router.get('/agent-topology', controller.agentTopology.bind(controller));
 
     // ── 步骤配置修改 ──
     router.post('/update-step', controller.updateStep.bind(controller));

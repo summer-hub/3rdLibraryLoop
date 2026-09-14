@@ -62,10 +62,44 @@
  */
 
 import { randomBytes } from 'node:crypto';
+import { promises as fs } from 'node:fs';
 import { nowCST } from '../library/cstTime.js';
+import { withSerializedLock } from '../library/AtomicJsonFile.js';
 
 /** 知识存储子目录名（与 SubDirs 风格一致） */
 const KNOWLEDGE_SUBDIR = 'Knowledge';
+
+/**
+ * 极简分词：ASCII 词 + CJK 二元组（F-25）。
+ *
+ * 不引第三方分词器的原因见 searchExperiences 的说明。ASCII 部分要求长度 ≥2
+ * 以避免 "a"/"of" 之类噪声词命中一切文本。
+ *
+ * @param {string} text
+ * @returns {Set<string>}
+ */
+function _tokenize(text) {
+    const terms = new Set();
+    const s = String(text || '');
+    if (!s) return terms;
+
+    // ASCII 词（长度 ≥2，小写化）
+    for (const m of s.toLowerCase().matchAll(/[a-z0-9][a-z0-9_+#.-]{1,}/g)) {
+        terms.add(m[0]);
+    }
+    // CJK 二元组
+    const cjk = s.match(/[\u4e00-\u9fff]+/g) || [];
+    for (const run of cjk) {
+        if (run.length === 1) {
+            terms.add(run);
+            continue;
+        }
+        for (let i = 0; i + 2 <= run.length; i++) {
+            terms.add(run.slice(i, i + 2));
+        }
+    }
+    return terms;
+}
 
 class KnowledgeManager {
     /**
@@ -149,6 +183,20 @@ class KnowledgeManager {
         await this._json.write('index', index);
     }
 
+    /**
+     * 本知识库的串行锁键（F-15）。
+     *
+     * 用存储根目录做键，使**同一进程内多个 KnowledgeManager 实例**
+     * （每个 FlexRunner 都会各自 new 一个并 init）共享同一把锁——
+     * 否则并发登记经验时索引的 read-modify-write 仍会互相覆盖。
+     *
+     * @returns {string}
+     * @private
+     */
+    _lockKey() {
+        return `knowledge:${this._json?.rootDir || KNOWLEDGE_SUBDIR}`;
+    }
+
     // ─── 公开接口 ──────────────────────────────────────────────────────────────
 
     /**
@@ -189,20 +237,23 @@ class KnowledgeManager {
             active: true
         };
 
-        // 写入单条经验详情
-        await this._json.write(id, record);
+        // 写入单条经验详情 + 更新索引。
+        // F-15：整段包在串行锁内，并在锁内重新读取索引——
+        // 原实现"先读索引、改完再写回"在并发登记时必然丢更新。
+        await withSerializedLock(this._lockKey(), async () => {
+            await this._json.write(id, record);
 
-        // 更新索引
-        const index = await this._readIndex();
-        index.push({
-            id,
-            docPath: record.docPath,
-            taskId: record.taskId,
-            taskDescription: record.taskDescription,
-            createdAt: now,
-            active: true
+            const index = await this._readIndex();
+            index.push({
+                id,
+                docPath: record.docPath,
+                taskId: record.taskId,
+                taskDescription: record.taskDescription,
+                createdAt: now,
+                active: true
+            });
+            await this._writeIndex(index);
         });
-        await this._writeIndex(index);
 
         return record;
     }
@@ -221,19 +272,24 @@ class KnowledgeManager {
         this._ensureInit();
         if (!id) return false;
 
-        // 先读取记录确认存在
-        const record = await this._json.read(id);
-        if (!record) return false;
+        // 注意：不再在锁外预读"确认存在"——那会与锁内状态产生时间差，
+        // 存在性判断一律以锁内重新读取的结果为准。
 
-        // 1. 物理删除单条经验详情 JSON 文件
-        await this._json.delete(id);
+        // 1. 物理删除单条经验详情 JSON 文件；2. 从索引中移除该条目。
+        // F-15：两步骤必须在一个串行临界区内，否则与并发 addExperience 交错
+        // 会让索引与详情不一致（索引有记录但文件已删，或反之）。
+        let removed = false;
+        await withSerializedLock(this._lockKey(), async () => {
+            const current = await this._json.read(id);
+            if (!current) return;
+            await this._json.delete(id);
+            const index = await this._readIndex();
+            const filtered = index.filter(e => e.id !== id);
+            await this._writeIndex(filtered);
+            removed = true;
+        });
 
-        // 2. 从索引中移除该条目（非软删除标记，而是彻底移除）
-        const index = await this._readIndex();
-        const filtered = index.filter(e => e.id !== id);
-        await this._writeIndex(filtered);
-
-        return true;
+        return removed;
     }
 
     /**
@@ -257,17 +313,21 @@ class KnowledgeManager {
             createdAt: record.createdAt, // 创建时间不可变
             updatedAt: nowCST()
         };
-        await this._json.write(id, updated);
 
-        // 同步索引中的可变字段
-        const index = await this._readIndex();
-        const idx = index.findIndex(e => e.id === id);
-        if (idx >= 0) {
-            if (patch.docPath) index[idx].docPath = patch.docPath;
-            if (patch.taskDescription) index[idx].taskDescription = patch.taskDescription;
-            if (typeof patch.active === 'boolean') index[idx].active = patch.active;
-            await this._writeIndex(index);
-        }
+        // F-15：详情写入与索引同步在同一串行临界区内，避免与其他写操作交错
+        await withSerializedLock(this._lockKey(), async () => {
+            await this._json.write(id, updated);
+
+            // 同步索引中的可变字段
+            const index = await this._readIndex();
+            const idx = index.findIndex(e => e.id === id);
+            if (idx >= 0) {
+                if (patch.docPath) index[idx].docPath = patch.docPath;
+                if (patch.taskDescription) index[idx].taskDescription = patch.taskDescription;
+                if (typeof patch.active === 'boolean') index[idx].active = patch.active;
+                await this._writeIndex(index);
+            }
+        });
 
         return updated;
     }
@@ -318,6 +378,98 @@ class KnowledgeManager {
             if (full) result.push(full);
         }
         return result;
+    }
+
+    /**
+     * 按相关性检索经验（F-25）。
+     *
+     * 为什么需要：原实现的检索只有 `taskId` 相等与 `taskDescription.includes()`
+     * ——**没有打分、没有排序，且从未被 Agent 主链路调用**（只有 HTTP 路由在查）。
+     * 也就是说"知识沉淀"只写不读，闭环并未闭合。本方法提供可用于注入 prompt
+     * 的相关性排序检索。
+     *
+     * 实现取舍：当前为**词法打分**（关键词重合 + 技能目录匹配 + 时间新鲜度），
+     * 刻意不引入 embedding——目标是"让经验真正被消费"，而不是把召回质量做到极致；
+     * 向量检索属于 Phase 3 的演进项（见 docs/ROADMAP.md）。词法打分可复现、零依赖、
+     * 无额外成本，对"同一领域重复踩坑"这个真实场景已足够。
+     *
+     * 中文分词说明：不引第三方分词器，CJK 用**二元组（bigram）**切片，
+     * ASCII 词按非字母数字切分并小写化——对"任务描述相似度"这种粗粒度匹配够用。
+     *
+     * @param {object} [opts]
+     * @param {string} [opts.query]        - 查询文本（通常是当前任务/步骤描述）
+     * @param {number} [opts.limit=5]      - 最多返回条数
+     * @param {number} [opts.minScore=2]   - 最低得分（过滤弱相关）
+     * @param {string} [opts.skillDir]     - 当前 SKILL 目录：命中则加权
+     * @param {boolean} [opts.withContent=false] - 是否附带文档正文（用于直接注入 prompt）
+     * @param {number} [opts.maxContentChars=1200] - 单条正文最大字符数（withContent 时生效）
+     * @returns {Promise<Array<object>>} 经验记录数组（按得分降序），含 `score` 字段
+     */
+    async searchExperiences(opts = {}) {
+        this._ensureInit();
+        const {
+            query = '',
+            limit = 5,
+            minScore = 2,
+            skillDir = null,
+            withContent = false,
+            maxContentChars = 1200,
+        } = opts;
+
+        const index = await this._readIndex();
+        const active = index.filter((e) => e.active !== false);
+        const terms = _tokenize(query);
+        if (terms.size === 0) return [];
+
+        const scored = [];
+        for (const entry of active) {
+            const full = await this._json.read(entry.id);
+            if (!full) continue;
+
+            const haystack = [
+                full.taskDescription || '',
+                (full.tags || []).join(' '),
+                (full.docPath || '').split(/[\\/]/).pop() || '',
+            ].join(' ');
+            const hayTerms = _tokenize(haystack);
+
+            let score = 0;
+            for (const t of terms) {
+                if (hayTerms.has(t)) score += 1;
+            }
+            // 同一 SKILL 的经验更可能可复用
+            if (skillDir && full.skillDir && String(full.skillDir) === String(skillDir)) {
+                score += 3;
+            }
+            if (score < minScore) continue;
+            scored.push({ ...full, score });
+        }
+
+        scored.sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score;
+            return (b.createdAt || '').localeCompare(a.createdAt || '');
+        });
+
+        const top = scored.slice(0, Math.max(0, limit));
+        if (!withContent) return top;
+
+        // 附带正文（按预算截断）。失败不影响检索结果——经验正文缺失只是少一份上下文。
+        const out = [];
+        for (const rec of top) {
+            let content = '';
+            try {
+                if (rec.docPath) {
+                    const raw = await fs.readFile(rec.docPath, 'utf-8');
+                    content = raw.length > maxContentChars
+                        ? raw.slice(0, maxContentChars) + '\n…（已截断）'
+                        : raw;
+                }
+            } catch {
+                content = '';
+            }
+            out.push({ ...rec, content });
+        }
+        return out;
     }
 
     /**

@@ -70,7 +70,7 @@ Server/LoopEngine/
 ```typescript
 interface LoopResult {
     taskId: string;
-    status: LoopStatus;       // passed | failed | aborted | error
+    status: LoopStatus;       // idle | planning | executing | checking | aborting | passed | failed | aborted | interrupted | error
     passed: boolean;          // 是否准出通过
     totalRounds: number;      // 实际执行轮数
     currentLoop: number;      // 当前轮次
@@ -105,9 +105,11 @@ interface LoopResult {
 | `PLANNING` | Brain 拆解/重规划中 |
 | `EXECUTING` | Orchestrator 执行中 |
 | `CHECKING` | TestCheck 准出审核中 |
+| `ABORTING` | 终止已请求，等待各阶段轮询退出（过渡态） |
 | `PASSED` | 准出通过，循环结束 |
 | `FAILED` | 达到最大循环次数仍未通过 |
 | `ABORTED` | 被手动终止 |
+| `INTERRUPTED` | 进程重启导致执行中断（F-24：恢复时把 planning/executing/checking 投影为终态） |
 | `ERROR` | 循环过程出错 |
 
 ---
@@ -223,4 +225,5 @@ LoopEngine 需要访问 Controller 的内部方法：
 | `loop:round:end` | 每轮结束 |
 | `loop:complete` | 大循环完成 |
 | `loop:error` | 大循环异常 |
+| `loop:aborting` | 终止请求已受理（`ABORTING` 过渡态） |
 | `loop:aborted` | 大循环被终止 |

@@ -104,6 +104,24 @@ class StepNode {
         this.taskDir = config.taskDir || '';
         this.inputReport = config.inputReport || '';
 
+        // ── Phase 2：多 Agent 协作配置（缺省 = 沿用 Phase 1 单角色行为）──
+        /**
+         * @type {boolean|null} 本步骤是否启用多 Agent。
+         * `null`（缺省）表示"跟随编排器开关"；显式 `false` 可让某个步骤
+         * 在全局启用时仍走单角色路径（例如一次纯粹的 `git clone` 不值得
+         * 为它付规划 + 评审 + 验证三个会话的成本）。
+         * @type {boolean|null}
+         */
+        this.multiAgent = config.multiAgent === undefined || config.multiAgent === null
+            ? null
+            : config.multiAgent === true;
+        /**
+         * @type {*} 协作计划覆盖（`step.collaboration`）。
+         * 支持内置计划名（'standard' / 'thorough' / 'verify-only' / 'single'）
+         * 或对象定义，见 `Server/Agent/Supervisor/CollaborationPlan.js`。
+         */
+        this.collaboration = config.collaboration === undefined ? null : config.collaboration;
+
         // ── 运行时状态 ──
         /** @type {string} */
         this.status = NodeStatus.PENDING;
@@ -272,6 +290,11 @@ class StepNode {
         if (patch.specifiedSkill !== undefined) this.specifiedSkill = String(patch.specifiedSkill || '').trim();
         if (patch.taskDir !== undefined) this.taskDir = patch.taskDir;
         if (patch.inputReport !== undefined) this.inputReport = patch.inputReport;
+        // Phase 2：未执行步骤允许切换协作模式与计划（与其它配置一致的"仅 PENDING 可改"语义）
+        if (patch.multiAgent !== undefined) {
+            this.multiAgent = patch.multiAgent === null ? null : patch.multiAgent === true;
+        }
+        if (patch.collaboration !== undefined) this.collaboration = patch.collaboration;
 
         return true;
     }

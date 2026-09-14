@@ -376,7 +376,7 @@ function checkNodejs() {
     if (versionMatch) {
         const major = parseInt(versionMatch[1], 10);
         if (major < 22) {
-            warn(`Node.js 版本 ${major} 偏低，建议升级到 ≥ 22（需内置 node:sqlite 模块）`);
+            warn(`Node.js 版本 ${major} 偏低，建议升级到 ≥ 22（主存储用 better-sqlite3 原生模块与 ESM 新特性；Archive 检索模块另需 node:sqlite）`);
             hint(`升级链接: https://nodejs.org/`);
             result.passed = false;
             result.errors.push(`Node.js 版本 ${major} < 22`);

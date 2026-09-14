@@ -122,10 +122,59 @@ function compilePath(path) {
     return { regex: new RegExp(`^${regexStr}$`), keys };
 }
 
+/**
+ * 请求体大小上限（字节），可通过 MAX_JSON_BODY_BYTES 覆盖。
+ *
+ * 默认 2MB：本服务全部 JSON 接口里最大的合法请求体是「加载任务定义」
+ * （几十个步骤的描述文字，量级几十 KB），2MB 已留出 20 倍余量；而原实现
+ * 无任何上限、用 `data += chunk` 累积字符串，一个恶意/误发的超大 POST
+ * 就能把进程堆打爆（V8 字符串拼接还会产生数倍于原体的中间副本）。
+ */
+const DEFAULT_MAX_JSON_BODY_BYTES = 2 * 1024 * 1024;
+
+/**
+ * 解析请求体上限。
+ * @param {number|string|undefined} override - 构造参数覆盖值
+ * @returns {number} 上限字节数（≥1）
+ */
+function resolveMaxJsonBodyBytes(override) {
+    const pick = (v) => {
+        if (v === undefined || v === null || v === '') return null;
+        const n = Number(v);
+        return Number.isFinite(n) && n > 0 ? Math.floor(n) : null;
+    };
+    return pick(override) ?? pick(process.env.MAX_JSON_BODY_BYTES) ?? DEFAULT_MAX_JSON_BODY_BYTES;
+}
+
+/**
+ * 构造带 HTTP 状态码的请求错误。
+ *
+ * 让 Router 能把「客户端错误」与「服务端内部错误」区分开：
+ * 带 statusCode 的异常由 handle 直接转成对应响应（400/413），
+ * 其余异常仍按 500 处理。
+ *
+ * @param {string} message
+ * @param {number} statusCode
+ * @param {string} [code] - 机器可读错误码（供前端区分提示）
+ * @returns {Error & {statusCode: number, code: string}}
+ */
+function httpError(message, statusCode, code) {
+    const err = new Error(message);
+    err.statusCode = statusCode;
+    err.code = code || String(statusCode);
+    return err;
+}
+
 class Router {
-    constructor() {
+    /**
+     * @param {object} [opts]
+     * @param {number} [opts.maxJsonBodyBytes] - JSON 请求体上限（默认 2MB / MAX_JSON_BODY_BYTES）
+     */
+    constructor(opts = {}) {
         /** @type {{ method: string, path: string, compiled: {regex, keys}, middlewares: Middleware[], handler: Handler }[]} */
         this.routes = [];
+        /** @type {number} JSON 请求体上限（字节），暴露给调用方/测试 */
+        this.maxJsonBodyBytes = resolveMaxJsonBodyBytes(opts.maxJsonBodyBytes);
     }
 
     /**
@@ -209,9 +258,24 @@ class Router {
                 ctxReq.params[key] = decodeURIComponent(match[i + 1]);
             });
 
-            // 解析 body（POST/PUT/DELETE）
+            // 解析 body（POST/PUT/PATCH/DELETE）
             if (['POST', 'PUT', 'PATCH'].includes(req.method) && req.headers['content-type']?.includes('application/json')) {
-                ctxReq.body = await this._readJsonBody(req);
+                try {
+                    ctxReq.body = await this._readJsonBody(req);
+                } catch (err) {
+                    // 请求体错误（超限 413 / JSON 非法 400 / 客户端中断）属于客户端问题，
+                    // 按错误自带的状态码应答；不再让异常冒泡到调用方被统一当成 500。
+                    const status = err.statusCode || 400;
+                    if (err.code === 'BODY_TOO_LARGE') {
+                        // 排空剩余请求体后再断开：直接 destroy 会连响应一起吞掉，
+                        // 客户端只能看到 ECONNRESET 而非 413。
+                        this._discardBody(req);
+                    }
+                    if (!res.headersSent) {
+                        ctxRes.error(status, err.message, { code: err.code || String(status) });
+                    }
+                    return true;
+                }
             }
 
             // 执行中间件链 → handler
@@ -238,17 +302,128 @@ class Router {
         return next();
     }
 
+    /**
+     * 读取并解析 JSON 请求体。
+     *
+     * 相对初版（`data += chunk` + 无上限、无中断处理）的三处加固：
+     *   1. **大小上限**（默认 2MB，MAX_JSON_BODY_BYTES 可调）：按**字节数**累计
+     *      （多字节 UTF-8 字符不能被少算），超限即以 413 拒绝，避免超大 body 把
+     *      进程堆打爆；同时优先依据 Content-Length 提前拒绝，连读都不用读。
+     *   2. **JSON 非法 → 400**：解析失败此前会冒泡到 server.js 的兜底 catch 变成 500，
+     *      把客户端错误报成服务端错误。
+     *   3. **中断兜底**：客户端提前断开（aborted/close）时立刻 reject，否则这个
+     *      Promise 永远不会 settle，对应的 handler 与请求上下文泄漏。
+     *
+     * @param {import('node:http').IncomingMessage} req
+     * @returns {Promise<any>} 解析后的 body（空体返回 null）
+     * @private
+     */
     _readJsonBody(req) {
+        const limit = this.maxJsonBodyBytes;
         return new Promise((resolve, reject) => {
-            let data = '';
-            req.on('data', chunk => { data += chunk; });
-            req.on('end', () => {
-                if (!data) return resolve(null);
-                try { resolve(JSON.parse(data)); }
-                catch { reject(new Error('JSON 解析失败')); }
-            });
-            req.on('error', reject);
+            // Content-Length 明确超限：直接拒绝，不进入读取流程
+            const declared = Number(req.headers['content-length']);
+            if (Number.isFinite(declared) && declared > limit) {
+                reject(httpError(
+                    `请求体过大（Content-Length=${declared}，上限 ${limit} 字节）`,
+                    413,
+                    'BODY_TOO_LARGE'
+                ));
+                return;
+            }
+
+            const chunks = [];
+            let size = 0;
+            let settled = false;
+
+            const cleanup = () => {
+                req.off?.('data', onData);
+                req.off?.('end', onEnd);
+                req.off?.('error', onError);
+                req.off?.('aborted', onAborted);
+                req.off?.('close', onClose);
+            };
+            const fail = (err) => {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                reject(err);
+            };
+            const done = (value) => {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                resolve(value);
+            };
+
+            function onData(chunk) {
+                // 按字节累计（chunk 可能是被解码前的 Buffer；统一转 Buffer 后取 length）
+                const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+                size += buf.length;
+                if (size > limit) {
+                    fail(httpError(`请求体过大（上限 ${limit} 字节）`, 413, 'BODY_TOO_LARGE'));
+                    return;
+                }
+                chunks.push(buf);
+            }
+            function onEnd() {
+                if (size === 0) {
+                    done(null);
+                    return;
+                }
+                const raw = Buffer.concat(chunks, size).toString('utf8');
+                if (!raw) {
+                    done(null);
+                    return;
+                }
+                try {
+                    done(JSON.parse(raw));
+                } catch {
+                    fail(httpError('JSON 解析失败：请求体不是合法 JSON', 400, 'INVALID_JSON'));
+                }
+            }
+            function onError(err) {
+                fail(err);
+            }
+            function onAborted() {
+                fail(httpError('请求被客户端中断（请求体未接收完整）', 400, 'REQUEST_ABORTED'));
+            }
+            function onClose() {
+                // Node 在正常读完 body 后也会触发 close，正常情况下 'end' 已先把
+                // Promise settle 掉；此处只兜底真正的中断场景。
+                fail(httpError('连接已关闭（请求体未接收完整）', 400, 'REQUEST_ABORTED'));
+            }
+            // close 在 res 结束或连接断开时触发；延后一个事件循环让 'end' 先执行，
+            // 避免同一 tick 内 'end' 与 'close' 竞争导致把正常请求误判为中断。
+            function onCloseDeferred() {
+                setImmediate(onClose);
+            }
+
+            req.on('data', onData);
+            req.on('end', onEnd);
+            req.on('error', onError);
+            req.on('aborted', onAborted);
+            req.on('close', onCloseDeferred);
         });
+    }
+
+    /**
+     * 排空（丢弃）一个已判定为超限的请求体。
+     *
+     * 不能直接 `req.destroy()`：那会连带销毁底层 socket，客户端只会看到
+     * ECONNRESET/连接中断，收不到本该返回的 413。这里改为恢复读取让数据流走完，
+     * 由 Node 在响应结束后按 keep-alive 规则自行处理连接。
+     *
+     * @param {import('node:http').IncomingMessage} req
+     * @private
+     */
+    _discardBody(req) {
+        try {
+            req.on('error', () => {});
+            req.resume?.();
+        } catch {
+            // 流已销毁等异常场景，忽略
+        }
     }
 }
 

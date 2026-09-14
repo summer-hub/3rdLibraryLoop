@@ -81,7 +81,7 @@ export const ENV_KEYS = [
 
     // ── SkillSelector 召回/命中 ──────────────────────────────────────
     { key: 'SELECTOR_TOP_K', label: '召回候选数', description: '模糊匹配召回的候选数量', default: '5', validate: validators.intPositive },
-    { key: 'SELECTOR_HIT_THRESHOLD', label: '命中阈值', description: 'LLM 打分阈值 0-100（top1>=阈值且分差>=10 才算命中）', default: '60', validate: validators.intPositive },
+    { key: 'SELECTOR_HIT_THRESHOLD', label: '命中阈值', description: 'LLM 打分阈值 0-100（top1 >= 阈值即视为命中；分差仅作参考，不参与判定）', default: '60', validate: validators.intPositive },
     { key: 'SELECTOR_WEIGHT_ACTION', label: '动作通道权重', description: '多路召回动作通道权重（默认 0.4）', default: '0.4', validate: validators.weight01 },
     { key: 'SELECTOR_WEIGHT_DOMAIN', label: '领域通道权重', description: '多路召回领域通道权重（默认 0.4）', default: '0.4', validate: validators.weight01 },
     { key: 'SELECTOR_WEIGHT_RAW', label: '原文兜底权重', description: '多路召回原文兜底通道权重（默认 0.2）', default: '0.2', validate: validators.weight01 },
