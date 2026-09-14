@@ -82,8 +82,10 @@ git merge main feat/multi-agent-monolith   # 拉齐前置成果
   3. 移除 `admin123` 兜底：未配置 `ISSUE_ADMIN_PASSWORD` 时**拒绝启动**该扩展的管理接口；
      密码比较改 `crypto.timingSafeEqual`，并加失败计数限流；
   4. CORS 改为按需同源，而非无条件 `*`。
-- **验收**：`curl http://<局域网IP>:8080/api/health` 失败；未设密码时 issue 扩展管理接口返回 503；
-  `git grep -n admin123` 无输出。
+- **验收**：`curl http://<局域网IP>:8080/api/health` 失败（已实测：非回环 + 无令牌 → 进程 exit 1）；
+  未配置 `ISSUE_ADMIN_PASSWORD` 时管理接口返回 503；
+  精确禁止项：`git grep -nE "ADMIN_PASSWORD\s*=.*\|\|"` 与 `git grep -nE "!==\s*ADMIN_PASSWORD"` 均无输出
+  （注意：不能直接 grep 字符串 `admin123`，修复说明注释中会提及该词）。
 
 #### F-03 会话生命周期回收（消除线性泄漏）
 - **证据**：`deleteSession`（`Server/CLI/opencode/index.js:152`）在整个生产代码**无调用方**
@@ -226,7 +228,7 @@ git merge main feat/multi-agent-monolith   # 拉齐前置成果
 | **F-17** | 每 FlexRunner 各自 `createStorage()` → N 个连接打同一 `store.db`，且 `SqliteAdapter` 未设 `busy_timeout`（:56-61）；冲突错误被 `_persistStep` catch 静默吞掉（`FlexRunner.js:1292-1294`） | 全局单例 Storage/连接；设 `busy_timeout`；`_persistStep` 失败必须 warn（当前是 warning 级，确认不静默） | 50 并发写库无 `SQLITE_BUSY`，无静默丢失 |
 | **F-18** | `_execPathTrace` 只声明与 clear、从不读取（`Orchestrator.js:194, 344, 1347`），而 `Server/Orchestrator/AGENTS.md` 宣称实现了「每个 (taskId,stepId) 只执行一次」的循环检测；`SqliteAdapter._stmtCache` 宣称"预编译语句缓存"但从未写入（:39, 147） | 二选一：**实现**该检测（用 trace 做 gate）或**删除文档宣传**；`_stmtCache` 同理 | `git grep` 后文档与实现一致；新增测试覆盖循环检测 |
 | **F-19** | 文档/元数据漂移：轮询间隔文档 3000 / 实际 5000（`FlexRunner.js:123`）；`_pollSession` 超时文档 10 分钟 / 实际 90 分钟（:126）；信号量默认值同文件注释写 5 / 常量写 50（`Orchestrator.js:73, 627`）；README 称用内置 `node:sqlite`、实际用 `better-sqlite3`；`cli/package.json` 的 `homepage/repository/bugs` 仍指向旧命名空间 `lalhanOrz` | 逐处校正；建立"文档-常量"对照表；`cli/package.json` 元数据指向 `summor` | 人工复核 + 在 CI 中加入常量/文档比对（可选） |
-| **F-20** | 编码损坏：`Server/package.json` description（`SKILL 閫夋嫨鍣?Agent`）、`cli/package.json` description（`涓夋柟搴撹嚜鍔ㄥ寲妫€瑙?CLI`）、`.gitignore` 中文注释均为乱码；乱码已随 npm 包发布 | 三处文件转 UTF-8 重写并核对 npm 元数据 | `node -e "require('./Server/package.json')"` 正常且描述可读；发布前 checklist 增加编码检查 |
+| **F-20** | 元数据/文档漂移：`cli/package.json` 的 `homepage`/`repository`/`bugs`（第 8/11/14 行）仍指向旧命名空间 `lalhanOrz`，且该元数据已随 npm 包 `@ohos-cpf/3rdloop@0.0.11` 发布——用户从 npm 点"仓库"会跳到旧地址。另有轮询间隔、`_pollSession` 超时、信号量默认值、README 的 `node:sqlite` 与实现的 `better-sqlite3` 等多处文档/实现不一致（与 F-18/F-19 合并处理） | 元数据统一指向 `summor`；建立"文档-常量"对照表并逐处校正 | `npm view @ohos-cpf/3rdloop repository.url` 指向 `summor/3rdLibraryLoop`；漂移清单逐条复核 |
 | **F-21** | LLM 侧无准入控制与全局熔断：`_withRetry` 的 529 降级用**函数内局部变量** `currentModel`（`llmClient.js:139`），熔断是 per-call 的 → N 路并发各自独立重试 10 次，**放大而非收敛**；未设 `response_format: {type:'json_object'}`（:76-86）；`chatJSON` 解析失败不重试（:110-119），一次坏 JSON 吃掉一整轮大循环 | 进程级共享熔断器（半开/全开状态机）；加令牌桶限流；启用 `response_format`；JSON 解析失败计入瞬态并重试（有上限） | 模拟全站 429，验证并发 N 路只产生 O(1) 级重试而非 O(N) |
 | **F-22** | `checkStatus=ERROR` 与"审核未通过"混同：`TestCheck.js:296-302` 让 `passed=false`，`LoopEngine` 只读 `passed`（`LoopEngine.js:431-434`）→ 一次选型失败也吃掉一整轮；且轮次错误会带 `previousCheckResult=null` 进入 replan，prompt 仍断言"上一轮准出未通过"（`AnalysisStrategies.js:332`），诱导编造失败分析 | 三态化 `checkStatus`（PASSED / REJECTED / ERROR），ERROR 不消耗轮次、走重试；replan prompt 按是否有真实失败列表分支 | 注入 selector 失败，验证不消耗 `maxLoops` |
 | **F-23** | 无计划去重/振荡检测：无代码比较 `brain_loopN` 与 `brain_loopN+1`，相同计划会烧完全部轮次 | 计划指纹（步骤图哈希）+ 重复即提前终止并报 `OSCILLATION` | 构造恒定计划，第 2 轮即终止而非跑满 3 轮 |
@@ -242,7 +244,7 @@ git merge main feat/multi-agent-monolith   # 拉齐前置成果
 |---|---|---|
 | **F-27** | 补测试入口：为 `Server/` 加 `test` script（当前根 `package.json` 无 scripts，`Server/package.json` 仅 `test:selector`）。**利用已有注入点**：`Orchestrator` 支持 `flexRunnerFactory`（`Orchestrator.js:152, 873-875`），可不启动 LLM 做纯调度单测 | `npm test` 可跑；Orchestrator DAG 用例覆盖 fan-out / fan-in / failStepId 修复链 / 死锁检测 / GLOBAL_EXEC_LIMIT |
 | **F-28** | 把 `Server/Orchestrator/repro_deadlock.js`、`repro_regression.js` 升级为断言式回归测试（现为 68 + 50 行脚本） | 两个 repro 变成 `test/` 下带断言的用例，接入 `npm test` |
-| **F-29** | CI：接入 GitCode 流水线（或 `.github/workflows` 备用），至少跑 `node --check` 全量语法 + `npm test` + 编码检查 + `git grep` 禁止项（7594 埋点、admin123） | PR 必过；故意引入 `admin123` 能被拦住 |
+| **F-29** | CI：接入 GitCode 流水线（或 `.github/workflows` 备用），至少跑 `node --check` 全量语法 + `npm test` + `git grep` 禁止项（7594 埋点、`ADMIN_PASSWORD = ... \|\|`）+ 所有 `package.json` 可 JSON.parse | PR 必过；故意引入调试埋点或弱口令兜底能被拦住 |
 | **F-30** | Lint/格式化：引入 ESLint 或 Biome，先 `warn` 后 `error` 渐进收紧 | `npm run lint` 无 error |
 | **F-31** | 测试覆盖率基线：当前测试 ~600 行 / 源码 83k 行（≈0.7%），先把 Orchestrator / SseHub / DbUse 三个模块拉到有实质覆盖 | 核心模块行覆盖 ≥60%（仅这三模块） |
 | **F-32** | 跨平台换行符与文本属性缺失：`core.autocrlf=true` 且**无 `.gitattributes`**（已实测确认）。仓库同时服务 Windows 主开发与 macOS/Linux 用户（见 `cli/AGENTS.md` 的 `macos-bash-replace-build-ps1`、`macos-bsd-diff-q-illegal-option` 经验条目），会导致整文件换行符抖动、diff 噪音、shell 脚本被 CRLF 破坏 | 新增 `.gitattributes`：`* text=auto eol=lf`，对 `*.sh`/`*.mjs`/`*.cjs` 强制 `eol=lf`，二进制类型标 `binary`；可选 `git add --renormalize .` 一次性对齐 | `git status` 在跨平台 checkout 后无换行符抖动；`.sh` 脚本不出现 `\r`；新增文件均按规则归一 |
@@ -399,10 +401,12 @@ M4（纪律）  F-27 … F-31                            → 可回归、可 CI 
 git remote -v
 git config --get-regexp insteadOf        # 期望无输出
 
-# P0 待清理项
-git grep -n "7594"                       # F-01，期望修复后无输出
-git grep -n "admin123"                   # F-02，期望修复后无输出
-git grep -n "deleteSession" -- Server    # F-03，期望修复后出现在 FlexRunner
+# M1 已完成的验收项（修复后应满足）
+git grep -n "7594" -- Server cli Web MCP Archive Tools   # F-01，期望无输出
+git grep -nE "ADMIN_PASSWORD\s*=.*\|\|"                  # F-02，期望无输出
+git grep -nE "!==\s*ADMIN_PASSWORD"                      # F-02，期望无输出
+git grep -n "deleteSession" -- Server/FlexRunner         # F-03，期望出现在 _finalizeSession
+git grep -n "gracefulShutdown" -- Server cli             # F-04，期望出现在 server.js / serve.js
 
 # 未实现即宣称项（F-18）
 git grep -n "_execPathTrace"             # 当前：仅声明与 clear，无读取
@@ -411,6 +415,17 @@ git grep -n "_stmtCache"                 # 当前：仅声明与 clear，无写�
 # 并发上限可观测入口
 curl -s http://127.0.0.1:3000/api/stats/session/concurrency
 
-# 测试入口现状
+# 测试入口现状（F-27：期望 Server 也出现 test 脚本）
 git grep -n '"test"' -- cli/package.json Server/package.json package.json
 ```
+
+---
+
+## 7. 修订记录
+
+| 日期 | 修订 | 说明 |
+|---|---|---|
+| 2026-09-04 | 初版 | 修复计划 P0/P1/P2/P3 + 三阶段架构演进 |
+| 2026-09-04 | 补充 F-32 | 推送验证时实测发现 `core.autocrlf=true` 且无 `.gitattributes` |
+| 2026-09-04 | **修正 F-20** | **原 F-20 声称 `Server/package.json`、`cli/package.json`、`.gitignore` 存在"编码损坏（乱码）"。经字节级复核，四个文件**均为合法 UTF-8、中文内容正确**，先前观察到的乱码是 PowerShell 控制台按遗留代码页解码 UTF-8 字节的**显示假象**。F-20 已改写为真实的元数据漂移问题（`cli/package.json` 仓库地址仍指向旧命名空间 `lalhanOrz`）。教训：控制台输出的编码结论必须用字节级/工具级复核，不能直接采信。 |
+
