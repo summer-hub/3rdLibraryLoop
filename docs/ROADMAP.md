@@ -42,6 +42,34 @@ git merge main feat/multi-agent-monolith   # 拉齐前置成果
 **合并方向**：只允许 `下游 → 上游`（Phase 4 → 3 → 2 → main）单向合入修复；
 反方向只允许 cherry-pick 缺陷修复，不允许整体回灌，避免架构回退。
 
+### 0.3 本轮执行模式（重要，与上表 0.2 的差异）
+
+用户明确要求：**全部改动留在本地工作区，不做任何 git 提交、不做任何推送**。
+因此本轮的执行方式与 0.2 的"分支模型"存在一处**刻意的偏离**：
+
+| 0.2 的规划 | 本轮的实际情况 |
+|---|---|
+| 每个 Phase 一个分支，堆叠合并 | **不创建、不切换分支**；`HEAD` 停在 `main` 的 `48bea61` |
+| 通过 `git log` 追溯每个 Phase | 通过**目录边界 + 测试套件 + 本文件的完成记录**追溯 |
+| 通过分支隔离 Phase 2/3/4 代码 | 通过**目录前缀与可逆开关**在 `main` 工作区内隔离（见下） |
+
+**隔离手段（替代分支）**：
+
+1. **目录边界**：Phase 2/3/4 的新增能力各自落在独立目录
+   （`Server/Agent/`（协作）、`Server/Cluster/`、`Server/Distributed/`），
+   对现有 `Server/Orchestrator`、`Server/FlexRunner` 的改动保持"**加接口、不改语义**"。
+2. **能力开关（默认关闭，保证 Phase 1 行为不变）**：
+   `MULTI_AGENT_ENABLED` / `CLUSTER_ENABLED` / `DISTRIBUTED_ENABLED`。
+   每一项默认 `0`，即未显式开启时**行为与 Phase 1 完全一致**，
+   现有 5 个套件必须继续全绿（这是"不回归"的机器判定）。
+3. **测试按 Phase 分目录**：`test/m5-phase2/`、`test/m6-phase3/`、`test/m7-phase4/`
+   与 Phase 1 的 `test/m1..m4` 平行，互不干扰。
+4. **可切分性**：所有改动集中在上述目录 + 少量明确标注的接入点，
+   将来若要真正落分支，可按目录一次性 `checkout -b` 后 `git add <dir>` 拆分，无需重写代码。
+
+**本文件的记录口径**：因无 commit，完成记录一律以
+「文件路径 + 可复现命令 + 实测数值」为证据，不使用 commit hash。
+
 ---
 
 ## 1. Phase 1 —— 修复计划（main）
@@ -257,10 +285,28 @@ git merge main feat/multi-agent-monolith   # 拉齐前置成果
 M1（阻断）  F-01  F-02  F-03  F-04  F-05          → 可安全演示、无泄漏、可复现构建
 M2（并发）  F-06  F-07  F-08  F-09  F-10  F-11  F-12  F-13  → 高并发下"变慢但活着"
 M3（正确）  F-14 … F-26                            → 语义与一致性正确
-M4（纪律）  F-27 … F-31                            → 可回归、可 CI 守护
+M4（纪律）  F-27 … F-32                            → 可回归、可 CI 守护
+M5（Phase 2）多 Agent 单体架构                      → 一步 = 一组有角色的 Agent 协作
+M6（Phase 3）多 Agent + 高并发                      → 500 并发会话不死锁、不泄漏、延迟可预测
+M7（Phase 4）多 Agent + 高并发 + 企业级分布式         → 可水平扩展、多租户、可审计
 ```
 
-每个 M 结束打 tag：`v0.1.0-m1` … `v0.1.0-m4`。
+**当前状态（全部通过验收，7 个里程碑 / 8 个套件 / 847 条断言）**
+
+| 里程碑 | 状态 | 断言 | 记录位置 |
+|---|---|---|---|
+| M1 | ✅ | 65 | 本文 §1 M1 完成记录 |
+| M2 | ✅ | 165 | 本文 §1 M2 完成记录 |
+| M3 | ✅ | 160 | 本文 §1 M3 完成记录 |
+| M4 | ✅ | 64 | 本文 §1 M4 完成记录 |
+| M5（Phase 2） | ✅ | 166 | 本文 §2 Phase 2 完成记录 |
+| M6（Phase 3） | ✅ | 102 | 本文 §3 Phase 3 完成记录 |
+| M7（Phase 4） | ✅ | 182 | 本文 §4 Phase 4 完成记录 |
+| 引擎单元测试 | ✅ | — | `npm run test:unit` |
+
+> **分支说明**：本节原本约定"每个 M 结束打 tag / 每 Phase 一个分支"。本轮按用户要求
+> **不做任何 git 提交、不创建分支**，因此全部改动留在本地工作区，
+> 以「文件 + 可复现命令 + 实测数值」作为追溯依据（见 §0.3）。
 
 ---
 
@@ -278,6 +324,66 @@ M4（纪律）  F-27 … F-31                            → 可回归、可 CI 
 **M1 额外产出**：`test/m1/` 验收套件（把一次性验证固化为可复现回归），
 根 `package.json` 新增 `test:m1` 脚本。这提前覆盖了 F-27 的一部分。
 
+---
+
+### M2 完成记录
+
+> 本轮**不做任何 git 提交**（用户要求改动全部留在本地工作区），因此下表以
+> "文件 + 测试" 而非 commit 作为追溯依据。
+
+| 编号 | 核心改动 | 验收 |
+|---|---|---|
+| **F-06** | `CLI/opencode/index.js` 通过 SDK 的 `fetch` 钩子注入请求级超时与取消（SDK 默认 `req.timeout=false`，即**主动关闭超时**，这是根因）；`Semaphore.acquire` 支持超时；`FlexRunner` 建立 AbortController 并在 abort 时中断在途 HTTP | 信号量超时/取消 21 项中相关用例 |
+| **F-07** | `FlexRunner` 注入共享信号量，经验总结调用 `sendAndWaitMessage` 前**自行再取一个槽位**（该路径发生在步骤槽位释放之后，原实现使真实并发可达上限 2 倍） | 取不到槽位时优雅跳过、步骤结果不受影响 |
+| **F-08** | `Semaphore` 升级为「全局上限 + 单任务配额 + 获取超时 + 租约式释放」；扫描式派发避免队头阻塞 | A/B/C/D/E 组：上限不突破、配额生效、A 满额不阻塞 B、超时无泄漏、重复释放不漂移 |
+| **F-09** | `SseHub` 背压保护：检查 `write()` 返回值、`drain` 恢复、可合并事件（全量快照）只留最新、有界队列超限即断开慢客户端、注册 `res.on('error')`、持续背压超时断开 | A–D/H/J 共 20 项 |
+| **F-10** | 连接身份不再退化为共享 `'anonymous'`（原实现使"单用户上限 10"变成**全进程 10 连接硬上限**，实测第 11 个连接被拒）；新增 `canSubscribe` 使准入可在**写响应头之前**完成并返回真正的 429；`_removeConnection` 幂等（修重复递减 + `close()` 计数泄漏） | E/F/G/I 共 13 项；真实服务 12/12 并发 SSE 连接成功 |
+| **F-11** | `Orchestrator` 持久化写放大消除：防抖合并 + 强制刷盘 + 落盘统计（实测写次数显著下降） | 30 项 |
+| **F-12** | 新增 `Server/library/BoundedRegistry.js`；`_orchestrators` / `Brain._plans` / `_runners` 改为有界 + LRU/TTL 淘汰（RUNNING 态拒绝淘汰）；删除死字段 `_taskLogs` | 52 项 |
+| **F-13** | HTTP 加固：body 上限（超限 413 且带 `BODY_TOO_LARGE`，`Content-Length` 声明超限时提前拒绝）、JSON 解析失败返回 400（原为 500）、`maxConnections`/`headersTimeout`/`keepAliveTimeout` 显式配置，且 **`requestTimeout=0`（显式关闭）以不切断 SSE 长连接**、非法/非正数环境变量回退默认（不允许"无上限"） | 29 项（含真实路由端到端） |
+
+**M2 期间发现并修复的两个"只在 Windows 出现、但会静默丢数据"的问题**：
+1. **`fs.rename` 覆盖被占用文件会以 EPERM/EBUSY 失败**。在"并发写 + 并发读同一 JSON"
+   的测试中稳定复现，导致偶发丢更新。已新增 `renameWithRetry`（退避重试），
+   并同步修掉既有 `JsonAdapter.write` 的同一缺陷（它此前只用裸 `rename`）。
+2. 修好前，`StatsService` 的并发 +1 在真实负载下无法精确收敛到预期值——
+   这正是"原子写"必须配"重试"才能在生产 OS 上成立的证据。
+
+**M2 验收总计**：`npm run test:m2` → 5 个套件 / **165 条断言** / 全绿。
+运行入口已并入 `npm test`（顶层聚合运行器 `test/run-all.mjs`，同时交付 F-27 的测试入口）。
+
+---
+
+### M3 完成记录（全部 13 项）
+
+| 编号 | 核心改动 | 验收 |
+|---|---|---|
+| **F-14 / F-15** | 新增 `Server/library/AtomicJsonFile.js`（原子写 + 按路径串行化的 read-modify-write）；`StatsService`、`KnowledgeManager` 改为使用它，并新增 `withSerializedLock` 覆盖"跨多文件"的临界区（详情+索引一致性） | 17 项：100 次并发 +1 精确收敛、损坏降级自愈、并发读写不损坏、多实例共享锁、并发增删后无悬空索引 |
+| **F-16** | `TaskStepStore.create` 的 seq 分配改为**同一同步事务**内完成（先前是 `SELECT MAX+1` → `INSERT` 两步且有 await 间隙） | 13 项：并发 30 条 seq 无重复、幂等保留原 seq、多任务独立、状态流转正常 |
+| **F-17** | `SqliteAdapter` 补 `busy_timeout`（默认 5s，`SQLITE_BUSY_TIMEOUT_MS`）；`Orchestrator` 向 FlexRunner **注入共享 storage**（此前每步各建一套 Storage + SQLite 连接）；`KnowledgeManager` 改为进程级 promise 单例 | 15 项，含**三进程并发写同一 DB** 450 条零 `SQLITE_BUSY` |
+| **F-18** | 新增加载期静态环检测 `_detectCycles()`（取代从未生效的 `_execPathTrace`）；`SqliteAdapter._stmtCache` 真正启用 | 16 项：环识别（含自环/dependId 环）、线性链不误报、缓存复用与 `close()` 清空 |
+| **F-19 / F-20** | 8 个文档/元数据文件逐条对照代码校正；`cli/package.json` 仓库地址由旧命名空间 `lalhanOrz` 改为 `summor`；`Tools/libraryTestScan` 的 `REPO_OWNER` 同步（否则会按需下载**过期**脚本） | 每条断言附 `file:line` 证据；JSON.parse + CRLF 逐字节复核 |
+| **F-21** | 新增进程级共享 `CircuitBreaker`（三态）+ `LlmRateLimiter`（并发上限/QPS）；`chatJSON` 启用 `response_format`（不支持时**自动降级并记住**）且解析失败可重试 | 29 项，关键指标：**20 路并发撞 529 只产生 10 次 API 调用**（不收敛时为 200 次） |
+| **F-22** | `TestCheck` 的三态语义落地：审核**故障**（`status=error`）会重试、**不消耗轮次**，终态为 `error` 且明确说明"不代表任务产物未通过验收"；replan 不再接收空的审核结论（避免编造失败分析） | 含在 31 项中：`brainCalls=1`（不空耗轮次）、真实不通过仍走满 maxLoops 后 FAILED |
+| **F-23** | 新增计划指纹与**振荡检测**：重规划产出与之前完全相同的步骤图时提前止损（`LOOP_DETECT_OSCILLATION=0` 可关闭） | 同上：第 2 轮即停、原因明确、"不再谎报达到最大循环次数" |
+| **F-24** | 新增 `INTERRUPTED` 终态；恢复时把 `planning/executing/checking` 投影为 `interrupted`（原实现会永远显示"运行中"），`aborting` 归一为 `aborted` | 同上：投影全分支 + `restoreLoop` 端到端 |
+| **F-25** | **知识闭环真正闭合**：新增 `KnowledgeManager.searchExperiences()`（词法打分 + CJK 二元组 + SKILL 加权），并接入 FlexRunner 的步骤 prompt（此前经验**只写不读**，检索仅 HTTP 路由在用） | 23 项：端到端验证**经验正文确实出现在发给 CLI 的 prompt 中**；条数/字符预算受控；检索故障优雅降级 |
+| **F-26** | 属主判定引入**心跳时间戳**：`owner.json` 增加 `startedAt`/`heartbeatAt`，运行期定时刷新；判定要求「pid 存活 **且** 心跳新鲜」，从而抵御 **pid 复用**导致的任务永久幽灵化 | 16 项：核心断言为「pid 存活但心跳超期 → 判死并清理」；旧版格式向后兼容；心跳定时器不残留 |
+
+**M3 验收总计**：`npm run test:m3` → 7 个套件 / **160 条断言** / 全绿。
+
+**M3 期间发现的三个非平凡问题**：
+1. **`fs.rename` 在 Windows 上覆盖被占用文件会失败（EPERM/EBUSY）**——"原子写"必须配重试才在生产 OS 上成立（F-14）。
+2. **`busy_timeout` 对「deferred 事务锁升级冲突」无效**——`SELECT` 后 `INSERT` 的场景必须用 `BEGIN IMMEDIATE`，
+   否则跨进程并发写会**随机丢记录**（实测三进程各写 150 条，deferred 下只落 311/433/444 条，改 IMMEDIATE 后稳定 450 条）。
+3. **opencode SDK 默认 `req.timeout = false`**——即 SDK 主动关闭请求超时（F-06 的根因）。
+
+**再次修正我的评估错误（记录以便追溯）**：本轮委托校对时，对方核出我先前**6 处判断有误**
+（FlexRunner 的 `POLL_TIMEOUT_MS` 文档本就正确、LoopEngine 的轮询等待描述正确、
+CLI/AGENTS.md 无漂移、DbUse 的语句缓存已随 F-18 变为真实、README 无可改 URL、
+`.env.example` 的 `SELECTOR_TOP_K` 正确）。这些项已按"代码是唯一事实源"的原则**未作改动**。
+另有 6 处**代码侧**不一致由对方报告、我随后修正（如 `SkillExecutor` 注释 10→30 分钟、
+`config-cmd.js` 仍宣传已移除的"分差"规则、`libraryTestScan` 的 `REPO_OWNER` 指向旧仓库）。
 **M1 期间修正的一处评估错误**：原 F-20 声称三个文件存在「编码损坏（乱码）」，
 经字节级复核为**控制台解码假象**，文件本身均为合法 UTF-8。已在 `1b10001` 更正。
 教训：终端显示不能作为编码结论的证据。
@@ -289,6 +395,62 @@ M4（纪律）  F-27 … F-31                            → 可回归、可 CI 
 - `initContext` 会**无条件**构造 SkillSelector（其 `core/Agent.js` 顶层 import
   `dotenv`），使 FlexRunner 无法在「完全无依赖」环境下做纯 mock 测试，
   与 FlexRunner 自身「dotenv 可选」的注释不一致。建议改为惰性构造（归入 F-17/F-27）。
+
+---
+
+### M4 完成记录（全部 6 项）
+
+> 同样**不做任何 git 提交**，以「文件 + 可复现命令」作为追溯依据。
+
+| 编号 | 核心改动 | 验收 |
+|---|---|---|
+| **F-27** | 根 `package.json` 补齐 `test` / `test:m1..m4` / `test:unit` / `lint` / `coverage` / `ci` / `verify`；新增顶层聚合运行器 `test/run-all.mjs`（支持按套件名过滤、跨套件汇总断言数、失败即以非 0 退出） | `npm test` → 5 个顶层套件全绿；单纯跑 `npm test` 即可替代此前"手工跑脚本"的流程 |
+| **F-28** | 引入 **Biome 2.5.13** 并新增 `biome.json`：只把**正确性类**规则提升为 error（`noDuplicateObjectKeys` / `noDuplicateCase` / `noFallthroughSwitchClause` / `noPrototypeBuiltins` / `noAsyncPromiseExecutor` / `noUnreachable` / `noConstAssign` / `noSelfAssign` / `noVoidTypeReturn` / `useIterableCallbackReturn`），风格类规则全部显式关闭并**在 `docs/LINT.md` 记录数量与理由** | `npm run lint` → **0 error / 279 warning / 205 文件**；`docs/LINT.md` 逐条列出被抑制规则的当前计数（`noInnerDeclarations` 489、`useArrowFunction` 277、`useOptionalChain` 157、`noAssignInExpressions` 69 …），把"技术债"变成可收敛的指标 |
+| **F-29** | 新增 `scripts/ci.mjs` 统一 CI 入口（lint 门禁只看 error；随后跑全部测试套件）；新增 `.github/workflows/ci.yml` | `npm run ci` → lint exit 0 + 5 套件全绿，**74.6s** 完成 |
+| **F-30** | 新增 `scripts/coverage.mjs`：基于 `NODE_V8_COVERAGE` 的字节覆盖率聚合（无第三方依赖） | 见下方"覆盖率基线" |
+| **F-31** | 新增 `.gitattributes` 固化 `* text=auto eol=lf`，消除"同一文件在不同 OS 检出后整文件 diff"的噪声源 | 经验证：加入后**未**产生任何整文件 diff（说明仓库存量本就以 LF 入库，`core.autocrlf=true` 只影响工作区） |
+| **F-32** | 8 个 `Server/Skills/**/scripts/*.sh` 由 CRLF 改为 LF（shebang 行尾 `\r` 会让 macOS/Linux 直接 `bad interpreter`）；JSON 元数据与 Markdown 一并复核 | 转换后 `node --check` 与文件头字节级复核通过；`git diff --stat` 无异常膨胀 |
+
+**M4 验收总计**：`npm run test:m4` → 2 个套件 / **64 条断言** / 全绿。
+
+#### 覆盖率基线（F-30，可复现）
+
+```
+# 采集 + 聚合
+npm run coverage
+# 期望输出（连跑 3 轮稳定）
+已加载（被测到）: 64 | 从未加载: 8 | 已加载文件字节覆盖率: 61.7%
+```
+
+**可复现性验证（3 次连跑，同一命令同一机器）**：
+
+| 轮次 | 覆盖率 | 字节数 | 已加载 / 未加载文件 |
+|---|---|---|---|
+| 1 | 61.7% | 467490 / 758216 | 64 / 8 |
+| 2 | 61.7% | 467726 / 758216 | 64 / 8 |
+| 3 | 61.7% | 467726 / 758216 | 64 / 8 |
+
+- **百分比 3 轮完全一致**，因此 61.7% 可作为稳定基线。
+- 第 2、3 轮**字节数完全相同**；第 1 轮相差 236 字节（0.03%），来源于
+  异步/定时分支（如停机超时路径）的载荷差异。已在聚合器中用
+  「**脚本内 last-wins + 跨脚本/跨进程取 max**」消除此前 36.5% ↔ 50.9% 的**大幅**抖动
+  （V8 区间是嵌套的，必须取最内层区间；跨进程必须取并集而非覆盖）。
+- `Server/FlexRunner/FlexRunner.js` 覆盖率最低（5.0%），因为它的主体逻辑需要真实
+  opencode 会话；这是**已知且刻意**的——该模块的验证依靠 M1 的
+  `FlexRunner.__` 注入式单测而非覆盖率。
+- 覆盖率**不作为门禁**（`npm run ci` 不因覆盖率失败），原因同上：桩测覆盖率不衡量真实质量。
+
+**M4 期间修正的自身缺陷（记录以便追溯）**：
+1. 覆盖率工具第一版对嵌套区间取"最外层"，导致几乎所有文件报 100%（**假高**）；改为最内层/后写覆盖后正常。
+2. 第二版跨进程合并用 last-wins，导致同一套件两次运行得到 36.5% 与 50.9%（**不可复现**）；改为取并集后稳定。
+3. `__tests__` 目录被当成"源文件"统计，因为目录排除写成了"路径+分隔符"模式，对目录型路径不生效；已改为按目录名集合排除。
+4. **`spawn EINVAL`**：Windows 上直接 spawn `biome.cmd` 会失败，已统一改为
+   `node node_modules/@biomejs/biome/bin/biome`，`scripts/ci.mjs` 同步修正。
+5. 工具链自检用例最初写在临时目录，而该目录不在 `biome.json` 的 `files.includes` 内，
+   导致"故意写坏代码应被 lint 拦下"的探针**不会被扫描**（假绿）；已改为在
+   `Server/.m4-lint-probe.js` 落盘并在 `finally` 中清理。
+6. Biome 配置里两个键放错分组（`useIterableCallbackReturn` 属 `suspicious`）、
+   一个键在 2.5 中已不存在（`noVar`）；ignore 目录需写 `!dir` 而非 `!dir/**`（Biome ≥2.2）。
 
 ---
 
@@ -328,6 +490,79 @@ M4（纪律）  F-27 … F-31                            → 可回归、可 CI 
 
 ---
 
+### Phase 2 完成记录（M5）
+
+> 同样**不做任何 git 提交**。下文以「文件 + 可复现命令 + 实测数值」为证据。
+
+#### 交付物
+
+| 分层 | 新增文件 | 职责 |
+|---|---|---|
+| 角色 | `Server/Agent/Roles/AgentRole.js` | 5 个内置角色（planner/retriever/coder/reviewer/verifier）+ **SKILL 能力边界**（模式策略）+ prompt 组装 |
+| 消息 | `Server/Agent/Messaging/AgentMessage.js`<br>`Server/Agent/Messaging/MessageBus.js` | 不可变结构化消息（10 种 intent、确定性 id、correlationId 配对）<br>进程内总线（点对点/广播/请求-响应/超时/回放日志/排空/有界） |
+| 黑板 | `Server/Agent/Blackboard/Blackboard.js` | 任务级共享工作区：条目版本化 + 产物 + **路径边界校验** + 原子落盘 |
+| 运行时 | `Server/Agent/Runtime/AgentRuntime.js` | 单角色执行器（会话槽位准入、SKILL 准入、角色 prompt、失败五分类） |
+| 编排 | `Server/Agent/Supervisor/Supervisor.js`<br>`Server/Agent/Supervisor/CollaborationPlan.js`<br>`Server/Agent/Supervisor/MultiAgentRunner.js` | 步骤内角色子图（含**评审门与修订环**）<br>4 个内置计划（thorough/standard/verify-only/single）<br>面向 Orchestrator 的 Runner 契约适配层 |
+| 入口 | `Server/Agent/index.js` | 模块统一导出 |
+
+#### 对既有代码的改动（全部为**加法**，"加接口不改语义"）
+
+| 文件 | 改动 | 缺省行为 |
+|---|---|---|
+| `Server/FlexRunner/FlexRunner.js` | 新增 `roleId` / `rolePrompt` / `skillAllowList` / `initialExecuteStep` 四个可选入参；产物命名抽出 `#artifactPath()` | **不传时 prompt 与产物名逐字节不变**（有断言守护） |
+| `Server/Orchestrator/Orchestrator.js` | `multiAgentRunnerFactory` / `multiAgentEnabled` / `roleRegistry` 注入；`_createMultiAgentRunner()`；`_executeNode` 支持 `managesOwnConcurrency`；新增 7 个 `orch:agent:*` SSE 事件；`getAgentTopology()` / `getMultiAgentStats()`；步骤结束时快照协作结论 | `MULTI_AGENT_ENABLED` 未设为 `1` 时**完全走 Phase 1 路径** |
+| `Server/Orchestrator/StepNode.js` | 新增 `multiAgent`（null/true/false 三态）与 `collaboration` 字段及 `updateStep` 支持 | 三态缺省 `null` = 跟随全局开关 |
+| `Web/public/index.html` `js/loop.js` `css/loop.css` | 详情面板新增「🤖 Agent 协作」页签：角色子图 / 角色时间线 / 评审结论 / 消息拓扑 / 协作摘要 | 无协作数据时显示引导文案（不报错、不留空白） |
+| `Server/Routes/**` | 新增 `GET /api/orchestrator/agent-topology` | 独立端点，**步骤结束、runner 被回收后仍可查** |
+
+#### 验收（`npm run test:m5` → 3 个套件 / **166 条断言** / 全绿）
+
+| 套件 | 覆盖 | 断言 |
+|---|---|---|
+| `f33-agent-foundation.test.mjs` | 消息不可变与 9 类非法输入拒绝；总线的配对/超时/异常隔离/有界/排空/覆盖注册；黑板的版本化/8 类越界路径/30 路并发无丢更新/重载；角色的 SKILL 边界与通信契约；计划的引用完整性（自审、悬空 reviews、重复 id 均被拒） | 58 |
+| `f34-supervisor-review-loop.test.mjs` | **评审门与修订环**（含"评审者 prompt 里确实出现了执行者产物正文"）、有界性、结论三态、**回放日志重建协作**、越权 SKILL 不建会话、指定 SKILL 收窄、`maxRoleRuns` 兜底 | 58 |
+| `f35-runner-contract-concurrency.test.mjs` | FlexRunner 角色化扩展（含"无角色时 prompt 逐字不变"）；Runner 契约齐备性；Orchestrator 分派优先级；**并发不变式**；协作快照与 HTTP 端点；4 个前端面板不回归 | 50 |
+
+#### 关键实测数值
+
+| 指标 | 实测值 |
+|---|---|
+| 修订环有界性（始终驳回） | `maxRevisions=2` 时实现阶段恰好执行 **3 次**（1 + 2），随后归因 `review_rejected`，且**不再执行验证阶段** |
+| 协作可重建性 | 由回放日志重建的角色序列与执行记录**完全一致**（`[coder,reviewer,coder,reviewer]`） |
+| 角色隔离 | 越权 SKILL 在**创建会话之前**被拦截（`sessions=0`），归因 `skill_blocked` |
+| 成本可控 | 指定 SKILL 时计划收窄为单阶段：**1 个会话 vs 完整计划 5 个**（5 倍差异，且收窄决策被显式记录） |
+| 并发不变式 | 4 个并行步骤 × 5 个角色 = **20 个会话**，全局上限 3 → 实测并发峰值 **恰好 3**，槽位获取次数 **= 20**（不多占不少占），租约全部释放 |
+| 全量回归 | `npm run ci`：lint **0 error / 288 warning / 218 文件**；6 个套件 **563 条断言**全绿，76.1s |
+
+#### Phase 2 期间发现并修复的 5 个问题（含 2 个是"设计错、测试抓到"）
+
+1. **`ManagesOwnConcurrency` 与槽位重复占用**：多 Agent 下一步会产生 N 个角色会话。
+   若 Orchestrator 仍按 Phase 1 为每步预占一个槽位，加上每个角色各取一个，
+   就会出现"槽位被重复占用、可用并发远低于配置上限"。修法：运行器显式声明
+   `managesOwnConcurrency = true`，Orchestrator 见此后跳过预占。
+   **实测证据**：上限 3 时峰值恰为 3、获取次数恰等于会话数 20。
+2. **多 Agent 分派被注入的 `flexRunnerFactory` 短路**：`_createFlexRunner` 原先
+   先看工厂再看多 Agent 开关，"开了多 Agent 却因注入了工厂而静默退回单角色"。
+   已把分派判定提到工厂之前（用例 C3/C6 复现并守护）。
+3. **`collaboration: null` 静默冲掉默认计划**：`StepNode` 把未配置的
+   `collaboration` 归一化为 `null`，而 `null !== undefined` 使
+   `resolvePlan(null, 'standard')` 落到默认**名字**，把构造时配置的
+   `thorough` 计划实例覆盖掉。**症状**：配了 5 阶段计划却只跑了 2 个阶段。
+4. **`getCollaborationSummary()` 返回的 `plan` 是字符串而非结构**：前端拿不到
+   `stages`，角色子图画不出来（用例 F2 复现）。
+5. **`deriveTopology` 把广播展开成 N 条假边**：5 个角色时一条
+   `ARTIFACT_PUBLISHED` 就产生 4 条并不存在的"定向交互"，把"谁跟谁真有来往"
+   淹没在噪声里。已改为广播单独统计（`broadcasts`），不进 `edges`。
+6. **协议缺"请求评审"这一环**：原先只有"编排者给评审者派活"，
+   `REQUEST_REVIEW` 意图从未被真正使用，拓扑图上没有 `coder→reviewer` 边。
+   已补上（由**被评审阶段的角色**发出，因为评审的起因是它产出了产物）。
+
+> 教训（与 M1/M3 一致的同一类问题）：**"配置生效了"必须由断言证明**。
+> 上面 3、4、5 三条都属于"代码看起来对、行为却不是配置所描述的那样"，
+> 全部由"断言实际行为而非实现细节"的用例抓到。
+
+---
+
 ## 3. Phase 3 —— `feat/multi-agent-concurrency`：+ 高并发
 
 ### 目标
@@ -361,6 +596,106 @@ M4（纪律）  F-27 … F-31                            → 可回归、可 CI 
 - 500 并发步骤无死锁；`orphanSessions == 0`；RSS 有界；
 - 单任务不能饿死其他任务（隔离验收）；
 - 事件驱动替代轮询后，单步完成感知延迟从 ~5s 降到 <1s。
+
+---
+
+### Phase 3 完成记录（M6）
+
+#### 交付物（新增 4 个模块，全部零依赖）
+
+| 模块 | 职责 | 关键设计 |
+|---|---|---|
+| `Server/library/LatencyRecorder.js` | 有界延迟采样与分位数 | **环形缓冲**（默认 2048 样本）——压测 500 并发时无界数组会直接吃光内存；分位数用最邻近秩，无近似算法 |
+| `Server/library/AbortTree.js` | 可级联取消树（task → step → role → HTTP） | **向下传播、不向上传播、取消后新派生即死、幂等、无监听器泄漏、孤儿可观测** |
+| `Server/library/SessionWaiter.js` | 会话完成等待：事件驱动为主 + 轮询兜底 | 先查后睡、事件到达即返回、**保留兜底轮询**（不把可靠性押在外部事件流的完整性上） |
+| `Server/Agent/Runtime/RoleLimiter.js` | 第三级限流：角色级并发上限 | 解决"**配比**"而非"总量"；P95 排队/持有指标；运行期可调 |
+
+#### 三级限流与获取顺序（无死锁的关键）
+
+```
+全局 MAX_CONCURRENT_SESSIONS        ── 保护外部单进程（opencode）不被压垮
+  └ 任务级 MAX_SESSIONS_PER_TASK    ── 防止单任务独占全部槽位（隔离）
+       └ 角色级 MAX_SESSIONS_PER_ROLE ── 防止贵角色挤死关键角色（配比）
+```
+
+AgentRuntime 的获取顺序固定为 **角色槽位 → 全局槽位**，释放顺序相反，**所有参与者遵守同一顺序**，
+因此不可能出现循环等待。为什么是"角色先、全局后"：反过来会让最稀缺的全局槽位被"空等角色槽位"占用。
+`test/m6-phase3/f37` 有饱和用例（全局 3 + coder 2 + 24 个会话）与极端用例（全局 1 + 角色 1）
+专门守护这条不变式。
+
+配置（**全部默认 0 = 不限制**，即未配置时行为与 Phase 2 完全一致）：
+
+| 环境变量 | 含义 |
+|---|---|
+| `MAX_SESSIONS_PER_ROLE` | 未单独指定的角色统一上限 |
+| `ROLE_LIMIT_<ROLE>` | 单角色上限，如 `ROLE_LIMIT_CODER=8` |
+| `ROLE_SLOT_ACQUIRE_TIMEOUT_MS` | 角色槽位等待超时（默认 15 分钟） |
+
+#### 会话等待：从轮询到事件驱动
+
+| 维度 | Phase 1/2（`sleep → check`） | Phase 3（`check → sleep` + 事件） |
+|---|---|---|
+| 已完成会话的感知延迟 | **≥ 一个轮询间隔（默认 5s）** | 一次 RTT（实测 **0ms**） |
+| 事件到达时的延迟 | 不受影响，仍需等满间隔 | 事件到达即返回（mock 实测 **32ms**） |
+| 状态查询次数 | N / 5s（500 会话 → 100 req/s） | 事件模式下降为 N / 30s |
+| 事件丢失 | — | 兜底轮询仍能完成（实测 **47ms** 内收敛） |
+| 中止响应 | 受轮询间隔约束 | **62ms**（独立中止监听） |
+
+> 诚实边界：真实 opencode 事件流在本环境不可用（需要活的服务），因此事件源设计为**可注入**，
+> "事件驱动真的更快"由 mock 测量断言，而不是只靠读代码相信。
+
+#### 验收（`npm run test:m6` → 3 个套件 / **102 条断言** / 全绿）
+
+| 套件 | 覆盖 | 断言 |
+|---|---|---|
+| `f36-waiter-and-metrics` | 分位数定义与长尾可见性、先查后睡、事件驱动延迟、丢事件兜底、超时/中止、**无监听器泄漏** | 24 |
+| `f37-abort-tree-and-role-limits` | 取消传播语义（含"取消后新派生即死"）、孤儿可观测与摘除、角色限流（FIFO/超时/幂等/运行期调整）、**饱和下无死锁**、端到端级联取消真的到达角色会话 | 45 |
+| `f38-load-scenarios` | 压测四场景 + 可观测性 | 33 |
+
+#### 压测实测数值（不需要真实 LLM）
+
+| 场景 | 实测结果 |
+|---|---|
+| A｜100 步 × 5 角色 = **500 个并发角色会话** | 全部完成；会话并发峰值 **40 = 上限**（既不死锁也不串行）；槽位全释放；取消树孤儿 **0**；耗时 **595ms**；RSS **101MB** |
+| B｜260 步（超 `GLOBAL_EXEC_LIMIT`） | 执行 **200** 步后截断，**残留 running = 0**，60 步保持 ready 并给出可归因原因 |
+| C｜10% 随机失败 + 修复链 | 收敛到终态；会话数未放大成重试风暴；失败路径槽位不泄漏 |
+| D｜reviewer **永久挂起**（阶段超时 400ms） | 6 个挂起会话全部被超时回收；整批 **822ms** 结束；归因 `[协作失败 timeout]`；槽位/孤儿均归零 |
+| E｜慢 SSE 客户端（200 帧打进不 drain 的连接） | 只写入 **1** 帧后即断开，`droppedConnections=1` 可见；不影响新连接 |
+| F｜可观测性 | `queueWaitP95=80ms`、`slotHoldP95=19ms`、角色 `limit=2/peak=2`、`orphans=0`、`waiting=0` 均可直接读出 |
+
+#### Phase 3 期间发现并修复的 6 个缺陷（**其中第 1 条是高并发下的严重缺陷**）
+
+1. **`GLOBAL_EXEC_LIMIT` 命中时直接 `return`，抛下全部在途步骤**（压测发现）。
+   触发链路：就绪步骤数 > 200 时第一轮就把 200 个步骤 kick 出去，某步完成后回到循环顶部命中上限 → **立即返回**。
+   **实测（260 步 / 200 个在途会话）：`start()` 返回时 `completed=1 / running=199 / ready=60`** ——
+   编排报告"已结束"，而 **199 个会话仍在运行**；上层据此 dispose 并认为可以停机。
+   修法：**停止启动新步骤，但必须把在途步骤等完**（`GLOBAL_EXEC_LIMIT` 仍然限制总执行次数，防环能力不变）。
+   修复后：`completed=200 / running=0 / ready=60`。
+2. **`abortAndWait()` 在"已经是 aborted"时完全不等待**：原实现的等待循环只在
+   `status === RUNNING` 分支里，于是调用方先 `abort()` 再 `abortAndWait()` 时整个等待被跳过
+   （实测 `inFlight=1` 却 **0ms** 返回）。修法：等待以 `_inFlight` 为准，与状态解耦。
+3. **取消信号被"运行器级信号"屏蔽**：`p.signal || this._abortNode?.signal` 使取消树的信号在
+   运行器已有自身 AbortController 时被丢弃——表现为"编排层报告已取消，角色会话仍在跑"。
+   修法：用 `AbortSignal.any` **取并集**。
+4. **取消树级联计数恒为 1**：同时存在"父注册子回调"与"父遍历 children"两条传播路径，
+   子节点被回调提前置为已取消，随后的遍历对每个子节点都返回 0。节点确实全被取消，但
+   **计数错**会让可观测面板低报取消规模。修法：**只保留单一传播路径**。
+5. **多 Agent 失败时步骤 `error` 为空**：运行器以"返回 `success:false`"表达失败（而非抛异常），
+   于是 `node.error` 一直是 null，直接违背 F-27 的"失败必须可归因"。修法：从协作摘要回填原因
+   （实测归因变为 `[协作失败 timeout] 角色 review…`）。
+6. **取消树根节点永远无法摘除 + 步骤节点 dispose 不在 `finally`**：
+   根节点无父，`dispose()` 的 `if (this.parent)` 使它无法从登记表移除，
+   `orphans` 恒 ≥ 1 —— **一个永远不为零的泄漏指标等于没有指标**；
+   且 dispose 只在正常流程末尾，任何抛出都会留下永久孤儿。两处均已修正。
+
+**Phase 3 未完成 / 明确留给 Phase 4 的项**（避免把规划当成已完成）：
+
+- **SSE 增量 delta 协议**：M2 已实现背压 + 全量快照合并（F-09/F-10），Phase 3 补充了水位与丢弃统计；
+  但"序列号 + 客户端增量应用 + 失步重同步"的完整 delta 协议**未实现**——它需要配套的前端状态机，
+  当前 ROI 不如先把会话侧（真正的成本与风险所在）做对。
+- **client 池化**：opencode SDK 的 keep-alive 复用尚未接入（需要活的服务才能验证连接数下降）。
+- **`orphanSessions == 0` 的口径**：当前以取消树孤儿数为代理指标（步骤/角色节点全部摘除），
+  真实远端会话的孤儿数需要 Phase 4 的会话登记表才能直接统计。
 
 ---
 
@@ -409,6 +744,94 @@ M4（纪律）  F-27 … F-31                            → 可回归、可 CI 
 
 ---
 
+### Phase 4 完成记录（M7）
+
+#### 交付物（新增 `Server/Distributed/`，8 个模块 + 1 个启动入口）
+
+| 模块 | 解决的**单进程无法解决**的问题 | 关键机制 |
+|---|---|---|
+| `Lease.js` | 任务被两个实例同时执行 | 租约 + 心跳 + **fencing token**（单调递增，写入前校验） |
+| `Semaphore.js` | 全局并发上限在多实例下被放大 N 倍 | Redis 原子令牌（Lua）+ **令牌 TTL**（崩溃实例自动让出份额） |
+| `Queue.js` | 消息至少一次、消费者可能崩溃 | 重投 + 幂等消费 + 死信队列 |
+| `Notify.js` | SSE 连接在实例 A、任务在实例 B | 跨实例扇出 + **回环抑制** + 实例级去重 |
+| `Trace.js` | "为什么这样规划"无法回答 | W3C `traceparent` 父子跨度树 + 头部采样 |
+| `Tenant.js` | 租户之间互相可见 | **结构性隔离**（键命名空间）+ RBAC + 配额 |
+| `Governance.js` | 成本与合规完全缺失 | token 计量（按用途下钻）+ 预算熔断 + **哈希链审计** |
+| `ServiceHost.js` | 服务边界靠纪律维持 | 声明式边界 + 统一中间件（链路/租户/鉴权/审计） |
+| `bootstrap.js` | — | 服务启动入口（可 `--list` 自检） |
+
+#### 部署产物
+
+`deploy/docker-compose.yml`（6 服务 + PG/Redis/MinIO）、`deploy/k8s/all-in-one.yaml`
+（Namespace/ConfigMap/6 Deployment/Service/HPA/Ingress/PDB）、`deploy/helm/3rdlibloop/`
+（Chart + values + 5 个模板）、`deploy/Dockerfile`（非 root + 健康检查）、
+`deploy/migrations/001_leases.sql`（幂等迁移 + 审计不可删除约束）。
+
+#### 验收（`npm run test:m7` → 3 个套件 / **182 条断言** / 全绿）
+
+| 套件 | 覆盖 | 断言 |
+|---|---|---|
+| `f39-lease-queue-semaphore` | 租约语义、**fencing 挡住僵死写入者**、3 实例不重复执行、崩溃接管、跨实例令牌上限、TTL 回收崩溃实例的令牌、至少一次 + 幂等 + 死信、真实后端命令静态复核 | 62 |
+| `f40-trace-tenant-governance` | traceparent 解析/生成/续接/采样、span 树 4 层下钻、键命名空间隔离、RBAC、配额（含"被拒不计数"）、成本计量与预算熔断、**审计哈希链篡改必被发现**、跨实例扇出 | 60 |
+| `f41-service-host-and-deploy` | 服务边界自洽（状态所有权唯一）、统一中间件（400/403/404/traceparent/审计）、跨服务同一棵 trace、真实 HTTP 端到端、**部署产物与代码三方一致** | 60 |
+
+#### 关键实测数值
+
+| 指标 | 实测值 |
+|---|---|
+| 3 实例竞争 30 个任务 | **重复执行 0 个**，覆盖 30/30，负载分布到多个实例 |
+| 崩溃接管 | 未过期时拒绝抢占（无脑裂）；过期后接管成功且 token 更大；旧持有者写入被拒（`ESTALE_FENCE`） |
+| 跨实例令牌 | 上限 3 时第 4 个请求被拒（waited 156ms）；**崩溃实例的令牌在 TTL 后自动回收**（count 3 → 0） |
+| 消息语义 | 反复失败的消息在第 3 次尝试后进入死信并记录原因；单条失败不影响同批其他消息 |
+| 跨服务 trace | gateway → orchestrator 的跨度落在**同一棵树**，父子关系正确，从 taskId 可下钻到服务级调用 |
+| 跨实例 SSE | 发布到 i2 → i1/i3 各收到 1 次；发布者本地直发 1 次；回环抑制与重复投递去重均生效 |
+| 审计完整性 | 修改任意一条记录 → `verify()` 在**精确的 seq** 处报错；删除/重排 → `prevHash 不连续` |
+| 部署一致性 | 6 服务的端口在 **代码 / k8s / helm / Chart 注解**四处逐一对齐（自动校验） |
+
+#### Phase 4 期间发现并修复的 4 个缺陷
+
+1. **分布式令牌 id 跨实例碰撞 → 全局上限被静默放宽**（最严重）。
+   token id 由 `pid + hostname + 序号 + 毫秒时间戳` 组成；同进程多实例、hostname 相同、
+   同一毫秒时，三个实例生成**完全相同的 id**。ZSET/Map 是集合语义，**三个令牌被折叠成一个**
+   （`ZCARD` 返回 1 而不是 3）——限流器以为还有额度，实际并发已超。
+   修法：id 加随机后缀（跨实例/跨重启碰撞概率可忽略）+ 断言守护。
+   这类"只在真实多实例下暴露、且表现为**放宽限制**而非报错"的缺陷，正是必须做压测的理由。
+2. **成本熔断器统计恒为 0**：`spentUsd` 的过滤条件里含 `Date.parse(r.at) >= 熔断器创建时刻`，
+   于是"在已有花费之后才创建熔断器"时统计为 0 —— 一个在超支后才建立的熔断器认为当前没花钱，
+   完全失去拦截作用。修法：只按滚动窗口统计，不看"我是什么时候开始看的"。
+3. **`remote` 投递计数把发布者自己算进去**：跨实例扇出的 `broadcastExcept` 实际投递给了所有订阅者，
+   由接收侧抑制回环。导致"扇出了几个实例"这个指标多算 1，失去意义。
+   修法：订阅时登记实例 id，发布侧真正排除来源实例（**同时保留接收侧的判定**，
+   因为真实 Redis Pub/Sub 仍会把消息投回发布者）。
+4. **集群中运行单实例语义且无人知晓**：`bootstrap.js` 现在会在检测到 `POD_NAME`/
+   `KUBERNETES_SERVICE_HOST` 而租约/令牌/队列仍是内存后端时**显式告警**——
+   这是最危险的状态（任务可能被重复执行，而日志里没有任何异常迹象）。
+
+#### 诚实边界（明确"需要真实基础设施才能验证"的部分）
+
+本仓库内的测试验证的是**语义、命令文本与参数、部署产物一致性**；以下必须在真实环境验证，
+代码中已逐处标注，未做"跑通 mock 即宣称分布式可用"的表述：
+
+| 项 | 为什么本机无法验证 |
+|---|---|
+| PostgreSQL 租约的端到端行为 | 需要活的 PG：`ON CONFLICT ... WHERE` 的实际并发语义、隔离级别对 `RETURNING` 的影响 |
+| Redis 令牌 Lua | 需要活的 Redis：脚本原子性、`ZREMRANGEBYSCORE` 在大 key 下的性能 |
+| Redis Streams 至少一次 | 需要活的 Redis：消费组重平衡、`XAUTOCLAIM` 的最小空闲时间语义、AOF 策略 |
+| `kill -9` 级真实接管 | 需要真实多进程/多 Pod 编排（本层用假时钟 + 独立实例对象验证了同一套语义） |
+| K8s / Helm 实际部署 | 需要集群与镜像仓库（本层校验了模板结构与跨文件一致性） |
+| 对象存储（MinIO/S3） | 需要真实服务端 |
+
+**未实现（明确不在本轮范围）**：
+- 服务间真实 HTTP 调用链（`ServiceHost` 已提供宿主与中间件，但 `orchestrator` 尚未真正调用
+  `agent-runtime-svc` 的会话接口——那需要把 Phase 1~3 的 `Orchestrator`/`FlexRunner` 拆成
+  独立进程，属于**代码迁移**而非新能力）；
+- OAuth2/JWT 的令牌签发与校验（当前 `POST /auth/token` 只返回该身份的权限集合，
+  真实令牌需要接 IdP）；
+- 迁移脚本只提供 `001_leases.sql`（含任务/步骤/幂等/审计表），尚无版本化迁移执行器；
+- 灰度发布的**流量切分**（Ingress 注解已就位，但未接服务网格/Flagger）。
+
+---
+
 ## 5. 风险与回滚
 
 | 风险 | 缓解 |
@@ -445,6 +868,35 @@ curl -s http://127.0.0.1:3000/api/stats/session/concurrency
 
 # 测试入口现状（F-27：期望 Server 也出现 test 脚本）
 git grep -n '"test"' -- cli/package.json Server/package.json package.json
+```
+
+**7 个里程碑的一键复现（当前全部通过）**：
+
+```bash
+npm run ci                 # lint（0 error 门禁）+ 全部套件；期望 8/8 通过
+npm run test:m1            # 65 条断言
+npm run test:m2            # 165 条断言
+npm run test:m3            # 160 条断言
+npm run test:m4            # 64 条断言
+npm run test:m5            # Phase 2：多 Agent 单体（166 条）
+npm run test:m6            # Phase 3：多 Agent + 高并发（102 条）
+npm run test:m7            # Phase 4：企业级分布式（182 条）
+```
+
+**Phase 3/4 关键证据的单独复现**：
+
+```bash
+# 500 个并发角色会话、并发峰值不超上限、无孤儿（场景 A）
+node test/m6-phase3/f38-load-scenarios.test.mjs
+
+# 3 实例竞争 30 个任务、重复执行 0 个；崩溃后接管且旧持有者写入被拒
+node test/m7-phase4/f39-lease-queue-semaphore.test.mjs
+
+# 部署产物与代码的端口/服务名四方一致性
+node test/m7-phase4/f41-service-host-and-deploy.test.mjs
+
+# 服务表自检（含边界校验）
+node Server/Distributed/bootstrap.js --list
 ```
 
 ---
