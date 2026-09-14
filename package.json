@@ -3,6 +3,9 @@
     "version": "1.0.0",
     "type": "module",
     "private": true,
+    "scripts": {
+        "test:m1": "node test/m1/run-all.mjs"
+    },
     "dependencies": {
         "@opencode-ai/sdk": "^1.18.6",
         "better-sqlite3": "^13.0.1"
