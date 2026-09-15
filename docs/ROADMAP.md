@@ -21,7 +21,7 @@ git remote -v   # 应只输出 origin 两行，且 URL 一致
 禁止：新增第二 remote、`git config url.<x>.insteadOf` 重写、把 `cli/package.json` 的
 `homepage/repository/bugs` 指向其它命名空间（当前仍指向旧的 `lalhanOrz`，见 F-19）。
 
-### 0.2 分支模型
+### 0.2 分支模型（⚠️ 已被取代 —— 见 §0.3，保留以记录原始意图）
 
 | 分支 | 基线 | 内容 | 说明 |
 |---|---|---|---|
@@ -42,33 +42,63 @@ git merge main feat/multi-agent-monolith   # 拉齐前置成果
 **合并方向**：只允许 `下游 → 上游`（Phase 4 → 3 → 2 → main）单向合入修复；
 反方向只允许 cherry-pick 缺陷修复，不允许整体回灌，避免架构回退。
 
-### 0.3 本轮执行模式（重要，与上表 0.2 的差异）
+### 0.3 实际执行方式：main 单线（取代 §0.2 的堆叠分支）
 
-用户明确要求：**全部改动留在本地工作区，不做任何 git 提交、不做任何推送**。
-因此本轮的执行方式与 0.2 的"分支模型"存在一处**刻意的偏离**：
+**结论先说**：M1~M7 全部落在 `main` 一条线上，**没有使用 §0.2 的堆叠分支模型**。
+远端 `feat/multi-agent-monolith` / `-concurrency` / `-distributed` 三个分支仍停在
+`79bab0b`（本轮开工前的提交），**从未被使用，也不再需要**。此处如实说明成因，
+而不是把规划写成既成事实。
 
-| 0.2 的规划 | 本轮的实际情况 |
+**为什么没有按分支开发**：
+
+1. 本轮开工时用户明确要求"全部改动留在本地工作区，不做任何 git 提交、不推送远端"，
+   因此不具备切换/合并分支的前提；
+2. 后来用户授权提交推送时，能力已经是**在同一条时间线上逐层累加**完成的
+   （Phase 2 的多 Agent、Phase 3 的高并发、Phase 4 的分布式各自新增独立目录，
+   并在少量共享文件上加接入点）。此时再补出堆叠分支属于**事后重建历史**。
+
+**为什么"按目录拆分支"也不可行**（实测，不是推测）：
+
+```bash
+# Orchestrator.js 对 Phase 3 模块是**静态** import，且在模块顶层实例化：
+#   import { AbortTree } from '../library/AbortTree.js';
+#   import { RoleLimiter } from '../Agent/Runtime/RoleLimiter.js';
+#   const globalRoleLimiter = new RoleLimiter();
+# 因此"monolith 分支 = main 去掉 Phase 3/4 目录"会让模块直接加载失败：
+$ node -e "import('./Server/Orchestrator/Orchestrator.js')"   # 删掉上述两文件后
+ERR_MODULE_NOT_FOUND
+```
+
+也就是说，**真正的堆叠分支必须逐分支回退共享文件里的后续阶段改动**，
+而不是删除目录。那会得到 3 份分叉的 `Orchestrator.js` / `FlexRunner.js` / `AgentRuntime.js`——
+对于一次连续演进而言，这是长期分支税（后续每个缺陷修复都要挑 4 次），
+收益低于成本，因此不做。
+
+**替代方案：如何按阶段回溯**（本文件与提交共同承担 §0.2 原本的作用）
+
+| 想要的效果 | 现在怎么做 |
 |---|---|
-| 每个 Phase 一个分支，堆叠合并 | **不创建、不切换分支**；`HEAD` 停在 `main` 的 `48bea61` |
-| 通过 `git log` 追溯每个 Phase | 通过**目录边界 + 测试套件 + 本文件的完成记录**追溯 |
-| 通过分支隔离 Phase 2/3/4 代码 | 通过**目录前缀与可逆开关**在 `main` 工作区内隔离（见下） |
+| 只看 Phase 1 修复（M2/M3） | `git show deb9ad5` / `npm run test:m2`、`test:m3` |
+| 只看 Phase 2 多 Agent | `git show 8051367` / `npm run test:m5` |
+| 只看 Phase 3 高并发 | `git show af059e8` / `npm run test:m6` |
+| 只看 Phase 4 分布式 | `git show e497ad1` / `npm run test:m7` |
+| 只看工程纪律/CI | `git show bf69e5a` |
+| 按能力定位代码 | `Server/Agent/`（协作）、`Server/Distributed/`（分布式）、<br>`Server/library/{AbortTree,SessionWaiter,LatencyRecorder}.js`、`deploy/` |
+| 隔离开关（默认关闭，行为与 Phase 1 一致） | `MULTI_AGENT_ENABLED` / `MAX_SESSIONS_PER_ROLE` / `DISTRIBUTED_ENABLED` |
 
-**隔离手段（替代分支）**：
+**保留的隔离手段（与分支无关，仍然有效）**：
 
-1. **目录边界**：Phase 2/3/4 的新增能力各自落在独立目录
-   （`Server/Agent/`（协作）、`Server/Cluster/`、`Server/Distributed/`），
-   对现有 `Server/Orchestrator`、`Server/FlexRunner` 的改动保持"**加接口、不改语义**"。
-2. **能力开关（默认关闭，保证 Phase 1 行为不变）**：
-   `MULTI_AGENT_ENABLED` / `CLUSTER_ENABLED` / `DISTRIBUTED_ENABLED`。
-   每一项默认 `0`，即未显式开启时**行为与 Phase 1 完全一致**，
-   现有 5 个套件必须继续全绿（这是"不回归"的机器判定）。
-3. **测试按 Phase 分目录**：`test/m5-phase2/`、`test/m6-phase3/`、`test/m7-phase4/`
-   与 Phase 1 的 `test/m1..m4` 平行，互不干扰。
-4. **可切分性**：所有改动集中在上述目录 + 少量明确标注的接入点，
-   将来若要真正落分支，可按目录一次性 `checkout -b` 后 `git add <dir>` 拆分，无需重写代码。
+1. **目录边界**：Phase 2/3/4 的新增能力各自落在独立目录，对 `Orchestrator`、`FlexRunner`
+   的改动保持"**加接口、不改语义**"；
+2. **能力开关默认关闭**：未显式开启时行为与 Phase 1 完全一致——这是"不回归"的机器判定
+   （8 个套件 847 条断言在关闭态全绿）；
+3. **测试按阶段分目录**：`test/m5-phase2/`、`test/m6-phase3/`、`test/m7-phase4/`
+   与 `test/m1..m4` 平行，互不干扰；
+4. **提交按阶段切分**：见上表；共享文件的多阶段接入点集中在其所属阶段的提交里
+   （无法在不重写文件的前提下按阶段拆开，已在对应提交信息中注明）。
 
-**本文件的记录口径**：因无 commit，完成记录一律以
-「文件路径 + 可复现命令 + 实测数值」为证据，不使用 commit hash。
+**若将来确实需要并行开发多个阶段**：应从 `main` 重新开分支（而不是复活
+`79bab0b` 上的旧分支），并按 §0.2 的合并方向单向合入。
 
 ---
 
@@ -304,9 +334,20 @@ M7（Phase 4）多 Agent + 高并发 + 企业级分布式         → 可水平�
 | M7（Phase 4） | ✅ | 182 | 本文 §4 Phase 4 完成记录 |
 | 引擎单元测试 | ✅ | — | `npm run test:unit` |
 
-> **分支说明**：本节原本约定"每个 M 结束打 tag / 每 Phase 一个分支"。本轮按用户要求
-> **不做任何 git 提交、不创建分支**，因此全部改动留在本地工作区，
-> 以「文件 + 可复现命令 + 实测数值」作为追溯依据（见 §0.3）。
+> **提交说明**：M1~M7 全部提交在 `main` 一条线上（未使用 §0.2 的堆叠分支，
+> 原因与替代方案见 §0.3）。本轮共 6 个提交，按阶段切分，可逐段回溯：
+>
+> | 提交 | 阶段 | 对应套件 |
+> |---|---|---|
+> | `bf69e5a` | M4 工程纪律与 CI 门禁（F-27~F-32） | `test/m4` |
+> | `deb9ad5` | Phase 1 收尾：M2 并发正确性 + M3 正确性 | `test/m2`、`test/m3` |
+> | `8051367` | Phase 2 多 Agent 单体架构（M5） | `test/m5-phase2` |
+> | `af059e8` | Phase 3 多 Agent + 高并发（M6） | `test/m6-phase3` |
+> | `e497ad1` | Phase 4 企业级分布式微服务（M7） | `test/m7-phase4` |
+> | `2770879` | 本文档的完成记录 | — |
+>
+> M1 的 5 个修复提交在更早的 `6aa1059`…`48bea61`（本轮开工前已在本地，随本次一并推送）。
+> 每一条完成记录都给出「文件 + 可复现命令 + 实测数值」，commit 只是附加的定位手段。
 
 ---
 
@@ -328,8 +369,7 @@ M7（Phase 4）多 Agent + 高并发 + 企业级分布式         → 可水平�
 
 ### M2 完成记录
 
-> 本轮**不做任何 git 提交**（用户要求改动全部留在本地工作区），因此下表以
-> "文件 + 测试" 而非 commit 作为追溯依据。
+> 提交 `deb9ad5`（M2/M3 的共享文件改动见该提交信息末尾的粒度说明）。
 
 | 编号 | 核心改动 | 验收 |
 |---|---|---|
@@ -400,7 +440,7 @@ CLI/AGENTS.md 无漂移、DbUse 的语句缓存已随 F-18 变为真实、README
 
 ### M4 完成记录（全部 6 项）
 
-> 同样**不做任何 git 提交**，以「文件 + 可复现命令」作为追溯依据。
+> 提交 `bf69e5a`（`test:m1..m4` 当时写的就是这四个脚本名，M5~M7 的入口在各自阶段补入）。
 
 | 编号 | 核心改动 | 验收 |
 |---|---|---|
@@ -492,7 +532,7 @@ npm run coverage
 
 ### Phase 2 完成记录（M5）
 
-> 同样**不做任何 git 提交**。下文以「文件 + 可复现命令 + 实测数值」为证据。
+> 提交 `8051367`。下文以「文件 + 可复现命令 + 实测数值」为证据。
 
 #### 交付物
 
@@ -600,6 +640,8 @@ npm run coverage
 ---
 
 ### Phase 3 完成记录（M6）
+
+> 提交 `af059e8`。
 
 #### 交付物（新增 4 个模块，全部零依赖）
 
@@ -745,6 +787,8 @@ AgentRuntime 的获取顺序固定为 **角色槽位 → 全局槽位**，释放
 ---
 
 ### Phase 4 完成记录（M7）
+
+> 提交 `e497ad1`。
 
 #### 交付物（新增 `Server/Distributed/`，8 个模块 + 1 个启动入口）
 
@@ -908,4 +952,7 @@ node Server/Distributed/bootstrap.js --list
 | 2026-09-04 | 初版 | 修复计划 P0/P1/P2/P3 + 三阶段架构演进 |
 | 2026-09-04 | 补充 F-32 | 推送验证时实测发现 `core.autocrlf=true` 且无 `.gitattributes` |
 | 2026-09-04 | **修正 F-20** | **原 F-20 声称 `Server/package.json`、`cli/package.json`、`.gitignore` 存在"编码损坏（乱码）"。经字节级复核，四个文件**均为合法 UTF-8、中文内容正确**，先前观察到的乱码是 PowerShell 控制台按遗留代码页解码 UTF-8 字节的**显示假象**。F-20 已改写为真实的元数据漂移问题（`cli/package.json` 仓库地址仍指向旧命名空间 `lalhanOrz`）。教训：控制台输出的编码结论必须用字节级/工具级复核，不能直接采信。 |
+| 2026-09-05 | 补齐 M4~M7 完成记录 | 新增 M4 / Phase 2（M5）/ Phase 3（M6）/ Phase 4（M7）四段完成记录：交付物、对既有代码的加法改动、断言分布、可复现实测数值，以及每阶段发现并修复的缺陷（含 M6 的 `GLOBAL_EXEC_LIMIT` 抛下 199 个在途步骤、M7 的分布式令牌 id 碰撞导致全局上限被静默放宽）。 |
+| 2026-09-05 | **§0.2 分支模型被取代** | 记录实际执行方式为 `main` 单线（M1~M7 共 13 个提交），并如实说明未使用堆叠分支的成因；附实测证据说明"按目录拆分支"不可行（`Orchestrator.js` 静态 import `AbortTree`/`RoleLimiter`，删目录即 `ERR_MODULE_NOT_FOUND`），以及替代的分阶段回溯方式（提交 + 测试目录 + 开关）。 |
+| 2026-09-05 | Phase 4 的诚实边界 | 明确列出**必须真实基础设施才能验证**的项（PostgreSQL `ON CONFLICT` 并发语义、Redis Lua 原子性、`kill -9` 级接管、K8s/Helm 实际部署、对象存储）与**未实现**项（服务间真实 HTTP 调用链、OAuth2/JWT 签发、版本化迁移执行器、灰度流量切分），避免把"跑通 mock"表述为"分布式可用"。 |
 
