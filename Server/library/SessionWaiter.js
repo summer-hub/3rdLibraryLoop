@@ -186,8 +186,18 @@ export class SessionWaiter {
 
             // ③ 轮询（事件模式下用更大的兜底间隔）
             const interval = this._subscribe ? this._safetyPollMs : this._pollIntervalMs;
+
+            // 停止开关：`wait()` 一旦返回（超时/事件/中止任一），轮询循环必须尽快退出。
+            // 原实现没有这个开关——`Promise.race` 不会停掉落败者，于是超时返回后
+            // 轮询循环仍会每 interval 打一次 `checkSessionStatus`（默认 5s，永久），
+            // 并钉住 SessionWaiter → FlexRunner → CLIController 整条对象图，
+            // `runner.dispose()` 也释放不掉。所有退出路径共用 finally 里的 cleanups。
+            const stopToken = { stopped: false };
+            cleanups.push(() => { stopToken.stopped = true; });
+
             const pollPromise = this._pollLoop(
-                sessionId, interval, isAborted, () => { polls++; this._stats.polls++; }
+                sessionId, interval, () => stopToken.stopped || isAborted(),
+                () => { polls++; this._stats.polls++; }
             );
 
             // ④ 中止监听（立刻返回，不必等下一次轮询）
@@ -226,13 +236,38 @@ export class SessionWaiter {
                 return { completed: true, mode: 'poll', waitedMs, polls, events, reason: winner.reason || 'poll' };
             }
             if (winner?.via === 'no-subscribe') {
-                // 订阅失败：本次已退化为轮询，继续等待轮询结果（不误报完成）
-                const r = await pollPromise;
-                this._stats.pollWins++;
-                return {
-                    completed: true, mode: 'poll', waitedMs: Date.now() - t0,
-                    polls, events, reason: r?.reason || 'poll-completed'
-                };
+                // 订阅失败：本次已退化为轮询。
+                //
+                // ⚠️ 这里**不能**直接 `await pollPromise`（原实现）：
+                //   1. 那会绕开 `Promise.race` 里的超时，timeoutMs 形同失效 ——
+                //      会话永不完成时 `wait()` 永不返回，全局/每任务槽位被永久占用
+                //      （正是 F-06 要防的"僵死会话饿死整进程"）；
+                //   2. 返回值硬编码 `completed: true`，把"轮询因中止而退出"
+                //      误报成"已完成"，调用方会去读一个并不存在的产物。
+                // 因此把轮询重新放回"超时 + 中止"的约束之下，并按实际原因归因。
+                const guards = [pollPromise];
+                if (timeoutMs > 0) {
+                    guards.push(new Promise((resolve) => {
+                        const t = setTimeout(() => resolve({ via: 'timeout' }), timeoutMs);
+                        cleanups.push(() => clearTimeout(t));
+                    }));
+                }
+                if (abortPromise) guards.push(abortPromise);
+
+                const r = await Promise.race(guards);
+                if (r?.via === 'poll') {
+                    this._stats.pollWins++;
+                    return {
+                        completed: true, mode: 'poll', waitedMs: Date.now() - t0,
+                        polls, events, reason: r.reason || 'poll-completed'
+                    };
+                }
+                if (r?.via === 'aborted') {
+                    this._stats.aborted++;
+                    return { completed: false, mode, waitedMs: Date.now() - t0, polls, events, reason: 'aborted' };
+                }
+                this._stats.timeouts++;
+                return { completed: false, mode, waitedMs: Date.now() - t0, polls, events, reason: 'timeout' };
             }
             if (winner?.via === 'timeout') {
                 this._stats.timeouts++;

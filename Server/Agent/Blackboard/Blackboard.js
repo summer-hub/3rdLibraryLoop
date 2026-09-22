@@ -507,9 +507,17 @@ export class Blackboard {
             history: Object.fromEntries([...this.#history.entries()].map(([k, v]) => [k, structuredClone(v)]))
         };
 
-        await withSerializedLock(`blackboard:${this.taskDir}`, async () => {
-            await writeJsonAtomic(this.indexPath, snapshot);
-        });
+        try {
+            await withSerializedLock(`blackboard:${this.taskDir}`, async () => {
+                await writeJsonAtomic(this.indexPath, snapshot);
+            });
+        } catch (err) {
+            // 写失败必须把脏标记**放回去**：否则 `flush()` 下次会因 `!#dirty` 直接返回 false，
+            // 这次更新将永远不落盘（直到别的 put() 再次置脏）——一次瞬时 EPERM/ENOSPC
+            // 就静默丢掉整份协作记录。
+            this.#dirty = true;
+            throw err;
+        }
         this.#stats.flushes++;
         return true;
     }

@@ -1380,6 +1380,36 @@ class FlexRunner {
     }
 
     /**
+     * 注入外部取消源（AbortSignal）—— Phase 2/3 的取消闭环。
+     *
+     * `AgentRuntime` 会把「运行器级信号 ∪ 取消树信号」合并后下发
+     * （见 `AgentRuntime._runWithAdapter`）。FlexRunner 此前**没有**这个公开方法，
+     * 于是合并后的信号被静默丢弃，只剩 `controlExecution('abort')` 这一条路径；
+     * 而那条路径在"角色还在排队等槽位"时打不到（此时还没有 adapter），
+     * 结果是取消后仍会新建会话。这里把外部信号接到本实例的取消流程上。
+     *
+     * @param {AbortSignal} signal
+     * @returns {void}
+     */
+    setAbortSignal(signal) {
+        if (!signal || typeof signal.addEventListener !== 'function') return;
+
+        const forward = () => {
+            // 幂等：已终止过就不再走一遍（避免重复 abortSession / 重复落盘）
+            if (this.#aborted) return;
+            this.controlExecution(ControlType.ABORT).catch((err) => {
+                this._log('warn', `外部取消源触发终止失败: ${err.message}`);
+            });
+        };
+
+        if (signal.aborted) {
+            forward();
+            return;
+        }
+        signal.addEventListener('abort', forward, { once: true });
+    }
+
+    /**
      * getSessionContent — 获取当前会话的内容。
      *
      * 通过读取 db/Session/ 目录下的归档文件获取会话内容：

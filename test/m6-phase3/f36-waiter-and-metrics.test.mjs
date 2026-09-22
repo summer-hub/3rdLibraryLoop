@@ -231,6 +231,71 @@ console.log('\n── E. 无泄漏（所有返回路径都清理）──');
     check('E3 中止路径同样退订', live2 === 0, `live=${live2}`);
 }
 
+// ═══ F. 轮询循环的停止与 no-subscribe 分支的约束 ════════════════
+// 回归背景：
+//   ① `_pollLoop` 原先没有停止开关，`Promise.race` 又不会停掉落败者 ——
+//      `wait()` 超时/返回后轮询循环仍在每 interval 打一次状态查询（永久），
+//      并钉住 SessionWaiter → FlexRunner → CLIController 整条对象图；
+//   ② `no-subscribe` 分支原先直接 `await pollPromise`，绕过超时（会话不完成即永不返回，
+//      永久占用并发槽位），且硬编码 `completed: true`（把"中止"误报成"完成"）。
+console.log('\n── F. 轮询停止 / 订阅失败分支的约束 ──');
+{
+    // ① 超时返回后，轮询循环必须停止
+    let pollCalls = 0;
+    const w = new SessionWaiter({
+        poll: async () => { pollCalls++; return { status: 'unknown' }; },
+        pollIntervalMs: 10
+    });
+    const r = await w.wait('s-stop-after-timeout', { timeoutMs: 40 });
+    const callsAtReturn = pollCalls;
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    check('F1 超时返回后轮询循环停止（不再无休止地打状态查询）',
+        r.reason === 'timeout' && pollCalls === callsAtReturn,
+        `返回时=${callsAtReturn} 150ms 后=${pollCalls}`);
+
+    // ② 订阅失败（no-subscribe）仍受 timeoutMs 约束：原实现会永久挂住
+    const w2 = new SessionWaiter({
+        poll: async () => ({ status: 'unknown' }),
+        subscribe: () => { throw new Error('subscribe failed'); },
+        pollIntervalMs: 10,
+        safetyPollMs: 10
+    });
+    const guard = (ms) => new Promise((resolve) => setTimeout(() => resolve({ via: 'TEST-GUARD' }), ms));
+    const r2 = await Promise.race([w2.wait('s-nosub-timeout', { timeoutMs: 60 }), guard(3000)]);
+    check('F2 订阅失败后仍受 timeoutMs 约束（原实现会永久挂住并占着槽位）',
+        r2.reason === 'timeout' && r2.completed === false,
+        `reason=${r2.reason ?? r2.via}`);
+
+    // ③ 订阅失败 + 中止 → 如实归因 aborted（原实现硬编码 completed:true）
+    let aborted = false;
+    const w3 = new SessionWaiter({
+        poll: async () => ({ status: 'unknown' }),
+        subscribe: () => { throw new Error('subscribe failed'); },
+        pollIntervalMs: 10,
+        safetyPollMs: 10
+    });
+    const p3 = w3.wait('s-nosub-abort', { isAborted: () => aborted });
+    setTimeout(() => { aborted = true; }, 30);
+    const r3 = await Promise.race([p3, guard(3000)]);
+    check('F3 订阅失败 + 中止 → completed=false/reason=aborted（不误报完成）',
+        r3.completed === false && r3.reason === 'aborted',
+        `completed=${r3.completed} reason=${r3.reason}`);
+
+    // ④ 反向对照：订阅失败但会话正常完成时仍如实返回成功（不把正常路径改坏）
+    //    首次预检返回 unknown，确保真正走到 no-subscribe 分支再完成。
+    let n4 = 0;
+    const w4 = new SessionWaiter({
+        poll: async () => { n4++; return { status: n4 >= 2 ? 'completed' : 'unknown' }; },
+        subscribe: () => { throw new Error('subscribe failed'); },
+        pollIntervalMs: 10,
+        safetyPollMs: 10
+    });
+    const r4 = await w4.wait('s-nosub-ok', { timeoutMs: 2000 });
+    check('F4 对照：订阅失败但会话完成时仍返回 completed=true（走轮询完成）',
+        r4.completed === true && r4.mode === 'poll' && r4.reason === 'poll-completed',
+        `completed=${r4.completed} reason=${r4.reason}`);
+}
+
 const failed = results.filter((r) => !r.ok);
 console.log(`\n共 ${results.length} 条断言，失败 ${failed.length} 条`);
 process.exit(failed.length === 0 ? 0 : 1);

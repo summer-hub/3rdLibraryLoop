@@ -328,11 +328,21 @@ export class AgentRuntime {
 
         let result;
         try {
-            result = await this._runWithAdapter({
-                stepId, taskDescription, round, bigLoopIndex, attempt,
-                specifiedSkill, skillAllowList, inputReport, rolePrompt, onSessionCreated, signal,
-                timeoutMs: input.timeoutMs
-            });
+            // 取到槽位后**必须再查一次取消**：上面那次检查只覆盖"进入等待之前"，
+            // 而角色槽位/全局槽位的等待可达 slotTimeoutMs（默认 15 分钟）。
+            // 取消请求若落在这段等待里，原先会直接建会话并跑满自己的超时
+            //（coder 默认 90 分钟）—— 表现为"编排已报取消，配额还在被消耗"，
+            // 正是取消树承诺的"取消后不再派生新会话"被破坏的场景。
+            if (signal?.aborted || this._abortNode?.aborted) {
+                result = this._fail(startedAt, 'aborted',
+                    `协作已取消（${this._abortNode?.reason || '信号已中止'}），未创建会话`);
+            } else {
+                result = await this._runWithAdapter({
+                    stepId, taskDescription, round, bigLoopIndex, attempt,
+                    specifiedSkill, skillAllowList, inputReport, rolePrompt, onSessionCreated, signal,
+                    timeoutMs: input.timeoutMs
+                });
+            }
         } finally {
             // 释放顺序与获取顺序**相反**（全局先放、角色后放）
             sem.release();

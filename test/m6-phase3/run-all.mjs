@@ -17,6 +17,7 @@ const DECLARED = [
     ['F-36 会话等待器（事件驱动）· 延迟分位数', 'f36-waiter-and-metrics.test.mjs'],
     ['F-37 取消树 · 三级限流 · 无死锁不变式', 'f37-abort-tree-and-role-limits.test.mjs'],
     ['F-38 压测四场景（500 会话 / 失败 / 挂起 / 慢客户端）', 'f38-load-scenarios.test.mjs'],
+    ['F-42 取消闭环（排队取消 · init 抛错收尾 · 外部信号接入）', 'f42-cancel-paths.test.mjs'],
 ];
 
 async function discover() {

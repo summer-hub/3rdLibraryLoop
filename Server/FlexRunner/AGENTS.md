@@ -179,6 +179,13 @@ new FlexRunner(config?)
 | `resume` | 清除暂停标志，继续执行 |
 | `abort` | 设置终止标志，尝试中止活跃 Session，记录终止状态 |
 
+**`setAbortSignal(signal)` — 注入外部取消源（Phase 2/3 取消闭环）**
+
+`AgentRuntime` 会把「运行器级信号 ∪ 取消树信号」合并后下发（见 `AgentRuntime._runWithAdapter`）。
+收到信号后转调 `controlExecution('abort')`（幂等：已终止则不再重复执行），因此
+**取消能中断在途 HTTP**，并且此后 `executeStart()` 会直接拒绝——不会出现"取消之后又建了一个新会话"。
+注入时信号已中止则立即生效。
+
 **`getSessionContent()` — 获取会话归档内容**
 
 从 `db/Session/` 读取 `<sessionId>.jsonl`（消息流）和 `<sessionId>.meta.json`（元信息），返回合并 JSON 文本 `{ meta, messages }`。

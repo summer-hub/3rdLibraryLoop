@@ -140,6 +140,8 @@ export class MultiAgentRunner {
         this._paused = false;
         this._aborted = false;
         this._abortController = null;
+        /** @type {AbortSignal|null} 外部注入的取消源（见 setAbortSignal） */
+        this._externalAbortSignal = null;
         this._lastResult = null;
         this._skillNames = null;
         this._collabPlan = null;
@@ -247,14 +249,32 @@ export class MultiAgentRunner {
 
     /**
      * 注入取消信号（对齐 FlexRunner 的 F-06 能力）。
+     *
+     * ⚠️ 注意字段语义：`this._abortController` 是 **AbortController**（其 `.signal`
+     * 才是信号）。外部传进来的 `AbortSignal` 必须另存并**转发**到内部控制器上——
+     * 早先直接写成 `this._abortController = signal`，于是：
+     *   - `this._abortController?.signal` → `undefined`（AbortSignal 没有 .signal），
+     *     Supervisor 拿不到任何取消源；
+     *   - `this._abortController?.abort?.()` → 静默 no-op（AbortSignal 实例无 .abort），
+     *     abortInFlight() 形同虚设。
+     *
      * @param {AbortSignal} signal
      */
     setAbortSignal(signal) {
-        if (signal && typeof signal.addEventListener === 'function') {
-            this._abortController = signal;
-            if (signal.aborted) this._aborted = true;
-            else signal.addEventListener('abort', () => { this._aborted = true; }, { once: true });
+        if (!signal || typeof signal.addEventListener !== 'function') return;
+        this._externalAbortSignal = signal;
+
+        const forward = () => {
+            this._aborted = true;
+            try {
+                this._abortController?.abort(new Error('外部取消源已中止'));
+            } catch { /* 已 abort 过 */ }
+        };
+        if (signal.aborted) {
+            forward();
+            return;
         }
+        signal.addEventListener('abort', forward, { once: true });
     }
 
     /**
@@ -300,10 +320,16 @@ export class MultiAgentRunner {
             clock: this._clock
         });
         this._supervisor = supervisor;
-        await supervisor.init();
 
         let result;
         try {
+            // init() 必须与 run() 处在**同一个 try** 内：它同样会抛错
+            //（计划引用未注册角色、taskDir 创建失败等）。原先 init() 在 try 之外，
+            // 抛错时下面的 finally 不执行 → 取消树留下永久孤儿节点（getOrphans() 永不为 0），
+            // 而"孤儿数"正是判定会话泄漏的核心指标；同时 _running 卡在 true、
+            // executeStep/retryTimes 不再推进。
+            await supervisor.init();
+
             result = await supervisor.run({
                 stepId: this.stepId,
                 taskDescription: this._taskDescription,
