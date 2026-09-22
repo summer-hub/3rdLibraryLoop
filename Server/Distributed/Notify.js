@@ -63,7 +63,10 @@ export class MemoryPubSubBackend {
         const subs = this._subs.get(channel);
         if (!subs) return 0;
         let n = 0;
-        for (const fn of [...subs]) {
+        // 注意：`_subs` 的值是 Map<handler, instanceId>，直接 `[...subs]` 得到的是
+        // `[handler, instanceId]` 二元组（不是 handler），调用会抛 TypeError 并被下面的
+        // catch 吞掉 → 静默投递 0 条。必须取 `.keys()`。
+        for (const fn of [...subs.keys()]) {
             try { await fn(envelope); n++; } catch { /* 单个订阅者异常不影响其他订阅者 */ }
         }
         return n;

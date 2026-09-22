@@ -305,11 +305,23 @@ export class Tracer {
         }
 
         if (!traceId) {
-            traceId = this._newId('trace');
-            if (sampled === undefined) {
-                const keep = Math.random() < this.sampleRate;
-                sampled = keep;
-                if (keep) this._stats.sampledIn++; else this._stats.sampledOut++;
+            // 进程内嵌套：继承父跨度（同一条 trace，父 span 作为 parentSpanId）。
+            // 原先无条件新建 traceId，导致模块文档里的 `withSpan` 嵌套示例
+            // 并不产生父子树——每个嵌套跨度都变成独立的一棵 trace 根。
+            // 注意：`_stack` 是进程级单栈，跨请求并发下 `currentSpan` 仍可能
+            // 取到别的请求（本类定位为进程内轻量 tracer，HTTP 路径一律显式传 span）。
+            const parent = this.currentSpan;
+            if (parent) {
+                traceId = parent.traceId;
+                parentSpanId = parent.spanId;
+                sampled = parent.sampled;
+            } else {
+                traceId = this._newId('trace');
+                if (sampled === undefined) {
+                    const keep = Math.random() < this.sampleRate;
+                    sampled = keep;
+                    if (keep) this._stats.sampledIn++; else this._stats.sampledOut++;
+                }
             }
         }
         if (sampled === undefined) sampled = true;

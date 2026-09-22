@@ -30,7 +30,12 @@ const stdoutHasBootstrap = (tpl) => /bootstrap\.js/.test(tpl);
 
 /** 组装一个已初始化的运行时（含租户/成员） */
 async function bootHost(serviceName, opts = {}) {
-    const { host, deps, warnings } = await createRuntime({ serviceName, instanceId: opts.instanceId });
+    const { host, deps, warnings } = await createRuntime({
+        serviceName,
+        instanceId: opts.instanceId,
+        // 允许测试用很短的租约 TTL（观察心跳是否真的在续租）
+        leaseTtlMs: opts.leaseTtlMs
+    });
     deps.tenants.createTenant({ tenantId: 'acme', quota: { maxTasksPerDay: 10, maxConcurrentSessions: 4 } });
     deps.tenants.grant('acme', 'alice', ['operator']);
     deps.tenants.grant('acme', 'bob', ['viewer']);
@@ -392,8 +397,165 @@ console.log('\n── E. 部署产物与代码一致性（compose / k8s / helm�
         /运行在集群中但租约后端是 memory/.test(deployJs)
         && /运行在集群中但令牌后端是 memory/.test(deployJs)
         && /运行在集群中但队列后端是 memory/.test(deployJs));
+
+    // ── E22~E24：清单声明的真实后端必须**真的可用**（回归）──
+    // 背景：三份清单都设 DISTRIBUTED_LEASE=postgres / DISTRIBUTED_QUEUE=redis-streams /
+    // DISTRIBUTED_TOKEN=redis，而 bootstrap 的三个工厂曾**无条件抛错**（"本仓库未内置 pg 依赖"），
+    // 于是部署产物必然 CrashLoop —— 而 E1~E21 全是字符串 grep，完全看不见这一点。
+    const dockerfileHasClients = /pg@\^?8/.test(dockerfile) && /ioredis@\^?5/.test(dockerfile);
+    check('E22 镜像预装真实后端客户端（否则清单里的 DISTRIBUTED_* 不可满足）',
+        dockerfileHasClients, dockerfileHasClients ? 'pg + ioredis' : '镜像缺少 pg/ioredis');
+
+    check('E23 后端客户端为"动态加载 + 缺失即明确报错"，不再是写死的抛错桩',
+        /await import\(name\)/.test(deployJs)
+        && /loadOptionalModule/.test(deployJs)
+        && !/本仓库未内置 pg 依赖/.test(deployJs),
+        'loadOptionalModule');
+
+    // E24：真实行为断言 —— 声明了真实后端而客户端不可用时，必须**启动失败**，
+    // 绝不能静默退回内存语义（那等于"以为在跑分布式、实际是单实例语义"）。
+    const { spawnSync } = await import('node:child_process');
+    const bootstrapUrl = toUrl(path.join(ROOT, 'Server/Distributed/bootstrap.js')).href;
+    const probe = spawnSync(process.execPath, ['--input-type=module', '-e', `
+        import { createRuntime } from ${JSON.stringify(bootstrapUrl)};
+        try {
+            await createRuntime({ serviceName: 'orchestrator-svc' });
+            console.log('DEGRADED');
+        } catch (e) {
+            console.log('THREW:' + e.message);
+        }
+    `], {
+        env: {
+            ...process.env,
+            DISTRIBUTED_LEASE: 'postgres',
+            POSTGRES_URL: 'postgres://u:p@127.0.0.1:5432/3libloop'
+        },
+        encoding: 'utf8'
+    });
+    const probeOut = `${probe.stdout || ''}${probe.stderr || ''}`;
+    check('E24 真实后端不可用时启动失败（不静默退回内存后端）',
+        /THREW:/.test(probeOut) && !/DEGRADED/.test(probeOut),
+        (probe.stdout || '').trim().slice(0, 90));
+}
+
+// ═══ F. 借了必须还：令牌 / 配额 / 租约心跳 ══════════════════════════
+// 回归背景：
+//   ① `POST /sessions` 占用的分布式令牌与租户并发配额**没有任何归还路径**——
+//      releaseHint 指的 `POST /sessions/:id/abort` 未实现（501），而 concurrentSessions
+//      配额没有过期机制 ⇒ 租户开满后永久 429（只有重启进程才恢复）；
+//   ② `POST /tasks` 取 30s 租约后**从不续租**（`renew` 零调用），任务跑超 30s
+//      就会被其他实例接管 ⇒ 同一任务被两个实例同时执行。
+console.log('\n── F. 资源归还与租约心跳 ──');
+{
+    // ── F1~F7：令牌 + 配额的显式归还 ──
+    // 令牌上限必须可观测，否则默认 0（不限流）测不出"未归还"
+    const savedMax = process.env.MAX_CONCURRENT_SESSIONS;
+    process.env.MAX_CONCURRENT_SESSIONS = '2';
+    try {
+        const { host, deps } = await bootHost(SERVICES.AGENT_RUNTIME, { instanceId: 'rt-1' });
+        const H = { 'x-tenant-id': 'acme', 'x-user-id': 'alice' };
+
+        const s1 = await host.handle({
+            method: 'POST', path: '/sessions', headers: H, body: { role: 'coder', timeoutMs: 200 }
+        });
+        const s2 = await host.handle({
+            method: 'POST', path: '/sessions', headers: H, body: { role: 'coder', timeoutMs: 200 }
+        });
+        check('F1 会话创建成功并登记台账（上限 2 用满）',
+            s1.status === 201 && s2.status === 201,
+            `${s1.body.sessionId} / ${s2.body.sessionId}`);
+        check('F2 会话 id 唯一（同毫秒并发不互相顶掉台账）',
+            s1.body.sessionId !== s2.body.sessionId);
+
+        const s3 = await host.handle({
+            method: 'POST', path: '/sessions', headers: H, body: { role: 'coder', timeoutMs: 200 }
+        });
+        check('F3 令牌用尽 → 429 CONCURRENCY_LIMIT（跨实例上限生效）',
+            s3.status === 429 && s3.body.error === 'CONCURRENCY_LIMIT', JSON.stringify(s3.body).slice(0, 70));
+
+        const q0 = await deps.tenants.checkQuota({ tenantId: 'acme', kind: 'concurrentSessions' });
+        check('F4 两个会话计入租户并发配额', q0.used === 2, JSON.stringify(q0));
+
+        const ab = await host.handle({
+            method: 'POST', path: `/sessions/${s1.body.sessionId}/abort`, headers: H, body: {}
+        });
+        check('F5 abort 显式归还令牌与配额（不再是只借不还）',
+            ab.status === 200 && ab.body.tokenReleased === true && ab.body.quotaReleased === true,
+            JSON.stringify(ab.body).slice(0, 130));
+
+        const after = await host.handle({
+            method: 'POST', path: '/sessions', headers: H, body: { role: 'coder', timeoutMs: 200 }
+        });
+        check('F6 归还后可再开会话（配额不再永久 429）', after.status === 201,
+            `status=${after.status} ${JSON.stringify(after.body).slice(0, 60)}`);
+
+        const again = await host.handle({
+            method: 'POST', path: `/sessions/${s1.body.sessionId}/abort`, headers: H, body: {}
+        });
+        check('F7 重复 abort → 404（不假装成功，也不重复扣减）',
+            again.status === 404 && again.body.error === 'SESSION_NOT_FOUND',
+            JSON.stringify(again.body).slice(0, 80));
+
+        const qAfter = await deps.tenants.checkQuota({ tenantId: 'acme', kind: 'concurrentSessions' });
+        check('F8 abort 后配额确实回落（used=2：s2 + after）', qAfter.used === 2, JSON.stringify(qAfter));
+    } finally {
+        if (savedMax === undefined) delete process.env.MAX_CONCURRENT_SESSIONS;
+        else process.env.MAX_CONCURRENT_SESSIONS = savedMax;
+    }
+
+    // ── F9~F15：租约心跳 ──
+    {
+        const { host } = await bootHost(SERVICES.ORCHESTRATOR, { instanceId: 'orch-hb', leaseTtlMs: 300 });
+        const H = { 'x-tenant-id': 'acme', 'x-user-id': 'alice' };
+
+        const created = await host.handle({ method: 'POST', path: '/tasks', headers: H, body: { taskId: 'HB' } });
+        check('F9 建任务后开始心跳续租（TTL=300ms → 间隔 100ms）',
+            created.status === 201 && created.body.heartbeatMs === 100,
+            `heartbeatMs=${created.body.heartbeatMs}`);
+
+        const leases = await host.handle({ method: 'GET', path: '/leases', headers: H });
+        check('F10 /leases 暴露正在续租的资源（运维一眼看出心跳在不在）',
+            (leases.body.heartbeats || []).includes('task:acme:HB'),
+            JSON.stringify(leases.body.heartbeats));
+
+        // 等超过一个 TTL：有心跳则租约不过期；修复前这里已被判过期、可被接管
+        await new Promise((r) => setTimeout(r, 500));
+        const peek = await host.handle({ method: 'GET', path: '/tasks/HB', headers: H });
+        check('F11 超过原 TTL 后租约仍有效（心跳阻止了误接管）',
+            peek.status === 200 && peek.body.lease.expired === false,
+            `expired=${peek.body.lease?.expired}`);
+
+        const other = await host.handle({ method: 'POST', path: '/tasks', headers: H, body: { taskId: 'HB' } });
+        check('F12 心跳期间其他实例无法接管同一任务（409 TASK_LOCKED）',
+            other.status === 409 && other.body.error === 'TASK_LOCKED', JSON.stringify(other.body).slice(0, 60));
+
+        const ab = await host.handle({
+            method: 'POST', path: '/tasks/HB/abort', headers: H, body: { fencingToken: created.body.fencingToken }
+        });
+        check('F13 abort 释放租约并停止心跳', ab.status === 200 && ab.body.heartbeatStopped === true,
+            JSON.stringify(ab.body).slice(0, 80));
+
+        const afterStop = await host.handle({ method: 'GET', path: '/leases', headers: H });
+        check('F14 心跳台账已清空（不再对已释放的租约空转）',
+            !(afterStop.body.heartbeats || []).includes('task:acme:HB'),
+            JSON.stringify(afterStop.body.heartbeats));
+
+        const created2 = await host.handle({ method: 'POST', path: '/tasks', headers: H, body: { taskId: 'HB2' } });
+        check('F15 前置：新任务再次起心跳', created2.status === 201 && created2.body.heartbeatMs === 100);
+        host._closeExtras?.();
+        const afterClose = await host.handle({ method: 'GET', path: '/leases', headers: H });
+        check('F16 服务级清理（停机）清空全部心跳定时器',
+            (afterClose.body.heartbeats || []).length === 0,
+            JSON.stringify(afterClose.body.heartbeats));
+    }
 }
 
 const failed = results.filter((r) => !r.ok);
 console.log(`\n共 ${results.length} 条断言，失败 ${failed.length} 条`);
-process.exit(failed.length === 0 ? 0 : 1);
+
+// 用 exitCode 而不是 process.exit()：
+// D 段发起了真实 HTTP 请求（fetch/undici 默认保活），此时若立刻 process.exit()，
+// 退出会与 undici 连接的收尾竞争，在 Windows + Node 24 下触发 libuv 断言
+// （uv_async_send on closing handle → 0xC0000409），表现为"60 条断言全过、进程却以
+// 非 0 退出"，让整份套件变红。置 exitCode 让事件循环自然排空，断言结论完全不变。
+process.exitCode = failed.length === 0 ? 0 : 1;

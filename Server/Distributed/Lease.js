@@ -331,9 +331,14 @@ export class LeaseStore {
             return { ok: false, reason: 'held' };
         }
 
-        // 已过期 → 接管，token 单调递增
+        // 已过期 → 接管，token 单调递增。
+        // revision 必须**同时**递增：它是 CAS 的乐观并发凭证。
+        // 若接管后 revision 仍为 1（与快照相同），两个并发接管者会双双通过 CAS，
+        // 并且两者都基于同一快照算出**相同的 token** —— 双主 + 围栏失效。
         const next = this._newRecord({
-            resource, owner, now, ttl, token: existing.fencingToken + 1
+            resource, owner, now, ttl,
+            token: existing.fencingToken + 1,
+            revision: (Number(existing.revision) || 1) + 1
         });
         const swapped = await this.backend.compareAndSet(key, existing.revision, next);
         if (!swapped) {
@@ -509,14 +514,18 @@ export class LeaseStore {
 
     /**
      * @private
+     * @param {object} p
+     * @param {number} [p.revision=1] - 乐观并发版本号。首次获取恒为 1；
+     *   **接管时必须递增**（见 acquire 的接管分支），否则 CAS 无法区分
+     *   "同一快照的两个接管者"与"已完成的接管"，会导致双主 + 相同 token。
      * @returns {object}
      */
-    _newRecord({ resource, owner, now, ttl, token }) {
+    _newRecord({ resource, owner, now, ttl, token, revision = 1 }) {
         return {
             resource,
             owner,
             fencingToken: token,
-            revision: 1,
+            revision,
             acquiredAt: new Date(now).toISOString(),
             heartbeatAt: new Date(now).toISOString(),
             expiresAt: new Date(now + ttl).toISOString(),

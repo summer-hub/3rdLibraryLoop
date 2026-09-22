@@ -12,6 +12,12 @@ WORKDIR /build
 COPY package.json package-lock.json ./
 COPY cli/package.json ./cli/
 RUN npm ci --omit=dev --ignore-scripts=false
+# 真实分布式后端的客户端：DISTRIBUTED_LEASE / DISTRIBUTED_QUEUE / DISTRIBUTED_TOKEN
+# 分别指向 postgres / redis-streams / redis 时使用。**仅镜像需要**，不进仓库依赖树——
+# 单机开发与全部单测都不装它们；缺失时 bootstrap 会明确报错而不是静默退回内存语义
+# （见 Server/Distributed/bootstrap.js 的 loadOptionalModule）。
+# --package-lock=false：不弄脏镜像内的 lockfile（依赖清单仍由上面的 npm ci 决定）。
+RUN npm install --no-save --no-audit --no-fund --package-lock=false pg@^8 ioredis@^5
 # 再拷源码
 COPY Server ./Server
 COPY Web ./Web

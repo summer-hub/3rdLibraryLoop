@@ -181,6 +181,55 @@ console.log('\n── D. 实例崩溃后的接管（模拟 kill -9）──');
     check('D6 崩溃实例的旧 token 无法写入（不会覆盖接管者的成果）', oldRejected === true);
 }
 
+// ═══ D2. 并发接管：只能有一个赢家（防脑裂）════════════════════════════
+// 回归背景：`_newRecord` 曾把 revision 恒置为 1，导致两个并发接管者的 CAS
+// 都能通过（写回后 revision 仍是 1），且两者从同一快照算出**相同 token** ——
+// 双主 + 围栏失效。这里把"并发接管只能有一个赢家 + token 严格单调"固定下来。
+console.log('\n── D2. 并发接管（两个备用实例同时发现过期）──');
+{
+    let now = 20_000_000;
+    const backend = new MemoryLeaseBackend();
+    const ttl = 1000;
+    // 同一进程内的两个 Store 实例：holder 模拟被 kill -9 的 svc-A，
+    // standby 模拟"发现租约过期后尝试接管"的备用实例（并发的两个接管者都走它）。
+    const holder = new LeaseStore({ backend, ttlMs: ttl, clock: () => now });
+    const standby = new LeaseStore({ backend, ttlMs: ttl, clock: () => now });
+
+    const first = await holder.acquire({ resource: 'task:split', owner: 'svc-A' });
+    check('D7 首次获取 token=1、revision=1',
+        first.ok === true && first.lease.fencingToken === 1 && first.lease.revision === 1);
+
+    now += ttl + 1;   // 过期（模拟 svc-A 被 kill -9）
+
+    // 两个备用实例**同时**接管（同一份快照、同一时刻）
+    const [b, c] = await Promise.all([
+        standby.acquire({ resource: 'task:split', owner: 'svc-B' }),
+        standby.acquire({ resource: 'task:split', owner: 'svc-C' })
+    ]);
+    const winners = [b, c].filter((r) => r.ok === true);
+    check('D8 并发接管只有一个赢家（另一个明确拿到 race，而不是静默双主）',
+        winners.length === 1,
+        `b=${b.ok}/${b.reason || ''} c=${c.ok}/${c.reason || ''}`);
+
+    check('D9 赢家的 token 严格大于前任（围栏仍然单调）',
+        winners[0]?.lease.fencingToken === first.lease.fencingToken + 1,
+        `token=${winners[0]?.lease.fencingToken}`);
+    check('D10 赢家的 revision 已递增（CAS 凭证不再与前任快照相同）',
+        winners[0]?.lease.revision > first.lease.revision,
+        `rev=${winners[0]?.lease.revision}`);
+
+    // 输家重试应看到"已被占用"，而不是复用同一 token 再次成功
+    const loser = await standby.acquire({ resource: 'task:split', owner: 'svc-B' });
+    check('D11 输家重试时租约已被占用（不会复用同一 token）',
+        loser.ok === false && loser.reason === 'held', loser.reason);
+
+    // 围栏是**实例内**的守卫：接管者所在实例必须拒绝前任 token
+    //（跨实例的写入拒绝由后端/数据库的 token 校验承担）
+    let prevRejected = false;
+    try { await standby.assertFence('task:split', first.lease.fencingToken); } catch { prevRejected = true; }
+    check('D12 接管后前任 token 无法写入（僵死写入者被挡）', prevRejected === true);
+}
+
 // ═══ E. 分布式令牌 ═════════════════════════════════════════════════
 console.log('\n── E. 分布式令牌（全局并发上限跨实例生效）──');
 {

@@ -106,10 +106,17 @@ export class MemoryQueueBackend {
     }
 
     async ack(queue, messageId) {
-        const m = this._q(queue).find((x) => x.id === messageId);
-        if (!m) return false;
+        const arr = this._q(queue);
+        const i = arr.findIndex((x) => x.id === messageId);
+        if (i < 0) return false;
+        // **移出数组**而不是只标记 acked：
+        //   原实现只置 `m.acked = true` 而永不删除，`push` 又无限追加 ——
+        //   长跑进程里已确认的消息会永久占内存，且每次 `claim` 都要从 0 开始
+        //   跳过全部已确认项（O(n) 扫描，整体退化为二次复杂度）。
+        const [m] = arr.splice(i, 1);
         m.acked = true;
         m.ackedAt = this._clock();
+        this._ackedTotal = (this._ackedTotal || 0) + 1;
         return true;
     }
 
@@ -136,10 +143,12 @@ export class MemoryQueueBackend {
         const arr = this._q(queue);
         const now = this._clock();
         return {
+            // 注意：`total` 是**当前队列内**的消息数（已确认的不再保留，见 ack），
+            // `acked` 是累计确认数（队列已移除，仅作观测）。
             total: arr.length,
-            pending: arr.filter((m) => !m.acked && m.visibleAt <= now).length,
-            inFlight: arr.filter((m) => !m.acked && m.visibleAt > now).length,
-            acked: arr.filter((m) => m.acked).length,
+            pending: arr.filter((m) => m.visibleAt <= now).length,
+            inFlight: arr.filter((m) => m.visibleAt > now).length,
+            acked: this._ackedTotal || 0,
             dead: (this._dead.get(queue) || []).length
         };
     }

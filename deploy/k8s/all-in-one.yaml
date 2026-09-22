@@ -12,6 +12,10 @@
 #        --from-literal=POSTGRES_URL='postgres://...' \
 #        --from-literal=REDIS_URL='redis://...' \
 #        --from-literal=S3_SECRET_KEY='...'
+#
+# ⚠️ DISTRIBUTED_* 指向真实后端时，**先跑数据库迁移**（compose 由 initdb 自动执行）：
+#      psql "$POSTGRES_URL" -f deploy/migrations/001_leases.sql
+#    未建表时租约接口会在运行期报错（后端缺失不会静默退回内存语义）。
 
 apiVersion: v1
 kind: Namespace

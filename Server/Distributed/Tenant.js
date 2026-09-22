@@ -55,6 +55,13 @@ export const DEFAULT_QUOTA = Object.freeze({
     maxTokensPerDay: 5_000_000
 });
 
+/**
+ * 已知配额维度。未知 kind 属调用方 bug，必须**显式失败**：
+ * 原先 `_limitFor` 的 default 返回 0，而 0 被当作"不限流"，
+ * 于是拼错维度名会静默关掉配额（安全边界无声消失）。
+ */
+export const QUOTA_KINDS = Object.freeze(['concurrentSessions', 'tasksPerDay', 'tokensPerDay']);
+
 /** 租户上下文（AsyncLocalStorage） */
 const tenantStore = new AsyncLocalStorage();
 
@@ -256,6 +263,15 @@ export class TenantRegistry {
      * @returns {Promise<{allowed: boolean, used: number, limit: number, reason?: string}>}
      */
     async checkQuota({ tenantId, kind }) {
+        // 未知配额维度必须显式失败：原先 `_limitFor` 的 default 返回 0，
+        // 而 `limit <= 0` 被当作"不限流"——于是拼错 kind（如 'tasksPerday'）
+        // 会**静默关闭**该维度的配额，而不是报错。
+        if (!QUOTA_KINDS.includes(kind)) {
+            throw new Error(
+                `TenantRegistry.checkQuota: 未知配额维度 "${kind}"；` +
+                `可用：${QUOTA_KINDS.join(' | ')}`
+            );
+        }
         const t = this._tenants.get(tenantId);
         if (!t) return { allowed: false, used: 0, limit: 0, reason: 'unknown-tenant' };
         const limit = TenantRegistry._limitFor(t.quota, kind);
