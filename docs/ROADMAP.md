@@ -1,4 +1,4 @@
-# ROADMAP —— 修复计划与架构演进路线
+﻿# ROADMAP —— 修复计划与架构演进路线
 
 > 本文档定义 3rdLibraryLoop 的**修复基线（Phase 1）**与**三阶段架构演进（Phase 2~4）**。
 > 所有结论均基于源码直读，标注 `file:line` 证据，可直接复核。
@@ -321,7 +321,10 @@ M6（Phase 3）多 Agent + 高并发                      → 500 并发会话�
 M7（Phase 4）多 Agent + 高并发 + 企业级分布式         → 可水平扩展、多租户、可审计
 ```
 
-**当前状态（全部通过验收，7 个里程碑 / 8 个套件 / 847 条断言）**
+**当前状态（全部通过验收，7 个里程碑 / 8 个套件 / 901 条断言）**
+
+> 断言数随 2026-09-23 的回归修复从 847 增至 901（新增 54 条针对已修缺陷的回归断言，
+> 详见 §8）。`npm test` 在 Windows / Node 24 上亦为全绿。
 
 | 里程碑 | 状态 | 断言 | 记录位置 |
 |---|---|---|---|
@@ -330,8 +333,8 @@ M7（Phase 4）多 Agent + 高并发 + 企业级分布式         → 可水平�
 | M3 | ✅ | 160 | 本文 §1 M3 完成记录 |
 | M4 | ✅ | 64 | 本文 §1 M4 完成记录 |
 | M5（Phase 2） | ✅ | 166 | 本文 §2 Phase 2 完成记录 |
-| M6（Phase 3） | ✅ | 102 | 本文 §3 Phase 3 完成记录 |
-| M7（Phase 4） | ✅ | 182 | 本文 §4 Phase 4 完成记录 |
+| M6（Phase 3） | ✅ | 131 | 本文 §3 Phase 3 完成记录 + §8 F-42 |
+| M7（Phase 4） | ✅ | 207 | 本文 §4 Phase 4 完成记录 + §8 |
 | 引擎单元测试 | ✅ | — | `npm run test:unit` |
 
 > **提交说明**：M1~M7 全部提交在 `main` 一条线上（未使用 §0.2 的堆叠分支，
@@ -945,6 +948,51 @@ node Server/Distributed/bootstrap.js --list
 
 ---
 
+## 8. 里程碑后的回归修复（2026-09-23）
+
+> 一次独立的深审（三个模块分组逐行读码 + 可复现脚本）在 M1~M7 之后又发现 12 处缺陷，
+> 其中 2 处为 P0。本节记录**已修复**部分与**可复现证据**；未修项列在 §8.3。
+
+### 5.1 已修复（含回归断言）
+
+| # | 缺陷 | 位置 | 证据 |
+|---|---|---|---|
+| 1 | **M7 套件退出码非 0（假红/假绿）**：F-41 在 D 段发起真实 HTTP 请求后用 `process.exit()` 退出，与 undici 保活连接的收尾竞争，在 Windows + Node 24 下触发 libuv 断言 `uv_async_send` on closing handle（`0xC0000409`）——60 条断言全过、进程却以非 0 退出 | `test/m7-phase4/f41-…:397` | 改为 `process.exitCode`；最小复现：1 次 fetch 不崩、≥2 次 fetch 必崩、加 100ms 延迟不崩 |
+| 2 | **租约接管双主 + 相同 fencing token**：`_newRecord` 恒置 `revision=1`，两个并发接管者的 CAS 都能通过且 token 相同 → 围栏失效 | `Server/Distributed/Lease.js:335/514` | 接管时 `revision` 递增；回归断言 `test/m7-phase4/f39` D7~D12（修复前实测 `b=true/c=true` 双主） |
+| 3 | **声明真实后端的部署产物必然 CrashLoop**：三份清单都设 `DISTRIBUTED_LEASE=postgres` 等，而三个工厂无条件抛错（旧断言只 grep 清单字符串，看不见） | `Server/Distributed/bootstrap.js` + `deploy/*` | 改为动态加载可选客户端（`pg`/`ioredis`），缺失即明确报错、不静默退回内存；镜像预装客户端；回归断言 `f41` E22~E24（含真实进程探针） |
+| 4 | **取消后仍会新建会话**：`AgentRuntime` 只在取槽位前查一次取消，取消落在槽位等待窗口内会被忽略；`FlexRunner` 缺 `setAbortSignal`，`AgentRuntime` 合并的取消信号被静默丢弃 | `Server/Agent/Runtime/AgentRuntime.js`、`Server/FlexRunner/FlexRunner.js` | 取槽位后再查一次取消；FlexRunner 新增 `setAbortSignal` 接入取消流程；回归断言 `test/m6-phase3/f42` A/C 段（回退修复后实测 `factoryCalls=1` 复现） |
+| 5 | **`supervisor.init()` 抛错时取消树留永久孤儿**：`init()` 写在 `try` 之外，`finally` 不执行 → 孤儿数（泄漏核心指标）永不为 0、`_running` 卡死 | `Server/Agent/Supervisor/MultiAgentRunner.js:303` | 移入 `try`；回归断言 `f42` B 段；同时修正 `setAbortSignal` 把信号存进 Controller 字段的语义错误（D 段） |
+| 6 | **`SessionWaiter` 超时后轮询循环失控**：`_pollLoop` 无停止开关，`Promise.race` 不停败者 → 超时返回后每 5s 永久打状态查询并钉住整条对象图 | `Server/library/SessionWaiter.js` | 增加停止开关；`no-subscribe` 分支重新置于超时/中止约束下（原实现绕过超时且硬编码 `completed:true`）；回归断言 `test/m6-phase3/f36` F1~F4 |
+| 7 | **令牌与配额只借不还**：`POST /sessions` 占用分布式令牌 + 租户并发配额，而 `releaseHint` 指向的 abort 路由未实现（501）、`concurrentSessions` 无过期机制 → 租户开满后永久 429 | `Server/Distributed/bootstrap.js` | 新增会话台账与 `POST /sessions/:id/abort`（显式归还两者、重复 abort 返回 404）+ 超期惰性回收；回归断言 `f41` F1~F8 |
+| 8 | **租约无心跳**：`renew()` 零生产调用，30s TTL 到期即被其他实例接管 → 同一任务被两个实例同时执行 | `Server/Distributed/bootstrap.js` | `POST /tasks` 起心跳（TTL/3，`unref`），续租失败即停表告警；abort 与停机清理定时器；回归断言 `f41` F9~F16 |
+| 9 | **`LoopEngineController._engines` 仍是无界 `Map`**（F-12 漏网）：`progress()`/`restore()` 只 set 不 delete，且无 `_running` promise 兜底 | `Server/Routes/controllers/LoopEngineController.js:43` | 换 `BoundedRegistry`（`MAX_LIVE_ENGINES`，非终态实例受保护）+ `getRegistryStats()` |
+| 10 | **编排等待超时静默**：120 分钟到点直接返回，调用方不检查 status → 审核半成品、真实编排继续跑 | `Server/LoopEngine/LoopEngine.js` | 返回 `timedOut` 并让 `_runOrchestrator` 抛错（本轮按失败处理）；顺带改为"先判后睡"（完成时不再多等一个轮询周期） |
+| 11 | 分布式模块若干确定性缺陷 | `Server/Distributed/*` | `AuditLog`/`Blackboard` flush 失败回置脏标记；`MemoryPubSubBackend.publish` 遍历 Map 取到二元组导致静默投递 0 条（改 `.keys()`）；`Trace.startSpan` 继承父跨度（原文档示例不产生父子树）；未知配额维度**显式报错**（原先静默变成"不限流"）；内存队列 `ack` 移出数组（原先只标记不删除 → 内存无界 + claim O(n)） |
+
+### 5.2 验收（可复现）
+
+```bash
+npm test        # 8 个套件全绿：8 / 165 / 160 / 64 / 166 / 131 / 207 / 0 = 901 条断言，40.3s
+npm run lint    # 0 error（293 warning，非门禁）
+node test/m7-phase4/f39-lease-queue-semaphore.test.mjs   # 74 条（含并发接管 D7~D12）
+node test/m6-phase3/f42-cancel-paths.test.mjs            # 25 条（取消闭环）
+```
+
+### 5.3 已知未修（如实记录，不假装已解决）
+
+- **黑板条目的跨步骤串味**：条目键（`计划`/`实现`/`artifact:<stageId>`）是任务级全局键，
+  同一任务多步骤共享 `taskDir` 时会互相覆盖/读到别的步骤的产物；`entry.stepId` 已记录但读方未过滤。
+  修法需键命名空间化（`step{N}:{key}`）并同步迁移既有文件，属行为变更，留待单独评审。
+- **`notify-svc` 频道订阅无释放路径**：`GET /stream/:channel` 每来一个新频道就永久订阅一次
+  （`NotifyFanout._unsubs` 与后端订阅表只增不减），SSE 连接关闭未与退订联动。
+- **Tracer 的 `currentSpan` 仍是进程级单栈**：已修"嵌套继承父跨度"，但跨请求并发下
+  `currentSpan/inject()` 仍可能取到别的请求（HTTP 路径一律显式传 `span`，故当前无实际影响）。
+- **`LeaseStore._maxFence` 只增不减**、`GET /leases` 每次全量 `Object.fromEntries`；
+  分布式令牌无续租（TTL 到期即被回收，长会话可短时突破 limit）。
+- **性能类**：`Governance` 的 `Array.shift()` 环形缓冲 + 全链 sha256、调度循环内
+  `Promise.race` 的 O(n²) 反应、`SessionWaiter` 的 20ms 中止轮询、分布式信号量 50ms 固定轮询。
+- **Phase 4 的活体验证边界**：PostgreSQL `ON CONFLICT` 并发语义、Redis Lua 原子性、
+  `kill -9` 级接管、K8s/Helm 实际部署仍需真实基础设施（同 §4 的诚实边界）。
 ## 7. 修订记录
 
 | 日期 | 修订 | 说明 |
