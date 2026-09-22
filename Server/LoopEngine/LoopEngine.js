@@ -932,6 +932,15 @@ class LoopEngine {
         // 需要轮询等待编排状态变为终态
         const result = await this._waitForOrchestrator(ctx.taskId, orch);
 
+        // 等待超时：编排仍在后台跑。绝不能把它当成"已完成"再去做准出审核
+        //（那等于审核一个半成品，并让真实编排继续消耗并发额度）。
+        if (result.timedOut) {
+            throw new Error(
+                `编排等待超时：taskId=${ctx.taskId} 在 120 分钟内未进入终态` +
+                `（当前 status=${result.status}）。编排仍在后台运行，本轮按失败处理。`
+            );
+        }
+
         return result;
     }
 
@@ -939,6 +948,12 @@ class LoopEngine {
      * 等待 Orchestrator 执行完成。
      *
      * 轮询编排状态，直到进入终态（COMPLETED / FAILED / ABORTED / DEADLOCKED）。
+     *
+     * ⚠️ 超时**不能静默**：原实现在 deadline 到点后直接返回当时的进度，而调用方
+     * （`startLoop`）从不检查返回的 `status`，于是"编排还在跑"会被当成"已跑完"，
+     * 继续走准出审核甚至重规划——审核的是一个半成品，且真实编排仍在后台消耗配额。
+     * 现在超时会显式记录 `timedOut: true` 并让 `_runOrchestrator` 抛错（由大循环按
+     * "本轮失败"处理），语义与 `POLL_TIMEOUT_MS` 一致。
      *
      * @param {string} taskId
      * @param {object} orch - Orchestrator 实例
@@ -950,24 +965,37 @@ class LoopEngine {
         const TIMEOUT_MS = 120 * 60 * 1000; // 120 分钟超时
         const deadline = Date.now() + TIMEOUT_MS;
 
+        let timedOut = false;
         while (Date.now() < deadline) {
             const ctx = this._loops.get(taskId);
             if (ctx && ctx.aborted) {
                 break;
             }
 
-            await this._sleep(POLL_MS);
-
             const status = orch.status;
-            // 终态判断
+            // 终态判断（先判后睡：已完成时不再多等一个轮询周期）
             if (status === 'completed' || status === 'failed' ||
                 status === 'aborted' || status === 'deadlocked') {
                 break;
             }
+
+            await this._sleep(POLL_MS);
+        }
+
+        // 循环退出后确认是否真的到了终态：没到就是超时（或中止请求）
+        const finalStatus = orch.status;
+        const reachedTerminal = finalStatus === 'completed' || finalStatus === 'failed'
+            || finalStatus === 'aborted' || finalStatus === 'deadlocked';
+        const ctxAborted = Boolean(this._loops.get(taskId)?.aborted);
+        if (!reachedTerminal && !ctxAborted) {
+            timedOut = true;
+            this._log('error',
+                `等待编排超时（${TIMEOUT_MS}ms 上限，当前 status=${finalStatus}）：` +
+                `taskId=${taskId}。编排仍在后台运行，本轮按失败处理（不再对它做准出审核）。`);
         }
 
         const progress = orch.getProgress();
-        this._log('info', `Orchestrator 执行结束: status=${progress.status}`);
+        this._log('info', `Orchestrator 执行结束: status=${progress.status}${timedOut ? '（等待超时）' : ''}`);
 
         return {
             status: progress.status,
@@ -976,7 +1004,8 @@ class LoopEngine {
             steps: progress.steps,
             error: progress.error,
             startTime: progress.startTime,
-            endTime: progress.endTime
+            endTime: progress.endTime,
+            timedOut
         };
     }
 

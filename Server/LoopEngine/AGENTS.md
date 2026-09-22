@@ -134,7 +134,10 @@ interface LoopResult {
 
 - **同一 taskId 下多次调用 Brain**：LoopEngine 在循环中复用 taskId，每轮 Brain 生成新的 plan 但 taskId 不变，确保产物归属于同一任务
 - **单轮异常不中断大循环**：某轮执行异常会记录到 round.error，继续下一轮（除非主动 abort）
-- **Orchestrator 轮询等待**：Orchestrator.start() 是 fire-and-forget 模式，LoopEngine 通过轮询 `orch.status` 等待终态
+- **Orchestrator 轮询等待**：Orchestrator.start() 是 fire-and-forget 模式，LoopEngine 通过轮询 `orch.status` 等待终态。
+  **超时不是静默的**：120 分钟仍未到终态时 `_waitForOrchestrator` 会带 `timedOut: true` 返回，
+  `_runOrchestrator` 随即抛错、本轮按失败处理——绝不把"还在跑的编排"当成已完成再去做准出审核。
+  轮询采用"先判后睡"，已完成时不再多等一个 5s 周期。
 
 ---
 

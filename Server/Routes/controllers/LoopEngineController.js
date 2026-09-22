@@ -17,6 +17,35 @@
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
 import { LoopEngine, LoopStatus } from '../../LoopEngine/index.js';
+import { BoundedRegistry } from '../../library/BoundedRegistry.js';
+
+/**
+ * 内存中常驻的 LoopEngine 实例上限（F-12 收口），`MAX_LIVE_ENGINES` 可覆盖。
+ *
+ * 与 `OrchestratorController` 的 `MAX_LIVE_ORCHESTRATORS` 同模式：历史列表由
+ * SQLite 注册表提供，内存只保留最近使用的实例；超出后按 LRU 淘汰**终态**实例
+ *（有非终态循环的实例受保护，绝不淘汰）。
+ */
+const DEFAULT_MAX_LIVE_ENGINES = 50;
+
+/**
+ * @param {number|string|undefined} override
+ * @returns {number}
+ */
+function resolveMaxLiveEngines(override) {
+    const pick = (v) => {
+        if (v === undefined || v === null || v === '') return null;
+        const n = Number(v);
+        return Number.isFinite(n) && n >= 1 ? Math.floor(n) : null;
+    };
+    return pick(override) ?? pick(process.env.MAX_LIVE_ENGINES) ?? DEFAULT_MAX_LIVE_ENGINES;
+}
+
+/** 非终态循环状态：只要实例里有这些状态，就不得被上限淘汰 */
+const ACTIVE_LOOP_STATUSES = new Set([
+    LoopStatus.IDLE, LoopStatus.PLANNING, LoopStatus.EXECUTING,
+    LoopStatus.CHECKING, LoopStatus.ABORTING
+]);
 
 /**
  * LoopEngineController
@@ -39,14 +68,44 @@ class LoopEngineController {
         this.testCheck = deps.testCheck || null;
         this.skillDirectory = deps.skillDirectory || null;
 
-        /** @type {Map<string, LoopEngine>} key = taskId */
-        this._engines = new Map();
+        /**
+         * @type {BoundedRegistry} key = taskId，有界 LRU 注册表（F-12 收口）。
+         *
+         * 原先用裸 Map：`progress()` 与 `restore()` 两条路径都会把从磁盘恢复出来的
+         * 实例 `set` 进来，而**没有任何地方**删除它们（终态清理只在 start() 的
+         * finally 里，restore 路径没有 `_running` promise，因此没有 finally）。
+         * 于是前端每点开一个历史任务就永久多缓存一个实例。
+         * 现在超限时按 LRU 淘汰终态实例；有非终态循环的实例受保护。
+         */
+        this._engines = new BoundedRegistry({
+            max: resolveMaxLiveEngines(deps.maxLiveEngines),
+            isProtected: (_taskId, engine) => {
+                try {
+                    return engine.getLoops().some((ctx) => ACTIVE_LOOP_STATUSES.has(ctx.status));
+                } catch {
+                    // 取不到状态时保守处理：宁可不淘汰，也不踢掉可能正在跑的实例
+                    return true;
+                }
+            }
+        });
 
         /** @type {Map<string, Promise>} key = taskId，跟踪正在运行的循环 */
         this._running = new Map();
     }
 
     // ─── 辅助方法 ──────────────────────────────────────────────────────
+
+    /**
+     * 内存实例注册表的观测快照（F-12 收口）。
+     *
+     * `skipped` 持续增长说明上限偏紧（有活跃实例挡着淘汰）；`evicted` 增长说明
+     * 淘汰路径在正常工作。与 `OrchestratorController.getRegistryStats()` 同构。
+     *
+     * @returns {{size: number, max: number, ttlMs: number, evicted: number, skipped: number, protected: number}}
+     */
+    getRegistryStats() {
+        return this._engines.stats();
+    }
 
     /**
      * 获取任务注册表（懒初始化）。
