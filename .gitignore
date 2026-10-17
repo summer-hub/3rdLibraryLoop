@@ -55,3 +55,17 @@ Server/Agent/SkillSelector/types.js
 # CLI 发布产物（仅 npm pack/publish 时临时生成，不入库）
 cli/vendor/
 cli/web/
+
+# AOCI agent host integration (machine-bound; do not commit)
+.mcp.json
+.mcp.json.backup.*
+
+# 本地既有资产（个人工作文件，不入库；此前一直以未跟踪状态出现在 git status 里）
+.aoci/
+aoci.txt
+aoci.code.txt
+aoci.meta.txt
+.stepcode/
+AGENTS.md.backup.*
+*.emmx
+docs/DB-SCHEMA-REFERENCE.md
