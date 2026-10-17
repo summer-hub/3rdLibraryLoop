@@ -19,10 +19,11 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { resolveCoreRootsOrNull } from './core-paths.js';
 
 // cli/ 目录的绝对路径（本文件在 cli/lib/ 下）
 const CLI_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-// vendor 目录（核心引擎副本所在，发布时存在；开发期可能是软链/直接引用仓库）
+// vendor 目录（prepack 产物；双包发布态核心来自 node_modules，此目录通常不存在）
 const VENDOR_DIR = path.join(CLI_ROOT, 'vendor');
 
 /**
@@ -188,16 +189,14 @@ export async function loadEnvChain(projectRoot, user3libHome) {
 }
 
 /**
- * 本 CLI 对应的 Server 引擎根目录（发布态 vendor 优先，开发期回退仓库 Server/）。
- * 与 `cli/lib/runner.js` 的 `resolveVendorServer()` 同序，但**不抛错**——
- * env 标记是尽力而为的接线，缺引擎副本时不应让 CLI 启动失败。
+ * 本 CLI 对应的核心树 Server 根目录（四级解析，**不抛错**）。
+ * 见 `core-paths.js`：3LIB_CORE_DIR > 已安装核心包 > cli/vendor > 仓库根。
+ * env 标记是尽力而为的接线，缺核心副本时不应让 CLI 启动失败。
  *
- * @returns {string}
+ * @returns {string} 命中的 Server 目录；四级全落空时返回空串
  */
-function _resolveServerRoot() {
-    const vendorServer = path.join(VENDOR_DIR, 'Server');
-    if (fs.existsSync(vendorServer)) return vendorServer;
-    return path.resolve(CLI_ROOT, '..', 'Server');
+function _coreServerRoot() {
+    return resolveCoreRootsOrNull()?.serverRoot || '';
 }
 
 /**
@@ -205,11 +204,13 @@ function _resolveServerRoot() {
  *
  * `envBootstrap.js` 与被 `buildApp` 装配的是**同一个模块实例**（同一绝对路径 →
  * 同一 module cache 槽），因此这里的标记对 `loadServerEnv()` 可见。
- * 没有 Server 副本的部署形态（极端裁剪）静默跳过。
+ * 没有核心副本的部署形态（极端裁剪）静默跳过。
  */
 async function _markServerEnvLoaded() {
+    const serverRoot = _coreServerRoot();
+    if (!serverRoot) return;
     try {
-        const file = path.join(_resolveServerRoot(), 'composition', 'envBootstrap.js');
+        const file = path.join(serverRoot, 'composition', 'envBootstrap.js');
         const mod = await import(pathToFileURL(file).href);
         mod.markServerEnvLoaded?.();
     } catch {
@@ -309,8 +310,9 @@ export function resolveDataDir({ dataDirFlag, user3libHome }) {
  * 优先级：
  *   1. --skill-dir 显式参数
  *   2. 环境变量 3LIB_SKILL_DIR
- *   3. vendor/Skills（发布包内）
- *   4. 仓库内 Server/Skills（开发期）
+ *   3. 核心树 Server/Skills（四级解析：3LIB_CORE_DIR > 已安装核心包 > cli/vendor > 仓库根；
+ *      双包发布态即 node_modules/@ohos-cpf/3rdloop_core/Server/Skills）
+ *   4. <项目根>/Server/Skills（用户项目自带，开发期回退）
  *
  * @param {string} projectRoot
  * @returns {string}
@@ -319,16 +321,13 @@ export function resolveSkillDir({ skillDirFlag, projectRoot, cliRoot = CLI_ROOT 
     if (skillDirFlag) return path.resolve(skillDirFlag);
     if (process.env['3LIB_SKILL_DIR']) return path.resolve(process.env['3LIB_SKILL_DIR']);
 
-    const vendorSkills = path.join(vendorDir(), 'Server', 'Skills');
-    if (fs.existsSync(vendorSkills)) {
-        return vendorSkills;
-    }
+    const coreSkills = _coreServerRoot() ? path.join(_coreServerRoot(), 'Skills') : '';
+    if (coreSkills && fs.existsSync(coreSkills)) return coreSkills;
 
     const repoSkills = path.join(projectRoot, 'Server', 'Skills');
-    if (fs.existsSync(repoSkills)) {
-        return repoSkills;
-    }
-    return path.join(cliRoot, 'vendor', 'Server', 'Skills');
+    if (fs.existsSync(repoSkills)) return repoSkills;
+    // 兜底：报错时指向真实期望位置（不再是 cli/vendor/Server/Skills）
+    return coreSkills || path.join(cliRoot, 'vendor', 'Server', 'Skills');
 }
 
 /**

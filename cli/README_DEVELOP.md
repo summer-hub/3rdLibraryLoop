@@ -497,8 +497,9 @@ cd cli && npm install && npm link
 ### 开发期（仓库内共享）：零副本，直引源码
 
 CLI 在**开发期不生成 `cli/vendor/`**，直接引用仓库 `Server/` 源码：
-- 引擎模块回退：`cli/vendor/Server` 不存在时，加载 `../Server`（`runner.js: resolveVendorServer`）。
-- SKILL 目录回退：`vendor/Server/Skills` 不存在时，用仓库 `Server/Skills`（`config.js: resolveSkillDir`）。
+- 核心树解析：`cli/lib/core-paths.js` 四级解析（`3LIB_CORE_DIR` > 已安装核心包 > `cli/vendor` > 仓库根），
+  `runner.js` / `serve.js` / `mcp.js` / `config.js` / `doctor.js` 共用同一份结果。
+- SKILL 目录：核心树 `Server/Skills`（开发期即仓库 `Server/Skills`），`config.js: resolveSkillDir`。
 
 后端代码改完立即可用，无需任何复制步骤：
 
@@ -519,39 +520,74 @@ npm test
 3rdloop doctor
 ```
 
-### 发布期（打包给他人）：临时生成 vendor + 自动清理
+### 发布期（双包发布）：先核心包，再 CLI 包
 
-发布 tarball 必须自包含引擎（npm `files` 只能打包包内文件），所以发布时才把
-`Server/` 快照复制进 `cli/vendor/`，打包完成后自动删除本地副本：
+核心不再复制进 CLI 包：**仓库根本身就是核心包** `@ohos-cpf/3rdloop_core`
+（`Server/ plugins/ core/ seams/ profiles/ MCP/ Archive/ BadCase/` 全部原地保留，
+所有相对 import 与接缝路径一字不改），CLI 包只装自己的 `bin/lib/web/workflows`。
 
 ```bash
-cd cli
-npm version patch        # 0.1.0 → 0.1.1
-npm publish              # prepack 自动复制 vendor → 打包 → postpack 自动清理
+# ① 发布核心包（仓库根）
+npm publish
+
+# ② 发布 CLI（cli/）—— dependencies 里带上核心包的版本范围
+cd cli && npm publish
 ```
 
-`npm pack` / `npm publish` 的全自动流程：
+| 包 | 位置 | 内容 | 示例版本 |
+|----|------|------|----------|
+| `@ohos-cpf/3rdloop_core` | 仓库根 | 引擎 + 插件内核 + 插件 + 契约 + profile + `MCP/Archive/BadCase` | `0.0.11` |
+| `@ohos-cpf/3rdloop` | `cli/` | CLI（`bin/lib/web/workflows`），`dependencies` 声明核心包 | `0.0.11` |
+
+**版本联动**：两者各自独立发版，但 CLI 必须以范围声明核心包（当前 `^0.0.11`）。
+注意 `0.0.x` 的 caret 等价于锁 patch（`^0.0.11` = `>=0.0.11 <0.0.12`）：核心包升 patch
+后必须同步改 CLI 的依赖范围并重发 CLI；若希望少一次联动，可把范围放宽成
+`>=0.0.11 <0.1.0`（代价是允许不兼容的小版本混装）。发完核心包，CLI 侧跑
+`npm i && npm test` 再 `npm publish`。
+
+**排障入口**：`3rdloop version`、`3rdloop version --json`、`3rdloop doctor` 都打印
+解析到的核心包版本与来源（`核心引擎（@ohos-cpf/3rdloop_core）` 检查项），
+版本不匹配一眼可见。
+
+#### 核心树四级解析（`cli/lib/core-paths.js`）
+
+| 级别 | 来源 | 典型场景 |
+|------|------|----------|
+| ① | 环境变量 `3LIB_CORE_DIR` | 运维/测试指定任意核心树（写错即报错，不静默降级） |
+| ② | 已安装 `@ohos-cpf/3rdloop_core`（`node_modules`） | **双包发布态正路** |
+| ③ | `cli/vendor`（prepack 产物） | 单包回退 / 离线本地调试 |
+| ④ | 仓库根（`cli/` 的上一级） | 开发期直引源码 |
+
+四级都指向同构的「核心树根」（其下有 `Server/ plugins/ core/ seams/ profiles/`），
+所以三种形态下相对路径完全一致。四级全落空时，错误信息会逐级列出实测结果，
+并给出可照抄的修法（`npm i @ohos-cpf/3rdloop_core` 等）。
+
+#### vendor 现在只是本地工具
+
+`cli/scripts/prepack.mjs` / `clean-vendor.mjs` 保留，但**发布态不再使用 vendor**
+（`cli/package.json` 的 `files` 不含 `vendor`，产物不进 tarball）：
 
 | 阶段 | 钩子 | 动作 |
 |------|------|------|
-| 打包前 | `prepack` | 复制 `Server/` → `cli/vendor/Server/`，写 VERSION，扫描敏感文件 |
-| 打包中 | — | tarball 包含完整 vendor（自包含引擎） |
-| 打包后 | `postpack` | 删除本地 `cli/vendor/`，工作区回归仅一份源码 |
+| 打包前 | `prepack` | 生成 `cli/vendor/`（核心副本，供四级解析第③级）+ `cli/web/`（`Web/public` 前端副本，files 白名单含 `web`） |
+| 打包后 | `postpack` | 删除本地 `cli/vendor/` 与 `cli/web/`，工作区回归一份源码 |
 
-> **不要**手工改动 `cli/vendor/Server/` —— 它是发布期临时生成物，不入库
-> （`.gitignore` 已忽略），下次 `npm pack/publish` 会重新生成并自动清理。
-> `npm run verify-deps` 同样双模式：有 vendor 扫 vendor，否则回退扫 `Server/` 源码。
-> 两种模式都会扫描插件树（`plugins/` 与内核 `core/`、契约 `seams/`），且**插件组按仓库根
-> `package.json` 核对依赖**（插件是独立包，它的三方依赖不属于 `cli/package.json`）。
+> `npm run verify-deps` 现在是**三模式**：① 已安装核心包（扫
+> `node_modules/@ohos-cpf/3rdloop_core/{Server,MCP/src,Archive/src,plugins,core,seams,profiles}`，
+> 比对**核心包 manifest**）② `cli/vendor`（副本，核对口径取已装核心包 → 仓库根 → cli 的遗留单包形态）
+> ③ 仓库源码（核心树比对仓库根 `package.json`）。
+> 每种模式都额外扫 `cli/{lib,bin,workflows}` 并比对 `cli/package.json`——
+> 核心树与 CLI 自身代码**各认自己的 manifest**，`dotenv` 两边都直接 import 因此两边都必须声明。
 
 ## 开发者
 
 ```bash
 cd cli
 npm install
-npm link              # 直引仓库 Server/ 源码，无需 prepack
+npm link              # 直引仓库 Server/ 源码（四级解析第④级），无需 prepack
 node bin/3rdloop.mjs doctor
 ```
 
-发布前检查：`npm run verify-deps`（有 vendor 扫 vendor，否则回退扫 `Server/` 源码）
-校验引擎代码与插件树的依赖声明完整性（插件组比对仓库根 `package.json`）。
+发布前检查：`npm run verify-deps`（三模式：已安装核心包 / vendor / 仓库源码）
+校验核心树与 CLI 自身代码的依赖声明完整性——核心树比对核心包 manifest，
+CLI 代码比对 `cli/package.json`，`dotenv` 因两边都直接 import 而在两个包中各声明一次。

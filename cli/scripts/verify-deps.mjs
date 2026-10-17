@@ -1,25 +1,32 @@
 #!/usr/bin/env node
 /**
- * verify-deps.mjs —— 校验依赖声明与引擎/插件代码一致（R2）
+ * verify-deps.mjs —— 校验依赖声明与引擎/插件代码一致（R2，三模式）
  *
  * 作用：
- *   - 扫描被嵌入随包发布的源码中所有 import 的裸模块包名
+ *   - 扫描随包发布的源码中所有 import 的裸模块包名
  *     （扫描前先剥注释：注释里写的 import 示例不计为依赖，见 stripComments）
- *   - 与对应 manifest 的 dependencies 比对，缺失则报错并列出「文件:行 说明符」
+ *   - 与**对应 manifest** 的 dependencies 比对，缺失则报错并列出「文件:行 说明符」
  *   - 防止发布后代码 import 的依赖未声明导致运行时 ESM Module not found
  *
- * 扫描集合（双模式）：
- *   - 发布态（cli/vendor/Server 存在，prepack 已生成）：
- *       vendor/Server、vendor/MCP/src、vendor/Archive/src、
- *       vendor/plugins、vendor/core、vendor/seams
- *     依赖声明统一以 cli/package.json 为准（vendor 内容随 npm 包安装，
- *     依赖由 cli/package.json 拉取；子目录不各自声明依赖）。
- *   - 开发态（无 vendor，回退源码）：
- *       Server、MCP/src、Archive/src          → 声明以 cli/package.json 为准
- *       plugins、core、seams                  → 声明以仓库根 package.json 为准
- *     两组 manifest 不可混用：开发态仓库根插件树由仓库根 package.json 安装依赖
- *     （例：plugins/llm/dashscope 的 openai 声明在仓库根 package.json），
- *     而 vendor 副本随包安装、依赖由 cli/package.json 声明。
+ * 双包发布形态：`@ohos-cpf/3rdloop_core`（核心树）+ `@ohos-cpf/3rdloop`（CLI）。
+ * 核心树的依赖归核心包，CLI 自身代码的依赖归 CLI 包；两棵树的 manifest 不可混用。
+ *
+ * 三种模式（按可靠性排序，命中即停）：
+ *   ① installed：`node_modules/@ohos-cpf/3rdloop_core` 已安装（双包发布态正路）
+ *      核心树 → `node_modules/@ohos-cpf/3rdloop_core/{Server,MCP/src,Archive/src,plugins,core,seams,profiles}`
+ *      比对**核心包自己的 package.json**；CLI 代码（cli/{lib,bin,workflows}）比对 cli/package.json。
+ *   ② vendor：`cli/vendor/Server` 存在（prepack 产物 / 单包回退）
+ *      vendor 是**核心树的副本**，依赖归核心包：依次取「已装核心包 manifest → 仓库根 package.json
+ *      → cli/package.json（遗留单包形态）」，取第一个存在的作为核对口径；CLI 代码照旧比对 cli 包。
+ *   ③ repo：仓库源码（`Server/` 存在）
+ *      核心树（仓库根 {Server,MCP/src,Archive/src,plugins,core,seams,profiles}）比对
+ *      **仓库根 package.json（= 核心包 manifest）**；CLI 代码比对 cli/package.json。
+ *
+ * 关于「同一依赖同时出现在两个包」：`dotenv` 是唯一一处——
+ * 核心树的 `Server/composition/envBootstrap.js` 与 CLI 的 `cli/lib/config.js` 各自
+ * **直接 import** 它，任何一方缺声明都会在自己的运行路径上失败，因此两个 manifest 都必须声明。
+ * 交叉验证口径正是上面两组扫描：核心树组只认核心包 manifest，CLI 代码组只认 cli manifest，
+ * 互不顶替——漏在任一包里都会被这一组扫出来。
  *
  * 目录动态扫描：插件按目录发现，不硬编码插件名；目录不存在/为空时给出提示并跳过。
  *
@@ -28,7 +35,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { builtinModules } from 'node:module';
+import { builtinModules, createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -37,26 +44,23 @@ const PROJECT_ROOT = path.resolve(CLI_ROOT, '..');
 const VENDOR_DIR = path.join(CLI_ROOT, 'vendor');
 const VENDOR_SERVER = path.join(VENDOR_DIR, 'Server');
 
-// 两份 manifest：vendor/** 与仓库 Server 侧以 cli/package.json 判定；
-// 仓库根插件树（plugins/core/seams）以仓库根 package.json 判定。
+const CORE_PACKAGE = '@ohos-cpf/3rdloop_core';
+const _require = createRequire(import.meta.url);
+
+/** CLI 包 manifest（CLI 自身代码的依赖口径）。 */
 const MANIFEST_CLI = { file: path.join(CLI_ROOT, 'package.json'), label: 'cli/package.json' };
-const MANIFEST_ROOT = { file: path.join(PROJECT_ROOT, 'package.json'), label: 'package.json（仓库根）' };
+/** 核心包 manifest（仓库根即核心包；仓库态与 vendor 态的默认口径）。 */
+const MANIFEST_CORE = { file: path.join(PROJECT_ROOT, 'package.json'), label: 'package.json（仓库根 = 核心包）' };
+
+/** 核心树的固定子目录（三种形态同构；资产目录只扫 src/）。 */
+const CORE_SUBDIRS = ['Server', path.join('MCP', 'src'), path.join('Archive', 'src'), 'plugins', 'core', 'seams', 'profiles'];
+/** 随 CLI 包发布的自身代码目录（bin/lib/workflows 都在 files 白名单里）。 */
+const CLI_CODE_DIRS = ['lib', 'bin', 'workflows'];
 
 const SOURCE_EXTS = ['.js', '.mjs', '.cjs'];
 
 // Node 内置模块（含无 node: 前缀引用），无需声明
 const BUILTIN = new Set([...builtinModules, ...builtinModules.map(m => `node:${m}`)]);
-
-// 已知的裸模块依赖（vendored 代码 import 的第三方包）
-const BARE_MODULES = [
-    '@opencode-ai/sdk',
-    '@modelcontextprotocol/sdk',
-    'better-sqlite3',
-    'chokidar',
-    'dotenv',
-    'jieba-wasm',
-    'typescript',
-];
 
 // import/export-from/动态 import/require 的说明符。相对路径、绝对路径、node:/file:
 // 在包名归一前过滤；import.meta 不匹配（无说明符）。
@@ -211,60 +215,85 @@ function collectImports(dir) {
     return { files, refs };
 }
 
-/** 按模式决定扫描集合与每组的 manifest。 */
-function buildScanGroups(useVendor) {
-    if (useVendor) {
-        return [{
-            manifest: MANIFEST_CLI,
-            dirs: [
-                VENDOR_SERVER,
-                path.join(VENDOR_DIR, 'MCP', 'src'),
-                path.join(VENDOR_DIR, 'Archive', 'src'),
-                path.join(VENDOR_DIR, 'plugins'),
-                path.join(VENDOR_DIR, 'core'),
-                path.join(VENDOR_DIR, 'seams'),
-            ],
-        }];
+/** 已安装核心包的 manifest（未安装返回 null）。 */
+function installedCoreManifest() {
+    try {
+        const pkgJson = _require.resolve(`${CORE_PACKAGE}/package.json`);
+        return { file: pkgJson, label: `${CORE_PACKAGE}/package.json（node_modules）` };
+    } catch {
+        return null;
     }
+}
+
+/** 三个候选 manifest 中第一个真实存在的（vendor 态的核对口径链）。 */
+function firstExistingManifest(candidates) {
+    return candidates.find(m => m && fs.existsSync(m.file)) || MANIFEST_CLI;
+}
+
+/**
+ * 判定当前核对模式（命中即停：installed → vendor → repo）。
+ * @returns {{mode: string, label: string, coreRoot: string, coreManifest: object}|null}
+ */
+function detectMode() {
+    const installed = installedCoreManifest();
+    if (installed) {
+        const root = path.dirname(installed.file);
+        if (fs.existsSync(path.join(root, 'Server'))) {
+            return { mode: 'installed', label: '① 已安装核心包（双包发布态）', coreRoot: root, coreManifest: installed };
+        }
+    }
+    if (fs.existsSync(VENDOR_SERVER)) {
+        // vendor 是核心树副本：依赖归核心包（已装核心包 → 仓库根 → cli 的遗留单包形态）
+        return {
+            mode: 'vendor',
+            label: '② cli/vendor（prepack 产物 / 单包回退）',
+            coreRoot: VENDOR_DIR,
+            coreManifest: firstExistingManifest([installed, MANIFEST_CORE, MANIFEST_CLI]),
+        };
+    }
+    if (fs.existsSync(path.join(PROJECT_ROOT, 'Server'))) {
+        return { mode: 'repo', label: '③ 仓库源码（开发态）', coreRoot: PROJECT_ROOT, coreManifest: MANIFEST_CORE };
+    }
+    return null;
+}
+
+/** 按模式决定扫描组与每组的 manifest。 */
+function buildScanGroups(sel) {
     return [
         {
-            manifest: MANIFEST_CLI,
-            dirs: [
-                path.join(PROJECT_ROOT, 'Server'),
-                path.join(PROJECT_ROOT, 'MCP', 'src'),
-                path.join(PROJECT_ROOT, 'Archive', 'src'),
-            ],
+            name: `核心树（${sel.coreManifest.label}）`,
+            manifest: sel.coreManifest,
+            dirs: CORE_SUBDIRS.map(d => path.join(sel.coreRoot, d)),
         },
         {
-            manifest: MANIFEST_ROOT,
-            dirs: [
-                path.join(PROJECT_ROOT, 'plugins'),
-                path.join(PROJECT_ROOT, 'core'),
-                path.join(PROJECT_ROOT, 'seams'),
-            ],
+            name: `CLI 自身代码（${MANIFEST_CLI.label}）`,
+            manifest: MANIFEST_CLI,
+            dirs: CLI_CODE_DIRS.map(d => path.join(CLI_ROOT, d)),
         },
     ];
 }
 
 function main() {
-    const useVendor = fs.existsSync(VENDOR_SERVER);
-    const requiredDir = useVendor ? VENDOR_SERVER : path.join(PROJECT_ROOT, 'Server');
-    if (!fs.existsSync(requiredDir)) {
-        console.error(`[verify-deps] 未找到 vendor/Server，回退路径也不存在: ${requiredDir}`);
-        console.error('[verify-deps] 请先运行 npm run prepack 或确保源码 Server/ 存在');
+    const sel = detectMode();
+    if (!sel) {
+        console.error('[verify-deps] 未找到任何可核对的核心树，三种模式都不可用：');
+        console.error(`  [1] 已安装核心包 —— node_modules/${CORE_PACKAGE} 不存在（npm i ${CORE_PACKAGE}）`);
+        console.error(`  [2] cli/vendor     —— ${VENDOR_SERVER} 不存在（npm run prepack）`);
+        console.error(`  [3] 仓库源码       —— ${path.join(PROJECT_ROOT, 'Server')} 不存在`);
         process.exit(1);
     }
 
-    console.log(`[verify-deps] 模式: ${useVendor ? 'vendor/（发布态）' : '源码（开发态）'}`);
+    console.log(`[verify-deps] 模式: ${sel.label}`);
+    console.log(`[verify-deps] 核心树: ${displayPath(sel.coreRoot)}（依赖核对: ${sel.coreManifest.label}）`);
 
-    const groups = buildScanGroups(useVendor);
+    const groups = buildScanGroups(sel);
     const missing = [];
     let totalFiles = 0;
     const totalPackages = new Set();
 
     for (const group of groups) {
         const declared = new Set(Object.keys(JSON.parse(fs.readFileSync(group.manifest.file, 'utf8')).dependencies || {}));
-        console.log(`[verify-deps] 扫描组（依赖声明: ${group.manifest.label}）`);
+        console.log(`[verify-deps] 扫描组: ${group.name}`);
         const groupPackages = new Set();
 
         for (const dir of group.dirs) {
@@ -283,7 +312,7 @@ function main() {
                 const name = packageNameOf(ref.spec);
                 if (BUILTIN.has(name) || name.startsWith('node:')) continue;
                 packages.add(name);
-                if (BARE_MODULES.includes(name) || declared.has(name)) continue;
+                if (declared.has(name)) continue;
                 missing.push({ manifest: group.manifest, file: ref.file, line: ref.line, spec: ref.spec, name });
             }
             totalFiles += files;

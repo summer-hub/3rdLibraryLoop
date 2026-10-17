@@ -12,7 +12,6 @@
  *   - 端口冲突 / 启动失败给出明确错误，不静默
  */
 
-import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import process from 'node:process';
@@ -23,34 +22,15 @@ import {
     webExtList,
     webExtRemove,
 } from './web.js';
+import { resolveCoreRoots } from './core-paths.js';
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 export const CLI_ROOT = path.resolve(moduleDir, '..');
 
-// ─── vendor/Server 路径解析（与 runner.js 保持一致）────────────────
-let _serverModuleRoot = null;
-function resolveVendorServer(cliRoot) {
-    if (_serverModuleRoot) return _serverModuleRoot;
-
-    const vendorServer = path.join(cliRoot, 'vendor', 'Server');
-    if (fs.existsSync(vendorServer)) {
-        _serverModuleRoot = vendorServer;
-        return vendorServer;
-    }
-    const repoServer = path.resolve(cliRoot, '..', 'Server');
-    if (fs.existsSync(repoServer)) {
-        _serverModuleRoot = repoServer;
-        return repoServer;
-    }
-    throw new Error(
-        `无法定位核心引擎目录：期望 cli/vendor/Server 或仓库 Server/。` +
-        `请先运行 npm run prepack（或 clone 仓库到 cli/ 的上一级）`
-    );
-}
-
-/** 动态导入 Server/Routes/server.js（一手段：vendor 优先、开发期回退仓库源码）。 */
+// ─── 核心树路径解析（与 runner.js 同一实现：core-paths.js 四级解析）────────────────
+/** 动态导入 Server/Routes/server.js（核心树由 3LIB_CORE_DIR > 已安装核心包 > vendor > 仓库根 解析）。 */
 async function _importServerModule() {
-    const serverRoot = resolveVendorServer(CLI_ROOT);
+    const serverRoot = resolveCoreRoots(CLI_ROOT).serverRoot;
     const url = new URL(`file://${path.join(serverRoot, 'Routes', 'server.js').replace(/\\/g, '/')}`);
     return import(url.href);
 }

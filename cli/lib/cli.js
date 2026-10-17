@@ -37,6 +37,7 @@ import {
 } from './config.js';
 import { EXIT, TERMINAL_LOOP_STATES } from './exit-codes.js';
 import { closeAllRunContexts } from './lifecycle.js';
+import { CORE_PACKAGE, describeCoreSource } from './core-paths.js';
 
 // 惰性加载（避免未用到时启动完整引擎）
 let _ui, _queries, _runner;
@@ -170,10 +171,26 @@ export async function runCli(argv) {
 
 function cmdVersion(jsonMode) {
     const v = getCliVersion();
+    // 双包发布态：把解析到的核心包版本一并输出（与 CLI 版本不匹配时一眼可见排障线索）
+    const core = describeCoreSource();
     if (jsonMode) {
-        process.stdout.write(JSON.stringify({ name: '@ohos-cpf/3rdloop', version: v, node: process.version }, null, 2) + '\n');
+        process.stdout.write(JSON.stringify({
+            name: '@ohos-cpf/3rdloop',
+            version: v,
+            node: process.version,
+            core: {
+                name: CORE_PACKAGE,
+                version: core.version,
+                found: core.level !== 0,
+                source: core.mode,
+                root: core.root,
+            },
+        }, null, 2) + '\n');
     } else {
-        process.stdout.write(`@ohos-cpf/3rdloop v${v} (node ${process.version})\n`);
+        const coreText = core.level === 0
+            ? `${CORE_PACKAGE} 未解析`
+            : `${CORE_PACKAGE} v${core.version ?? '未知'}（${core.mode}）`;
+        process.stdout.write(`@ohos-cpf/3rdloop v${v} (node ${process.version})｜核心: ${coreText}\n`);
     }
     return EXIT.OK;
 }

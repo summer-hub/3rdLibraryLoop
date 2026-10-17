@@ -20,41 +20,34 @@
 
 import path from 'node:path';
 import fs from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { resolveCliType } from './config.js';
 import { registerRunContext, unregisterRunContext } from './lifecycle.js';
 
-// ─── vendor 路径解析 ─────────────────────────────────────────────────────────
-// 优先用 vendor/Server 下的副本（发布态）；开发期允许回退到仓库 Server/ 源码。
-const moduleDir = path.dirname(fileURLToPath(import.meta.url));
-export const CLI_ROOT = path.resolve(moduleDir, '..');
-
-let _serverModuleRoot = null;
-function resolveVendorServer(cliRoot) {
-    if (_serverModuleRoot) return _serverModuleRoot;
-
-    const vendorServer = path.join(cliRoot, 'vendor', 'Server');
-    if (fs.existsSync(vendorServer)) {
-        _serverModuleRoot = vendorServer;
-        return vendorServer;
-    }
-    // 回退：直接引用仓库 Server/（开发期 npm link 场景）
-    const repoServer = path.resolve(cliRoot, '..', 'Server');
-    if (fs.existsSync(repoServer)) {
-        _serverModuleRoot = repoServer;
-        return repoServer;
-    }
-    throw new Error(
-        `无法定位核心引擎目录：期望 cli/vendor/Server 或仓库 Server/。` +
-        `请先运行 npm run prepack（或 clone 仓库到 cli/ 的上一级）`
-    );
-}
+// ─── 核心树路径解析 ─────────────────────────────────────────────────────────
+// 四级来源（实现见 core-paths.js，命中即返回）：
+//   ① 3LIB_CORE_DIR            —— 显式覆盖（运维/测试）
+//   ② @ohos-cpf/3rdloop_core   —— 双包发布态的正路（核心在 node_modules 里）
+//   ③ cli/vendor               —— prepack 产物（单包回退 / 本地调试）
+//   ④ 仓库根（cli/ 的上一级）   —— 开发期直接引用源码
+// 四级都指向同构的「核心树根」：其下有 Server/ plugins/ core/ seams/ profiles/，
+// 因此 Server/** 的相对 import 与接缝路径在三种形态下无需任何改写。
+export {
+    CLI_ROOT,
+    CORE_DIR_ENV,
+    CORE_PACKAGE,
+    corePackageInfo,
+    describeCoreSource,
+    resolveCoreRoots,
+    resolveCoreRootsOrNull,
+} from './core-paths.js';
+import { CLI_ROOT, resolveCoreRoots } from './core-paths.js';
 
 // 动态导入核心引擎模块
 let _modules = null;
 async function _loadCore(cliRoot) {
     if (_modules) return _modules;
-    const serverRoot = resolveVendorServer(cliRoot);
+    const roots = resolveCoreRoots(cliRoot);
+    const { serverRoot } = roots;
 
     // 使用绝对 file URL 导入，避免 Windows 下路径格式问题
     async function imp(p) {
@@ -72,7 +65,7 @@ async function _loadCore(cliRoot) {
         imp('FlexRunner/index.js'),
         imp('Knowledge/index.js'),
         imp('composition/buildApp.js'),
-        // 插件宿主装配与活跃宿主桥：与 buildApp 同属 vendor（含 core/ 副本），
+        // 插件宿主装配与活跃宿主桥：与 buildApp 同属核心树（含 core/ 副本），
         // 动态 import 保证开发态/发布态同构，也不给 verify-deps 增静态依赖。
         imp('composition/appHost.js'),
         imp('composition/hostBridge.js'),
@@ -94,7 +87,8 @@ async function _loadCore(cliRoot) {
         createAppHost: appHostMod.createAppHost,
         activateAppHost: appHostMod.activateAppHost,
         hostBridge: hostBridgeMod,
-        serverRoot,
+        // 命中的核心树与各子根（诊断/排障/插件装配共用同一份解析结果）
+        ...roots,
     };
     return _modules;
 }

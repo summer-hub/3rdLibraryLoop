@@ -1,22 +1,24 @@
-# cli —— 嵌入式引擎 CLI（@ohos-cpf/3rdloop_dev）
+# cli —— 嵌入式引擎 CLI（@ohos-cpf/3rdloop）
 
 本目录是 3rdLibraryLoop 的嵌入式命令行工具包，直接复用 `Server/` 核心引擎
 （LoopEngine / Brain / Orchestrator / FlexRunner / TestCheck / Knowledge），
 无需启动 HTTP 服务即可从终端跑完整"任务拆解 → 编排执行 → 准出审核"大循环。
 
 > 定位：**嵌入式模式**（`Loop Cli封装计划.md` 方案 A）——单进程内组装核心引擎依赖，
-> 仅依赖 AI CLI serve（`CLI_TYPE` 决定 opencode/deveco-code，默认 deveco-code，端口 4096）+ LLM 凭据；
-> 上 npm 以 `@ohos-cpf/3rdloop_dev` 发布。
+> 仅依赖 AI CLI serve（`CLI_TYPE` 决定 opencode/deveco-code，默认 deveco-code，端口 4096）+ LLM 凭据。
+> **双包发布**：本目录是 `@ohos-cpf/3rdloop`（CLI 包），核心在 `@ohos-cpf/3rdloop_core`
+> （仓库根即核心包），核心树经四级解析定位，见下文「双包发布与核心树四级解析」。
 
 ## 目录结构
 
 ```
 cli/
 ├── AGENTS.md            # 本文档
-├── package.json         # bin: 3rdloop；files: bin/lib/vendor/web/workflows/README.md
+├── package.json         # bin: 3rdloop；files: bin/lib/web/workflows/README.md（**不含 vendor**）
 ├── bin/3rdloop.mjs         # 入口：argv 解析 + 退出码归一（任何异常 → 1）
 ├── lib/
 │   ├── cli.js           # 命令分发（run/submit/step/orch/web/workflows...）
+│   ├── core-paths.js    # 核心树四级解析（零依赖：3LIB_CORE_DIR > 已安装核心包 > vendor > 仓库根）
 │   ├── config.js        # 环境装配：项目根/.env 链/数据目录/SKILL 目录/taskId
 │   ├── config-cmd.js    # 3rdloop config 配置命令（白名单 .env 读写）
 │   ├── update.js        # 3rdloop update 自更新（版本检测/卸载旧版/重装）
@@ -36,9 +38,9 @@ cli/
 │   └── exit-codes.js    # 退出码约定
 ├── workflows/           # 工作流注册目录（每个 .js/.mjs 自动注册一个工作流）
 ├── scripts/
-│   ├── prepack.mjs      # 发布期：复制 Server/ → cli/vendor/Server/、plugins+core+seams+profiles → cli/vendor/、Web/public/ → cli/web/
-│   ├── clean-vendor.mjs # 发布后：删除本地 cli/vendor/（含插件与内核副本）与 cli/web/
-│   └── verify-deps.mjs  # 校验引擎与插件树 import 的依赖已声明
+│   ├── prepack.mjs      # 本地工具（发布态不再用）：生成 cli/vendor/{Server,plugins,core,seams,profiles,MCP,Archive,BadCase} + cli/web
+│   ├── clean-vendor.mjs # 本地工具：删除本地 cli/vendor/ 与 cli/web/
+│   └── verify-deps.mjs  # 三模式校验：已安装核心包 / vendor / 仓库源码 的依赖声明
 └── README.md            # 用户文档
 ```
 
@@ -125,23 +127,63 @@ storage(用户数据目录)
 - `flexRunnerFactory` 的赋值仍留在 runner 里（buildApp 不碰它）：它需要 runner 自己的
   `_activeOrchestrator` / 数据目录上下文，不属于共享装配。
 
-## vendor 双模式
+## 双包发布与核心树四级解析
 
-- **开发期**：`npm link` 直引仓库 `Server/` 源码（`resolveVendorServer()` 回退 `../Server`），零副本。
-- **发布期**：`prepack` 按 `CORE_MODULES` 白名单逐模块复制 → `cli/vendor/Server/` → 打包 → `postpack` 自动删除。
-  `.gitignore` 忽略 vendor，手工改动无效（下次打包重新生成）。
-  新增 `Server/<模块>/` 时**必须同步加进白名单**（例：`composition/` 就是装配点 `buildApp` 的落点，
-  漏了它发布态 CLI 会 module not found，而开发态因回退仓库 `Server/` 察觉不到）。
-- **配套资产随包**（与 vendor/Server 平级，保证 SKILL 相对路径双模式一致）：
-  `vendor/MCP`（Gateway + scripts）、`vendor/Archive`（kb 检索引擎 + data 种子）、
-  `vendor/BadCase`（已知问题知识库种子）。依赖不装在各自子 package.json（npm 不为包内
-  文件安装依赖），统一声明在 cli/package.json，模块解析沿目录树向上命中包内 node_modules。
-  SKILL 中 `{{skillDir}}/../../../MCP/scripts/*.cjs`（skillDir = vendor/Server/Skills/<x>）
-  与 McpToolGuide 的 `Server/library → ../../MCP/config.json` 在两种模式下同路径解析成功。
-- `verify-deps` 双模式扫描，**两份 manifest 按扫描组分开核对**（否则插件依赖会漏检）：
-  有 vendor 时扫 `vendor/{Server,MCP/src,Archive/src,plugins,core,seams}`，统一比对 `cli/package.json`；
-  无 vendor 时回退扫 `Server`、`MCP/src`、`Archive/src`（比对 `cli/package.json`）与仓库根 `plugins`、`core`、`seams`
-  （比对**仓库根 `package.json`**——`openai` 就声明在那里，而 `cli/package.json` 不含它）。
+**形态**：两个 npm 包，**不做仓库搬家**。仓库根本身就是核心包
+`@ohos-cpf/3rdloop_core`（`Server/ plugins/ core/ seams/ profiles/ MCP/ Archive/ BadCase/` 全部原地保留，
+所有相对 import 与 21 条接缝路径一字不改），`cli/` 是 CLI 包 `@ohos-cpf/3rdloop`。
+
+| 包 | manifest | files 白名单 | dependencies |
+|----|----------|--------------|--------------|
+| `@ohos-cpf/3rdloop_core` | 仓库根 `package.json` | `Server plugins core seams profiles MCP Archive BadCase README.md` | 核心树 import 的全部运行时依赖 |
+| `@ohos-cpf/3rdloop` | `cli/package.json` | `bin lib web workflows README.md`（**无 vendor**） | `@ohos-cpf/3rdloop_core` + CLI 自己直接 import 的（`dotenv`） |
+
+发版顺序：**先核心包，再 CLI 包**。CLI 的依赖写范围（`^0.0.11`）；`0.0.x` 的 caret 等价于锁 patch，
+升核心包 patch 版要同步改 CLI 范围（或放宽成 `>=0.0.11 <0.1.0`）。
+
+### 核心树四级解析（`lib/core-paths.js`，唯一真源）
+
+| 级别 | 来源 | 场景 |
+|------|------|------|
+| ① | `3LIB_CORE_DIR` | 运维/测试显式覆盖（写错即报错，不静默降级） |
+| ② | 已安装 `@ohos-cpf/3rdloop_core`（`createRequire(import.meta.url).resolve('<pkg>/package.json')` + `dirname`） | **双包发布态正路** |
+| ③ | `cli/vendor` | prepack 产物（单包回退 / 本地调试） |
+| ④ | 仓库根（`cli/` 的上一级） | 开发期直引源码 |
+
+四级都返回同构的「核心树根」，`resolveCoreRoots()` 给出
+`{ level, label, coreRoot, serverRoot, pluginsRoot, seamsRoot, profilesRoot }`；
+四级全落空时错误信息逐级列出实测结果与可照抄的修法。
+`runner.js`（`_loadCore`）、`serve.js`（`Server/Routes/server.js`）、`mcp.js`（`resolveAssets`）、
+`config.js`（SKILL 目录 / env 标记）、`doctor.js`（核心包版本检查）都消费同一份解析结果。
+`config.js` 也引用它却不构成循环依赖——`core-paths.js` **零本地依赖**（只用 node 内置模块）。
+
+排障：`3rdloop version` / `version --json` / `doctor` 都打印核心包版本与来源。
+
+### vendor 现在只是本地工具
+
+`prepack` / `clean-vendor` 保留，但**发布态不再使用 vendor**（`files` 不含 `vendor`，产物不进 tarball）：
+- `prepack`：生成 `cli/vendor/`（核心副本，供第③级）+ `cli/web/`（`Web/public` 副本，`files` 含 `web`），
+  写 `vendor/VERSION`、扫描敏感文件；`vendor/Server/package.json` 的 dependencies 对齐**核心包** manifest。
+- `postpack`（clean-vendor）：删除本地 `cli/vendor/` 与 `cli/web/`。
+- 核心包整包发布后**不再需要**维护 `CORE_MODULES` 白名单；但若继续用 vendor 做本地调试，
+  白名单仍需同步（`composition/` 是 `buildApp` 的落点，漏了第③级会 module not found）。
+
+资产（MCP/Archive/BadCase）三种形态同构：SKILL 里的
+`{{skillDir}}/../../../MCP/scripts/*.cjs` 与 McpToolGuide 的 `Server/library → ../../MCP/config.json`
+在安装态（核心包根）、vendor 态、仓库态都是同一相对深度。
+
+### verify-deps 三模式
+
+| 模式 | 触发 | 核心树扫描目录 | 核对 manifest |
+|------|------|----------------|----------------|
+| ① installed | `node_modules/@ohos-cpf/3rdloop_core` 可解析 | `<核心包>/{Server,MCP/src,Archive/src,plugins,core,seams,profiles}` | **核心包 `package.json`** |
+| ② vendor | `cli/vendor/Server` 存在 | `vendor/{Server,MCP/src,Archive/src,plugins,core,seams}` | 已装核心包 → 仓库根 → `cli/package.json`（遗留单包形态） |
+| ③ repo | 仓库 `Server/` 存在 | 仓库根同名目录 | 仓库根 `package.json`（= 核心包 manifest） |
+
+三种模式都额外扫 `cli/{lib,bin,workflows}` 并比对 `cli/package.json`。
+`dotenv` 是唯一在两个包中各声明一次的依赖：`Server/composition/envBootstrap.js`（核心树）与
+`cli/lib/config.js`（CLI 自身）各自直接 import，任一侧缺失都会在该侧运行路径上报错；
+两组扫描各认自己的 manifest，漏在任一包里都会被扫出来。
 
 ## mcp 命令（MCP Gateway 装配）
 
@@ -152,8 +194,8 @@ storage(用户数据目录)
   字段，保留 downstreamServers 等用户改动，--force 重置）② 种子复制 kb-data（← Archive/data）
   与 BadCase 副本（已存在跳过，保用户数据）③ 注册 `mcp-gateway` 到
   `~/.config/opencode/opencode.json` 与 `~/.config/deveco/deveco.jsonc`（保留其他字段，幂等）。
-- **资产定位**：`resolveAssets()` vendor 优先回退仓库（与 resolveVendorServer 同模式），
-  开发态 `3rdloop mcp install` 直接用仓库 MCP/。
+- **资产定位**：`resolveAssets()` 走同一份核心树解析（已安装核心包 → vendor → 仓库根），
+  开发态 `3rdloop mcp install` 直接用仓库 `MCP/`，安装态用核心包的 `MCP/`。
 - **deveco.jsonc 为 JSONC**：readJsonc 容错解析（剥注释重试），失败提示手动处理。
 - **doctor 集成（自动装配）**：`3rdloop doctor` 默认 `fix=true`——collectChecks 的「MCP Gateway
   装配」检查（warning: true）未通过时，自动调用 `mcpInstall` 装配并复查回填检查项；`--no-fix`

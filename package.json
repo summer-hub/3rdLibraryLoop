@@ -1,8 +1,45 @@
 {
-    "name": "3rd-library-loop",
-    "version": "1.0.0",
+    "name": "@ohos-cpf/3rdloop_core",
+    "version": "0.0.11",
+    "description": "3rdLibraryLoop 核心包：Server 引擎 + 插件内核（core/）+ 插件（plugins/）+ 能力契约（seams/）+ profile（profiles/）+ 配套资产（MCP/Archive/BadCase）",
     "type": "module",
-    "private": true,
+    "private": false,
+    "license": "MIT",
+    "author": "LalHan <hanle12@huawei.com>",
+    "homepage": "https://gitcode.com/summor/3rdLibraryLoop",
+    "repository": {
+        "type": "git",
+        "url": "git+https://gitcode.com/summor/3rdLibraryLoop.git"
+    },
+    "bugs": {
+        "url": "https://gitcode.com/summor/3rdLibraryLoop/issues"
+    },
+    "keywords": [
+        "3rdlibrary",
+        "harmonyos",
+        "opencode",
+        "engine",
+        "plugin-kernel",
+        "code-review"
+    ],
+    "engines": {
+        "node": ">=22"
+    },
+    "files": [
+        "Server",
+        "plugins",
+        "core",
+        "seams",
+        "profiles",
+        "MCP",
+        "Archive",
+        "BadCase",
+        "README.md",
+        "!**/.env",
+        "!**/.env.*",
+        "!**/*.signing",
+        "!**/node_modules"
+    ],
     "scripts": {
         "test": "node test/run-all.mjs",
         "test:m1": "node test/m1/run-all.mjs",
@@ -25,9 +62,14 @@
         "verify": "npm run lint && npm run test"
     },
     "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.0.0",
         "@opencode-ai/sdk": "^1.18.6",
         "better-sqlite3": "^13.0.1",
-        "openai": "^4.104.0"
+        "chokidar": "^4.0.0",
+        "dotenv": "^17.0.0",
+        "jieba-wasm": "^2.4.0",
+        "openai": "^4.104.0",
+        "typescript": "^5.5.4"
     },
     "devDependencies": {
         "@biomejs/biome": "^2.5.13"

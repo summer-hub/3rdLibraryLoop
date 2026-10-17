@@ -1,6 +1,14 @@
 #!/usr/bin/env node
 /**
- * prepack.mjs —— npm publish 前的打包准备（A1）
+ * prepack.mjs —— npm pack/publish 前的**本地**打包准备（单包回退 / 本地调试工具）
+ *
+ * ⚠ 双包发布形态**不再使用 vendor**：核心随 `@ohos-cpf/3rdloop_core` 一起发布，
+ * 安装态 CLI 从 node_modules 解析核心树（`cli/lib/core-paths.js` 四级解析的第②级），
+ * `cli/package.json` 的 files 白名单**不含 vendor**，因此本脚本的产物不会进 CLI tarball。
+ * 保留它的理由已缩小为三条：
+ *   - 单包形态（把核心副本塞进 CLI 包）的遗留回退；
+ *   - 离线/本地调试：生成 cli/vendor 供四级解析的第③级命中（不依赖 npm i 核心包）；
+ *   - 生成 cli/web（Web/public 的内置前端副本，files 白名单仍含 web）。
  *
  * 作用：
  *   - 将仓库 Server/ 核心引擎复制到 cli/vendor/Server/（保持目录结构，
@@ -148,22 +156,23 @@ async function main() {
         }
     }
 
-    // 覆写 vendor/Server/package.json：对齐 cli 依赖版本，避免版本冲突误导消费者
+    // 覆写 vendor/Server/package.json：对齐**核心包**依赖（双包形态下核心树由
+    // 仓库根 package.json = @ohos-cpf/3rdloop_core 声明依赖，CLI 只声明它自己 import 的）
     const vendorPkgPath = path.join(VENDOR_SERVER, 'package.json');
     if (fs.existsSync(vendorPkgPath)) {
-        const cliPkg = JSON.parse(fs.readFileSync(path.join(CLI_ROOT, 'package.json'), 'utf8'));
+        const corePkg = JSON.parse(fs.readFileSync(path.join(PROJECT_ROOT, 'package.json'), 'utf8'));
         const vendorPkg = JSON.parse(fs.readFileSync(vendorPkgPath, 'utf8'));
-        vendorPkg.dependencies = { ...cliPkg.dependencies };
-        vendorPkg._comment = 'vendored from Server/; dependencies aligned with cli package.json by prepack';
+        vendorPkg.dependencies = { ...corePkg.dependencies };
+        vendorPkg._comment = 'vendored from Server/; dependencies aligned with @ohos-cpf/3rdloop_core package.json by prepack';
         fs.writeFileSync(vendorPkgPath, JSON.stringify(vendorPkg, null, 2) + '\n');
-        console.log('[prepack] 覆写 vendor/Server/package.json dependencies（对齐 cli）');
+        console.log('[prepack] 覆写 vendor/Server/package.json dependencies（对齐核心包）');
     }
 
     // 写入 VERSION
     let version = 'dev';
     try {
-        const cliPkg = JSON.parse(fs.readFileSync(path.join(CLI_ROOT, 'package.json'), 'utf8'));
-        version = cliPkg.version || 'dev';
+        const corePkg = JSON.parse(fs.readFileSync(path.join(PROJECT_ROOT, 'package.json'), 'utf8'));
+        version = corePkg.version || 'dev';
     } catch { /* 保持 dev */ }
     // 同时写入源码哈希便于审计
     const hash = _hashDir(VENDOR_SERVER);

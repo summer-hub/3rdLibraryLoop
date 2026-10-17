@@ -30,6 +30,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import process from 'node:process';
 import { resolveCliType } from './config.js';
+import { resolveCoreRootsOrNull } from './core-paths.js';
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 export const CLI_ROOT = path.resolve(moduleDir, '..');
@@ -47,26 +48,32 @@ function aiCliConfigPaths() {
     };
 }
 
-// ─── 包内资产定位（vendor 优先，仓库开发态回退）────────────────────────
+// ─── 包内资产定位（核心树优先，vendor / 仓库开发态回退）────────────────
 
 let _assetsCache = null;
 
 /**
  * 定位 MCP / Archive / BadCase 资产目录。
- * @returns {{ mcpDir: string, archiveDir: string, badcaseDir: string, mode: 'vendor'|'repo' }}
- * @throws {Error} vendor 与仓库路径均不存在
+ *
+ * 双包发布态下资产随核心包走（`node_modules/@ohos-cpf/3rdloop_core/{MCP,Archive,BadCase}`），
+ * 由 core-paths.js 的四级解析统一给出；`vendor` / 仓库根两级保留为本地回退。
+ *
+ * @returns {{ mcpDir: string, archiveDir: string, badcaseDir: string, mode: 'core'|'vendor'|'repo', source: string }}
+ * @throws {Error} 三级路径均不存在
  */
 export function resolveAssets() {
     if (_assetsCache) return _assetsCache;
 
-    const vendorDir = path.join(CLI_ROOT, 'vendor');
+    const coreRoot = resolveCoreRootsOrNull()?.coreRoot || '';
     const repoRoot = path.resolve(CLI_ROOT, '..');
 
     const tryDirs = [
-        { root: vendorDir, mode: 'vendor' },
-        { root: repoRoot, mode: 'repo' },
+        { root: coreRoot, mode: 'core', source: `核心树（${coreRoot || '未解析'}）` },
+        { root: path.join(CLI_ROOT, 'vendor'), mode: 'vendor', source: '包内 vendor/' },
+        { root: repoRoot, mode: 'repo', source: '仓库根' },
     ];
-    for (const { root, mode } of tryDirs) {
+    for (const { root, mode, source } of tryDirs) {
+        if (!root) continue;
         const mcpDir = path.join(root, 'MCP');
         if (fs.existsSync(path.join(mcpDir, 'src', 'index.js'))) {
             _assetsCache = {
@@ -74,12 +81,13 @@ export function resolveAssets() {
                 archiveDir: path.join(root, 'Archive'),
                 badcaseDir: path.join(root, 'BadCase'),
                 mode,
+                source,
             };
             return _assetsCache;
         }
     }
     throw new Error(
-        `无法定位 MCP Gateway：期望 cli/vendor/MCP 或仓库 MCP/。` +
+        `无法定位 MCP Gateway：核心树 / cli/vendor / 仓库根下都没有 MCP/src/index.js。` +
         `npm 安装态请重装包（npm i -g @ohos-cpf/3rdloop），仓库态请在 cli/ 上一级执行`
     );
 }
@@ -321,7 +329,7 @@ export async function mcpInstall({ user3libHome, rest = [], jsonMode = false }) 
             registered,
         });
     } else {
-        log(`[3rdloop mcp] Gateway 来源: ${assets.mode === 'vendor' ? '包内 vendor/MCP' : '仓库 MCP/'}`);
+        log(`[3rdloop mcp] Gateway 来源: ${assets.source}`);
         log(`[3rdloop mcp] 用户配置: ${up.mcpConfig}${writeResult.existed && !force ? '（已存在，仅刷新路径）' : ''}`);
         log(`[3rdloop mcp] 知识库数据目录: ${up.kbDataDir}`);
         log(`[3rdloop mcp] BadCase 副本: ${up.badcaseDir}`);
@@ -397,7 +405,7 @@ export async function mcpStatus({ user3libHome, jsonMode = false }) {
     if (jsonMode) {
         out(result);
     } else {
-        log(`Gateway 来源: ${assets.mode === 'vendor' ? '包内 vendor/MCP' : '仓库 MCP/'}（${result.gateway}）`);
+        log(`Gateway 来源: ${assets.source}（${result.gateway}）`);
         log(`用户配置: ${up.mcpConfig}${result.userConfigExists ? '' : '（未生成，先 3rdloop mcp install）'}`);
         log(`知识库数据: ${up.kbDataDir}${result.kbDataSeeded ? '' : '（未初始化）'}`);
         log(`BadCase 副本: ${up.badcaseDir}${result.badcaseSeeded ? '' : '（未初始化）'}`);
