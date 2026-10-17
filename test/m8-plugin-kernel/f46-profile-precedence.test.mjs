@@ -8,7 +8,7 @@
  */
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { createSuite, impCore, withTempDir } from './helpers.mjs';
+import { createSuite, impCore, withTempDir, ROOT } from './helpers.mjs';
 
 const {
     loadProfile,
@@ -140,6 +140,76 @@ const write = (dir, name, body) => fs.writeFile(path.join(dir, `${name}.json`), 
     check('D required 只能由 profile 显式声明', fromProfile.required === true);
     check('D profile 未提及时一律视为「未安装、不关心」（required=false）', notMentioned.required === false);
     check('D 默认 env 下 enabled 为 true', notMentioned.enabled === true);
+}
+
+// ─── E. profile 级 defaultEnabled（「未提及」= 启用还是禁用）────────────
+// 背景：`enabled = entry.enabled !== false` 意味着「未提及 = 启用」，于是**往 plugins/ 里丢一个
+// 目录 = 在所有部署里自动激活**。对发布成 npm 包的形态而言，「装了什么」与「启用什么」应当可以
+// 解耦，所以默认值改为 profile 级可配；不声明时保持原语义（向后兼容）。
+{
+    const legacy = resolvePluginState({ pluginName: 'demo/p', defaults: {}, profile: { plugins: {} }, env: {} });
+    check('E1 未声明 defaultEnabled 时未提及 = 启用（向后兼容）', legacy.enabled === true);
+
+    const whitelist = { defaultEnabled: false, plugins: {} };
+    const notListed = resolvePluginState({ pluginName: 'demo/p', defaults: {}, profile: whitelist, env: {} });
+    check('E2 defaultEnabled:false 时未提及 = 禁用', notListed.enabled === false);
+    check('E3 禁用原因点名 defaultEnabled（排障要能看出是默认值还是显式声明）',
+        /defaultEnabled/.test(String(notListed.reason)), notListed.reason);
+
+    const listed = resolvePluginState({
+        pluginName: 'demo/p',
+        defaults: {},
+        profile: { defaultEnabled: false, plugins: { 'demo/p': { enabled: true } } },
+        env: {},
+    });
+    check('E4 显式 enabled:true 压过 defaultEnabled:false', listed.enabled === true);
+
+    const explicitlyOff = resolvePluginState({
+        pluginName: 'demo/p',
+        defaults: {},
+        profile: { defaultEnabled: true, plugins: { 'demo/p': { enabled: false } } },
+        env: {},
+    });
+    check('E5 显式 enabled:false 压过 defaultEnabled:true', explicitlyOff.enabled === false);
+
+    const overridden = resolvePluginState({ pluginName: 'demo/p', defaults: {}, profile: whitelist, env: {}, overrides: { enabled: true } });
+    check('E6 overrides 仍可压过 defaultEnabled:false（优先级不变）',
+        overridden.enabled === true && /显式覆盖/.test(String(overridden.reason)), overridden.reason);
+
+    const loaded = await withTempDir('profile-default-enabled', async (dir) => {
+        await write(dir, 'whitelist', JSON.stringify({ defaultEnabled: false, plugins: { 'demo/a': { enabled: true } } }));
+        await write(dir, 'bad', JSON.stringify({ defaultEnabled: 'yes', plugins: {} }));
+        return {
+            ok: loadProfile({ profilesDir: dir, name: 'whitelist', env: {} }),
+            badType: await throws(() => loadProfile({ profilesDir: dir, name: 'bad', env: {} })),
+        };
+    });
+    check('E7 loadProfile 透传 defaultEnabled', loaded.ok.defaultEnabled === false);
+    check('E8 defaultEnabled 非布尔 → 报错（配置错误不该被静默吞掉）',
+        !!loaded.badType && /defaultEnabled 必须是布尔值/.test(loaded.badType.msg), loaded.badType?.msg);
+
+    // 端到端对照：同一个 profile，加不加 defaultEnabled:false 决定"插件目录是否等于激活开关"
+    const { PluginHost } = await impCore('PluginHost.js');
+    const loadWith = async (prefix, profileBody) =>
+        withTempDir(prefix, async (dir) => {
+            await write(dir, 'p', JSON.stringify(profileBody));
+            const host = new PluginHost({ roots: [path.join(ROOT, 'plugins')], profilesDir: dir, env: {}, logger: () => {} });
+            await host.load({ profile: 'p' });
+            const names = [...host.loaded];
+            await host.dispose();
+            return names;
+        });
+
+    const restricted = await loadWith('profile-whitelist', {
+        defaultEnabled: false,
+        plugins: { 'engines/brain': { enabled: true } },
+    });
+    check('E9 端到端：defaultEnabled:false → 只加载显式启用项',
+        restricted.length === 1 && restricted[0] === 'engines/brain', restricted.join(','));
+
+    const open = await loadWith('profile-open', { plugins: { 'engines/brain': { enabled: true } } });
+    check('E10 对照：去掉 defaultEnabled:false → 全部插件照旧加载（默认语义未变）',
+        open.length > 1, open.join(','));
 }
 
 suite.finish();

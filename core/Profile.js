@@ -16,6 +16,17 @@
  * 兼容性原则：**不引入任何新的必填环境变量**。现有变量（CLI_TYPE、
  * DASHSCOPE_API_KEY、3LIB_DATA_DIR……）语义与优先级完全不变；插件只是
  * 多了一层可选的显式配置入口。
+ *
+ * ── 「未提及」到底算启用还是禁用：`defaultEnabled`（profile 级，可选）──────────
+ * 默认 `true`（不声明即此值）：
+ *   - 未提及 = **启用**。这条保留了改造前的语义，也让「空 profile」成为合法的最小部署
+ *     （`loadProfile` 在缺省 profile 文件缺失时返回空 profile）。
+ *   - 代价：**往 `plugins/` 里放一个插件目录，就等于在所有部署里激活它** —— 插件目录本身
+ *     成了激活开关，与"装了什么"耦合在一起。
+ * 声明 `"defaultEnabled": false` 时：
+ *   - 未提及 = **禁用**（白名单语义）；只有 `plugins.<name>.enabled === true` 的条目才加载，
+ *     于是"装了"与"启用"解耦，发布态可以只带插件、按 profile 决定启用哪些。
+ * 两种模式下 `plugins.<name>.enabled`（显式）与 `overrides`（程序化）的优先级都不变。
  */
 
 import fs from 'node:fs';
@@ -67,7 +78,13 @@ export function loadProfile({ profilesDir, name, env = process.env }) {
             throw new Error(`profile ${profileName}：plugins.${pname} 必须为对象`);
         }
     }
-    return { name: profileName, plugins };
+    if (parsed.defaultEnabled !== undefined && typeof parsed.defaultEnabled !== 'boolean') {
+        throw new Error(`profile ${profileName}：defaultEnabled 必须是布尔值`);
+    }
+    // defaultEnabled 决定「profile 未提及某插件」时的默认值：
+    //   undefined / true（默认）→ 未提及 = 启用（兼容既有 profile 与「空 profile 最小部署」）
+    //   false                  → 未提及 = 禁用（白名单语义：装了什么 ≠ 启用什么）
+    return { name: profileName, plugins, defaultEnabled: parsed.defaultEnabled };
 }
 
 /** 列出 profiles 目录下可用 profile 名 */
@@ -97,13 +114,18 @@ export function resolvePluginState({ pluginName, defaults, profile, env = proces
         .map((s) => s.trim())
         .filter(Boolean);
 
-    let enabled = entry.enabled !== false;
+    // 「未提及」= 启用还是禁用，由 profile 级 defaultEnabled 决定（见 loadProfile 的说明）。
+    // 显式 entry.enabled 永远优先于 profile 默认值：显式声明过的条目意图明确，不该被默认值改写。
+    const defaultEnabled = profile?.defaultEnabled !== false;
+    let enabled = typeof entry.enabled === 'boolean' ? entry.enabled : defaultEnabled;
     let reason;
     if (disableList.includes(pluginName)) {
         enabled = false;
         reason = `env ${DISABLE_ENV} 禁用`;
     } else if (entry.enabled === false) {
         reason = `profile 禁用`;
+    } else if (entry.enabled !== true && !defaultEnabled) {
+        reason = `profile defaultEnabled:false 且未显式启用`;
     }
     if (Object.hasOwn(overrides, 'enabled')) {
         enabled = overrides.enabled === true;
