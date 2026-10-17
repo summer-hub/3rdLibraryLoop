@@ -541,6 +541,8 @@ npm publish              # prepack 自动复制 vendor → 打包 → postpack �
 > **不要**手工改动 `cli/vendor/Server/` —— 它是发布期临时生成物，不入库
 > （`.gitignore` 已忽略），下次 `npm pack/publish` 会重新生成并自动清理。
 > `npm run verify-deps` 同样双模式：有 vendor 扫 vendor，否则回退扫 `Server/` 源码。
+> 两种模式都会扫描插件树（`plugins/` 与内核 `core/`、契约 `seams/`），且**插件组按仓库根
+> `package.json` 核对依赖**（插件是独立包，它的三方依赖不属于 `cli/package.json`）。
 
 ## 开发者
 
@@ -552,4 +554,4 @@ node bin/3rdloop.mjs doctor
 ```
 
 发布前检查：`npm run verify-deps`（有 vendor 扫 vendor，否则回退扫 `Server/` 源码）
-校验引擎代码的依赖声明完整性。
+校验引擎代码与插件树的依赖声明完整性（插件组比对仓库根 `package.json`）。

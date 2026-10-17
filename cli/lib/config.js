@@ -18,7 +18,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // cli/ 目录的绝对路径（本文件在 cli/lib/ 下）
 const CLI_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -156,6 +156,11 @@ export function getProjectName(root, override = '') {
  *
  * 这样实现 A3/D1：谁配了 .env 用谁的，key 不进包。
  *
+ * 与 Server 侧加载器的关系：本函数跑完（三层链的机会已经用掉）后调
+ * `Server/composition/envBootstrap.js` 的 `markServerEnvLoaded()`，让 Server 侧的
+ * `loadServerEnv()` 立即返回 false——同一份 `Server/.env` 不会被第二个加载器再读一次，
+ * 三层优先级也不会被"后加载者"改变。
+ *
  * @param {string} projectRoot - 项目根路径
  * @param {string} user3libHome - 用户 3lib 主目录（~/.3lib）
  */
@@ -177,6 +182,38 @@ export async function loadEnvChain(projectRoot, user3libHome) {
         } catch {
             // 单个 .env 损坏不影响整体
         }
+    }
+
+    await _markServerEnvLoaded();
+}
+
+/**
+ * 本 CLI 对应的 Server 引擎根目录（发布态 vendor 优先，开发期回退仓库 Server/）。
+ * 与 `cli/lib/runner.js` 的 `resolveVendorServer()` 同序，但**不抛错**——
+ * env 标记是尽力而为的接线，缺引擎副本时不应让 CLI 启动失败。
+ *
+ * @returns {string}
+ */
+function _resolveServerRoot() {
+    const vendorServer = path.join(VENDOR_DIR, 'Server');
+    if (fs.existsSync(vendorServer)) return vendorServer;
+    return path.resolve(CLI_ROOT, '..', 'Server');
+}
+
+/**
+ * 登记「env 已按三层优先级加载完毕」（方向 cli → Server，Server 不反向依赖 cli）。
+ *
+ * `envBootstrap.js` 与被 `buildApp` 装配的是**同一个模块实例**（同一绝对路径 →
+ * 同一 module cache 槽），因此这里的标记对 `loadServerEnv()` 可见。
+ * 没有 Server 副本的部署形态（极端裁剪）静默跳过。
+ */
+async function _markServerEnvLoaded() {
+    try {
+        const file = path.join(_resolveServerRoot(), 'composition', 'envBootstrap.js');
+        const mod = await import(pathToFileURL(file).href);
+        mod.markServerEnvLoaded?.();
+    } catch {
+        // 引擎副本不存在 / 加载失败：让 Server 侧按原逻辑自行加载，不影响 CLI
     }
 }
 

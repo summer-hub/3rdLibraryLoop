@@ -25,6 +25,10 @@ const SUITES = [
     ['M5 多 Agent 架构验收（Phase 2）', 'test/m5-phase2/run-all.mjs', [], 900000],
     ['M6 高并发验收（Phase 3）', 'test/m6-phase3/run-all.mjs', [], 900000],
     ['M7 企业级分布式验收（Phase 4）', 'test/m7-phase4/run-all.mjs', [], 900000],
+    ['M8 插件内核验收', 'test/m8-plugin-kernel/run-all.mjs', [], 300000],
+    ['M9 契约一致性验收', 'test/m9-contract-conformance/run-all.mjs', [], 300000],
+    ['M10 宿主作用域隔离验收', 'test/m10-host-scope/run-all.mjs', [], 300000],
+    ['M11 存储 list 语义验收', 'test/m11-storage-list-semantics/run-all.mjs', [], 300000],
     ['SkillSelector 纯逻辑回归', 'Server/Agent/SkillSelector/__tests__/test-pure-logic.js', [], 180000],
 ];
 

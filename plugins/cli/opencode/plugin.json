@@ -1,0 +1,10 @@
+{
+  "name": "cli/opencode",
+  "version": "1.0.0",
+  "seam": "ai-cli",
+  "entry": "index.js",
+  "dependencies": [
+    "storage/core",
+    "util/logger"
+  ]
+}

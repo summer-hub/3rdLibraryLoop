@@ -1,0 +1,7 @@
+{
+  "name": "engines/loopengine",
+  "version": "1.0.0",
+  "seam": "engine-loop",
+  "entry": "index.js",
+  "dependencies": []
+}

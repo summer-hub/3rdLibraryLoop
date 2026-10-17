@@ -1,0 +1,7 @@
+{
+  "name": "engines/knowledge",
+  "version": "1.0.0",
+  "seam": "engine-knowledge",
+  "entry": "index.js",
+  "dependencies": []
+}

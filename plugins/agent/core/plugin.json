@@ -1,0 +1,7 @@
+{
+  "name": "agent/core",
+  "version": "1.0.0",
+  "seam": "agent-skill-selector",
+  "entry": "index.js",
+  "dependencies": []
+}

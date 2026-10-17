@@ -8,6 +8,9 @@
  *     node scripts/ci.mjs      # 等价于 npm run ci
  *
  * 校验顺序（快速失败优先）：
+ *   0. arch   —— scripts/arch-guard.mjs：架构守卫，把「一切即插件」的三条铁律
+ *                （R1 内核纯净 / R2 插件互斥 / R3 契约不碰实现）做成机器判定。
+ *                纯文本扫描、毫秒级完成，放在最前面兜底最便宜的失败
  *   1. lint   —— Biome 静态检查，**0 error 才通过**（warning 只报告不阻断，
  *                这是"先 warn 后 error 渐进收紧"的第一阶段）
  *   2. test   —— 全部里程碑套件（M1~M7 + 引擎单元测试），任一失败即失败
@@ -66,6 +69,13 @@ console.log(`仓库根目录: ${ROOT}`);
 console.log(`Node: ${process.version}`);
 
 const steps = [];
+
+// ── 0. arch-guard（架构守卫，最快失败优先）──
+{
+    const r = await runStep('arch-guard（一切即插件三条铁律）', process.execPath, ['scripts/arch-guard.mjs']);
+    const summary = (r.out.match(/arch-guard: .*/g) || []).pop() ?? `exit=${r.code}`;
+    steps.push({ label: 'arch', ok: r.code === 0, detail: summary });
+}
 
 // ── 1. lint ──
 if (!fs.existsSync(BIOME_JS)) {

@@ -1,0 +1,7 @@
+{
+  "name": "storage/core",
+  "version": "1.0.0",
+  "seam": "storage",
+  "entry": "index.js",
+  "dependencies": []
+}

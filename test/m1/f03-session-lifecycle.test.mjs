@@ -44,8 +44,8 @@ const knowledgeStub = {
     findByDocPath: async () => null,
     addExperience: async () => ({ id: 'kn_test' }),
 };
-// initContext 无条件构造 SkillSelector（其 Agent.js 顶层 import dotenv），
-// 必须注入 stub 才能在未装依赖时做纯 mock 测试。
+// initContext 无条件构造 SkillSelector（其 Agent.js 顶层会 await loadServerEnv()
+// 加载 Server/.env，dotenv 是可选依赖），必须注入 stub 才能在未装依赖时做纯 mock 测试。
 const selectorStub = { match: async () => null, select: async () => null };
 
 async function makeTaskDir(stepId, { resultStatus }) {

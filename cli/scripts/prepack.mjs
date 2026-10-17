@@ -43,6 +43,9 @@ const CORE_MODULES = [
     'Agent',
     'Brain',
     'CLI',
+    // 依赖装配唯一入口（buildApp）：runner.js 发布态要从 vendor/Server 动态 import 它，
+    // 漏复制会让 CLI 报 module not found（开发态因回退仓库 Server/ 而察觉不到）。
+    'composition',
     'DbUse',
     'FlexRunner',
     'Knowledge',
@@ -183,6 +186,48 @@ async function main() {
         console.warn('[prepack] 警告: 未找到 Web/public/，3rdloop serve 将无内置前端');
     }
 
+    // ── 插件树：仓库根 plugins/ → vendor/plugins/ ─────────────────────────
+    // 插件必须随包发布，否则发布态会"内核在、插件不在"：Server 侧的门面
+    // （vendor/Server/Agent/SkillSelector/llm/llmClient.js → ../../../../plugins/...）
+    // 会指向一个不存在的目录，发布态直接 module not found。
+    // 复制到 vendor/ 根（与 vendor/MCP、vendor/Archive 同级）而不是塞进 vendor/Server/，
+    // 是为了让「上溯 4 层 = 仓库根」这个相对路径深度在开发态与发布态同构。
+    // 插件树自身 import 内核：`plugins/<组>/<名>/index.js` 一律
+    // `import { definePlugin } from '../../../core/definePlugin.js'`。
+    // 所以"插件随包发布"必须连带内核（core/）、能力契约（seams/）与 profile（profiles/）
+    // 一起复制到 vendor/ 根 —— 否则发布态从"内核在、插件不在"变成"插件在、内核不在"，
+    // 门面照样 module not found。平级复制使 vendor/ 与仓库根布局同构。
+    const PLUGINS_SRC = path.join(PROJECT_ROOT, 'plugins');
+    const VENDOR_PLUGINS = path.join(VENDOR_DIR, 'plugins');
+    if (fs.existsSync(PLUGINS_SRC)) {
+        if (fs.existsSync(VENDOR_PLUGINS)) {
+            fs.rmSync(VENDOR_PLUGINS, { recursive: true, force: true });
+        }
+        copyDir(PLUGINS_SRC, VENDOR_PLUGINS);
+        console.log('[prepack] 复制 plugins/ → vendor/plugins/（插件随包发布）');
+
+        const KERNEL_DIRS = [
+            { src: 'core', desc: '插件内核（插件入口 import ../../../core/definePlugin.js）' },
+            { src: 'seams', desc: '能力契约（seam 形状声明）' },
+            { src: 'profiles', desc: 'profile（插件启停与选项）' },
+        ];
+        for (const { src, desc } of KERNEL_DIRS) {
+            const srcDir = path.join(PROJECT_ROOT, src);
+            const dstDir = path.join(VENDOR_DIR, src);
+            if (!fs.existsSync(srcDir)) {
+                console.warn(`[prepack] 警告: 未找到 ${src}/，跳过（发布态插件树将缺 ${desc}）`);
+                continue;
+            }
+            if (fs.existsSync(dstDir)) {
+                fs.rmSync(dstDir, { recursive: true, force: true });
+            }
+            copyDir(srcDir, dstDir);
+            console.log(`[prepack] 复制 ${src}/ → vendor/${src}/（${desc}）`);
+        }
+    } else {
+        console.warn('[prepack] 警告: 未找到 plugins/，跳过（发布态 Server 侧插件门面将无实现可加载）');
+    }
+
     // 安全校验：确认 vendor 内无密钥文件
     const securityIssues = _scanSecurity(VENDOR_DIR);
     if (securityIssues.length > 0) {
@@ -243,8 +288,10 @@ function _hashDir(dir) {
 
 /** 安全扫描跳过的知识内容目录（文档/知识库数据，文件名含 key/credential 属正常语义）。 */
 const SCAN_SKIP_DIRS = new Set([
-    'Archive/data',   // 知识库文档种子
-    'BadCase',        // 已知问题知识库
+    // 用 path.join 而不是字面量 'Archive/data'：path.relative 在 Windows 返回反斜杠，
+    // 字面量分隔符会让跳过表永不命中（第二运行时把知识库文档误报成密钥文件而中止）。
+    path.join('Archive', 'data'),   // 知识库文档种子
+    'BadCase',                      // 已知问题知识库
 ]);
 
 /** 扫描 vendor 内是否有敏感文件。 */

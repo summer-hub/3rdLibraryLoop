@@ -1,160 +1,55 @@
 /**
- * DbUse —— 统一持久化存储入口
+ * Server/DbUse/index.js — 统一持久化存储入口（**门面**，实现已迁入插件）
  *
- * 分层架构（高内聚低耦合）：
+ * 实现实体：`plugins/storage/core/createStorage.js`（+ 同目录的 StorageManager / adapters / stores）。
+ * 为什么留这一层：`Server/**` 里 16 处消费者与既有测试都按 `Server/DbUse/index.js` 这个路径
+ * import，插件化不该顺手改掉它们的 import；而架构守卫只禁止「插件 → Server」方向，
+ * 「Server → plugins」是允许的（与 `Server/Agent/SkillSelector/llm/llmClient.js` 同一形状）。
  *
- *   ┌──────────────────────────────────────────────────────────┐
- *   │  入口层  index.js                                        │
- *   │  对外统一导出：createStorage() 工厂 + 各 Store 类          │
- *   ├──────────────────────────────────────────────────────────┤
- *   │  Store 层  stores/                                       │
- *   │  业务语义：SessionStore / TaskStepStore / ...             │
- *   │  只依赖适配器接口，不感知存储格式                          │
- *   ├──────────────────────────────────────────────────────────┤
- *   │  Manager  StorageManager.js                              │
- *   │  工厂/注册表：统一根目录、按 (type,subDir) 复用适配器实例   │
- *   ├──────────────────────────────────────────────────────────┤
- *   │  Adapter 层  adapters/                                   │
- *   │  存储格式实现：Json / Jsonl / Sqlite / File (+ Base)      │
- *   │  互不依赖，新增格式只需加子类                             │
- *   └──────────────────────────────────────────────────────────┘
+ * 本文件不是纯转发：`createStorage` 多了一层**宿主桥**（见 Server/composition/hostBridge.js）——
+ * 有活跃插件宿主且宿主注册了 `storage` 接缝 → 用宿主提供的工厂；否则回落到内置实现。
+ * 无宿主（默认部署形态）时与迁移前逐字节等价：同一个实现、同样的 options、同样同步返回。
  *
- * 目录布局（workspace 根下 db/，自动创建）：
- *   db/
- *     ├── Session/              # Session 对话存档（jsonl + meta.json）
- *     │   ├── <sid>.jsonl
- *     │   └── <sid>.meta.json
- *     ├── TaskStep/             # 任务步骤存档（SQLite）
- *     │   └── store.db
- *     └── Artifacts/            # 任务产物文件（原始文件，按需）
- *
- * 使用示例：
- *   import { createStorage } from './DbUse/index.js';
- *   const storage = createStorage();
- *   const sessionStore = storage.sessionStore();
- *   const taskStepStore = storage.taskStepStore();
- *
- * 扩展方式：
- *   - 新增业务存储：在 stores/ 下新建 Store，通过 manager.get(type, subDir) 取适配器
- *   - 新增存储格式：在 adapters/ 下继承 BaseAdapter，注册到 StorageManager._ADAPTERS
+ * 导出面与迁移前逐名一致（含 default 那个「门面对象」），一个都没少。
  */
 
-import StorageManager from './StorageManager.js';
-import SessionStore from './stores/SessionStore.js';
-import TaskStepStore from './stores/TaskStepStore.js';
-import TaskExecutionStore from './stores/TaskExecutionStore.js';
-import TaskRegistryStore from './stores/TaskRegistryStore.js';
-import MessageArchive from './MessageArchive.js';
+import { createStorageFromHost } from '../composition/hostBridge.js';
+import {
+    createStorage as _createStorageBuiltin,
+    MessageArchive,
+    SessionStore,
+    StorageManager,
+    SubDirs,
+    TaskStepStore,
+} from '../../plugins/storage/core/createStorage.js';
 
-export { StorageManager, SessionStore, TaskStepStore, TaskExecutionStore, TaskRegistryStore, MessageArchive };
-export { default as BaseAdapter } from './adapters/BaseAdapter.js';
-export { default as JsonAdapter } from './adapters/JsonAdapter.js';
-export { default as JsonlAdapter } from './adapters/JsonlAdapter.js';
-export { default as SqliteAdapter } from './adapters/SqliteAdapter.js';
-export { default as FileAdapter } from './adapters/FileAdapter.js';
-
-/**
- * 子域名称常量，避免散落的魔法字符串。
- */
-export const SubDirs = Object.freeze({
-    SESSION: 'Session',
-    TASK_STEP: 'TaskStep',
-    TASK: 'task',
-    TASK_REGISTRY: 'TaskRegistry',
-    ARTIFACTS: 'Artifacts'
-});
+export {
+    StorageManager,
+    SessionStore,
+    TaskStepStore,
+    TaskExecutionStore,
+    TaskRegistryStore,
+    MessageArchive,
+    BaseAdapter,
+    JsonAdapter,
+    JsonlAdapter,
+    SqliteAdapter,
+    FileAdapter,
+    SubDirs,
+} from '../../plugins/storage/core/createStorage.js';
 
 /**
  * 创建统一的存储门面，组合各 Store 并共享同一 StorageManager。
  *
+ * 有宿主 → 宿主 `storage` 接缝的工厂；无宿主 → 内置实现（行为与迁移前一致）。
+ *
  * @param {object} [options]
- * @param {string} [options.rootDir] - 存储根目录绝对路径（默认 workspace 根/db）
+ * @param {string} [options.rootDir] - 存储根目录绝对路径（默认 <仓库父目录>/db）
  * @param {number} [options.stallThresholdMs] - Session 卡死判定阈值
- * @returns {{
- *   manager: StorageManager,
- *   sessionStore: () => SessionStore,
- *   taskStepStore: () => TaskStepStore,
- *   taskExecStore: () => TaskExecutionStore,
- *   taskRegistryStore: () => TaskRegistryStore,
- *   messageArchive: () => MessageArchive,
- *   file: (subDir?: string) => import('./adapters/FileAdapter.js').default,
- *   json: (subDir: string) => import('./adapters/JsonAdapter.js').default,
- *   jsonl: (subDir: string) => import('./adapters/JsonlAdapter.js').default,
- *   sqlite: (subDir: string) => import('./adapters/SqliteAdapter.js').default,
- *   close: () => Promise<void>
- * }}
+ * @returns {object} 存储门面（manager / 各 Store 访问器 / 适配器直取 / close）
  */
 export function createStorage(options = {}) {
-    const manager = new StorageManager(options);
-    const stallThresholdMs = options.stallThresholdMs;
-
-    // 懒初始化的 Store 实例（首次调用时创建，复用同一适配器实例）
-    let _sessionStore, _taskStepStore, _taskExecStore, _taskRegistryStore, _messageArchive;
-
-    return {
-        manager,
-
-        /** Session 对话存档（jsonl 消息流 + meta） */
-        sessionStore() {
-            if (!_sessionStore) {
-                _sessionStore = new SessionStore({
-                    jsonl: manager.jsonl(SubDirs.SESSION),
-                    json: manager.json(SubDirs.SESSION),
-                    stallThresholdMs
-                });
-            }
-            return _sessionStore;
-        },
-
-        /** 任务步骤存档（SQLite） */
-        taskStepStore() {
-            if (!_taskStepStore) {
-                _taskStepStore = new TaskStepStore({
-                    sqlite: manager.sqlite(SubDirs.TASK_STEP)
-                });
-            }
-            return _taskStepStore;
-        },
-
-        /** 任务执行记录（JSON 文件，db/task/{taskId}/stepid_{stepId}.json） */
-        taskExecStore() {
-            if (!_taskExecStore) {
-                _taskExecStore = new TaskExecutionStore({
-                    json: manager.json(SubDirs.TASK)
-                });
-            }
-            return _taskExecStore;
-        },
-
-        /** 任务注册表（SQLite，db/TaskRegistry/registry.db，供历史列表分页查询） */
-        taskRegistryStore() {
-            if (!_taskRegistryStore) {
-                _taskRegistryStore = new TaskRegistryStore({
-                    sqlite: manager.sqlite(SubDirs.TASK_REGISTRY, { dbName: 'registry.db' })
-                });
-            }
-            return _taskRegistryStore;
-        },
-
-        /** MessageArchive 兼容门面（供 CLI 适配器直接使用） */
-        messageArchive() {
-            if (!_messageArchive) {
-                _messageArchive = new MessageArchive({ manager, stallThresholdMs });
-            }
-            return _messageArchive;
-        },
-
-        // 适配器直接访问（供自定义 Store 使用）
-        json: (subDir) => manager.json(subDir),
-        jsonl: (subDir) => manager.jsonl(subDir),
-        sqlite: (subDir) => manager.sqlite(subDir),
-        file: (subDir = SubDirs.ARTIFACTS) => manager.file(subDir),
-
-        /** 关闭所有存储（释放数据库连接等） */
-        async close() {
-            await manager.closeAll();
-        }
-    };
+    return createStorageFromHost(options, _createStorageBuiltin);
 }
 
 export default { createStorage, StorageManager, SessionStore, TaskStepStore, MessageArchive, SubDirs };

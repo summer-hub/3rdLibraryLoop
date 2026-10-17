@@ -84,12 +84,14 @@ class OrchestratorController {
      * @param {function} [deps.flexRunnerFactory] - FlexRunner 工厂（测试用）
      * @param {string} [deps.skillDirectory] - 默认 SKILL 根目录（taskDef 未指定 skillDirectory 时兜底）
      * @param {number} [deps.maxLiveOrchestrators] - 内存常驻编排器实例上限（默认 50 / MAX_LIVE_ORCHESTRATORS）
+     * @param {Function} [deps.OrchestratorClass] - 引擎类（装配层从 `engine-orchestrator` 接缝注入；缺省用门面导入的 Orchestrator）
      */
     constructor(deps = {}) {
         this.sseHub = deps.sseHub || null;
         this.storage = deps.storage || null;
         this.flexRunnerFactory = deps.flexRunnerFactory || null;
         this.skillDirectory = deps.skillDirectory || '';
+        this._OrchestratorClass = deps.OrchestratorClass ?? Orchestrator;
 
         /**
          * @type {BoundedRegistry} key = taskId，有界 LRU 注册表（F-12）。
@@ -199,7 +201,7 @@ class OrchestratorController {
      * 创建新的 Orchestrator 实例。
      */
     _createOrchestrator() {
-        return new Orchestrator({
+        return new this._OrchestratorClass({
             sseHub: this.sseHub,
             storage: this.storage,
             flexRunnerFactory: this.flexRunnerFactory

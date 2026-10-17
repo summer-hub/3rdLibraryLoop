@@ -1,0 +1,22 @@
+{
+  "name": "default",
+  "description": "默认 profile：启用全部内置插件。插件清单随改造阶段逐步落地（阶段1~4），未安装的条目自动忽略；required=true 的条目缺失将导致启动失败。存储条目已合并：原来 4 条 storage/{json,jsonl,sqlite,file} 现为一条 storage/core —— json/jsonl/sqlite/file 四类适配器随 core 一起提供（按类型的独立插件是后续步骤），因此这里不再逐类型声明。AI CLI 条目（cli/opencode → cli/deveco-code，后者依赖前者取同族基类）注册 ai-cli 工厂接缝：CLIController 有宿主时按 type 解析 ai-cli@cli/<type>，缺该提供方则回落裸名 ai-cli，无宿主时回落内置适配器。两条都不需要 options（连接配置仍走 OPENCODE_HOST/DEVECO_HOST 等环境变量与 CLIController 入参）。 util/logger 提供 app-logger 接缝（全仓库唯一日志实现，唯一持有 db/log 写入流），cli/opencode 依赖它。",
+  "plugins": {
+    "cli/opencode": { "enabled": true, "options": {} },
+    "cli/deveco-code": { "enabled": true, "options": {} },
+    "llm/dashscope": { "enabled": true, "options": {} },
+    "llm/mock": { "enabled": false, "options": {} },
+    "storage/core": { "enabled": true, "options": {} },
+    "util/logger": { "enabled": true, "options": {} },
+    "stats/core": { "enabled": true, "options": {} },
+    "engines/brain": { "enabled": true, "options": {} },
+    "engines/knowledge": { "enabled": true, "options": {} },
+    "engines/testcheck": { "enabled": true, "options": {} },
+    "engines/orchestrator": { "enabled": true, "options": {} },
+    "skills/directory": { "enabled": true },
+    "engines/loopengine": { "enabled": true, "options": {} },
+    "agent/core": { "enabled": true, "options": {} },
+    "distributed/core": { "enabled": true, "options": {} },
+    "http/server": { "enabled": true }
+  }
+}

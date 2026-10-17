@@ -22,10 +22,18 @@ const CLI_ROOT = path.resolve(__dirname, '..');
 
 const VENDOR_DIR = path.join(CLI_ROOT, 'vendor');
 const WEB_DIR = path.join(CLI_ROOT, 'web');
+// prepack 从仓库根 plugins/ 复制的插件树（构建产物，源码只有仓库根 plugins/ 一份）
+const VENDOR_PLUGINS = path.join(VENDOR_DIR, 'plugins');
 
 async function main() {
     if (fs.existsSync(VENDOR_DIR)) {
         console.log('——— [clean-vendor] 删除发布产物 cli/vendor/ ———');
+        if (fs.existsSync(VENDOR_PLUGINS)) {
+            console.log(
+                '[clean-vendor] 含插件树与其内核副本 cli/vendor/{plugins,core,seams,profiles}/' +
+                '（随 vendor/ 一并删除，源码各自只有仓库根一份）'
+            );
+        }
         fs.rmSync(VENDOR_DIR, { recursive: true, force: true });
         console.log('[clean-vendor] 完成。工作区已回归仅有 Server/ 一份源码。');
     } else {

@@ -1,0 +1,9 @@
+{
+  "name": "cli/deveco-code",
+  "version": "1.0.0",
+  "seam": "ai-cli",
+  "entry": "index.js",
+  "dependencies": [
+    "cli/opencode"
+  ]
+}

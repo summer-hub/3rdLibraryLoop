@@ -12,6 +12,10 @@
         "test:m5": "node test/m5-phase2/run-all.mjs",
         "test:m6": "node test/m6-phase3/run-all.mjs",
         "test:m7": "node test/m7-phase4/run-all.mjs",
+        "test:m8": "node test/m8-plugin-kernel/run-all.mjs",
+        "test:m9": "node test/m9-contract-conformance/run-all.mjs",
+        "test:m10": "node test/m10-host-scope/run-all.mjs",
+        "test:m11": "node test/m11-storage-list-semantics/run-all.mjs",
         "test:unit": "node Server/Agent/SkillSelector/__tests__/test-pure-logic.js",
         "lint": "biome lint",
         "lint:fix": "biome lint --write",
@@ -21,7 +25,8 @@
     },
     "dependencies": {
         "@opencode-ai/sdk": "^1.18.6",
-        "better-sqlite3": "^13.0.1"
+        "better-sqlite3": "^13.0.1",
+        "openai": "^4.104.0"
     },
     "devDependencies": {
         "@biomejs/biome": "^2.5.13"

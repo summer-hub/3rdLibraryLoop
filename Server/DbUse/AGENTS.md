@@ -1,4 +1,9 @@
-# DbUse —— 统一持久化存储模块
+# DbUse —— 统一持久化存储模块（门面层）
+
+> ⚠️ **实现已整体迁入插件 `plugins/storage/core/`**（12 个文件原样搬走，行为逐字节不变）。
+> 本目录**全部是转发门面**（`export * from '../../plugins/storage/core/…'`），零逻辑；
+> 只有 `index.js` 多一层宿主桥（见下）。留门面的唯一原因是 `Server/**` 里 16 处消费者与
+> 既有测试按老路径 import，插件化不该顺手改掉它们。
 
 本目录提供项目所有持久化存储能力的统一入口，采用「入口层 → Store 层 → Manager → Adapter 层」的四层架构，实现高内聚低耦合、业务逻辑与存储格式解耦。
 
@@ -6,11 +11,14 @@
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│  入口层  index.js                                            │
+│  入口层  plugins/storage/core/createStorage.js               │
 │  对外统一导出：createStorage() 工厂 + 各 Store/Adapter 类     │
+│  插件入口 index.js 用 definePlugin 注册两条接缝：             │
+│    ctx.provide('storage', createStorage)          ← 工厂      │
+│    ctx.provide('message-archive', opts => new MessageArchive(opts)) │
 ├──────────────────────────────────────────────────────────────┤
 │  Store 层  stores/                                           │
-│  业务语义：SessionStore / TaskStepStore                      │
+│  业务语义：SessionStore / TaskStepStore / TaskExecutionStore  │
 │  只依赖适配器接口，不感知存储格式                             │
 ├──────────────────────────────────────────────────────────────┤
 │  Manager   StorageManager.js                                 │
@@ -22,27 +30,40 @@
 └──────────────────────────────────────────────────────────────┘
 ```
 
+契约：`seams/storage.js`（**门面工厂契约 v2**：`factory: true`、`factoryOptions`、
+11 项 `facadeMethods`、逐格式 `adapterMethods`/`adapterExceptions`，并显式标注
+`perTypeProviders: 'not-provided'`——按类型的独立提供方尚未提供）、
+`seams/message-archive.js`（工厂 + 10 个方法清单）。
+
 ## 目录结构
 
 ```
-Server/DbUse/
-├── index.js                 # 入口：createStorage() 门面工厂 + 全量导出
-├── StorageManager.js        # 存储管理器：根目录解析 + 适配器实例缓存
-├── MessageArchive.js        # 兼容门面（代理 SessionStore，供旧 CLI 使用）
-├── adapters/                # 存储格式适配器
-│   ├── BaseAdapter.js       # 抽象基类：根目录/工具方法/接口契约
-│   ├── FileAdapter.js       # 原始文件读写（文本/二进制）
-│   ├── JsonAdapter.js       # JSON 文档存储（整文件读写）
-│   ├── JsonlAdapter.js      # JSONL 流式追加（append-only 消息流）
-│   └── SqliteAdapter.js     # SQLite 存储（better-sqlite3，查询/事务）
-└── stores/                  # 业务语义 Store
-    ├── SessionStore.js      # Session 对话存档 + 卡死检测
-    └── TaskStepStore.js     # 任务步骤 CRUD + 状态流转 + 统计
+plugins/storage/core/                 # ← 实现实体（本目录只是门面）
+├── plugin.json                       # 清单：name=storage/core, seam=storage
+├── index.js                          # definePlugin 入口：注册 storage / message-archive 两条接缝
+├── createStorage.js                  # 原 Server/DbUse/index.js（createStorage + SubDirs + 全量再导出）
+├── StorageManager.js                 # 存储管理器：根目录解析 + 适配器实例缓存
+├── MessageArchive.js                 # 消息归档（SessionStore 的薄代理，供 AI CLI 适配器使用）
+├── adapters/                         # BaseAdapter / FileAdapter / JsonAdapter / JsonlAdapter / SqliteAdapter
+├── stores/                           # SessionStore / TaskStepStore / TaskExecutionStore / TaskRegistryStore
+└── lib/                              # 实现副本：AtomicJsonFile.js（cstTime 已归一进 core/）
+                                      # （插件不得引用 Server/，故这两份小工具随插件走，
+                                      #   Server/library/ 侧改为转发门面，全仓库仍只有一份实现）
+
+Server/DbUse/                         # ← 门面层：路径与导出面与迁移前逐名一致
+├── index.js                          # 转发 + 宿主桥（createStorage 经 createStorageFromHost）
+├── StorageManager.js                 # export { default } from 插件
+├── MessageArchive.js                 # export { default } from 插件
+├── adapters/*.js                     # export { default } from 插件（5 个）
+└── stores/*.js                       # export { default } from 插件（4 个）
 ```
+
+> 门面不改变任何类对象的身份：`StorageManager._ADAPTERS` 仍是同一份注册表，
+> `extends BaseAdapter` / `instanceof` 照旧，自定义适配器不需要改动。
 
 ## 存储布局
 
-所有数据默认写入 `Server/DbUse/` 上溯 3 层（即仓库的**上一级目录**）下的 `db/` 目录（自动创建），可由 `3LIB_DATA_DIR` 或 `createStorage({ rootDir })` 覆盖：
+所有数据默认写入 `plugins/storage/core/` 上溯 4 层（即仓库的**上一级目录**）下的 `db/` 目录（自动创建），可由 `3LIB_DATA_DIR` 或 `createStorage({ rootDir })` 覆盖。上溯层数比迁移前多 1 层（原 `Server/DbUse/` 上溯 3 层），二者解析到**同一个绝对路径**；prepack 后 `vendor/plugins/storage/core/` 上溯 4 层同样落回 `cli/db`，开发态与发布态同构。
 
 ```
 db/
@@ -61,9 +82,21 @@ db/
 
 ## 文件说明
 
-### index.js — 入口层
+### index.js — 入口层（转发 + 宿主桥）
 
-对外统一出口，核心是 `createStorage(options)` 工厂函数，组合各 Store 并共享同一 `StorageManager`。
+实现实体在 `plugins/storage/core/createStorage.js`；本目录的 `index.js` 只做两件事：
+
+1. **逐名转发**实现层的导出（`StorageManager` / 5 个 Store / 5 个 Adapter / `SubDirs` /
+   `MessageArchive` / default 门面对象），导出面与迁移前一个不少；
+2. **`createStorage` 加一层宿主桥**：`createStorageFromHost(options, 内置实现)`
+   （见 `core/hostBridge.js`；`Server/composition/hostBridge.js` 是转发门面）——有活跃插件宿主且宿主注册了 `storage`
+   接缝 → 用宿主提供的工厂；否则回落到内置实现。**无宿主时与迁移前逐字节等价**
+   （同一个实现、同样 options、同样同步返回）。
+
+```js
+// 有宿主：host.inject('storage')(options)      （插件 ctx.provide('storage', createStorage)）
+// 无宿主：内置 createStorage(options)          （行为与迁移前一致）
+```
 
 **导出：**
 - `createStorage(options)` — 创建存储门面
@@ -84,7 +117,7 @@ db/
 | `close()` | 关闭所有适配器（释放 DB 连接等） |
 
 **options 参数：**
-- `rootDir` — 存储根目录绝对路径（默认 workspace 根 `/db`）
+- `rootDir` — 存储根目录绝对路径（默认 `<仓库父目录>/db`，与迁移前相同）
 - `stallThresholdMs` — Session 卡死判定阈值（默认 5 分钟）
 
 **使用示例：**
@@ -102,7 +135,7 @@ await storage.close();
 集中管理存储根目录与适配器实例缓存，对上层 Store 屏蔽适配器构造细节。
 
 **核心职责：**
-1. 解析存储根目录 `db/`（本文件上溯 3 层到 workspace 根）
+1. 解析存储根目录 `db/`（`plugins/storage/core/StorageManager.js` 上溯 4 层；未传 `rootDir` 时生效）
 2. 按子域 `(type, subDir)` 创建并缓存适配器实例，**同一组合复用同一实例**
 3. 工厂方法 `get(type, subDir, adapterOpts)` 统一构造
 4. `closeAll()` 统一生命周期管理
@@ -120,11 +153,22 @@ await storage.close();
 - 新增存储格式：实现 `BaseAdapter` 子类 → 注册到 `_ADAPTERS` → Manager 自动可用
 - 新增业务存储：实现 Store，依赖 `manager.get()` 获取适配器，不感知格式
 
-### MessageArchive.js — 兼容门面
+### MessageArchive.js — 消息归档（并已暴露为独立接缝）
 
 ⚠️ 现为 `SessionStore` 的薄代理，保留原构造签名与方法，使现有 CLI 适配器（OpenCodeCLI）的 `new MessageArchive()` 与 `this.archive.*` 调用无需改动即可工作。
 
 实际逻辑已迁入 `stores/SessionStore.js`，存储细节下沉到 `adapters/` 层。**新代码请直接使用 `StorageManager` + `SessionStore`**（见 `index.js` 导出）。
+
+**同时它是 `message-archive` 接缝的提供方**：插件 `plugins/storage/core` 在 setup 里
+`ctx.provide('message-archive', (options) => new MessageArchive(options))`（注册**工厂**，
+因为调用方是 `options.archive ?? new MessageArchive()`，即"每次构造一个实例"）。
+契约见 `seams/message-archive.js`（10 个方法 + 返回值形状）。
+
+> **接线现状**：AI CLI 适配器已改为经本接缝取归档 —— 插件 `plugins/cli/opencode` 在
+> `setup` 里 `ctx.inject('message-archive')` 并把工厂交给适配器（`dependencies: ["storage/core"]`
+> 保证顺序，缺了则**启动期 fail closed**）。无宿主时由 `Server/CLI/cli.js` 的遗留兜底补齐
+> （先问 `hostBridge.resolveMessageArchiveFactory()`，再退内置 `MessageArchive`）。
+> 适配器自身不再 `new MessageArchive()`。
 
 **代理的方法：** `readMeta` / `writeMeta` / `patchMeta` / `appendMessage` / `appendMessages` / `readMessages` / `readLastMessage` / `listSessions` / `recordCheck` / `deleteSession`
 
@@ -282,16 +326,19 @@ await storage.close();
 
 ## 扩展指南
 
+> 实现在 `plugins/storage/core/`；扩展时改插件，`Server/DbUse/*` 的门面按需补一行转发即可。
+
 ### 新增业务存储
 
-1. 在 `stores/` 下新建 `XxxStore.js`，构造时接收所需适配器
+1. 在 `plugins/storage/core/stores/` 下新建 `XxxStore.js`，构造时接收所需适配器
 2. 通过 `manager.get(type, subDir)` 取适配器（或由 `createStorage` 注入）
 3. 业务逻辑只依赖适配器接口，不感知存储格式
-4. 在 `index.js` 的 `createStorage()` 中挂载懒初始化访问器并导出
+4. 在 `plugins/storage/core/createStorage.js` 的 `createStorage()` 中挂载懒初始化访问器并导出
+   （若新名字也要从 `Server/DbUse/index.js` 透出，在门面的 `export { … }` 列表里补上）
 
 ### 新增存储格式
 
-1. 在 `adapters/` 下继承 `BaseAdapter`，实现 `read/write/delete/list` 等
+1. 在 `plugins/storage/core/adapters/` 下继承 `BaseAdapter`，实现 `read/write/delete/list` 等
 2. 注册到 `StorageManager._ADAPTERS`（静态 getter）
 3. Manager 自动可用 `manager.get('newtype', subDir)`
 
@@ -316,3 +363,6 @@ npm run test:m3          # 等价于 node test/m3/run-all.mjs
 
 - `better-sqlite3` — SQLite 原生绑定（`SqliteAdapter` 使用，未安装时给出安装提示）
 - Node.js 内置：`node:fs` / `node:path` / `node:url` / `node:crypto`
+- `plugins/storage/core/lib/AtomicJsonFile.js` — 实现副本（插件不得引用 `Server/`，
+  故这两个被适配器/Store 依赖的小工具随插件走）。`Server/library/AtomicJsonFile.js` 与
+  `Server/library/cstTime.js` 改为转发门面；`cstTime` 已归一进 `core/cstTime.js`（全仓库唯一实现，插件直连内核）。

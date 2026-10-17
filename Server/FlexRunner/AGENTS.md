@@ -1,4 +1,18 @@
-# FlexRunner —— 通用执行引擎
+# FlexRunner —— 通用执行引擎（门面层）
+
+> ⚠️ **实现已迁入插件 `plugins/engines/orchestrator/FlexRunner.js`**（`Server/FlexRunner/FlexRunner.js`
+> 2313 行原样搬走，业务逻辑逐行不变；`nowCST` 归一到内核 `core/index.js`，
+> `SessionWaiter` 以插件内副本落地，6 个协作方改为解析链）。
+> 本目录**全部是转发门面**，零业务逻辑；`Server/**` 侧消费者与既有测试按老路径 import。
+>
+> ⚠️ FlexRunner **不是独立插件**：它与 Orchestrator 是一个内部组合件（迁移前
+> `Orchestrator.js` 就静态 import 它、并在 `_createFlexRunner()` 里自己 `new` 后驱动完整
+> 生命周期），因此同住 `plugins/engines/orchestrator/`。详见 `Server/Orchestrator/AGENTS.md`
+> 的「七条解析链」与「门面不改对象身份」两节，以及与 Brain 把 `SkillExecutor` 作为内部
+> 组件的同一先例。
+>
+> 契约 `seams/engine-orchestrator.js` **不包含** FlexRunner（内部组件），但本门面继续
+> 导出同一批对象（`===`），既有用法零改动。
 
 本目录封装任务执行的核心驱动逻辑：接收一个具体事项，将其拆解为多个步骤，对每个步骤进行 Skill 匹配 → 执行 → 检查 → 持久化的完整闭环，并支持暂停 / 继续 / 终止等流程控制。
 
@@ -40,10 +54,16 @@
 ## 目录结构
 
 ```
-Server/FlexRunner/
-├── AGENTS.md          # 本文档
-├── FlexRunner.js      # FlexRunner 核心类（含 ControlType / StepStatus 常量）
-└── index.js           # 模块统一导出
+plugins/engines/orchestrator/          # ← 实现实体（与 Orchestrator 同一插件）
+├── FlexRunner.js                      # FlexRunner 核心类（含 ControlType / StepStatus 常量），原样迁入
+└── lib/SessionWaiter.js               # ← Server/library/SessionWaiter.js（插件内副本）
+
+Server/FlexRunner/                     # ← 门面层：路径与导出面与迁移前逐名一致
+├── AGENTS.md                          # 本文档
+├── FlexRunner.js                      # 转发 FlexRunner / ControlType / StepStatus / default
+│                                      # + **登记 cli-controller / skill-selector / create-storage /
+│                                      #   knowledge-manager / mcp-tool-guide 五条无宿主兜底**
+└── index.js                           # 纯转发（登记在上一层，两条 import 路径都必经）
 ```
 
 ## 文件说明
@@ -273,11 +293,14 @@ export { default } from './FlexRunner.js';
 
 | 依赖 | 来源 | 用途 |
 |------|------|------|
-| `CLIController` | `../CLI/cli.js` | opencode Session 管理（执行 Skill） |
-| `SkillSelectorAgent` | `../Agent/SkillSelector/index.js` | 语义匹配最佳 Skill |
-| `createStorage` | `../DbUse/index.js` | TaskStepStore 步骤持久化 + SessionStore 归档读取 |
-| `nowCST` | `../library/cstTime.js` | 北京时间格式化 |
-| `dotenv` | npm（可选） | 生产环境加载 `.env` |
+| `CLIController` | 兜底 `cli-controller`（门面登记）→ `ai-cli` 接缝 | opencode Session 管理（执行 Skill） |
+| `SkillSelectorAgent` | 兜底 `skill-selector`（门面登记；无接缝档） | 语义匹配最佳 Skill |
+| `createStorage` | 宿主 `storage` 接缝 → 兜底 `create-storage` | TaskStepStore 步骤持久化 + SessionStore 归档读取 |
+| `KnowledgeManager` | 宿主 `engine-knowledge` 接缝 → 兜底 `knowledge-manager` | 经验登记与检索（进程级共享单例） |
+| `McpToolGuide` | 兜底 `mcp-tool-guide`（门面登记；无接缝档） | MCP 工具引导 prompt 段落 |
+| `createLogger` | 宿主 `app-logger` 接缝（无宿主时降级 console） | 统一日志（唯一持有 db/log 写入流） |
+| `nowCST` | 内核 `core/index.js`（同一个 `core/cstTime.js` 实现） | 北京时间格式化 |
+| `SessionWaiter` | `plugins/engines/orchestrator/lib/SessionWaiter.js`（插件内副本） | 会话完成等待（事件驱动 + 轮询兜底） |
 
 ## 使用示例
 

@@ -1,0 +1,7 @@
+{
+  "name": "engines/brain",
+  "version": "1.0.0",
+  "seam": "engine-brain",
+  "entry": "index.js",
+  "dependencies": []
+}

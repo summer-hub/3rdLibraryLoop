@@ -59,6 +59,7 @@ class LoopEngineController {
      * @param {object}   [deps.orchestratorController]- OrchestratorController 实例（必须）
      * @param {object}   [deps.testCheck]             - TestCheck 实例（可选）
      * @param {string}   [deps.skillDirectory]        - SKILL 目录路径
+     * @param {Function} [deps.LoopEngineClass]       - 引擎类（装配层从 `engine-loop` 接缝注入；缺省用门面导入的 LoopEngine）
      */
     constructor(deps = {}) {
         this.sseHub = deps.sseHub || null;
@@ -67,6 +68,7 @@ class LoopEngineController {
         this.orchestratorController = deps.orchestratorController || null;
         this.testCheck = deps.testCheck || null;
         this.skillDirectory = deps.skillDirectory || null;
+        this._LoopEngineClass = deps.LoopEngineClass ?? LoopEngine;
 
         /**
          * @type {BoundedRegistry} key = taskId，有界 LRU 注册表（F-12 收口）。
@@ -156,7 +158,7 @@ class LoopEngineController {
      * @returns {LoopEngine}
      */
     _createEngine() {
-        return new LoopEngine({
+        return new this._LoopEngineClass({
             sseHub: this.sseHub,
             storage: this.storage,
             brainController: this.brainController,

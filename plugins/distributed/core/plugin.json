@@ -1,0 +1,7 @@
+{
+  "name": "distributed/core",
+  "version": "1.0.0",
+  "seam": "distributed-lease",
+  "entry": "index.js",
+  "dependencies": []
+}

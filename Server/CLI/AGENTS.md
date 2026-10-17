@@ -9,37 +9,66 @@
 │  控制层  cli.js                                              │
 │  CLIController：统一门面，按 type 委派给对应适配器            │
 ├──────────────────────────────────────────────────────────────┤
-│  适配器层                                                    │
-│  ┌─────────────────────┐   ┌───────────────────────────┐    │
-│  │ opencode/index.js   │   │ deveco-code/index.js      │    │
-│  │ OpenCodeCLI         │←──│ DevEcoCodeCLI（继承）      │    │
-│  │ @opencode-ai/sdk    │   │ 同一 HTTP API，覆盖连接配置│    │
-│  │ HTTP API            │   └───────────────────────────┘    │
-│  └─────────────────────┘                                   │
+│  适配器层（实现在插件里，本目录只剩门面）                     │
+│  ┌───────────────────────────┐  ┌────────────────────────────┐│
+│  │ plugins/cli/opencode      │  │ plugins/cli/deveco-code    ││
+│  │ OpenCodeCLI               │←─│ DevEcoCodeCLI（继承前者）   ││
+│  │ @opencode-ai/sdk / HTTP   │  │ 同一 HTTP API，覆盖连接配置 ││
+│  │ provide: ai-cli,ai-cli-impl│  │ provide: ai-cli            ││
+│  └───────────────────────────┘  └────────────────────────────┘│
 ├──────────────────────────────────────────────────────────────┤
-│  快捷导出                                                    │
+│  快捷导出（纯转发）                                          │
 │  opencode.js / deveco-code.js — 单独导出适配器类             │
 ├──────────────────────────────────────────────────────────────┤
 │  公共依赖                                                    │
-│  DbUse/MessageArchive  — 消息归档 + 卡死检测                 │
-│  library/StatsService  — Session 调用计数                    │
-│  library/cstTime       — 北京时间格式化                      │
+│  message-archive 接缝（storage/core） — 消息归档 + 卡死检测   │
+│  library/StatsService  — Session 调用计数（留在 Server 侧）   │
+│  plugins/cli/opencode/lib/logger — 插件内实现副本；cstTime 已归一进 core/   │
 └──────────────────────────────────────────────────────────────┘
 ```
+
+**适配器是从哪来的（接缝解析）：** `CLIController` 构造时先问
+`core/hostBridge.js`（`Server/composition/hostBridge.js` 是转发门面）的 `resolveAiCliFactory(type)`：
+
+1. 宿主注册了 `ai-cli@cli/<type>` → 用该插件注册的工厂（正常路径）；
+2. 否则宿主注册了裸名 `ai-cli`，**且它的提供方插件名恰好是 `cli/<type>`**（用
+   `host.listServices()` 读 provider 判定）→ 用该工厂；
+3. 否则（含**无宿主**的默认部署形态、以及"提供方身份与 type 不符"）→ 回落
+   `legacyCreate()`，即改造前的 `new OpenCodeCLI/DevEcoCodeCLI(options)`，行为逐字节等价。
+
+> **为什么第 2 档必须核对提供方身份**：`getType()` 一直返回入参 type，而它被
+> `cli/lib/opencode.js` 的 `CliServeManager` 用来决定拉起哪个 serve、哪个端口。
+> 若允许"裸名随便顶替"，只装 `cli/opencode` 却构造 `new CLIController('deveco-code')`
+> 就会得到 `getType()==='deveco-code'` 但实现是 OpenCodeCLI（存档 `meta.cliType` 写
+> `opencode`）的**说谎适配器**。要引入全新 CLI（如 cli/claude-code），把类型名写进
+> `cli.js` 的 `SUPPORTED_TYPES` 并让插件名与该类型对应即可。
+
+非法 `type` 在解析**之前**就抛错（文案与改造前逐字一致），所以宿主模式下也不会被
+裸名 `ai-cli` 兜住而悄悄放行。
 
 ## 目录结构
 
 ```
 Server/CLI/
 ├── AGENTS.md            # 本文档
-├── cli.js               # CLIController 统一控制类（默认导出）
-├── opencode.js          # OpenCodeCLI 快捷导出
+├── cli.js               # CLIController 统一控制类（默认导出）+ 接缝解析 + 遗留兜底
+├── opencode.js          # OpenCodeCLI 快捷导出（纯转发）
 ├── opencode/
-│   └── index.js         # OpenCodeCLI 适配器（@opencode-ai/sdk）
-├── deveco-code.js       # DevEcoCodeCLI 快捷导出
+│   └── index.js         # 纯转发门面 → plugins/cli/opencode
+├── deveco-code.js       # DevEcoCodeCLI 快捷导出（纯转发）
 ├── deveco-code/
-│   └── index.js         # DevEcoCodeCLI 适配器（继承 OpenCodeCLI）
+│   └── index.js         # 纯转发门面 → plugins/cli/deveco-code（含无宿主时的基类绑定）
 └── test.js              # 接口调用集成测试（连接真实 CLI 服务）
+
+plugins/cli/
+├── opencode/
+│   ├── plugin.json      # seam: ai-cli，dependencies: [storage/core]
+│   ├── index.js         # definePlugin：provide ai-cli（工厂）+ ai-cli-impl（基类）
+│   ├── adapter.js       # OpenCodeCLI 实现体（原 Server/CLI/opencode/index.js 迁入）
+│   └── lib/logger.js             # 实现副本（cstTime 已归一进 core/）
+└── deveco-code/
+    ├── plugin.json      # seam: ai-cli，dependencies: [cli/opencode]
+    └── index.js         # definePlugin：provide ai-cli（工厂）；基类迟到绑定
 ```
 
 ## 文件说明
@@ -61,7 +90,14 @@ new CLIController(type, options)
 
 **默认 CLI 全局指定（Server/.env）：**
 
-`cli.js` 模块加载时会自动加载 `Server/.env`（dotenv 可选依赖，未安装时跳过），在其中配置：
+env 的加载**不在本文件**（`cli.js` 自身没有隐式副作用），由三处之一保证：
+① 装配点 `buildApp()`（首行 `await loadServerEnv()`）；
+② CLI 侧 `cli/lib/config.js#loadEnvChain()`（系统变量 > `~/.3lib/.env` > 项目 `Server/.env`，
+   跑完后调用 `markServerEnvLoaded()` 让 Server 侧 `loadServerEnv()` 变成 no-op，避免重复读）；
+③ 直连入口自己显式调用（如 `Server/CLI/test.js` 顶部 `await loadServerEnv();`）。
+
+`loadServerEnv()` 在 `Server/composition/envBootstrap.js`，**幂等**，dotenv 是可选依赖
+（未安装时跳过）。在其中配置：
 
 ```bash
 # Server/.env
@@ -120,9 +156,12 @@ CLI_TYPE=deveco-code node Server/Routes/server.js --port 3000 # shell 环境变�
 | `setAbortSignal(signal)` | `void` | 注入外部取消源（`AbortSignal`），使 abort 能立即中断在途 HTTP 请求；适配器不支持时静默降级 |
 | `abortInFlight(reason?)` | `void` | 立即取消所有在途请求（幂等）；适配器不支持时静默降级 |
 
-> `startSession` 内部会异步调用 `StatsService.incrementSessionCount()` 记录调用次数，统计失败不影响主流程。
+> `startSession` 内部会异步调用统计提供方的 `incrementSessionCount()` 记录调用次数，统计失败不影响
+> 主流程。提供方的**优先级链**（高 → 低）：① 构造期 `options.stats`（装配层显式注入——有插件宿主时
+> `buildApp` 把 `host.inject('stats')` 经 `cliOptions.stats` 递进来）→ ② `resolveStats()`（当前活跃
+> 宿主的 `stats` 接缝提供方，无宿主时 `null`）→ ③ 内置 `StatsService`（无宿主时的等价路径）。
 
-### opencode/index.js — OpenCodeCLI 适配器
+### plugins/cli/opencode — OpenCodeCLI 适配器（`Server/CLI/opencode/index.js` 是纯转发门面）
 
 基于 `@opencode-ai/sdk`，通过 HTTP API 与运行中的 opencode 服务（默认 `localhost:4096`）通信。
 
@@ -147,7 +186,7 @@ CLI_TYPE=deveco-code node Server/Routes/server.js --port 3000 # shell 环境变�
 - `_toArchiveMessage(msg)` — opencode 原始消息 → 精简归档格式
 - `_toMarkdown(meta, messages)` — 对话消息渲染为 Markdown
 
-### deveco-code/index.js — DevEcoCodeCLI 适配器
+### plugins/cli/deveco-code — DevEcoCodeCLI 适配器（`Server/CLI/deveco-code/index.js` 是纯转发门面）
 
 对接华为开源的 DevEco Code（[gitcode.com/openharmony-sig/deveco-code](https://gitcode.com/openharmony-sig/deveco-code)，npm 包 `@deveco/deveco-code`），面向 HarmonyOS 开发场景的 AI Agent 工具。
 
@@ -200,9 +239,21 @@ listArchivedSessions → abortSession →
 
 ## 公共依赖
 
-- **`DbUse/MessageArchive`** — 消息归档与卡死检测。适配器默认自建实例（`new MessageArchive()`），也支持通过 `options.archive` 注入共享实例。归档文件写入 `db/Session/<sessionId>.jsonl`（消息流）和 `.meta.json`（元信息）。
-- **`library/StatsService`** — `CLIController.startSession` 调用 `StatsService.incrementSessionCount()` 累计 Session 调用次数，写入 `db/web/visit-stats.json`。
-- **`library/cstTime`** — `nowCST()` 将 epoch 毫秒格式化为北京时间字符串（`+08:00` 偏移），用于消息时间戳和存档元信息。
+- **`message-archive` 接缝**（提供方 `plugins/storage/core`）— 消息归档与卡死检测。
+  适配器按三级优先级取归档（构造函数内实现）：
+  ① `options.archive`（显式传入，永远最优先）→ ② 类静态 `defaultArchiveFactory`
+  （由插件 setup 挂成 `message-archive` 接缝工厂；无宿主时由本目录的
+  `opencode/index.js` / `deveco-code/index.js` 门面在 import 期挂成"接缝工厂 → 内置
+  `MessageArchive`"）→ ③ 都没有则抛错（fail closed）。
+  这条静态钩子是为兼容 `new OpenCodeCLI()`（`opencode.js` 快捷导出）这类历史用法才存在的。
+  归档文件写入 `db/Session/<sessionId>.jsonl`（消息流）和 `.meta.json`（元信息）。
+- **统计提供方（`stats` 接缝 / 内置 `library/StatsService`）** — `CLIController.startSession` 调用
+  提供方的 `incrementSessionCount()` 累计 Session 调用次数，默认写入 `db/web/visit-stats.json`。
+  取值优先级链见上文「统一接口方法」后的说明：**显式 `options.stats`（装配层注入）> 活跃宿主的
+  `stats` 接缝 > 内置 `StatsService`**。内置实现刻意留在 Server 侧门面：它是服务端统计，不属于
+  AI CLI 适配能力，所以**不**塞进 `ai-cli` 插件的工厂选项（`CLIController` 会把 `options.stats`
+  摘出来，不转发给适配器）。
+- **`core/cstTime.js`**（`Server/library/cstTime.js` 是转发门面）— `nowCST()` 将 epoch 毫秒格式化为北京时间字符串（`+08:00` 偏移），用于消息时间戳和存档元信息。全仓库**只有这一份实现**：插件直接 `import '../../../core/cstTime.js'`（R2 允许插件引用 `core/`），不再有副本。
 
 ## 卡死检测机制
 
@@ -215,11 +266,22 @@ listArchivedSessions → abortSession →
 
 ## 扩展指南
 
-**新增 CLI 适配器：**
+**新增 CLI 适配器（插件化之后）：**
 
-1. 在 `Server/CLI/<name>/index.js` 实现适配器类，提供与 `OpenCodeCLI` 相同的方法集
-2. 在 `cli.js` 的 `CLIController` 构造函数 `switch` 中注册新 `type`
-3. 更新本文档
+1. 新建 `plugins/cli/<name>/`：`plugin.json`（`seam: "ai-cli"` + `dependencies`）与
+   `index.js`（`definePlugin`，`setup` 里 `ctx.provide('ai-cli', (options) => new XxxCLI({...}))`），
+   适配器方法集对齐 `seams/ai-cli.js`
+2. `dependencies` 里必须有**归档来源**（`storage/core`，或继承同族插件时带上它）；
+   `setup` 里 `ctx.inject('message-archive')` 取不到就在启动期 fail closed。
+   同时把接缝工厂挂到适配器类的静态钩子上（`XxxCLI.defaultArchiveFactory = archiveFactory`），
+   让"不走插件工厂、直接 `new XxxCLI()`"的用法也能拿到归档
+3. 若新类型要能被 `CLIController` 选中：把类型名加进 `Server/CLI/cli.js` 的
+   `SUPPORTED_TYPES`（闭集，非法值仍按原文案抛错），**并让插件名与类型对应**
+   （`cli/<type>`——裸名 `ai-cli` 只有在提供方就是该类型插件时才会被采用），
+   最后在 profile 里启用该插件
+4. **本目录的 `switch` 已经不存在**，不需要再改 `cli.js` 的适配器构造分支；
+   顶替某个现有类型 = 用另一个插件占据**同一个插件名**（`cli/<type>`）并提供 `ai-cli`
+5. 更新本文档
 
 **共享 MessageArchive 实例：**
 

@@ -20,7 +20,7 @@ cli/
 │   ├── config.js        # 环境装配：项目根/.env 链/数据目录/SKILL 目录/taskId
 │   ├── config-cmd.js    # 3rdloop config 配置命令（白名单 .env 读写）
 │   ├── update.js        # 3rdloop update 自更新（版本检测/卸载旧版/重装）
-│   ├── runner.js        # 核心引擎组装（复刻 server.js 依赖注入）+ 执行能力
+│   ├── runner.js        # 核心引擎装配（复用 Server/composition/buildApp.js）+ 执行能力
 │   ├── queries.js       # 磁盘直读查询（progress/list/result，不实例化引擎）
 │   ├── ui.js            # stdout/stderr 输出契约 + 增量 diff 渲染
 │   ├── opencode.js      # AI CLI serve 生命周期管理（opencode/deveco-code，按 CLI_TYPE 选 bin/端口）
@@ -36,25 +36,77 @@ cli/
 │   └── exit-codes.js    # 退出码约定
 ├── workflows/           # 工作流注册目录（每个 .js/.mjs 自动注册一个工作流）
 ├── scripts/
-│   ├── prepack.mjs      # 发布期：复制 Server/ → cli/vendor/Server/、Web/public/ → cli/web/
-│   ├── clean-vendor.mjs # 发布后：删除本地 cli/vendor/ 与 cli/web/
-│   └── verify-deps.mjs  # 校验引擎 import 的依赖已声明
+│   ├── prepack.mjs      # 发布期：复制 Server/ → cli/vendor/Server/、plugins+core+seams+profiles → cli/vendor/、Web/public/ → cli/web/
+│   ├── clean-vendor.mjs # 发布后：删除本地 cli/vendor/（含插件与内核副本）与 cli/web/
+│   └── verify-deps.mjs  # 校验引擎与插件树 import 的依赖已声明
 └── README.md            # 用户文档
 ```
 
 ## 核心机制：依赖注入链（runner.js）
 
-CLI 复用核心引擎的关键是**复刻 `Server/Routes/server.js` 的组装逻辑，但不启动 HTTP**。
-`RunContext._init()` 完成依赖注入链：
+CLI 复用核心引擎的关键是**调用与 HTTP 模式同一份装配（`Server/composition/buildApp.js`），
+但不启动 HTTP**。`RunContext._init()` 只表达差异选项，不再手工复刻构造参数：
 
+```js
+// ① 先激活宿主（pluginHost 'auto' 时；见下「插件宿主」）
+const { host } = await core.activateAppHost({ profile });   // load + 设为进程默认宿主
+// ② 再把 host 交给 buildApp：storage/stats/engine-* 等能力从接缝取
+const app = await core.buildApp({
+    cliType, storageOptions: { rootDir: dataDir }, attachCliArchive: true,
+    shareCliWithControllers: true, skillDirectory: skillDir,
+    orchestratorSkillDirectory: null, sseHub: null, knowledgeManager: null, host,
+});
+```
+
+装配结果（`storage` 为用户数据目录）：
 ```
 storage(用户数据目录)
-  ├─ CLIController(共享, archive 指向本 storage 的 SessionStore)
+  ├─ CLIController(共享, archive 指向本 storage 的 SessionStore, stats 显式注入)
   ├─ BrainController(注入 cli/orchestratorController/skillDirectory)
   ├─ TestCheck(注入 cli/storage/skillDirectory)
   ├─ LoopEngineController → createLoopEngine()
   └─ orchestratorController.flexRunnerFactory = createOrchestratorFlexRunnerFactory(this)
 ```
+
+**为什么 `sseHub` / `knowledgeManager` 传 `null`**：
+- `SseHub` 构造函数会起心跳 + 清理两个 `setInterval`，CLI 进程持有后无法自然退出；
+- 知识库由 `flexRunnerFactory` 按任务惰性创建，命令启动阶段不该额外初始化一份存储根。
+
+### 插件宿主装配（`RunContext` 的 `pluginHost`）
+
+构造参数 `pluginHost` 三态（默认 `'auto'`）：
+
+| 取值 | 行为 | `close()` 时对宿主做什么 |
+|------|------|--------------------------|
+| `'auto'`（默认） | `activateAppHost({ profile })`：load 宿主 → 设为进程默认宿主 → buildApp 从接缝取 storage/stats/五个引擎（`engine-*` 缺一即 **fail closed**） | 宿主由本进程**创建**，负责 `clearActiveHost()` + `dispose()` |
+| `false` | **安全阀**：不装配宿主，`buildApp` 不传 `host`（旧装配路径：内置 `createStorage()` / `StatsService`） | — |
+| 宿主实例 | 只做 `setActiveHost(instance)` 激活（不 load、不接管） | **只 `clearActiveHost()` 摘桥，不 dispose** —— 实例的生命周期归调用方 |
+
+> **显式传入的宿主实例，生命周期归调用方；入口只摘桥不销毁。** 调用方给的是「已经 load 好、
+> 也可能还要继续用」的宿主（多入口共享、测试里复用同一宿主做多轮断言），`close()` 把它 dispose
+> 掉会让调用方拿到 `host.root === null` 的死人（后续 `inject` 直接抛「尚未 load」）。
+> 分流只用一个 `ownsHost` 标志，不是两套清理逻辑。
+
+- **安全阀 `3LIB_PLUGIN_MODE=off`**：环境变量一旦为 `off`，等价于 `pluginHost:false`，且**优先于
+  构造参数**（应急开关不该被调用方悄悄覆盖）。装配失败、profile 在用户机器上不可用、或新路径
+  现场故障时，`3LIB_PLUGIN_MODE=off 3rdloop <cmd>` 即可一键退回旧装配，无需改参数、不用发版。
+- **装配失败不降级**（fail closed）：宿主 load 失败直接抛出，错误信息里带
+  `3LIB_PLUGIN_MODE=off` 逃生提示。
+- **`buildApp` 不改变进程级活跃宿主**（不调 `setActiveHost`）；激活是入口的事。理由：装配点会被
+  反复调用（每个 `RunContext`、每个测试），而默认宿主是进程级单例，`core/hostBridge.js`
+  （`Server/composition/hostBridge.js` 是转发门面）对它设了**覆盖守卫**（已有另一个不同的
+  默认宿主即抛错）。
+- **同进程多 `RunContext`**：`runner.js` 用进程级共享宿主 + 引用计数
+  （`acquireProcessHost` / `releaseProcessHost`）——第一个上下文激活，其余复用同一宿主并 `refs++`；
+  `close()` 递减，**最后一个**关闭的上下文才真正 shutdown（`clearActiveHost()`，仅 `pluginHost:'auto'`
+  时再 `dispose()`）。这样既不触发覆盖守卫，也不会出现「先关的人把后关的人的宿主收走了」。
+- **`close()` 释放宿主**（幂等）：顺序为 `storage.close()` → `clearActiveHost()` →
+  （仅 `ownsHost` 时）`await host.dispose()`。先摘桥再回收，避免回收期间还有代码解析到已释放宿主。
+
+> **待办（已知缺口，尚未实现）**：**各 CLI 命令入口目前都没有调用 `ctx.close()`**——宿主与
+> SQLite 连接实际上靠进程退出回收（改造前 storage 也是如此）。`close()` 已实现且幂等（有实测），
+> 但要真正在每条命令上收口，需要在 `cli/lib/cli.js` / `step.js` / `orch.js` / `workflow.js` 的
+> 命令收尾处补 `finally { await ctx.close(); }`。这条改动不在本次任务边界内，记为后续项。
 
 **关键设计（data 错位教训）**：
 - 每个 FlexRunner 通过 `createOrchestratorFlexRunnerFactory` 注入**共享** cli/storage/knowledgeManager，
@@ -62,19 +114,26 @@ storage(用户数据目录)
 - 该 factory **必须用普通 function（非箭头）**——Orchestrator 以
   `this.flexRunnerFactory(node, inputReport)` 调用，`this` 即 Orchestrator 实例，
   需访问 `_taskId` / `_loopCount`。
+- `flexRunnerFactory` 的赋值仍留在 runner 里（buildApp 不碰它）：它需要 runner 自己的
+  `_activeOrchestrator` / 数据目录上下文，不属于共享装配。
 
 ## vendor 双模式
 
 - **开发期**：`npm link` 直引仓库 `Server/` 源码（`resolveVendorServer()` 回退 `../Server`），零副本。
-- **发布期**：`prepack` 复制核心模块 → `cli/vendor/Server/` → 打包 → `postpack` 自动删除。
+- **发布期**：`prepack` 按 `CORE_MODULES` 白名单逐模块复制 → `cli/vendor/Server/` → 打包 → `postpack` 自动删除。
   `.gitignore` 忽略 vendor，手工改动无效（下次打包重新生成）。
+  新增 `Server/<模块>/` 时**必须同步加进白名单**（例：`composition/` 就是装配点 `buildApp` 的落点，
+  漏了它发布态 CLI 会 module not found，而开发态因回退仓库 `Server/` 察觉不到）。
 - **配套资产随包**（与 vendor/Server 平级，保证 SKILL 相对路径双模式一致）：
   `vendor/MCP`（Gateway + scripts）、`vendor/Archive`（kb 检索引擎 + data 种子）、
   `vendor/BadCase`（已知问题知识库种子）。依赖不装在各自子 package.json（npm 不为包内
   文件安装依赖），统一声明在 cli/package.json，模块解析沿目录树向上命中包内 node_modules。
   SKILL 中 `{{skillDir}}/../../../MCP/scripts/*.cjs`（skillDir = vendor/Server/Skills/<x>）
   与 McpToolGuide 的 `Server/library → ../../MCP/config.json` 在两种模式下同路径解析成功。
-- `verify-deps` 双模式扫描（有 vendor 扫 vendor，否则回退源码；范围含 MCP/src + Archive/src）。
+- `verify-deps` 双模式扫描，**两份 manifest 按扫描组分开核对**（否则插件依赖会漏检）：
+  有 vendor 时扫 `vendor/{Server,MCP/src,Archive/src,plugins,core,seams}`，统一比对 `cli/package.json`；
+  无 vendor 时回退扫 `Server`、`MCP/src`、`Archive/src`（比对 `cli/package.json`）与仓库根 `plugins`、`core`、`seams`
+  （比对**仓库根 `package.json`**——`openai` 就声明在那里，而 `cli/package.json` 不含它）。
 
 ## mcp 命令（MCP Gateway 装配）
 

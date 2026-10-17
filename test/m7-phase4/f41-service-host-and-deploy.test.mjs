@@ -371,8 +371,13 @@ console.log('\n── E. 部署产物与代码一致性（compose / k8s / helm�
     check('E13 清单引用的启动入口存在（Server/Distributed/bootstrap.js）',
         /bootstrap\.js/.test(k8s) && /bootstrap\.js/.test(compose)
         && (await fs.access(path.join(ROOT, 'Server/Distributed/bootstrap.js')).then(() => true, () => false)));
+
+    // 源码级不变量（E14/E21/E23）一律核对**实现体**，不核对门面：
+    // 门面只有 `export * from`，把锚点放在门面上等于让测试读一段"关于实现的描述"——
+    // 实现漂移后测试可能仍然绿，那是最坏的一种假绿。
+    const BOOTSTRAP_IMPL = path.join(ROOT, 'plugins/distributed/core/bootstrap.js');
     check('E14 bootstrap.js 支持 --list 自检（部署前可核对服务表）',
-        /'--list'/.test(await fs.readFile(path.join(ROOT, 'Server/Distributed/bootstrap.js'), 'utf8')));
+        /'--list'/.test(await fs.readFile(BOOTSTRAP_IMPL, 'utf8')));
     check('E15 Dockerfile 非 root 运行 + 健康检查（K8s 的 runAsNonRoot 前提）',
         /USER 3lib/.test(dockerfile) && /HEALTHCHECK/.test(dockerfile));
     check('E16 Dockerfile 不含密钥（全部来自环境变量）',
@@ -392,7 +397,7 @@ console.log('\n── E. 部署产物与代码一致性（compose / k8s / helm�
             .every((f) => helmFiles.includes(f)),
         helmFiles.join(','));
 
-    const deployJs = await fs.readFile(path.join(ROOT, 'Server/Distributed/bootstrap.js'), 'utf8');
+    const deployJs = await fs.readFile(BOOTSTRAP_IMPL, 'utf8');
     check('E21 集群中内存后端会显式告警（避免"集群里跑单实例语义"且无人知晓）',
         /运行在集群中但租约后端是 memory/.test(deployJs)
         && /运行在集群中但令牌后端是 memory/.test(deployJs)

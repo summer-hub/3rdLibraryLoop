@@ -1,4 +1,10 @@
 import CLIController, { OpenCodeCLI } from './cli.js';
+import { loadServerEnv } from '../composition/envBootstrap.js';
+
+// 手工集成脚本：既不经过装配点 `buildApp`，也不走 CLI 的三层 env 链，
+// 因此在这里**显式**引导一次（幂等：重复调用只有第一次真正读 `Server/.env`）。
+// 与之相对，`Server/CLI/cli.js` 已不再隐式加载 env（见该文件头注释）。
+await loadServerEnv();
 
 /**
  * CLIController 接口调用测试

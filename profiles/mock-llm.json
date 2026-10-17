@@ -1,0 +1,22 @@
+{
+  "name": "mock-llm",
+  "description": "提供方切换实验 profile：与 default 完全一致，只把 llm/dashscope 换成 llm/mock（确定性、零网络的测试替身）。用于验证「换提供方不改消费者」：消费者仍然 inject('llm')，行为随 profile 切换。存储条目与 default 一致：原来 4 条 storage/{json,jsonl,sqlite,file} 现为一条 storage/core（四类适配器随 core 一起提供，按类型的独立插件是后续步骤）。AI CLI 条目同样与 default 一致（cli/opencode + cli/deveco-code 提供 ai-cli 工厂接缝）。 util/logger 条目与 default 一致（app-logger 接缝的唯一提供方）。",
+  "plugins": {
+    "cli/opencode": { "enabled": true, "options": {} },
+    "cli/deveco-code": { "enabled": true, "options": {} },
+    "llm/dashscope": { "enabled": false, "options": {} },
+    "llm/mock": { "enabled": true, "options": {} },
+    "storage/core": { "enabled": true, "options": {} },
+    "util/logger": { "enabled": true, "options": {} },
+    "stats/core": { "enabled": true, "options": {} },
+    "engines/brain": { "enabled": true, "options": {} },
+    "engines/knowledge": { "enabled": true, "options": {} },
+    "engines/testcheck": { "enabled": true, "options": {} },
+    "engines/orchestrator": { "enabled": true, "options": {} },
+    "skills/directory": { "enabled": true },
+    "engines/loopengine": { "enabled": true, "options": {} },
+    "agent/core": { "enabled": true, "options": {} },
+    "distributed/core": { "enabled": true, "options": {} },
+    "http/server": { "enabled": true }
+  }
+}

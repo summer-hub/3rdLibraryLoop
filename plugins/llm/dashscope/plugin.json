@@ -1,0 +1,7 @@
+{
+  "name": "llm/dashscope",
+  "version": "1.0.0",
+  "seam": "llm",
+  "entry": "index.js",
+  "dependencies": []
+}

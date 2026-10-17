@@ -1,0 +1,7 @@
+{
+  "name": "llm/mock",
+  "version": "1.0.0",
+  "seam": "llm",
+  "entry": "index.js",
+  "dependencies": []
+}

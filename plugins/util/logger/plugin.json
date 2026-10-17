@@ -1,0 +1,7 @@
+{
+  "name": "util/logger",
+  "version": "1.0.0",
+  "seam": "app-logger",
+  "entry": "index.js",
+  "dependencies": []
+}

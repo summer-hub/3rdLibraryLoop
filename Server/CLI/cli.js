@@ -1,18 +1,59 @@
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+/**
+ * cli.js —— CLIController 统一控制类（按 type 委派给适配器）
+ *
+ * **本文件不隐式加载 env**。`Server/.env` / CLI 三层 `.env` 链的加载由**装配点**保证：
+ *   - HTTP 模式与嵌入式 CLI：`Server/composition/buildApp.js` 的 `loadServerEnv()`；
+ *   - `cli/lib/config.js` 的 `loadEnvChain()`：三层链（系统 env > `~/.3lib/.env` >
+ *     项目 `Server/.env`），跑完会调 `markServerEnvLoaded()` 让 Server 侧不再重复加载；
+ *   - 直接 import 本文件的手工入口（`Server/CLI/test.js` 等）：自行显式
+ *     `await loadServerEnv();` 引导一次（幂等）。
+ *
+ * 历史：这里曾有一行模块顶层 `await loadServerEnv();`，属隐式副作用——import 门面即
+ * 改进程环境变量。已删除（迁移目标达成），改为在入口/装配点显式引导。
+ */
+
 import OpenCodeCLI from './opencode/index.js';
 import DevEcoCodeCLI from './deveco-code/index.js';
 import { StatsService } from '../library/StatsService.js';
+import { resolveAiCliFactory, resolveStats } from '../composition/hostBridge.js';
 
-// 加载 Server/.env（本文件在 CLI/ 下，上一级目录为 Server/）。
-// dotenv 为可选依赖：未安装时跳过（如纯 mock 测试场景）。
-// dotenv 默认不覆盖已存在的环境变量，因此 shell export / --type 参数优先级仍高于 .env。
-try {
-    const dotenv = (await import('dotenv')).default;
-    const __dirname = path.dirname(fileURLToPath(import.meta.url));
-    dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
-} catch {
-    // dotenv 未安装或 .env 不存在，跳过
+/** 支持的 CLI 类型（闭集）：非法值一律抛错，宿主模式也不例外 */
+const SUPPORTED_TYPES = Object.freeze(['opencode', 'deveco-code']);
+
+/**
+ * 非法类型的错误（文案与改造前逐字一致；只此一处，避免两份文案漂移）。
+ * @param {string} type
+ * @returns {Error}
+ */
+function unsupportedType(type) {
+    return new Error(
+        `不支持的 CLI 类型: "${type}"，可选值为 'opencode'、'deveco-code'`
+    );
+}
+
+/**
+ * 遗留兜底路径：**没有该 type 的宿主提供方**时按 type 直接构造适配器。
+ * 与改造前的 `switch` 逐项等价：同一个类、同样的 options 原样转发、同样的报错文案。
+ *
+ * 归档不需要在这里补：适配器按 `options.archive` → 类静态 `defaultArchiveFactory`
+ * 的顺序自取（该静态钩子由 `Server/CLI/{opencode,deveco-code}/index.js` 门面在 import 期
+ * 挂成"宿主 message-archive 接缝工厂 → 内置 MessageArchive"，见那两个文件）。
+ * `buildApp({ attachCliArchive: true })` 传进来的 `options.archive` 依然最优先。
+ *
+ * @param {'opencode'|'deveco-code'} type
+ * @param {object} options
+ * @returns {object} 适配器实例
+ * @throws {Error} 不支持的 type
+ */
+function legacyCreate(type, options) {
+    switch (type) {
+        case 'opencode':
+            return new OpenCodeCLI(options);
+        case 'deveco-code':
+            return new DevEcoCodeCLI(options);
+        default:
+            throw unsupportedType(type);
+    }
 }
 
 /**
@@ -59,23 +100,32 @@ class CLIController {
      *   options.baseUrl {string} - 完整 URL，优先级高于 host/port
      *
      * 公共选项：
-     *   options.archive    - MessageArchive 实例（消息存档与卡死检测），不传则适配器内部自建
+     *   options.archive          - MessageArchive 实例（消息存档与卡死检测）。不传时有宿主则取
+     *                              `message-archive` 接缝的工厂，无宿主则自建（与改造前一致）
+     *   options.stats            - 统计提供方（类，需有静态 `incrementSessionCount()`）。不传时
+     *                              见 startSession 的优先级链
+     *   options.stallThresholdMs - 卡死判定阈值（ms），不传则读归档契约（默认 5 分钟）
      */
     constructor(type = process.env.CLI_TYPE || 'deveco-code', options = {}) {
+        // 类型校验前移：宿主模式下若先问接缝，非法 type 会被裸名 `ai-cli` 兜住而悄悄放行，
+        // 与改造前「非法 type 必抛」的契约相反。文案由 unsupportedType() 单点维护。
+        if (!SUPPORTED_TYPES.includes(type)) throw unsupportedType(type);
+
         this.type = type;
 
-        switch (type) {
-            case 'opencode':
-                this.adapter = new OpenCodeCLI(options);
-                break;
-            case 'deveco-code':
-                this.adapter = new DevEcoCodeCLI(options);
-                break;
-            default:
-                throw new Error(
-                    `不支持的 CLI 类型: "${type}"，可选值为 'opencode'、'deveco-code'`
-                );
-        }
+        // stats 是「旁路计数」依赖，不是适配能力：装配层（buildApp）在有宿主时把
+        // host.inject('stats') 经 cliOptions.stats 递进来，这里**摘出来**再转发选项，
+        // 免得把统计依赖塞进只认连接配置的适配器。
+        // 未注入时原对象转发（同一个引用、同样的 key），无宿主场景逐字节等价。
+        const { stats, ...optionsWithoutStats } = options;
+        this._stats = stats ?? null;
+
+        // 接缝解析（本片的核心改动）：把原来的 switch 换成「宿主优先 → 遗留兜底」。
+        //   有宿主且注册了 ai-cli@cli/<type>（或裸名 ai-cli）→ 用插件注册的工厂构造
+        //   否则（无宿主 = 默认部署形态）→ legacyCreate，行为与改造前逐字节等价
+        const adapterOptions = stats === undefined ? options : optionsWithoutStats;
+        const factory = resolveAiCliFactory(type);
+        this.adapter = factory ? factory(adapterOptions) : legacyCreate(type, adapterOptions);
     }
 
     // ─── 运行状态检查 ──────────────────────────────────────────────────────────
@@ -174,8 +224,19 @@ class CLIController {
      * @returns {Promise<{ sessionId: string, action: string, message: string }>}
      */
     async startSession(title, prompt, options = {}) {
-        // 记录 Session 调用次数（异步执行，不影响主流程）
-        StatsService.incrementSessionCount().catch(err => {
+        // 记录 Session 调用次数（异步执行，不影响主流程）。
+        // 统计提供方的优先级链（高 → 低），显式注入永远压过全局桥：
+        //   ① `constructor` 收到的 `options.stats` —— 装配层显式注入。有宿主时
+        //      `buildApp` 把 `host.inject('stats')` 的提供方经 cliOptions 递进来；
+        //      测试/上层也可以直接传别的实现，装配层不再回头去问全局状态。
+        //   ② `resolveStats()` —— 当前活跃宿主注册的 `stats` 接缝提供方
+        //      （`Server/composition/hostBridge.js`；无宿主时返回 null）。
+        //   ③ `StatsService` —— 门面内置实现，也是无宿主（默认部署形态）下与迁移前
+        //      逐字节等价的那一条：同一个类、同样的静态方法、同样的时机。
+        // 为什么保留 ②③：Agent/Brain/FlexRunner 等深处仍会 `new CLIController()`，
+        // 它们不带装配层注入，靠全局桥（②）或内置实现（③）跟住同一个提供方。
+        const stats = this._stats ?? resolveStats() ?? StatsService;
+        stats.incrementSessionCount().catch(err => {
             // 统计失败不影响正常业务，仅记录日志
             console.warn('[CLIController] Session 统计记录失败:', err.message);
         });

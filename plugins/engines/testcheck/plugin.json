@@ -1,0 +1,7 @@
+{
+  "name": "engines/testcheck",
+  "version": "1.0.0",
+  "seam": "engine-testcheck",
+  "entry": "index.js",
+  "dependencies": []
+}

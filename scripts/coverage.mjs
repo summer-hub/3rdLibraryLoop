@@ -58,13 +58,45 @@ const argOnly = process.argv.find((a) => a.startsWith('--only='));
 const ONLY = argOnly ? argOnly.slice('--only='.length) : null;
 const WANT_JSON = process.argv.includes('--json');
 
-const SUITES = [
-    ['m1', 'test/m1/run-all.mjs'],
-    ['m2', 'test/m2/run-all.mjs'],
-    ['m3', 'test/m3/run-all.mjs'],
-    ['m4', 'test/m4/run-all.mjs'],
-    ['unit', 'Server/Agent/SkillSelector/__tests__/test-pure-logic.js'],
-].filter(([name]) => !ONLY || name === ONLY);
+/**
+ * 套件清单来源：**从 `package.json` 的 `test:*` 脚本派生**（不在此维护第二份清单）。
+ *
+ * 为什么不 import `test/run-all.mjs` 里的权威套件表：那个模块的**模块体本身就是**
+ * 「依次 spawn 全部套件」的聚合器，import 它 = 把所有套件再跑一遍（且会在
+ * NODE_V8_COVERAGE 下嵌套收集），所以只能读同源的清单——`package.json`。
+ *
+ * 两处刻意的取舍：
+ *   - `npm test`（无冒号）是聚合器本身而非套件，计入只会重跑全部入口、耗时翻倍，
+ *     故只取带 `test:` 前缀的脚本。
+ *   - 显示名 = 脚本名去掉 `test:` 前缀，即 `--only=<name>` 的取值（如 `--only=m3`）。
+ *
+ * 新增套件时只需在 package.json 里加一条 `test:<name>` 脚本，本脚本自动纳入；
+ * 若要让它出现在 `npm test` 里，还须同步 `test/run-all.mjs` 的 SUITES（那是
+ * 另一份按「显示名/超时」组织的表，无法从 package.json 推出）。
+ */
+function suitesFromPackageJson(pkg) {
+    const suites = [];
+    for (const [key, cmd] of Object.entries(pkg.scripts ?? {})) {
+        if (!key.startsWith('test:')) continue;
+        const script = String(cmd).match(/(?:^|\s)(\S+\.(?:mjs|cjs|js))(?:\s|$)/)?.[1];
+        if (!script) {
+            console.warn(`⚠️  跳过 ${key}：无法从 "${cmd}" 解析出入口文件`);
+            continue;
+        }
+        suites.push([key.slice('test:'.length), script]);
+    }
+    return suites;
+}
+
+const PKG = JSON.parse(await fs.readFile(path.join(ROOT, 'package.json'), 'utf8'));
+const ALL_SUITES = suitesFromPackageJson(PKG);
+
+if (ALL_SUITES.length === 0) {
+    console.error('❌ 未能从 package.json 的 test:* 脚本解析出任何套件入口');
+    process.exit(1);
+}
+
+const SUITES = ALL_SUITES.filter(([name]) => !ONLY || name === ONLY);
 
 /** 运行一个套件，带 V8 覆盖率收集 */
 function runSuite(script, covDir) {

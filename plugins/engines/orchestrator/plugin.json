@@ -1,0 +1,7 @@
+{
+  "name": "engines/orchestrator",
+  "version": "1.0.0",
+  "seam": "engine-orchestrator",
+  "entry": "index.js",
+  "dependencies": []
+}

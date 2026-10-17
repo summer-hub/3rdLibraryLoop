@@ -2,19 +2,20 @@
  * runner.js —— 核心引擎装配与执行
  *
  * 职责：
- *   - 参照 Server/Routes/server.js 组装共享依赖（不启动 HTTP）
+ *   - 复用 Server/composition/buildApp.js 装配共享依赖（不启动 HTTP）
  *   - 提供 run / submit / abort / wait / progress / result / list 的执行能力
  *   - 注入自定义 flexRunnerFactory，使每个 FlexRunner 复用同一 CLIController 与
  *     同一存储门面（确保 Session 存档写入用户数据目录，而非 vendor/db）
  *
- * 依赖注入链（对照 server.js）：
+ * 依赖注入链（装配由 buildApp 承担，此处只表达差异选项）：
  *   CLIController ─┐
  *   createStorage ─┼→ OrchestratorController →(flexRunnerFactory)→ FlexRunner(cli+storage)
  *   BrainController ─(Brain{cli})→ SkillExecutor{cli}
  *   TestCheck{storage}
  *   LoopEngine{brainController, orchestratorController, testCheck, storage}
  *
- * 数据目录（A3）：createStorage({ rootDir }) 注入用户隔离目录。
+ * 数据目录（A3）：storageOptions.rootDir 注入用户隔离目录。
+ * sseHub / knowledgeManager 传 null：CLI 进程不持有 SseHub 的心跳 timer，知识库按任务惰性创建。
  */
 
 import path from 'node:path';
@@ -60,7 +61,7 @@ async function _loadCore(cliRoot) {
         return import(u.href);
     }
 
-    const [dbUse, loopEngine, brainMod, orchestratorMod, testCheckMod, cliMod, flexRunnerMod, knowledgeMod] = await Promise.all([
+    const [dbUse, loopEngine, brainMod, orchestratorMod, testCheckMod, cliMod, flexRunnerMod, knowledgeMod, compositionMod, appHostMod, hostBridgeMod] = await Promise.all([
         imp('DbUse/index.js'),
         imp('LoopEngine/index.js'),
         imp('Brain/index.js'),
@@ -69,6 +70,11 @@ async function _loadCore(cliRoot) {
         imp('CLI/cli.js'),
         imp('FlexRunner/index.js'),
         imp('Knowledge/index.js'),
+        imp('composition/buildApp.js'),
+        // 插件宿主装配与活跃宿主桥：与 buildApp 同属 vendor（含 core/ 副本），
+        // 动态 import 保证开发态/发布态同构，也不给 verify-deps 增静态依赖。
+        imp('composition/appHost.js'),
+        imp('composition/hostBridge.js'),
     ]);
 
     _modules = {
@@ -83,9 +89,158 @@ async function _loadCore(cliRoot) {
         CLIController: cliMod.CLIController,
         FlexRunner: flexRunnerMod.FlexRunner || flexRunnerMod.default,
         KnowledgeManager: knowledgeMod.KnowledgeManager || knowledgeMod.default,
+        buildApp: compositionMod.buildApp,
+        createAppHost: appHostMod.createAppHost,
+        activateAppHost: appHostMod.activateAppHost,
+        hostBridge: hostBridgeMod,
         serverRoot,
     };
     return _modules;
+}
+
+/**
+ * 解析 `pluginHost` 三态，并识别**安全阀**环境变量 `3LIB_PLUGIN_MODE=off`。
+ *
+ * 安全阀语义：`3LIB_PLUGIN_MODE=off` 一律等价于 `pluginHost:false` —— 不装配插件宿主，
+ * 退回「builtin 实现」的旧装配路径。它**优先于构造参数**（应急开关不该被调用方
+ * 悄悄覆盖），因此不需要改命令行参数、也不需要发版，设一个环境变量即可一键回退。
+ * 触发条件可以是插件装配失败、某个 profile 在用户机器上不可用、或新装配路径的现场故障。
+ *
+ * @param {'auto'|false|object|undefined} explicit - 构造参数 pluginHost
+ * @returns {'auto'|false|object}
+ * @throws {Error} 传了无法识别的字符串
+ */
+function resolvePluginHostMode(explicit) {
+    const mode = String(process.env['3LIB_PLUGIN_MODE'] ?? '').trim().toLowerCase();
+    if (mode === 'off') return false;
+    if (explicit === undefined) return 'auto';
+    if (typeof explicit === 'string' && explicit !== 'auto') {
+        throw new Error(
+            `RunContext：不支持的 pluginHost "${explicit}"，可选值为 'auto' / false / 宿主实例`
+        );
+    }
+    return explicit;
+}
+
+/** pluginHost 取值的人类可读描述（错误信息用）。 */
+function describePluginHostMode(mode) {
+    if (mode === false) return 'false（已关闭）';
+    if (mode && mode !== 'auto') return '宿主实例';
+    return 'auto';
+}
+
+/**
+ * 给插件装配/激活失败补一句**可操作**的逃生提示（安全阀 `3LIB_PLUGIN_MODE=off`）。
+ * 只在确实走了插件路径时追加；`pluginHost:false` 的失败本来就在旧路径上，无需提示。
+ * @param {unknown} err
+ * @param {object|string|false} mode - 已解析的 pluginHost
+ * @returns {unknown} 同一个错误对象
+ */
+function withPluginHostHint(err, mode) {
+    if (!(err instanceof Error) || mode === false) return err;
+    err.message =
+        `${err.message}\n[runner] 插件装配失败（pluginHost: ${describePluginHostMode(mode)}）。` +
+        '如需临时退回旧装配路径，请设环境变量 3LIB_PLUGIN_MODE=off 后重跑。';
+    return err;
+}
+
+/**
+ * 进程级共享宿主（同一进程内多个 RunContext 共用一份）。
+ *
+ * 为什么需要它：`hostBridge.setActiveHost` 有覆盖守卫——进程内已有另一个不同的默认宿主
+ * 时直接抛错（默认宿主是进程级单例，静默覆盖会让先激活者的消费者在下一个 await 之后
+ * 突然用上别人的实现）。而 CLI 一个进程里可能先后/同时存在多个 RunContext
+ * （各命令模块各建一个，`createRunContext()` 的调用点有 9 处）。于是：
+ *   - **第一个** RunContext 负责激活（host.load + setActiveHost），成为 owner；
+ *   - 其余 RunContext **复用**同一个宿主并把引用计数 +1（不重复激活，不触发守卫）；
+ *   - `close()` 递减计数，**最后一个**关闭的上下文才真正 shutdown
+ *     （`clearActiveHost()`；仅当宿主由本进程创建时才 `dispose()`——显式传入的实例归调用方）。
+ * 这样既不抛覆盖错误，也不会出现"先关的人把后关的人的宿主收走了"的悬空引用。
+ *
+ * @type {{host: object, shutdown: Function, refs: number}|null}
+ */
+let _processHost = null;
+
+/**
+ * 取得（必要时激活）进程级宿主。
+ * @param {RunContext} ctx
+ * @param {object} core - _loadCore() 的模块表
+ * @returns {Promise<{host: object, shutdown: Function, refs: number}|null>} null = pluginHost:false
+ */
+async function acquireProcessHost(ctx, core) {
+    if (ctx.pluginHost === false) return null;
+    // 已有活跃宿主 → 复用（refs++）。root === null 说明它已被 dispose，重新装一份。
+    if (_processHost && _processHost.host?.root) {
+        _processHost.refs += 1;
+        return _processHost;
+    }
+    _processHost = null;
+    _processHost = { ...(await activateHost(ctx, core)), refs: 1 };
+    return _processHost;
+}
+
+/**
+ * 激活宿主：`'auto'` 走 appHost.activateAppHost（load + 设为默认宿主），
+ * 传了实例则直接激活该实例（生命周期同样归本进程）。
+ * @param {RunContext} ctx
+ * @param {object} core
+ * @returns {Promise<{host: object, shutdown: Function}>}
+ */
+/**
+ * 激活宿主。
+ *
+ * 所有权分流（与 createServer 的 `ownsHost` 同一语义）：
+ *   - `'auto'`：`appHost.activateAppHost` **创建**宿主 → 生命周期归本进程，shutdown 里
+ *     `clearActiveHost()` + `dispose()`；
+ *   - 宿主实例：调用方交进来的、已经 load 好的宿主 → 只 `setActiveHost()` 激活，
+ *     shutdown **只摘桥、不 dispose**（调用方可能还要继续用它：多入口共享、测试里做多轮断言）。
+ *
+ * @param {RunContext} ctx
+ * @param {object} core
+ * @returns {Promise<{host: object, shutdown: Function}>}
+ */
+async function activateHost(ctx, core) {
+    if (ctx.pluginHost && ctx.pluginHost !== 'auto') {
+        const host = ctx.pluginHost;
+        core.hostBridge.setActiveHost(host); // 覆盖守卫：已有不同默认宿主会在这里响亮失败
+        return { host, shutdown: createHostShutdown(host, core, { ownsHost: false }) };
+    }
+    return core.activateAppHost({ profile: ctx.profile });
+}
+
+/**
+ * 生成幂等的宿主释放函数：`clearActiveHost()` 一律执行，`dispose()` 只在 `ownsHost` 时执行。
+ *
+ * 顺序固定（先摘桥、后回收）：dispose 结束时宿主 root 已置 null，若先 dispose 再摘桥，
+ * 期间仍在解析的代码会撞上「PluginHost 尚未 load」这种与停机无关的错误。
+ *
+ * @param {object|null} host
+ * @param {object} core - 提供 `hostBridge`
+ * @param {object} opts
+ * @param {boolean} opts.ownsHost - true＝宿主由本进程创建，可一并 dispose；false＝归调用方
+ * @returns {() => Promise<void>} 幂等释放函数
+ */
+function createHostShutdown(host, core, { ownsHost }) {
+    let done = false;
+    return async () => {
+        if (done) return;
+        done = true;
+        core.hostBridge.clearActiveHost();
+        if (ownsHost && host && typeof host.dispose === 'function') await host.dispose();
+    };
+}
+
+/**
+ * 释放进程级宿主的一份引用；计数归零时才真正 shutdown（顺序见 createHostShutdown：
+ * 先 `clearActiveHost()` 摘桥，再按 ownsHost 决定是否 dispose）。
+ * @param {{host: object, shutdown: Function, refs: number}|null} shared
+ */
+async function releaseProcessHost(shared) {
+    if (!shared) return;
+    if (shared.refs > 0) shared.refs -= 1;
+    if (shared.refs > 0) return;
+    if (_processHost === shared) _processHost = null;
+    await shared.shutdown();
 }
 
 /**
@@ -101,6 +256,10 @@ class RunContext {
      * @param {string} opts.dataDir
      * @param {string} opts.skillDir
      * @param {string} [opts.cliType] - CLI 类型，缺省时按 CLI_TYPE 解析（默认 deveco-code）
+     * @param {'auto'|false|object} [opts.pluginHost='auto'] - 插件宿主三态：
+     *        'auto'＝启动时装配宿主（能力从接缝取）；false＝旧装配路径；实例＝直接使用。
+     *        环境变量 `3LIB_PLUGIN_MODE=off` 优先级更高，等价于 false（安全阀，见 resolvePluginHostMode）
+     * @param {string|object} [opts.profile] - 传给宿主的 profile（名或已解析对象）
      * @param {boolean} opts.verbose
      */
     constructor(opts = {}) {
@@ -112,7 +271,14 @@ class RunContext {
         this.cliType = resolveCliType(opts.cliType);
         this.verbose = !!opts.verbose;
         this._ready = false;
+        this._closed = false;
         this.cliRoot = opts.cliRoot || CLI_ROOT;
+        this.pluginHost = resolvePluginHostMode(opts.pluginHost);
+        this.profile = opts.profile;
+        /** 本次装配的插件宿主（未装配时为 null） */
+        this.host = null;
+        /** 进程级共享宿主句柄（引用计数用，见 acquireProcessHost） */
+        this._sharedHost = null;
     }
 
     /** 惰性初始化并返回核心模块引用 */
@@ -121,43 +287,53 @@ class RunContext {
         const core = await _loadCore(this.cliRoot);
         this.core = core;
 
-        // ── storage：注入用户数据目录 ──
-        this.storage = core.createStorage({ rootDir: this.dataDir });
+        // ── 插件宿主：启动时激活（宿主 load 失败 → 抛出，不降级；逃生门见错误信息）──
+        // 同进程多个 RunContext 共用一份宿主，引用计数见 acquireProcessHost 的说明。
+        let shared;
+        try {
+            shared = await acquireProcessHost(this, core);
+        } catch (err) {
+            throw withPluginHostHint(err, this.pluginHost);
+        }
+        const host = shared?.host ?? null;
 
-        // ── CLIController：共享实例，archive 指向本 storage 的 SessionStore ──
-        this.cli = new core.CLIController(this.cliType, {
-            archive: this.storage.messageArchive(),
-        });
+        // ── 依赖装配：与 HTTP 模式共用 Server/composition/buildApp.js（唯一装配点）──
+        // 差异全部落成选项，不再在此处手工复刻 server.js 的构造参数。
+        let app;
+        try {
+            app = await core.buildApp({
+                // 显式传 cliType：范围与 _loadCore 一致（同一 vendor 副本），避免 buildApp 用内联默认值猜
+                cliType: this.cliType,
+                // 注入用户数据目录：所有引擎数据（Session/task/Knowledge）都落 --data-dir
+                storageOptions: { rootDir: this.dataDir },
+                // archive 指向本 storage 的 SessionStore，避免 CLI 侧会话归档落到引擎副本相对路径
+                attachCliArchive: true,
+                // Brain/TestCheck 复用同一 CLIController 实例（否则二者各自惰性 new，数据错位）
+                shareCliWithControllers: true,
+                skillDirectory: this.skillDir,
+                // OrchestratorController 的 SKILL 兜底只服务 HTTP load，嵌入式模式不注入（保持 ''）
+                orchestratorSkillDirectory: null,
+                // SseHub 构造函数会起心跳/清理两个 setInterval：CLI 进程会因此无法自然退出
+                sseHub: null,
+                // 知识库由 flexRunnerFactory 按任务惰性创建，这里不额外初始化一份存储根
+                knowledgeManager: null,
+                // 已 load 的宿主（pluginHost:false 时为 null → buildApp 走旧装配路径）
+                host,
+            });
+        } catch (err) {
+            // 装配失败不留半装的宿主：它已占着插件资源与静态钩子
+            await releaseProcessHost(shared);
+            throw withPluginHostHint(err, this.pluginHost);
+        }
 
-        // ── controllers：与 server.js 对齐 ──
-        this.orchestratorController = new (await this._importOrchestratorController())({
-            storage: this.storage,
-            flexRunnerFactory: null,
-        });
-
-        // 注入共享 cli：Brain/TestCheck 若不注入，会各自惰性 new CLIController()
-        // （其默认取 env CLI_TYPE，但 MessageArchive 基于 vendor/Server 相对路径上溯
-        //   → 落到 cli/db/Session，数据错位）。注入后会话归档统一写用户数据目录。
-        this.brainController = new (await this._importBrainController())({
-            storage: this.storage,
-            skillDirectory: this.skillDir,
-            orchestratorController: this.orchestratorController,
-            cli: this.cli,
-        });
-
-        this.testCheck = new core.TestCheck({
-            storage: this.storage,
-            skillDirectory: this.skillDir,
-            cli: this.cli,  // 注入共享 cli，避免审核会话落到 cli/db/Session
-        });
-
-        this.loopEngineController = new (await this._importLoopEngineController())({
-            storage: this.storage,
-            brainController: this.brainController,
-            orchestratorController: this.orchestratorController,
-            testCheck: this.testCheck,
-            skillDirectory: this.skillDir,
-        });
+        this._sharedHost = shared;
+        this.host = app.host ?? host;
+        this.storage = app.storage;
+        this.cli = app.cli;
+        this.orchestratorController = app.orchestratorController;
+        this.brainController = app.brainController;
+        this.testCheck = app.testCheck;
+        this.loopEngineController = app.loopEngineController;
 
         // ── 注入自定义 flexRunnerFactory，让每个 FlexRunner 复用 cli/storage ──
         // 复刻 Orchestrator._createFlexRunner 的 initContext 参数并注入 cli/storage，
@@ -167,26 +343,6 @@ class RunContext {
         //   可访问 _taskId / _loopCount。
         this.orchestratorController.flexRunnerFactory = createOrchestratorFlexRunnerFactory(this);
         this._ready = true;
-    }
-
-    /** 动态导入 OrchestratorController（在 Routes 下，单独 import） */
-    async _importOrchestratorController() {
-        const serverRoot = resolveVendorServer(this.cliRoot);
-        const url = `file://${path.join(serverRoot, 'Routes', 'controllers', 'OrchestratorController.js').replace(/\\/g, '/')}`;
-        const mod = await import(url);
-        return mod.default;
-    }
-    async _importBrainController() {
-        const serverRoot = resolveVendorServer(this.cliRoot);
-        const url = `file://${path.join(serverRoot, 'Routes', 'controllers', 'BrainController.js').replace(/\\/g, '/')}`;
-        const mod = await import(url);
-        return mod.default;
-    }
-    async _importLoopEngineController() {
-        const serverRoot = resolveVendorServer(this.cliRoot);
-        const url = `file://${path.join(serverRoot, 'Routes', 'controllers', 'LoopEngineController.js').replace(/\\/g, '/')}`;
-        const mod = await import(url);
-        return mod.default;
     }
 
     /**
@@ -204,11 +360,29 @@ class RunContext {
     }
 
     /**
-     * 关闭所有存储连接（SQLite 等）。
+     * 关闭所有存储连接（SQLite 等），并释放本次上下文持有的宿主引用。幂等：重复调用无副作用。
+     *
+     * 宿主释放走引用计数（见 acquireProcessHost）：同进程还有别的活跃 RunContext 时只减
+     * 计数，最后一个关闭的上下文才真正 shutdown —— `clearActiveHost()` 摘桥，且仅当宿主由
+     * 本进程创建（`pluginHost:'auto'`）时才 `dispose()`；显式传入的实例归调用方，只摘桥。
      */
     async close() {
-        if (this.storage && typeof this.storage.close === 'function') {
-            await this.storage.close();
+        if (this._closed) return;
+        this._closed = true;
+        try {
+            if (this.storage && typeof this.storage.close === 'function') {
+                await this.storage.close();
+            }
+        } finally {
+            const shared = this._sharedHost;
+            this._sharedHost = null;
+            this.host = null;
+            try {
+                await releaseProcessHost(shared);
+            } catch (err) {
+                // 释放失败只告警：存储已关闭，不能因为宿主回收异常而让 close() 抛错
+                console.warn(`[runner] 释放插件宿主失败: ${err.message}`);
+            }
         }
     }
 }

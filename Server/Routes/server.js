@@ -1,18 +1,10 @@
 import http from 'node:http';
-import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pathToFileURL } from 'node:url';
 import { Router } from './router/Router.js';
 import { registerRoutes } from './routes/index.js';
-import { CLIController } from '../CLI/cli.js';
-import SseHub from './sse/SseHub.js';
-import FlexRunnerController from './controllers/FlexRunnerController.js';
-import OrchestratorController from './controllers/OrchestratorController.js';
-import BrainController from './controllers/BrainController.js';
-import LoopEngineController from './controllers/LoopEngineController.js';
-import { TestCheck } from '../TestCheck/index.js';
-import { createStorage } from '../DbUse/index.js';
-import { KnowledgeManager } from '../Knowledge/index.js';
-import KnowledgeImportController from './controllers/KnowledgeImportController.js';
+import { buildApp } from '../composition/buildApp.js';
+import { activateAppHost } from '../composition/appHost.js';
+import { clearActiveHost, setActiveHost } from '../composition/hostBridge.js';
 
 /**
  * Server —— HTTP 服务入口
@@ -82,6 +74,8 @@ const HTTP_LIMITS = Object.freeze({
  * @param {string} [options.cliType]            - CLI 类型，缺省时取环境变量 CLI_TYPE，仍未设置则 'deveco-code'
  * @param {object} [options.cliOptions={}]      - CLI 适配器配置
  * @param {CLIController} [options.cli]         - 已存在的 CLI 实例（优先于 cliType/cliOptions）
+ * @param {'auto'|false|object} [options.pluginHost='auto'] - 插件宿主三态，见下方注释
+ * @param {string|object} [options.profile]     - 传给插件宿主的 profile（名或已解析对象）
  * @param {number} [options.maxConnections]     - 并发连接上限（默认 512 / MAX_CONNECTIONS）
  * @param {number} [options.headersTimeout]     - 读头超时 ms（默认 60000 / HEADERS_TIMEOUT_MS）
  * @param {number} [options.keepAliveTimeout]   - keep-alive 空闲超时 ms（默认 10000 / KEEP_ALIVE_TIMEOUT_MS）
@@ -94,6 +88,8 @@ export async function createServer(options = {}) {
         cliType = process.env.CLI_TYPE || 'deveco-code',
         cliOptions = {},
         cli = null,
+        pluginHost = 'auto',
+        profile,
         maxConnections = HTTP_LIMITS.maxConnections,
         headersTimeout = HTTP_LIMITS.headersTimeout,
         keepAliveTimeout = HTTP_LIMITS.keepAliveTimeout,
@@ -101,77 +97,18 @@ export async function createServer(options = {}) {
     } = options;
 
     // ─── 组装共享依赖（单例，所有 Controller 复用）────────────────────
-    const cliInstance = cli || new CLIController(cliType, cliOptions);
-    const sseHub = new SseHub();
-    const storage = createStorage();
-
-    // OrchestratorController 同样有状态（管理多个编排器实例），需单例
-    // skillDirectory：默认 SKILL 根目录，taskDef 未指定时兜底（供 specifiedSkill 解析 / 自动匹配）
-    const __dirname = path.dirname(fileURLToPath(import.meta.url));
-    const skillDirectory = path.resolve(__dirname, '..', 'Skills');
-    const orchestratorController = new OrchestratorController({
-        sseHub,
-        storage,
-        flexRunnerFactory: null,
-        skillDirectory
+    // 装配细节收敛在 Server/composition/buildApp.js：与 cli/lib/runner.js 共用同一份装配，
+    // 差别只通过选项表达，避免两处手工复刻造成的漂移（cli archive / skillDirectory 兜底值）。
+    //
+    // 插件宿主（默认 'auto'）：启动时**激活**宿主（activateAppHost：load + 设为默认宿主），
+    // 再把 host 交给 buildApp 从接缝取能力。激活必须在 buildApp 之前——CLIController 在
+    // 构造期就向 `ai-cli` 接缝解析适配器。装配失败一律**进程失败**（fail closed），
+    // 不降级到旧路径：降级会掩盖 profile 配置错误，让服务实际跑在「一部分插件能力 +
+    // 一部分内置实现」的混合形态上。
+    const { host, shutdownHost, dependencies } = await resolveDependencies({
+        cliType, cliOptions, cli, pluginHost, profile
     });
-
-    // FlexRunnerController 是有状态的（管理多个 FlexRunner 实例），需单例。
-    // 注入 orchestratorController 使其能查找编排器创建的 FlexRunner 实例。
-    // 注入 storage 使其在没有活跃 runner 时能直接读取 session 归档。
-    const flexRunnerController = new FlexRunnerController({ orchestratorController, storage });
-
-    // BrainController 管理 Brain 拆解实例（需单例，复用 LLM 连接）
-    const brainController = new BrainController({
-        sseHub,
-        storage,
-        orchestratorController,
-        skillDirectory
-    });
-
-    // TestCheck 准出审核引擎（需单例，复用 LLM 连接和 SkillSelector）
-    const testCheck = new TestCheck({
-        sseHub,
-        storage,
-        skillDirectory
-    });
-
-    // LoopEngineController 管理大循环实例（需单例，依赖 Brain + Orchestrator + TestCheck）
-    const loopEngineController = new LoopEngineController({
-        sseHub,
-        storage,
-        brainController,
-        orchestratorController,
-        testCheck,
-        skillDirectory
-    });
-
-    // KnowledgeManager 知识沉淀管理器（需单例，知识导入复用）
-    const knowledgeManager = new KnowledgeManager();
-    await knowledgeManager.init();
-
-    // KnowledgeImportController 知识导入控制器（需单例，复用 CLI + KnowledgeManager）
-    const knowledgeImportController = new KnowledgeImportController({
-        cli: cliInstance,
-        storage,
-        skillDirectory,
-        knowledgeManager,
-        sseHub
-    });
-
-    const dependencies = {
-        cli: cliInstance,
-        sseHub,
-        storage,
-        flexRunnerController,
-        orchestratorController,
-        brainController,
-        testCheck,
-        loopEngineController,
-        knowledgeManager,
-        knowledgeImportController,
-        skillDirectory
-    };
+    const { sseHub, storage, orchestratorController } = dependencies;
 
     // ─── 初始化路由器并注册路由 ────────────────────────────────────────
     const router = new Router();
@@ -215,6 +152,9 @@ export async function createServer(options = {}) {
     );
     // 暴露实际生效的取值，便于运维核对/自动化测试断言
     server.httpLimits = { maxConnections, headersTimeout, keepAliveTimeout, requestTimeout };
+    // 暴露本次装配的插件宿主（'auto'/实例 才有；pluginHost:false 时为 null）。
+    // 停机时由 gracefulShutdown 释放，这里只是让调用方/测试能观测到它。
+    server.pluginHost = host;
 
     return new Promise((resolve, reject) => {
         server.on('error', reject);
@@ -245,7 +185,7 @@ export async function createServer(options = {}) {
         // 原实现只 destroy SSE + close storage 就 process.exit(0)，导致：
         //   - 在途编排被硬杀，远端 opencode 会话成为孤儿（无人 abort/回收）
         //   - 最后一次编排状态写入（_persistChain 在途）被丢弃
-        // 现按「停收新请求 → 中止在途编排并等收尾 → 落盘 → 关存储」顺序收口，
+        // 现按「停收新请求 → 中止在途编排并等收尾 → 落盘 → 关存储 → 释放插件宿主」顺序收口，
         // 并有硬超时兜底，避免个别卡死步骤无限拖住停机。
         let shuttingDown = false;
         const gracefulShutdown = async ({ timeoutMs = 30000, exitCode = null } = {}) => {
@@ -288,6 +228,20 @@ export async function createServer(options = {}) {
                 } catch (err) {
                     console.error(`[Server] 关闭存储连接失败: ${err.message}`);
                 }
+
+                // 4) 释放插件宿主（最后一步：SSE / 在途编排 / 存储都已收口，
+                //    还没有被 dispose 的插件也不再需要归档与控制器）。
+                //    顺序是刻意的：shutdownHost() 内部先 clearActiveHost() 摘桥，再视 ownsHost
+                //    决定是否 dispose（显式传入的实例归调用方，只摘桥不销毁）。反过来先回收再摘桥
+                //    则有窗口期让并发代码解析到一个正在释放（dispose 结束时 root 已置 null）的宿主，
+                //    在深层构造函数里炸出「PluginHost 尚未 load」这类与停机无关的错误。
+                //    异常只记录，不阻断后面的收尾（与上面存储关闭同形）。
+                try {
+                    if (shutdownHost) await shutdownHost();
+                } catch (err) {
+                    console.error(`[Server] 释放插件宿主失败: ${err.message}`);
+                }
+
                 clearTimeout(hardTimer);
                 console.log('[Server] 已关闭');
                 if (exitCode != null) process.exit(exitCode);
@@ -302,6 +256,118 @@ export async function createServer(options = {}) {
         process.on('SIGINT', onSignal);
         process.on('SIGTERM', onSignal);
     });
+}
+
+// ─── 插件宿主装配 ──────────────────────────────────────────────────────────
+
+/**
+ * 激活 `pluginHost` 三态，返回 `{ host, shutdownHost }`（`false` → 两者皆 null）。
+ *
+ * - `'auto'`（默认）：`activateAppHost({ profile })` —— load 宿主 + 设为进程默认宿主；
+ *   宿主由本入口**创建**，因此也由本入口释放（`clearActiveHost()` + `dispose()`）。
+ * - `false`：不装配宿主 —— **安全阀**，装配层退回旧路径（buildApp 不带 host）。
+ * - 宿主实例：只做 `setActiveHost(instance)`，停机时**只摘桥、不 dispose**。
+ *   **实例的生命周期归调用方**：调用方交进来的是"已经 load 好、也可能还要继续用"的宿主，
+ *   入口把它销毁是反直觉的（多入口共享、测试复用同一宿主做多轮断言都会拿到死人）。
+ *   分流只用一个 `ownsHost` 标志，不写两套清理逻辑。
+ *
+ * 为什么服务端入口用 `activateAppHost`（而非作用域化的 withAppHost）：HTTP 请求在无数
+ * 互不相关的调用链上跑，没有一条"作用域"能罩住整个服务生命周期；服务是"一进程一个应用"，
+ * 正是默认宿主语义的适用场景。重复激活会被 hostBridge 的覆盖守卫拒绝——这是我们要的：
+ * 一个进程两个默认宿主必然串味。
+ *
+ * @param {object} params
+ * @param {'auto'|false|object} params.pluginHost
+ * @param {string|object} [params.profile] - profile 名或已解析对象（透传给宿主）
+ * @returns {Promise<{host: object|null, shutdownHost: (() => Promise<void>)|null}>}
+ * @throws {Error} pluginHost 取值非法，或宿主 load 失败 / 已被别的宿主占用
+ */
+async function activatePluginHost({ pluginHost, profile }) {
+    if (pluginHost === false) return { host: null, shutdownHost: null };
+    if (pluginHost && pluginHost !== 'auto') {
+        if (typeof pluginHost !== 'object') {
+            throw new Error(
+                `createServer：pluginHost 取值非法（${String(pluginHost)}），可选值为 'auto' / false / 宿主实例`
+            );
+        }
+        // 只激活（让深处消费者看得见），不接管生命周期：停机只摘桥，不 dispose
+        setActiveHost(pluginHost);
+        return {
+            host: pluginHost,
+            shutdownHost: createShutdown(pluginHost, { ownsHost: false })
+        };
+    }
+    const { host, shutdown } = await activateAppHost({ profile });
+    // activateAppHost 建好的宿主归本入口所有，直接复用它给的 shutdown（clearActiveHost → dispose）
+    return { host, shutdownHost: shutdown ?? createShutdown(host, { ownsHost: true }) };
+}
+
+/**
+ * 生成幂等的宿主释放函数：`clearActiveHost()` 一律执行，`dispose()` 只在 `ownsHost` 时执行。
+ *
+ * 顺序固定（先摘桥、后回收）：dispose 结束时宿主 root 已置 null，若先 dispose 再摘桥，
+ * 期间仍在解析的代码会撞上「PluginHost 尚未 load」这种与停机无关的错误。
+ *
+ * @param {object|null} host
+ * @param {object} opts
+ * @param {boolean} opts.ownsHost - true＝宿主由本入口创建，可一并 dispose；false＝生命周期归调用方
+ * @returns {() => Promise<void>} 幂等释放函数
+ */
+function createShutdown(host, { ownsHost }) {
+    let done = false;
+    return async () => {
+        if (done) return;
+        done = true;
+        clearActiveHost();
+        if (ownsHost && host && typeof host.dispose === 'function') await host.dispose();
+    };
+}
+
+/**
+ * 装配依赖：激活宿主 → buildApp。
+ *
+ * 失败语义（fail closed）：任何一步抛错都不降级，而是释放已激活的宿主后**原样抛出**，
+ * 并追加一句「如何临时退回旧装配」的可操作提示——这是给运维的逃生门，不是自动降级。
+ *
+ * @param {object} params - createServer 的装配相关选项
+ * @returns {Promise<{host: object|null, shutdownHost: Function|null, dependencies: object}>}
+ */
+async function resolveDependencies({ cliType, cliOptions, cli, pluginHost, profile }) {
+    let host = null;
+    let shutdownHost = null;
+    try {
+        const activated = await activatePluginHost({ pluginHost, profile });
+        host = activated.host;
+        shutdownHost = activated.shutdownHost;
+        const dependencies = await buildApp({
+            cliType,
+            cliOptions,
+            cli,
+            // 不传＝旧装配路径；传 null 与不传等价（buildApp 两者都按「无宿主」处理）
+            host
+        });
+        return { host: dependencies.host ?? host, shutdownHost, dependencies };
+    } catch (err) {
+        // 半装配的宿主不能留在进程里（它可能已占着插件资源与静态钩子）
+        if (shutdownHost) {
+            try {
+                await shutdownHost();
+            } catch { /* 忽略：原始装配错误更重要 */ }
+        }
+        if (err instanceof Error) {
+            err.message =
+                `${err.message}\n[Server] 插件宿主装配失败（pluginHost: ${describePluginHost(pluginHost)}）。` +
+                '如需临时退回旧装配路径，请显式传 createServer({ pluginHost: false }) —— 等价于 pluginHost:false。';
+        }
+        throw err;
+    }
+}
+
+/** pluginHost 取值的人类可读描述（错误信息用）。 */
+function describePluginHost(pluginHost) {
+    if (pluginHost === false) return 'false（已关闭）';
+    if (pluginHost && pluginHost !== 'auto') return '宿主实例';
+    return 'auto';
 }
 
 // ─── 直接运行入口 ──────────────────────────────────────────────────────────
