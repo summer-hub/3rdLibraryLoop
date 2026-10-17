@@ -19,6 +19,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { EXIT } from './exit-codes.js';
+import { closeAllRunContexts } from './lifecycle.js';
 
 /**
  * 3rdloop run <workflow> 命令实现（由 cli.js 在工作流命中时转发）。
@@ -170,6 +171,7 @@ export async function cmdWorkflow({ wf, wfWords, flags, env }) {
         } catch { /* 忽略 */ }
         await oc.stop();
         process.stderr.write(`\n已中止（${sig}）\n`);
+        try { await closeAllRunContexts(); } catch { /* 清理失败不改变退出码 */ }
         process.exit(sig === 'SIGINT' ? EXIT.SIGINT : EXIT.SIGTERM);
     };
     process.once('SIGINT', () => exitHandler('SIGINT'));

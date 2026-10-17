@@ -36,6 +36,7 @@ import {
     getCliVersion,
 } from './config.js';
 import { EXIT, TERMINAL_LOOP_STATES } from './exit-codes.js';
+import { closeAllRunContexts } from './lifecycle.js';
 
 // 惰性加载（避免未用到时启动完整引擎）
 let _ui, _queries, _runner;
@@ -348,6 +349,7 @@ async function submitAndRunImpl({ flags, rest, projectRoot, dataDir, skillDir, j
         } catch { /* 忽略 */ }
         await oc.stop();
         process.stderr.write(`\n已中止（${sig}）\n`);
+        try { await closeAllRunContexts(); } catch { /* 清理失败不改变退出码 */ }
         process.exit(sig === 'SIGINT' ? EXIT.SIGINT : EXIT.SIGTERM);
     };
     process.once('SIGINT', () => exitHandler('SIGINT'));

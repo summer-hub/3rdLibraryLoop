@@ -103,10 +103,18 @@ storage(用户数据目录)
 - **`close()` 释放宿主**（幂等）：顺序为 `storage.close()` → `clearActiveHost()` →
   （仅 `ownsHost` 时）`await host.dispose()`。先摘桥再回收，避免回收期间还有代码解析到已释放宿主。
 
-> **待办（已知缺口，尚未实现）**：**各 CLI 命令入口目前都没有调用 `ctx.close()`**——宿主与
-> SQLite 连接实际上靠进程退出回收（改造前 storage 也是如此）。`close()` 已实现且幂等（有实测），
-> 但要真正在每条命令上收口，需要在 `cli/lib/cli.js` / `step.js` / `orch.js` / `workflow.js` 的
-> 命令收尾处补 `finally { await ctx.close(); }`。这条改动不在本次任务边界内，记为后续项。
+> **出口统一收口（已实现，`test/m12-cli-lifecycle` 用 22 条断言锁定）**：命令模块有 9 个
+> `createRunContext()` 调用点，且多处在 `try` **之前**就有早退（例如 ai serve 起不来直接
+> `return EXIT.ERROR`）——逐点写 `finally` 必然漏。CLI 是「一进程一命令」，所以收口放在**进程出口**：
+> - `cli/lib/lifecycle.js` 维护 RunContext 登记表（**零依赖**：bin 要静态引入它，不能牵出
+>   `.env` 链与核心引擎的加载次序）；
+> - `createRunContext()` 登记、`RunContext.close()` 注销；
+> - `cli/bin/3rdloop.mjs` 的 `finally` 调 `closeAllRunContexts()`：正常完成与抛错两条路径都覆盖；
+>   单个上下文关闭失败被隔离、只告警，**不改变已确定的退出码**；
+> - 信号处理器会直接 `process.exit`（绕过出口），所以 5 个退出点（`cli.js` / `orch.js`×2 /
+>   `step.js` / `workflow.js`）各自在退出前收口。
+>
+> `close()` 幂等；登记表只做去重与统一遍历。
 
 **关键设计（data 错位教训）**：
 - 每个 FlexRunner 通过 `createOrchestratorFlexRunnerFactory` 注入**共享** cli/storage/knowledgeManager，

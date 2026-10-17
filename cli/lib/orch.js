@@ -16,6 +16,7 @@
 
 import fs from 'node:fs';
 import { EXIT } from './exit-codes.js';
+import { closeAllRunContexts } from './lifecycle.js';
 
 /**
  * 3rdloop orch 命令二段分发。
@@ -167,6 +168,7 @@ async function cmdOrchRun({ flags, rest, projectRoot, dataDir, skillDir, jsonMod
         try { await r.orchControl(ctx, taskDef.taskId, 'abort'); } catch { /* 忽略 */ }
         await oc.stop();
         process.stderr.write(`\n已中止（${sig}）\n`);
+        try { await closeAllRunContexts(); } catch { /* 清理失败不改变退出码 */ }
         process.exit(sig === 'SIGINT' ? EXIT.SIGINT : EXIT.SIGTERM);
     };
     process.once('SIGINT', () => exitHandler('SIGINT'));
@@ -254,6 +256,7 @@ async function cmdOrchStart({ flags, rest, projectRoot, dataDir, skillDir, jsonM
         try { await r.orchControl(ctx, taskId, 'abort'); } catch { /* 忽略 */ }
         await oc.stop();
         process.stderr.write(`\n已中止（${sig}）\n`);
+        try { await closeAllRunContexts(); } catch { /* 清理失败不改变退出码 */ }
         process.exit(sig === 'SIGINT' ? EXIT.SIGINT : EXIT.SIGTERM);
     };
     process.once('SIGINT', () => exitHandler('SIGINT'));

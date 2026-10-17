@@ -29,6 +29,7 @@ const SUITES = [
     ['M9 契约一致性验收', 'test/m9-contract-conformance/run-all.mjs', [], 300000],
     ['M10 宿主作用域隔离验收', 'test/m10-host-scope/run-all.mjs', [], 300000],
     ['M11 存储 list 语义验收', 'test/m11-storage-list-semantics/run-all.mjs', [], 300000],
+    ['M12 CLI 上下文生命周期验收', 'test/m12-cli-lifecycle/run-all.mjs', [], 300000],
     ['SkillSelector 纯逻辑回归', 'Server/Agent/SkillSelector/__tests__/test-pure-logic.js', [], 180000],
 ];
 

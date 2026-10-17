@@ -22,6 +22,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolveCliType } from './config.js';
+import { registerRunContext, unregisterRunContext } from './lifecycle.js';
 
 // ─── vendor 路径解析 ─────────────────────────────────────────────────────────
 // 优先用 vendor/Server 下的副本（发布态）；开发期允许回退到仓库 Server/ 源码。
@@ -369,6 +370,7 @@ class RunContext {
     async close() {
         if (this._closed) return;
         this._closed = true;
+        unregisterRunContext(this);
         try {
             if (this.storage && typeof this.storage.close === 'function') {
                 await this.storage.close();
@@ -394,6 +396,9 @@ class RunContext {
  */
 export function createRunContext(opts = {}) {
     const ctx = new RunContext(opts);
+    // 登记到进程级生命周期表：命令出口（bin/3rdloop.mjs 的 finally）据此统一 close()。
+    // 不登记的话，早退路径（例如 serve 起不来直接 return）会静默漏掉 storage/宿主的回收。
+    registerRunContext(ctx);
     return ctx;
 }
 

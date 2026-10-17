@@ -16,6 +16,7 @@
         "test:m9": "node test/m9-contract-conformance/run-all.mjs",
         "test:m10": "node test/m10-host-scope/run-all.mjs",
         "test:m11": "node test/m11-storage-list-semantics/run-all.mjs",
+        "test:m12": "node test/m12-cli-lifecycle/run-all.mjs",
         "test:unit": "node Server/Agent/SkillSelector/__tests__/test-pure-logic.js",
         "lint": "biome lint",
         "lint:fix": "biome lint --write",

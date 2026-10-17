@@ -15,6 +15,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import { EXIT } from './exit-codes.js';
+import { closeAllRunContexts } from './lifecycle.js';
 
 /** 单步任务产物前缀（与 FlexRunner.executeStart 命名一致） */
 const RESULT_FILE_PREFIX = (stepId, loop) => `stepId${stepId}_loop${loop}_result_`;
@@ -127,6 +128,7 @@ async function cmdStepRun({ flags, rest, dataDir, skillDir, jsonMode, quiet, ver
         try { await r.abortStandaloneStep(ctx, taskId, stepId); } catch { /* 忽略 */ }
         await oc.stop();
         process.stderr.write(`\n已中止（${sig}）\n`);
+        try { await closeAllRunContexts(); } catch { /* 清理失败不改变退出码 */ }
         process.exit(sig === 'SIGINT' ? EXIT.SIGINT : EXIT.SIGTERM);
     };
     process.once('SIGINT', () => exitHandler('SIGINT'));

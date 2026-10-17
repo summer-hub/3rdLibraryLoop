@@ -36,13 +36,25 @@
  */
 
 import { runCli } from '../lib/cli.js';
+import { closeAllRunContexts } from '../lib/lifecycle.js';
 
-// 顶层 try：任何未捕获异常统一转换退出码 1，避免 Node 打印堆栈噪声
+// 顶层 try：任何未捕获异常统一转换退出码 1，避免 Node 打印堆栈噪声。
+// finally 是**唯一**的收口点：关掉本进程创建的 RunContext（storage 连接 + 宿主引用计数）。
+// 命令模块里有多处早退（ai serve 起不来、端口占用……），逐点写 finally 必然漏；而 CLI 是
+// "一进程一命令"，所以出口统一收口与"命令结束时收口"语义等价、覆盖更完整。
+// 清理失败只告警，不改变已确定的退出码。
+let exitCode = 0;
 try {
-    const exitCode = await runCli(process.argv.slice(2));
-    process.exit(exitCode ?? 0);
+    exitCode = (await runCli(process.argv.slice(2))) ?? 0;
 } catch (err) {
     const message = err && err.message ? err.message : String(err);
     process.stderr.write(`\n[3rdloop] 致命错误: ${message}\n`);
-    process.exit(1);
+    exitCode = 1;
+} finally {
+    try {
+        await closeAllRunContexts();
+    } catch (err) {
+        process.stderr.write(`[3rdloop] 关闭运行上下文失败: ${err?.message ?? err}\n`);
+    }
 }
+process.exit(exitCode);
