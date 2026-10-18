@@ -3,10 +3,10 @@
     One-line installer for 3rdloop (Windows).
 
 .DESCRIPTION
-    This project ships TWO npm packages: @ohos-cpf/3rdloop_core (the core tree) and
-    @ohos-cpf/3rdloop (the CLI). The CLI declares a version dependency on the core package,
+    This project ships TWO npm packages: @summer-hub/3rdloop_core (the core tree) and
+    @summer-hub/3rdloop (the CLI). The CLI declares a version dependency on the core package,
     and the core package is NOT published on the public npm registry. Installing only the
-    CLI tarball therefore makes npm look for @ohos-cpf/3rdloop_core on the registry and fail
+    CLI tarball therefore makes npm look for @summer-hub/3rdloop_core on the registry and fail
     with E404. Both tarballs must be installed together.
 
     This script downloads both tarballs from the project Release, verifies them against

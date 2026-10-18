@@ -11,7 +11,7 @@
  *   7. serve 服务端口连通性（非致命：未运行时 run/orch/step/workflow 会自动拉起；
  *      端口有响应但异常视为失败）
  *   8. MCP Gateway 装配（警告级）
- *   9. 核心引擎：解析到的核心树来源与包版本（双包发布态 = @ohos-cpf/3rdloop_core）
+ *   9. 核心引擎：解析到的核心树来源与包版本（双包发布态 = @summer-hub/3rdloop_core）
  *
  * 每项检查含 fix 字段：不通过时的修复提示（含 3rdloop config set 命令），
  * doctor 与预检失败时均打印，用户照抄即可配置。
@@ -140,7 +140,7 @@ async function collectChecks({ projectRoot, skillDir, dataDir, user3libHome = ''
         name: 'SKILL 目录',
         passed: !!skillOk,
         detail: skillOk ? skillDir : `SKILL 目录不存在: ${skillDir}`,
-        fix: '3rdloop config set 3LIB_SKILL_DIR <SKILL 目录>；发布包缺 SKILL 请重装: npm i -g @ohos-cpf/3rdloop',
+        fix: '3rdloop config set 3LIB_SKILL_DIR <SKILL 目录>；发布包缺 SKILL 请重装: npm i -g @summer-hub/3rdloop',
     });
 
     // 6. 数据目录可写
@@ -171,7 +171,7 @@ async function collectChecks({ projectRoot, skillDir, dataDir, user3libHome = ''
     const mcpCheck = await checkMcpRegistration(cliType);
     checks.push({ warning: true, ...mcpCheck });
 
-    // 9. 核心引擎（双包发布态来自 @ohos-cpf/3rdloop_core，四级解析见 core-paths.js）
+    // 9. 核心引擎（双包发布态来自 @summer-hub/3rdloop_core，四级解析见 core-paths.js）
     //    这一项同时把**解析到的核心包版本**打进 doctor 输出：CLI 与核心包版本不匹配时便于排障。
     const core = describeCoreSource();
     checks.push({
@@ -180,7 +180,7 @@ async function collectChecks({ projectRoot, skillDir, dataDir, user3libHome = ''
         detail: core.level === 0
             ? '未定位到核心树（3LIB_CORE_DIR / 已安装核心包 / cli/vendor / 仓库根 四级全部落空）'
             : `${core.mode}｜v${core.version ?? '未知（核心树内无 package.json）'}｜${core.root}`,
-        fix: `npm i ${CORE_PACKAGE}（双包发布态），或重装 CLI：npm i -g @ohos-cpf/3rdloop@latest`,
+        fix: `npm i ${CORE_PACKAGE}（双包发布态），或重装 CLI：npm i -g @summer-hub/3rdloop@latest`,
     });
 
     // 10. SQLite 原生绑定（better-sqlite3）
@@ -219,7 +219,7 @@ async function checkSqliteBinding() {
             detail: `不可用: ${first}`,
             fix:
                 '安装报错但运行时可用是正常现象（该包自带预编译二进制）：' +
-                'npm ci --ignore-scripts（仓库/CI），或 npm i --ignore-scripts @ohos-cpf/3rdloop_core（安装态）；' +
+                'npm ci --ignore-scripts（仓库/CI），或 npm i --ignore-scripts @summer-hub/3rdloop_core（安装态）；' +
                 '若确实要本地编译，需先装 Python + MSVC 构建工具后重试 npm ci',
         };
     }

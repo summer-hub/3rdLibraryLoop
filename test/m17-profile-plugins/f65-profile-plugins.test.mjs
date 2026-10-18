@@ -171,7 +171,10 @@ const out = {
     overlayWeb: store.overlayPath('web'),
     rangeOkCaret: store.satisfiesRange('${CLI_VERSION}', '^${CLI_VERSION}'),
     rangeBadCaret: store.satisfiesRange('${CLI_VERSION}', '^99.0.0'),
-    rangeAnd: store.satisfiesRange('${CLI_VERSION}', '>=0.0.1 <0.1.0'),
+    // 合取范围按**当前版本**推导上下界：早先写死 '>=0.0.1 <0.1.0'，CLI 升到 0.3.0 后必然假红
+    // （那条断言测的是"合取是否生效"，不是"当前版本是否落在 0.0.x"）。
+    rangeAnd: store.satisfiesRange('${CLI_VERSION}', '>=0.0.1 <${Number(CLI_VERSION.split('.')[0]) + 1}.0.0'),
+    rangeAndUpperExclusive: store.satisfiesRange('${CLI_VERSION}', '>=0.0.1 <${CLI_VERSION}'),
     rangeStar: store.satisfiesRange('${CLI_VERSION}', '*'),
     state: (() => {
         const s = store.readState();
@@ -224,7 +227,8 @@ async function main() {
     );
     check(`A6 semver: ^${CLI_VERSION} 命中当前版本`, probe?.rangeOkCaret === true);
     check('A7 semver: ^99.0.0 不命中当前版本', probe?.rangeBadCaret === false);
-    check('A8 semver: 合取范围 >=0.0.1 <0.1.0 命中', probe?.rangeAnd === true);
+    check(`A8 semver: 合取范围 >=0.0.1 <${Number(CLI_VERSION.split('.')[0]) + 1}.0.0 命中当前版本`, probe?.rangeAnd === true);
+    check(`A8b semver: 合取范围上界排他（< ${CLI_VERSION} 不命中自身）`, probe?.rangeAndUpperExclusive === false);
     check('A9 semver: * 恒命中', probe?.rangeStar === true);
     check(
         'A10 spec 分类: file:<目录> → kind=local 且规范成 file:<绝对路径>',

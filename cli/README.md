@@ -1,10 +1,10 @@
-# @ohos-cpf/3rdloop
+# @summer-hub/3rdloop
 
 三方库自动化检视命令行工具：基于 3rdLibraryLoop 核心引擎，从终端完整跑一遍"任务拆解 → 编排执行 → 准出审核"的大循环。
 
-![npm version](https://img.shields.io/npm/v/@ohos-cpf/3rdloop)
-![downloads](https://img.shields.io/npm/dm/@ohos-cpf/3rdloop)
-![license](https://img.shields.io/npm/l/@ohos-cpf/3rdloop)
+![npm version](https://img.shields.io/npm/v/@summer-hub/3rdloop)
+![downloads](https://img.shields.io/npm/dm/@summer-hub/3rdloop)
+![license](https://img.shields.io/npm/l/@summer-hub/3rdloop)
 
 ## 功能特性
 
@@ -20,7 +20,7 @@
 ## 安装
 
 ```bash
-npm i -g @ohos-cpf/3rdloop
+npm i -g @summer-hub/3rdloop
 ```
 
 需要 Node.js >= 22。查看版本与环境自检：
@@ -167,7 +167,7 @@ npm i -g @ohos-cpf/3rdloop
 
 ### 场景六：MCP Gateway 装配（kb 检索 / 覆盖率脚本等 AI 工具）
 
-核心包内置 MCP Gateway（`MCP/`）、知识库检索引擎（`Archive/`）与已知问题知识库种子（`BadCase/`）；CLI 经**核心树四级解析**定位它们（`3LIB_CORE_DIR` > 已安装 `@ohos-cpf/3rdloop_core` > `cli/vendor` > 仓库根），所以安装态的路径是 `<核心包根>/MCP`，而不是 CLI 包内的副本（CLI 包不含 vendor）。opencode / deveco-code serve 需要在**全局配置**注册 Gateway 才会在启动时自动 spawn：
+核心包内置 MCP Gateway（`MCP/`）、知识库检索引擎（`Archive/`）与已知问题知识库种子（`BadCase/`）；CLI 经**核心树四级解析**定位它们（`3LIB_CORE_DIR` > 已安装 `@summer-hub/3rdloop_core` > `cli/vendor` > 仓库根），所以安装态的路径是 `<核心包根>/MCP`，而不是 CLI 包内的副本（CLI 包不含 vendor）。opencode / deveco-code serve 需要在**全局配置**注册 Gateway 才会在启动时自动 spawn：
 
 ```bash
 3rdloop doctor              # 推荐：环境自检，检测到未装配时自动完成装配（幂等）

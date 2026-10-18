@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # 3rdloop 一键安装（Linux / macOS）
 #
-# 为什么需要它：本项目是**双包发布**（@ohos-cpf/3rdloop_core + @ohos-cpf/3rdloop），
+# 为什么需要它：本项目是**双包发布**（@summer-hub/3rdloop_core + @summer-hub/3rdloop），
 # CLI 的 package.json 里写着对核心包的版本依赖。只装 CLI 那个 tarball 时，npm 会去
-# registry 找 @ohos-cpf/3rdloop_core —— 它**不在公共 npm 上**，安装直接 E404。
+# registry 找 @summer-hub/3rdloop_core —— 它**不在公共 npm 上**，安装直接 E404。
 # 因此必须两个 tarball 一起装；本脚本把「下载 → 校验 → 一起装 → 自检」封成一条命令。
 #
 # 用法：

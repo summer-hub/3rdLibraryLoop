@@ -37,7 +37,7 @@ function runCli(args = [], env = {}) {
 // 版本号动态读取 package.json，避免升级包版本后断言硬编码失效
 const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
 const pkgVersion = pkg.version;
-const versionRe = new RegExp(`@ohos-cpf\\/3rdloop v${pkgVersion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
+const versionRe = new RegExp(`@summer-hub\\/3rdloop v${pkgVersion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
 
 const ver = runCli(['version']);
 assert.equal(ver.exitCode, 0, `version 应退出码 0，实际 ${ver.exitCode}`);
@@ -46,7 +46,7 @@ assert.match(ver.stdout, versionRe, 'version 输出应含包名和版本号');
 const verJson = runCli(['version', '--json']);
 assert.equal(verJson.exitCode, 0);
 const parsed = JSON.parse(verJson.stdout);
-assert.equal(parsed.name, '@ohos-cpf/3rdloop');
+assert.equal(parsed.name, '@summer-hub/3rdloop');
 assert.equal(parsed.version, pkgVersion, 'version --json 应返回 package.json 的版本');
 
 // ── --help ────────────────────────────────────────────────────────

@@ -55,7 +55,7 @@ let _assetsCache = null;
 /**
  * 定位 MCP / Archive / BadCase 资产目录。
  *
- * 双包发布态下资产随核心包走（`node_modules/@ohos-cpf/3rdloop_core/{MCP,Archive,BadCase}`），
+ * 双包发布态下资产随核心包走（`node_modules/@summer-hub/3rdloop_core/{MCP,Archive,BadCase}`），
  * 由 core-paths.js 的四级解析统一给出；`vendor` / 仓库根两级保留为本地回退。
  *
  * @returns {{ mcpDir: string, archiveDir: string, badcaseDir: string, mode: 'core'|'vendor'|'repo', source: string }}
@@ -88,7 +88,7 @@ export function resolveAssets() {
     }
     throw new Error(
         `无法定位 MCP Gateway：核心树 / cli/vendor / 仓库根下都没有 MCP/src/index.js。` +
-        `npm 安装态请重装包（npm i -g @ohos-cpf/3rdloop），仓库态请在 cli/ 上一级执行`
+        `npm 安装态请重装包（npm i -g @summer-hub/3rdloop），仓库态请在 cli/ 上一级执行`
     );
 }
 

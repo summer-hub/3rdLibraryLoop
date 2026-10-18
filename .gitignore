@@ -60,3 +60,4 @@ cli/vendor/
 AGENTS.md.backup.*
 *.emmx
 docs/DB-SCHEMA-REFERENCE.md
+dist-npm/

@@ -1,10 +1,10 @@
 /**
  * core-paths.js —— 核心树定位（零依赖：只用 node 内置模块）
  *
- * 双包发布形态下核心来自 `@ohos-cpf/3rdloop_core`，本地调试仍可用 vendor / 仓库源码。
+ * 双包发布形态下核心来自 `@summer-hub/3rdloop_core`，本地调试仍可用 vendor / 仓库源码。
  * 四级解析（命中即返回，顺序固定）：
  *   1. 环境变量 3LIB_CORE_DIR —— 显式覆盖（运维/测试用，写错即刻报错）
- *   2. 已安装的 @ohos-cpf/3rdloop_core 包根 —— 双包发布态的正路
+ *   2. 已安装的 @summer-hub/3rdloop_core 包根 —— 双包发布态的正路
  *   3. cli/vendor —— prepack 产物（单包回退 / 本地调试），保留可用
  *   4. 仓库根（cli/ 的上一级）—— 开发期直接引用源码
  *
@@ -30,7 +30,7 @@ const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 export const CLI_ROOT = path.resolve(moduleDir, '..');
 
 /** 核心包名（发布态由 CLI 的 dependencies 拉取）。 */
-export const CORE_PACKAGE = '@ohos-cpf/3rdloop_core';
+export const CORE_PACKAGE = '@summer-hub/3rdloop_core';
 /** 显式覆盖核心树目录的环境变量。 */
 export const CORE_DIR_ENV = '3LIB_CORE_DIR';
 
@@ -154,7 +154,7 @@ function _resolutionError(attempts) {
         `无法定位核心引擎目录（${CORE_PACKAGE}）。已依次尝试四级来源：\n${lines.join('\n')}\n` +
         '修复（任选其一，照抄即可）：\n' +
         `  npm i ${CORE_PACKAGE}                        # 双包发布态：安装核心包后重试\n` +
-        '  npm i -g @ohos-cpf/3rdloop@latest                   # 或重装 CLI（会连带安装核心包）\n' +
+        '  npm i -g @summer-hub/3rdloop@latest                   # 或重装 CLI（会连带安装核心包）\n' +
         `  ${CORE_DIR_ENV}=<含 Server/ 的目录> 3rdloop <cmd>      # 指定任意核心树（运维/测试）\n` +
         '  npm run prepack                                     # 仓库内：生成 cli/vendor 回退副本'
     );

@@ -3,7 +3,7 @@
  * clean-vendor.mjs —— npm pack/publish 完成后的 vendor 清理（配套 prepack.mjs）
  *
  * ⚠ 双包发布形态**不再使用 vendor**：安装态核心来自
- * `node_modules/@ohos-cpf/3rdloop_core`（`cli/lib/core-paths.js` 四级解析第②级），
+ * `node_modules/@summer-hub/3rdloop_core`（`cli/lib/core-paths.js` 四级解析第②级），
  * CLI 的 files 白名单不含 vendor，本清理只针对本地 prepack 产物。
  *
  * 作用：

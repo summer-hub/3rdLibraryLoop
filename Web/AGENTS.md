@@ -4,7 +4,7 @@
 
 ```bash
 node cli/bin/3rdloop.mjs serve          # 本地全功能：核心前端 + Web/ext/ 全部扩展（tag/issue/prcheck）
-3rdloop serve                             # 发布态：核心包 @ohos-cpf/3rdloop_core 内置核心前端 + Web/ext（扩展自动发现）
+3rdloop serve                             # 发布态：核心包 @summer-hub/3rdloop_core 内置核心前端 + Web/ext（扩展自动发现）
 3rdloop serve --no-ext                    # 纯后端操作模式：仅核心工作台，强制禁用全部扩展
 ```
 
@@ -14,7 +14,7 @@ node cli/bin/3rdloop.mjs serve          # 本地全功能：核心前端 + Web/e
 Web/
 ├── AGENTS.md            # 本文档
 ├── server.js            # **兼容入口**：委托 cli/lib/web.js 的 startWebServer（与 3rdloop serve 同一实现）
-├── public/              # 核心前端（随核心包 @ohos-cpf/3rdloop_core 发布，路径 <核心包根>/Web/public）
+├── public/              # 核心前端（随核心包 @summer-hub/3rdloop_core 发布，路径 <核心包根>/Web/public）
 │   ├── index.html       # 工作台单页（PR 检视 / 仓库检视 / loop / knowledge）
 │   ├── css/ js/         # 面板样式与脚本（每面板一个 js，懒加载初始化）
 │   ├── knowledge.html / loop.html   # 兼容入口（服务端 302 到 hash 路由）

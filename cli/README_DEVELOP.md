@@ -1,4 +1,4 @@
-# @ohos-cpf/3rdloop
+# @summer-hub/3rdloop
 
 3rdLibraryLoop 三方库自动化检视命令行工具（嵌入式模式）。
 
@@ -455,7 +455,7 @@ export default {
 
 | 安装方式 | update 行为 |
 |----------|-------------|
-| 正式全局安装（`npm i -g @ohos-cpf/3rdloop`） | 检查发现新版本后 `npm install -g @ohos-cpf/3rdloop@latest` 重装 |
+| 正式全局安装（`npm i -g @summer-hub/3rdloop`） | 检查发现新版本后 `npm install -g @summer-hub/3rdloop@latest` 重装 |
 | 从 GitHub Release 安装 | `3rdloop update --from-release`（走 Release API + 两个 tarball） |
 | `--check` | 只查询与输出版本差异，不做任何修改（可与 `--from-release` 组合） |
 
@@ -516,7 +516,7 @@ LLM 凭据变量（`DASHSCOPE_API_KEY` / `LLM_MODEL` 等）：按 `.env` 加载�
 
 ```bash
 # ① 安装 CLI（正式发布后）
-npm i -g @ohos-cpf/3rdloop
+npm i -g @summer-hub/3rdloop
 
 # 开发期替代：与后端共用仓库时用 npm link（直引 Server/ 源码，无需生成 vendor）
 cd cli && npm install && npm link
@@ -567,7 +567,7 @@ npm test
 
 ### 发布期（双包发布）：先核心包，再 CLI 包
 
-核心不再复制进 CLI 包：**仓库根本身就是核心包** `@ohos-cpf/3rdloop_core`
+核心不再复制进 CLI 包：**仓库根本身就是核心包** `@summer-hub/3rdloop_core`
 （`Server/ plugins/ core/ seams/ profiles/ MCP/ Archive/ BadCase/` 全部原地保留，
 所有相对 import 与接缝路径一字不改），CLI 包只装自己的 `bin/lib/web/workflows`。
 
@@ -581,8 +581,8 @@ cd cli && npm publish
 
 | 包 | 位置 | 内容 | 示例版本 |
 |----|------|------|----------|
-| `@ohos-cpf/3rdloop_core` | 仓库根 | 引擎 + 插件内核 + 插件 + 契约 + profile + `MCP/Archive/BadCase` | `0.0.14` |
-| `@ohos-cpf/3rdloop` | `cli/` | CLI（`bin/lib/web/workflows`），`dependencies` 声明核心包 | `0.0.14` |
+| `@summer-hub/3rdloop_core` | 仓库根 | 引擎 + 插件内核 + 插件 + 契约 + profile + `MCP/Archive/BadCase` | `0.0.14` |
+| `@summer-hub/3rdloop` | `cli/` | CLI（`bin/lib/web/workflows`），`dependencies` 声明核心包 | `0.0.14` |
 
 **版本联动**：两者各自独立发版，但 CLI 必须以范围声明核心包（当前 `^0.0.14`）。
 注意 `0.0.x` 的 caret 等价于锁 patch（`^0.0.14` = `>=0.0.14 <0.0.14`）：核心包升 patch
@@ -591,7 +591,7 @@ cd cli && npm publish
 `npm i && npm test` 再 `npm publish`。
 
 **排障入口**：`3rdloop version`、`3rdloop version --json`、`3rdloop doctor` 都打印
-解析到的核心包版本与来源（`核心引擎（@ohos-cpf/3rdloop_core）` 检查项），
+解析到的核心包版本与来源（`核心引擎（@summer-hub/3rdloop_core）` 检查项），
 版本不匹配一眼可见。
 
 #### 打发布产物（`npm run release:pack`）
@@ -650,13 +650,13 @@ gh release upload v<v> dist/ohos-cpf-3rdloop_core-<v>.tgz dist/ohos-cpf-3rdloop-
 | 级别 | 来源 | 典型场景 |
 |------|------|----------|
 | ① | 环境变量 `3LIB_CORE_DIR` | 运维/测试指定任意核心树（写错即报错，不静默降级） |
-| ② | 已安装 `@ohos-cpf/3rdloop_core`（`node_modules`） | **双包发布态正路** |
+| ② | 已安装 `@summer-hub/3rdloop_core`（`node_modules`） | **双包发布态正路** |
 | ③ | `cli/vendor`（prepack 产物） | 单包回退 / 离线本地调试 |
 | ④ | 仓库根（`cli/` 的上一级） | 开发期直引源码 |
 
 四级都指向同构的「核心树根」（其下有 `Server/ plugins/ core/ seams/ profiles/`），
 所以三种形态下相对路径完全一致。四级全落空时，错误信息会逐级列出实测结果，
-并给出可照抄的修法（`npm i @ohos-cpf/3rdloop_core` 等）。
+并给出可照抄的修法（`npm i @summer-hub/3rdloop_core` 等）。
 
 #### vendor 现在只是本地工具
 
@@ -669,7 +669,7 @@ gh release upload v<v> dist/ohos-cpf-3rdloop_core-<v>.tgz dist/ohos-cpf-3rdloop-
 | 打包后 | `postpack` | 删除本地 `cli/vendor/`，并清理历史遗留的 `cli/web/`（前端已并入核心包，该副本已退役），删完断言两者都不存在 |
 
 > `npm run verify-deps` 现在是**三模式**：① 已安装核心包（扫
-> `node_modules/@ohos-cpf/3rdloop_core/{Server,MCP/src,Archive/src,plugins,core,seams,profiles}`，
+> `node_modules/@summer-hub/3rdloop_core/{Server,MCP/src,Archive/src,plugins,core,seams,profiles}`，
 > 比对**核心包 manifest**）② `cli/vendor`（副本，核对口径取已装核心包 → 仓库根 → cli 的遗留单包形态）
 > ③ 仓库源码（核心树比对仓库根 `package.json`）。
 > 每种模式都额外扫 `cli/{lib,bin,workflows}` 并比对 `cli/package.json`——

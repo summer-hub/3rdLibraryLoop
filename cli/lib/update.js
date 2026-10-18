@@ -7,7 +7,7 @@
  *   - GitHub Release 附件路径（--from-release）：从 release 的两个 tarball
  *     （核心包 + CLI 包）下载后用一次 npm install -g 装上
  *
- * 为什么需要 Release 路径：双包（@ohos-cpf/3rdloop_core + @ohos-cpf/3rdloop）不一定发布到
+ * 为什么需要 Release 路径：双包（@summer-hub/3rdloop_core + @summer-hub/3rdloop）不一定发布到
  * 公共 npm registry；从 Release 附件安装的用户跑 registry 路径必然 404。该路径不碰 registry
  * 元数据，只做「取 release → 取两个 asset → 下载 → 安装 → 回读校验」。
  *
@@ -36,8 +36,8 @@ import { fileURLToPath } from 'node:url';
 
 // 本文件在 cli/lib/ 下
 const CLI_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PKG_NAME = '@ohos-cpf/3rdloop';
-const CORE_PKG_NAME = '@ohos-cpf/3rdloop_core';
+const PKG_NAME = '@summer-hub/3rdloop';
+const CORE_PKG_NAME = '@summer-hub/3rdloop_core';
 
 // ── npm 调用封装 ─────────────────────────────────────────────────
 

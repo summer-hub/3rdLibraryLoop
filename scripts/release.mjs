@@ -237,7 +237,7 @@ GitCode 镜像：域名换成 \`https://gitcode.com/summor/3rdLibraryLoop/releas
 
 ## 本地安装（验证用）
 
-在产物目录下执行，注意**两个 tarball 一起装**（CLI 通过 \`@ohos-cpf/3rdloop_core\` 依赖核心包，
+在产物目录下执行，注意**两个 tarball 一起装**（CLI 通过 \`@summer-hub/3rdloop_core\` 依赖核心包，
 只装 CLI 会从 registry 拉旧版核心包）：
 
 \`\`\`bash

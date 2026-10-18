@@ -2,7 +2,7 @@
 /**
  * prepack.mjs —— npm pack/publish 前的**本地**打包准备（单包回退 / 本地调试工具）
  *
- * ⚠ 双包发布形态**不再使用 vendor**：核心随 `@ohos-cpf/3rdloop_core` 一起发布，
+ * ⚠ 双包发布形态**不再使用 vendor**：核心随 `@summer-hub/3rdloop_core` 一起发布，
  * 安装态 CLI 从 node_modules 解析核心树（`cli/lib/core-paths.js` 四级解析的第②级），
  * `cli/package.json` 的 files 白名单**不含 vendor**，因此本脚本的产物不会进 CLI tarball。
  * 保留它的理由已缩小为三条：
@@ -158,13 +158,13 @@ async function main() {
     }
 
     // 覆写 vendor/Server/package.json：对齐**核心包**依赖（双包形态下核心树由
-    // 仓库根 package.json = @ohos-cpf/3rdloop_core 声明依赖，CLI 只声明它自己 import 的）
+    // 仓库根 package.json = @summer-hub/3rdloop_core 声明依赖，CLI 只声明它自己 import 的）
     const vendorPkgPath = path.join(VENDOR_SERVER, 'package.json');
     if (fs.existsSync(vendorPkgPath)) {
         const corePkg = JSON.parse(fs.readFileSync(path.join(PROJECT_ROOT, 'package.json'), 'utf8'));
         const vendorPkg = JSON.parse(fs.readFileSync(vendorPkgPath, 'utf8'));
         vendorPkg.dependencies = { ...corePkg.dependencies };
-        vendorPkg._comment = 'vendored from Server/; dependencies aligned with @ohos-cpf/3rdloop_core package.json by prepack';
+        vendorPkg._comment = 'vendored from Server/; dependencies aligned with @summer-hub/3rdloop_core package.json by prepack';
         fs.writeFileSync(vendorPkgPath, JSON.stringify(vendorPkg, null, 2) + '\n');
         console.log('[prepack] 覆写 vendor/Server/package.json dependencies（对齐核心包）');
     }
@@ -182,7 +182,7 @@ async function main() {
     );
 
     // ── 核心前端（Web/public → vendor/Web/public）─────────────────────────
-    // 核心前端已随核心包 `@ohos-cpf/3rdloop_core` 发布（files 含 `Web/public`），安装态
+    // 核心前端已随核心包 `@summer-hub/3rdloop_core` 发布（files 含 `Web/public`），安装态
     // （第②级）与开发态（第④级）都能命中；CLI 不再自带副本（`cli/web` 已退役）。
     // vendor 态（第③级）是核心树的完整副本，前端也放同一深度，使三级解析同构。
     // tag/issue/prcheck 等二级功能仍以扩展形式留仓库 Web/ext/，不进 npm 包。

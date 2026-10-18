@@ -45,7 +45,7 @@ export const DEFAULT_PROFILE = 'default';
  * 用户级 profile 目录（overlay）。
  *
  * 为什么必须有：发布态下内置 profile 在核心包里
- * （`node_modules/@ohos-cpf/3rdloop_core/profiles/`），用户既不该改、改了也会在下次
+ * （`node_modules/@summer-hub/3rdloop_core/profiles/`），用户既不该改、改了也会在下次
  * `3rdloop update` 时被覆盖。所以「开关插件」必须写到包外的用户目录，按 overlay 合并。
  */
 export const USER_PROFILES_DIR = path.join(os.homedir(), '.3lib', '3rdloop', 'profiles');

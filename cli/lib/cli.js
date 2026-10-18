@@ -178,7 +178,7 @@ function cmdVersion(jsonMode) {
     const core = describeCoreSource();
     if (jsonMode) {
         process.stdout.write(JSON.stringify({
-            name: '@ohos-cpf/3rdloop',
+            name: '@summer-hub/3rdloop',
             version: v,
             node: process.version,
             core: {
@@ -193,7 +193,7 @@ function cmdVersion(jsonMode) {
         const coreText = core.level === 0
             ? `${CORE_PACKAGE} 未解析`
             : `${CORE_PACKAGE} v${core.version ?? '未知'}（${core.mode}）`;
-        process.stdout.write(`@ohos-cpf/3rdloop v${v} (node ${process.version})｜核心: ${coreText}\n`);
+        process.stdout.write(`@summer-hub/3rdloop v${v} (node ${process.version})｜核心: ${coreText}\n`);
     }
     return EXIT.OK;
 }
@@ -709,7 +709,7 @@ async function cmdOrch({ flags, rest, projectRoot, dataDir, skillDir, jsonMode, 
 
 function printHelp() {
     process.stdout.write(`
-@ohos-cpf/3rdloop —— 3rdLibraryLoop 三方库自动化检视 CLI
+@summer-hub/3rdloop —— 3rdLibraryLoop 三方库自动化检视 CLI
 
 用法:
   3rdloop run <任务描述>                提交并阻塞到终态

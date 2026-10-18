@@ -8,12 +8,12 @@
  *   - 与**对应 manifest** 的 dependencies 比对，缺失则报错并列出「文件:行 说明符」
  *   - 防止发布后代码 import 的依赖未声明导致运行时 ESM Module not found
  *
- * 双包发布形态：`@ohos-cpf/3rdloop_core`（核心树）+ `@ohos-cpf/3rdloop`（CLI）。
+ * 双包发布形态：`@summer-hub/3rdloop_core`（核心树）+ `@summer-hub/3rdloop`（CLI）。
  * 核心树的依赖归核心包，CLI 自身代码的依赖归 CLI 包；两棵树的 manifest 不可混用。
  *
  * 三种模式（按可靠性排序，命中即停）：
- *   ① installed：`node_modules/@ohos-cpf/3rdloop_core` 已安装（双包发布态正路）
- *      核心树 → `node_modules/@ohos-cpf/3rdloop_core/{Server,MCP/src,Archive/src,plugins,core,seams,profiles}`
+ *   ① installed：`node_modules/@summer-hub/3rdloop_core` 已安装（双包发布态正路）
+ *      核心树 → `node_modules/@summer-hub/3rdloop_core/{Server,MCP/src,Archive/src,plugins,core,seams,profiles}`
  *      比对**核心包自己的 package.json**；CLI 代码（cli/{lib,bin,workflows}）比对 cli/package.json。
  *   ② vendor：`cli/vendor/Server` 存在（prepack 产物 / 单包回退）
  *      vendor 是**核心树的副本**，依赖归核心包：依次取「已装核心包 manifest → 仓库根 package.json
@@ -44,7 +44,7 @@ const PROJECT_ROOT = path.resolve(CLI_ROOT, '..');
 const VENDOR_DIR = path.join(CLI_ROOT, 'vendor');
 const VENDOR_SERVER = path.join(VENDOR_DIR, 'Server');
 
-const CORE_PACKAGE = '@ohos-cpf/3rdloop_core';
+const CORE_PACKAGE = '@summer-hub/3rdloop_core';
 const _require = createRequire(import.meta.url);
 
 /** CLI 包 manifest（CLI 自身代码的依赖口径）。 */

@@ -26,7 +26,7 @@ import { registerRunContext, unregisterRunContext } from './lifecycle.js';
 // ─── 核心树路径解析 ─────────────────────────────────────────────────────────
 // 四级来源（实现见 core-paths.js，命中即返回）：
 //   ① 3LIB_CORE_DIR            —— 显式覆盖（运维/测试）
-//   ② @ohos-cpf/3rdloop_core   —— 双包发布态的正路（核心在 node_modules 里）
+//   ② @summer-hub/3rdloop_core   —— 双包发布态的正路（核心在 node_modules 里）
 //   ③ cli/vendor               —— prepack 产物（单包回退 / 本地调试）
 //   ④ 仓库根（cli/ 的上一级）   —— 开发期直接引用源码
 // 四级都指向同构的「核心树根」：其下有 Server/ plugins/ core/ seams/ profiles/，

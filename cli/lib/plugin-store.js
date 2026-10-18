@@ -15,7 +15,7 @@
  *   - **失败回滚**：安装/卸载前备份 `package.json` 与 `package-lock.json`，任何一步失败
  *     （含"装完复查宿主看不见"）都逐字节写回，不留半装的 profile。
  *
- * **绝不写包内 profile**：发布态 profile 在 `node_modules/@ohos-cpf/3rdloop_core/profiles/`，
+ * **绝不写包内 profile**：发布态 profile 在 `node_modules/@summer-hub/3rdloop_core/profiles/`，
  * 改它既越权又会在下次 `3rdloop update` 时丢掉。所有写盘都落在用户级 `~/.3lib/3rdloop/profiles/`。
  *
  * **旧式单文件 overlay 仍可读**：`<USER_PROFILES_DIR>/<profile>.json` 与目录式合并（目录式优先），
@@ -33,8 +33,8 @@ import { resolveCoreRoots } from './core-paths.js';
 // 内核必须走**四级解析**（`3LIB_CORE_DIR` > 已安装核心包 > vendor > 仓库根），
 // 不能用 `../../core/index.js` 这种静态相对路径：仓库里它指向仓库根的 `core/`，
 // 但装成包之后 `<pkg>/lib/plugin-store.js` 的 `../../core` 会落到
-// `node_modules/@ohos-cpf/core/`（不存在）——所有 `plugin` 子命令在安装态直接崩
-// （实测：3rdloop plugin path → Cannot find module '@ohos-cpf/core/index.js'）。
+// `node_modules/@summer-hub/core/`（不存在）——所有 `plugin` 子命令在安装态直接崩
+// （实测：3rdloop plugin path → Cannot find module '@summer-hub/core/index.js'）。
 // 顶层 await 让对外 API 保持同步，调用方无需改签名。
 const {
     BUILTIN_PLUGINS_DIR,
@@ -221,7 +221,7 @@ export function resolveProfileName({ profile, env = process.env } = {}) {
  *
  * 宿主 `profileDirFor()` 会优先返回"已存在的目录式 profile"，只有旧式
  * `<profilesRoot>/<name>.json` 时它也会返回 `<profilesRoot>/<name>` —— 而那个 root 可能是
- * **包内只读目录**（发布态在 `node_modules/@ohos-cpf/3rdloop_core/profiles/`），往那里装插件
+ * **包内只读目录**（发布态在 `node_modules/@summer-hub/3rdloop_core/profiles/`），往那里装插件
  * 会被下次 `3rdloop update` 抹掉。所以：目录式 profile 真存在才采信宿主解析，否则一律用
  * 用户级目录（`USER_PROFILES_DIR`，包外可写）。
  *

@@ -1,4 +1,4 @@
-# cli —— 嵌入式引擎 CLI（@ohos-cpf/3rdloop）
+# cli —— 嵌入式引擎 CLI（@summer-hub/3rdloop）
 
 本目录是 3rdLibraryLoop 的嵌入式命令行工具包，直接复用 `Server/` 核心引擎
 （LoopEngine / Brain / Orchestrator / FlexRunner / TestCheck / Knowledge），
@@ -6,7 +6,7 @@
 
 > 定位：**嵌入式模式**（`Loop Cli封装计划.md` 方案 A）——单进程内组装核心引擎依赖，
 > 仅依赖 AI CLI serve（`CLI_TYPE` 决定 opencode/deveco-code，默认 deveco-code，端口 4096）+ LLM 凭据。
-> **双包发布**：本目录是 `@ohos-cpf/3rdloop`（CLI 包），核心在 `@ohos-cpf/3rdloop_core`
+> **双包发布**：本目录是 `@summer-hub/3rdloop`（CLI 包），核心在 `@summer-hub/3rdloop_core`
 > （仓库根即核心包），核心树经四级解析定位，见下文「双包发布与核心树四级解析」。
 
 ## 目录结构
@@ -130,13 +130,13 @@ storage(用户数据目录)
 ## 双包发布与核心树四级解析
 
 **形态**：两个 npm 包，**不做仓库搬家**。仓库根本身就是核心包
-`@ohos-cpf/3rdloop_core`（`Server/ plugins/ core/ seams/ profiles/ MCP/ Archive/ BadCase/` 全部原地保留，
-所有相对 import 与 21 条接缝路径一字不改），`cli/` 是 CLI 包 `@ohos-cpf/3rdloop`。
+`@summer-hub/3rdloop_core`（`Server/ plugins/ core/ seams/ profiles/ MCP/ Archive/ BadCase/` 全部原地保留，
+所有相对 import 与 21 条接缝路径一字不改），`cli/` 是 CLI 包 `@summer-hub/3rdloop`。
 
 | 包 | manifest | files 白名单 | dependencies |
 |----|----------|--------------|--------------|
-| `@ohos-cpf/3rdloop_core` | 仓库根 `package.json` | `Server plugins core seams profiles MCP Archive BadCase Web/public Web/ext README.md` | 核心树 import 的全部运行时依赖 |
-| `@ohos-cpf/3rdloop` | `cli/package.json` | `bin lib workflows README.md`（**无 vendor、无前端副本**） | `@ohos-cpf/3rdloop_core` + CLI 自己直接 import 的（`dotenv`） |
+| `@summer-hub/3rdloop_core` | 仓库根 `package.json` | `Server plugins core seams profiles MCP Archive BadCase Web/public Web/ext README.md` | 核心树 import 的全部运行时依赖 |
+| `@summer-hub/3rdloop` | `cli/package.json` | `bin lib workflows README.md`（**无 vendor、无前端副本**） | `@summer-hub/3rdloop_core` + CLI 自己直接 import 的（`dotenv`） |
 
 发版顺序：**先核心包，再 CLI 包**。CLI 的依赖写范围（`^0.0.14`）；`0.0.x` 的 caret 等价于锁 patch，
 升核心包 patch 版要同步改 CLI 范围（或放宽成 `>=0.0.14 <0.1.0`）。
@@ -146,7 +146,7 @@ storage(用户数据目录)
 | 级别 | 来源 | 场景 |
 |------|------|------|
 | ① | `3LIB_CORE_DIR` | 运维/测试显式覆盖（写错即报错，不静默降级） |
-| ② | 已安装 `@ohos-cpf/3rdloop_core`（`createRequire(import.meta.url).resolve('<pkg>/package.json')` + `dirname`） | **双包发布态正路** |
+| ② | 已安装 `@summer-hub/3rdloop_core`（`createRequire(import.meta.url).resolve('<pkg>/package.json')` + `dirname`） | **双包发布态正路** |
 | ③ | `cli/vendor` | prepack 产物（单包回退 / 本地调试） |
 | ④ | 仓库根（`cli/` 的上一级） | 开发期直引源码 |
 
@@ -181,7 +181,7 @@ storage(用户数据目录)
 
 | 模式 | 触发 | 核心树扫描目录 | 核对 manifest |
 |------|------|----------------|----------------|
-| ① installed | `node_modules/@ohos-cpf/3rdloop_core` 可解析 | `<核心包>/{Server,MCP/src,Archive/src,plugins,core,seams,profiles}` | **核心包 `package.json`** |
+| ① installed | `node_modules/@summer-hub/3rdloop_core` 可解析 | `<核心包>/{Server,MCP/src,Archive/src,plugins,core,seams,profiles}` | **核心包 `package.json`** |
 | ② vendor | `cli/vendor/Server` 存在 | `vendor/{Server,MCP/src,Archive/src,plugins,core,seams}` | 已装核心包 → 仓库根 → `cli/package.json`（遗留单包形态） |
 | ③ repo | 仓库 `Server/` 存在 | 仓库根同名目录 | 仓库根 `package.json`（= 核心包 manifest） |
 
@@ -558,7 +558,7 @@ Web 侧共用）**，分发 `cli.js` `case 'plugin'`（惰性 import）。
 
 - 实现：`lib/update.js`，分发：`cli.js` `case 'update'`（惰性 import）。
 - 命令：`3rdloop update [--check] [--yes] [--registry <url>]`。
-- 流程：`getCliVersion()`（本地）→ `npm view @ohos-cpf/3rdloop version`（registry，尊重用户镜像，
+- 流程：`getCliVersion()`（本地）→ `npm view @summer-hub/3rdloop version`（registry，尊重用户镜像，
   失败回退 packument API）→ `compareVersions` 判断 → 交互确认 → 卸载旧版 + `npm install -g ...@latest` 重装。
 - registry 覆盖：`--registry` 追加到 `npm view`/`npm install`；默认用 `npm config get registry`
   （兼容 npmmirror 等镜像）。所有 npm 调用统一经 `runNpm(args, opts)` 封装。

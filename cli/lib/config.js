@@ -311,7 +311,7 @@ export function resolveDataDir({ dataDirFlag, user3libHome }) {
  *   1. --skill-dir 显式参数
  *   2. 环境变量 3LIB_SKILL_DIR
  *   3. 核心树 Server/Skills（四级解析：3LIB_CORE_DIR > 已安装核心包 > cli/vendor > 仓库根；
- *      双包发布态即 node_modules/@ohos-cpf/3rdloop_core/Server/Skills）
+ *      双包发布态即 node_modules/@summer-hub/3rdloop_core/Server/Skills）
  *   4. <项目根>/Server/Skills（用户项目自带，开发期回退）
  *
  * @param {string} projectRoot

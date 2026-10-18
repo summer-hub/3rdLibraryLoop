@@ -1,7 +1,7 @@
 /**
  * M13-A 从 GitHub Release 附件升级（`3rdloop update --from-release`）
  *
- * 背景（本套件锁的行为）：双包发布形态是 `@ohos-cpf/3rdloop_core`（仓库根）+ `@ohos-cpf/3rdloop`
+ * 背景（本套件锁的行为）：双包发布形态是 `@summer-hub/3rdloop_core`（仓库根）+ `@summer-hub/3rdloop`
  * （cli/），产物由 `scripts/release.mjs` 打成两个 tarball 挂到 GitHub Release。包不一定发到公共
  * npm registry，因此从 Release 安装的用户跑 registry 路径的 `update` 必然 404——`--from-release`
  * 就是补这条路径：取 release → 挑两个 asset → 下载 → 一次 `npm i -g <core> <cli>` → 回读校验。
@@ -348,8 +348,8 @@ try {
         'update', '--from-release', ...apiArgs(), '--yes', '--prefix', prefixMain, '--json',
     ]);
     const runJson = jsonOf(run);
-    const installedCliPkg = path.join(prefixMain, 'node_modules', '@ohos-cpf', '3rdloop', 'package.json');
-    const installedCorePkg = path.join(prefixMain, 'node_modules', '@ohos-cpf', '3rdloop_core', 'package.json');
+    const installedCliPkg = path.join(prefixMain, 'node_modules', '@summer-hub', '3rdloop', 'package.json');
+    const installedCorePkg = path.join(prefixMain, 'node_modules', '@summer-hub', '3rdloop_core', 'package.json');
 
     check('B1 安装退出 0', run.code === 0, `exit=${run.code} stderr=${run.stderr.slice(-400)}`);
     check('B2 stdout 是合法 JSON（--json 通道纯净）', Boolean(runJson), run.stdout.slice(0, 300));
@@ -358,8 +358,8 @@ try {
     check('B5 回读的核心包版本 = release 版本', runJson?.installed?.core === VERSION, String(runJson?.installed?.core));
     check('B6 版本校验一致（versionMismatch=false）', runJson?.versionMismatch === false, String(runJson?.versionMismatch));
     check('B7 安装根目录落在 --prefix 下', String(runJson?.installRoot || '').startsWith(prefixMain), String(runJson?.installRoot));
-    check('B8 <prefix>/node_modules/@ohos-cpf/3rdloop/package.json 存在', exists(installedCliPkg));
-    check('B9 <prefix>/node_modules/@ohos-cpf/3rdloop_core/package.json 存在', exists(installedCorePkg));
+    check('B8 <prefix>/node_modules/@summer-hub/3rdloop/package.json 存在', exists(installedCliPkg));
+    check('B9 <prefix>/node_modules/@summer-hub/3rdloop_core/package.json 存在', exists(installedCorePkg));
     check('B10 装上的 CLI 包版本 = release tag 版本', exists(installedCliPkg) && readJson(installedCliPkg).version === VERSION,
         exists(installedCliPkg) ? readJson(installedCliPkg).version : '(缺文件)');
     check('B11 装上的核心包版本 = release tag 版本', exists(installedCorePkg) && readJson(installedCorePkg).version === VERSION,
@@ -521,7 +521,7 @@ try {
     check('I4 安装失败也报告了清理结果', corruptJson?.download?.cleaned === true, JSON.stringify(corruptJson?.download));
     check('I5 安装失败后临时目录已删除', await dirGone(corruptJson?.download?.dir), String(corruptJson?.download?.dir));
     check('I6 安装失败没有留下 CLI 包（安装未完成）',
-        !exists(path.join(prefixCorrupt, 'node_modules', '@ohos-cpf', '3rdloop', 'package.json')));
+        !exists(path.join(prefixCorrupt, 'node_modules', '@summer-hub', '3rdloop', 'package.json')));
 } finally {
     await new Promise((resolve) => server.close(resolve));
     await fs.rm(tmp, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });

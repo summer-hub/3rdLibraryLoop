@@ -189,7 +189,7 @@ profile 目录不存在时 `add` 会按需创建（与 `dsh plugin --profile …
 ### 三、目录结构
 
 ```
-3rdLibraryLoop/                    # 仓库根 = 核心包 @ohos-cpf/3rdloop_core
+3rdLibraryLoop/                    # 仓库根 = 核心包 @summer-hub/3rdloop_core
 ├── core/                          # 插件内核（8 文件）
 ├── seams/                         # 21 条能力契约（22 文件，纯常量）
 ├── plugins/                       # 14 个插件（108 文件 ≈ 2.6 万行）
@@ -203,7 +203,7 @@ profile 目录不存在时 `add` 会按需创建（与 `dsh plugin --profile …
 │   ├── composition/               #   buildApp.js（唯一装配点）/ envBootstrap.js
 │   ├── Skills/                    #   56 个 SKILL
 │   └── Brain|TestCheck|Orchestrator|LoopEngine|FlexRunner|Knowledge|DbUse|Distributed/  # 转发门面
-├── cli/                           # 独立 CLI 包 @ohos-cpf/3rdloop（bin/ lib/ workflows/）
+├── cli/                           # 独立 CLI 包 @summer-hub/3rdloop（bin/ lib/ workflows/）
 ├── Web/                           # public/（核心前端）+ ext/（tag|prcheck|issue）+ server.js（兼容入口）
 ├── test/                          # 验收套件 m1–m17（70+ 文件 ≈ 1.4 万行）
 ├── scripts/                       # arch-guard / ci / coverage / release
@@ -259,12 +259,32 @@ flowchart TD
 
 ### 新用户：先装 `3rdloop` 命令
 
-本项目**双包发布**，且核心包 `@ohos-cpf/3rdloop_core` **不在公共 npm registry 上**。由此产生三条硬事实：
+本项目**双包发布**，且核心包 `@summer-hub/3rdloop_core` **不在公共 npm registry 上**。由此产生三条硬事实：
 
-- `npm i -g @ohos-cpf/3rdloop` 装到的是**旧单包**（npm 上的 0.2.x，不是本仓库这份代码）；
+- `npm i -g @summer-hub/3rdloop` 装到的是**旧单包**（npm 上的 0.2.x，不是本仓库这份代码）；
 - 只装 Release 里的 **CLI tarball 会 E404**（npm 会去 registry 找核心包）；
 - 所以必须**两个 tarball 一起装**——下面的安装脚本就是干这个的：下载 → 校验 SHA256 → 一次装两个 → 自检 `3rdloop version`。
 
+### 方式 A：npm 一行安装（GitHub Packages，需一次性配 token）
+
+两个包发在 **GitHub Packages**（`npm.pkg.github.com`），**不在 npm 官网**。
+GitHub 要求**读包也带令牌**（实测无令牌 → `E401 authentication token not provided`），
+所以先做一次性配置，之后就是一行命令：
+
+```bash
+# 一次性：把 scope 映射与 PAT 写进 ~/.npmrc（PAT 至少要有 read:packages）
+printf '@summer-hub:registry=https://npm.pkg.github.com\n//npm.pkg.github.com/:_authToken=<你的 PAT>\n' >> ~/.npmrc
+
+npm i -g @summer-hub/3rdloop     # 会连带装 @summer-hub/3rdloop_core
+3rdloop version                  # 应打印 CLI 版本 + 核心包版本（已安装核心包）
+```
+
+> **为什么是 `@summer-hub/` 而不是原来的 `@ohos-cpf/`**：GitHub Packages 强制
+> 「包 scope = 仓库 owner」。用 `@ohos-cpf` 发布会被拒：
+> `403 Permission not_found: owner not found`（实测）。因此 0.3.0 起包名统一为
+> `@summer-hub/3rdloop_core` / `@summer-hub/3rdloop`。
+
+### 方式 B：Release 安装脚本（公开下载，无需 token）
 安装脚本作为 **Release 附件**发布，GitHub 与 GitCode 两个 Release 都挂着同一套产物。当前发布：**v0.3.0**。
 
 **GitHub（主）**：
@@ -305,7 +325,7 @@ RELEASE.md                          产物清单与本文件
 ```
 
 ```bash
-# 两个 tarball 必须一起装：CLI 通过 @ohos-cpf/3rdloop_core 依赖核心包，
+# 两个 tarball 必须一起装：CLI 通过 @summer-hub/3rdloop_core 依赖核心包，
 # 只装 CLI 会去 registry 找旧版核心包
 npm i ./ohos-cpf-3rdloop_core-0.0.13.tgz ./ohos-cpf-3rdloop-0.0.13.tgz
 
@@ -479,15 +499,15 @@ npm run coverage    # V8 覆盖率（口径见下方「已知缺口」）
 
 | 包 | manifest | `files` 白名单 | 依赖 |
 |----|----------|----------------|------|
-| `@ohos-cpf/3rdloop_core` | 根 `package.json` | `Server plugins core seams profiles MCP Archive BadCase Web/public Web/ext README.md` | 核心树用到的全部运行时依赖 |
-| `@ohos-cpf/3rdloop` | `cli/package.json` | `bin lib workflows README.md`（**无 vendor、无前端副本**） | `@ohos-cpf/3rdloop_core` + `dotenv` |
+| `@summer-hub/3rdloop_core` | 根 `package.json` | `Server plugins core seams profiles MCP Archive BadCase Web/public Web/ext README.md` | 核心树用到的全部运行时依赖 |
+| `@summer-hub/3rdloop` | `cli/package.json` | `bin lib workflows README.md`（**无 vendor、无前端副本**） | `@summer-hub/3rdloop_core` + `dotenv` |
 
 CLI 定位核心树时按四级解析（`cli/lib/core-paths.js`，唯一真源）：
 
 | 级别 | 来源 | 场景 |
 |------|------|------|
 | ① | `3LIB_CORE_DIR` | 运维/测试显式覆盖（写错即报错，不静默降级） |
-| ② | 已安装 `@ohos-cpf/3rdloop_core` | **双包发布态正路** |
+| ② | 已安装 `@summer-hub/3rdloop_core` | **双包发布态正路** |
 | ③ | `cli/vendor` | `npm run prepack` 产物（单包回退 / 本地调试） |
 | ④ | 仓库根（`cli/` 的上一级） | 开发期直引源码 |
 
