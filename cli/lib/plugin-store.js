@@ -15,7 +15,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { PluginHost, USER_PROFILES_DIR, loadProfile } from '../../core/index.js';
+import { PluginHost, USER_PLUGINS_DIR, USER_PROFILES_DIR, loadProfile } from '../../core/index.js';
 
 /** 用户级 overlay 目录（包外、可写、升级不丢） */
 export const OVERLAY_DIR = USER_PROFILES_DIR;
@@ -162,10 +162,23 @@ export function setEnabled({ name, enabled, profile, force = false, env = proces
 }
 
 /**
+ * 装配点**硬性需要**的接缝：`Server/composition/buildApp.js` 在 `engineSeams:'require'`
+ * （默认）下缺任何一条都会 fail closed。`check()` 必须按同一口径判定，否则会出现
+ * "静态检查说没事、启动却炸了"——这比不检查更糟。
+ */
+export const REQUIRED_SEAMS = Object.freeze([
+    'engine-brain',
+    'engine-knowledge',
+    'engine-loop',
+    'engine-orchestrator',
+    'engine-testcheck',
+]);
+
+/**
  * 校验 overlay 与内置 profile 合并后能否装起来（不启动服务）。
  *
- * 只做「静态一致性」检查：未知条目 / 未安装 / required 被禁 / 接缝无提供方。
- * 真正能不能 load 仍以 `PluginHost.load()` 为准（这里不替它下结论）。
+ * 做三件事：条目可用性 / 依赖闭合 / **必需接缝是否仍有提供方**。
+ * 真正的装配仍以 `buildApp({host})` 为准（这里不替它下结论），但结论必须与它同向。
  *
  * @param {object} [opts]
  * @returns {{ok: boolean, errors: string[], warnings: string[], state: object}}
@@ -192,6 +205,19 @@ export function check({ profile, env = process.env } = {}) {
             }
         }
     }
+
+    // 必需接缝必须有启用中的提供方（这条曾经漏掉：禁用 engines/brain 后 check 仍报 ok，
+    // 而 buildApp 立刻 fail closed —— 静态检查与真实装配结论相反）
+    for (const seam of REQUIRED_SEAMS) {
+        const info = state.seams[seam];
+        if (!info || info.providers.length === 0) {
+            const owner = seam.replace(/^engine-/, '');
+            errors.push(
+                `接缝 ${seam} 没有启用中的提供方 —— 装配会 fail closed（启用插件 engines/${owner}）`
+            );
+        }
+    }
+
     for (const [seam, info] of Object.entries(state.seams)) {
         if (info.conflict) {
             warnings.push(`接缝 ${seam} 有多个提供方（${info.providers.join('、')}），生效者靠限定名或首个：${info.effective}`);
@@ -203,4 +229,4 @@ export function check({ profile, env = process.env } = {}) {
     return { ok: errors.length === 0, errors, warnings, state };
 }
 
-export { loadProfile };
+export { loadProfile, USER_PLUGINS_DIR };
