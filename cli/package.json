@@ -31,7 +31,6 @@
     "files": [
         "bin",
         "lib",
-        "web",
         "workflows",
         "README.md"
     ],

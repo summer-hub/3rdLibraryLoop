@@ -14,7 +14,7 @@
 ```
 cli/
 ├── AGENTS.md            # 本文档
-├── package.json         # bin: 3rdloop；files: bin/lib/web/workflows/README.md（**不含 vendor**）
+├── package.json         # bin: 3rdloop；files: bin/lib/workflows/README.md（**不含 vendor，也不含前端副本**）
 ├── bin/3rdloop.mjs         # 入口：argv 解析 + 退出码归一（任何异常 → 1）
 ├── lib/
 │   ├── cli.js           # 命令分发（run/submit/step/orch/web/workflows...）
@@ -38,8 +38,8 @@ cli/
 │   └── exit-codes.js    # 退出码约定
 ├── workflows/           # 工作流注册目录（每个 .js/.mjs 自动注册一个工作流）
 ├── scripts/
-│   ├── prepack.mjs      # 本地工具（发布态不再用）：生成 cli/vendor/{Server,plugins,core,seams,profiles,MCP,Archive,BadCase} + cli/web
-│   ├── clean-vendor.mjs # 本地工具：删除本地 cli/vendor/ 与 cli/web/
+│   ├── prepack.mjs      # 本地工具（发布态不再用）：生成 cli/vendor/{Server,plugins,core,seams,profiles,MCP,Archive,BadCase,Web/public}
+│   ├── clean-vendor.mjs # 本地工具：删除本地 cli/vendor/（并清理历史遗留的 cli/web/）
 │   └── verify-deps.mjs  # 三模式校验：已安装核心包 / vendor / 仓库源码 的依赖声明
 └── README.md            # 用户文档
 ```
@@ -135,8 +135,8 @@ storage(用户数据目录)
 
 | 包 | manifest | files 白名单 | dependencies |
 |----|----------|--------------|--------------|
-| `@ohos-cpf/3rdloop_core` | 仓库根 `package.json` | `Server plugins core seams profiles MCP Archive BadCase README.md` | 核心树 import 的全部运行时依赖 |
-| `@ohos-cpf/3rdloop` | `cli/package.json` | `bin lib web workflows README.md`（**无 vendor**） | `@ohos-cpf/3rdloop_core` + CLI 自己直接 import 的（`dotenv`） |
+| `@ohos-cpf/3rdloop_core` | 仓库根 `package.json` | `Server plugins core seams profiles MCP Archive BadCase Web/public README.md` | 核心树 import 的全部运行时依赖 |
+| `@ohos-cpf/3rdloop` | `cli/package.json` | `bin lib workflows README.md`（**无 vendor、无前端副本**） | `@ohos-cpf/3rdloop_core` + CLI 自己直接 import 的（`dotenv`） |
 
 发版顺序：**先核心包，再 CLI 包**。CLI 的依赖写范围（`^0.0.11`）；`0.0.x` 的 caret 等价于锁 patch，
 升核心包 patch 版要同步改 CLI 范围（或放宽成 `>=0.0.11 <0.1.0`）。
@@ -151,10 +151,12 @@ storage(用户数据目录)
 | ④ | 仓库根（`cli/` 的上一级） | 开发期直引源码 |
 
 四级都返回同构的「核心树根」，`resolveCoreRoots()` 给出
-`{ level, label, coreRoot, serverRoot, pluginsRoot, seamsRoot, profilesRoot }`；
+`{ level, label, coreRoot, serverRoot, pluginsRoot, seamsRoot, profilesRoot, webRoot }`；
+其中 `webRoot = <coreRoot>/Web/public`（核心前端资产也随核心包发布，CLI 侧不再有副本）；
 四级全落空时错误信息逐级列出实测结果与可照抄的修法。
-`runner.js`（`_loadCore`）、`serve.js`（`Server/Routes/server.js`）、`mcp.js`（`resolveAssets`）、
-`config.js`（SKILL 目录 / env 标记）、`doctor.js`（核心包版本检查）都消费同一份解析结果。
+`runner.js`（`_loadCore`）、`serve.js`（`Server/Routes/server.js` + `web.js` 的前端资产）、
+`mcp.js`（`resolveAssets`）、`config.js`（SKILL 目录 / env 标记）、`doctor.js`（核心包版本检查）
+都消费同一份解析结果。
 `config.js` 也引用它却不构成循环依赖——`core-paths.js` **零本地依赖**（只用 node 内置模块）。
 
 排障：`3rdloop version` / `version --json` / `doctor` 都打印核心包版本与来源。
@@ -162,9 +164,11 @@ storage(用户数据目录)
 ### vendor 现在只是本地工具
 
 `prepack` / `clean-vendor` 保留，但**发布态不再使用 vendor**（`files` 不含 `vendor`，产物不进 tarball）：
-- `prepack`：生成 `cli/vendor/`（核心副本，供第③级）+ `cli/web/`（`Web/public` 副本，`files` 含 `web`），
+- `prepack`：生成 `cli/vendor/`（核心副本，供第③级，含 `vendor/Web/public` 前端副本），
   写 `vendor/VERSION`、扫描敏感文件；`vendor/Server/package.json` 的 dependencies 对齐**核心包** manifest。
-- `postpack`（clean-vendor）：删除本地 `cli/vendor/` 与 `cli/web/`。
+- `postpack`（clean-vendor）：删除本地 `cli/vendor/`，并清理历史遗留的 `cli/web/`，删完断言两者都不存在。
+- **`cli/web` 已退役**：前端资产随核心包发布（`<核心树根>/Web/public`），CLI 包内不再有前端副本；
+  `cli/package.json` 的 `files` 也不再含 `web`。
 - 核心包整包发布后**不再需要**维护 `CORE_MODULES` 白名单；但若继续用 vendor 做本地调试，
   白名单仍需同步（`composition/` 是 `buildApp` 的落点，漏了第③级会 module not found）。
 
@@ -415,9 +419,11 @@ node cli/bin/3rdloop.mjs run <name> --print-taskdef    # 缺必填
 - **典型模式**：仓库内 `node cli/bin/3rdloop.mjs serve` = 后端 + 核心前端 + `Web/ext/` 全部扩展；
   `3rdloop serve --no-ext` = 纯后端操作（仅核心工作台，`--no-ext` 优先于 `--ext`，不受已安装扩展影响）；
   `--ext tag,issue` = 白名单挂载（未发现的名字打 stderr 警告）。
-- **设计（方案 A+D）**：核心前端（PR/仓库检视 + loop/knowledge）进 npm 包；tag/issue/prcheck 等
+- **设计（方案 A+D）**：核心前端（PR/仓库检视 + loop/knowledge）**随核心包发布**；tag/issue/prcheck 等
   二级目录功能以"扩展"形式留仓库 `Web/ext/`，**不进包、按需启用**：
-  - 前端资产解析：`--web-root` > `3LIB_WEB_ROOT` > 仓库 `Web/public`（开发态）> `cli/web`（prepack 复制的内置副本）
+  - 前端资产解析：`--web-root` > `3LIB_WEB_ROOT` > 核心树 `Web/public`（`coreRoots.webRoot`：
+    安装态=核心包 `<包根>/Web/public`、vendor 态=`cli/vendor/Web/public`、开发态=仓库 `Web/public`）> 抛错
+    （错误信息列出三级实测结果与可照抄修法；`cli/web` 回退已退役）
   - 扩展根解析：`--ext-root` > `3LIB_WEB_EXT_ROOT` > 仓库 `Web/ext`（开发态自动全量挂载）> `~/.3lib/3rdloop/web-ext`（用户安装）
   - 扩展数据目录：`<dataDir>/web-ext/<name>`（跟随 `--data-dir`）；扩展同名时先注册者优先（开发态仓库源优先于用户安装）
 - 路由优先级：`/api/ext-registry`（本地响应）→ `/<mount>` 扩展（页面/API/静态）→ `/api/*`、`/stream*` 后端反代 → 核心前端静态。
@@ -426,8 +432,9 @@ node cli/bin/3rdloop.mjs run <name> --print-taskdef    # 缺必填
   （`module.exports.createExtRouter({ express, Database, dbDir, serverRoot, logger })`）+ `public/`。
   shim 仅支持 `get/post/put/patch/delete`（`:param` 路径参数、`req.params/query/body`、
   `res.status/json/send/setHeader/end/sendFile`），**不支持** `router.use`。
-- prepack 同步复制 `Web/public → cli/web`（files 白名单含 `web`），postpack（clean-vendor）一并清理；
-  `.gitignore` 忽略 `cli/web/`。
+- prepack 把 `Web/public → vendor/Web/public`（第③级 vendor 态自洽），**不再生成 `cli/web`**；
+  `cli/package.json` 的 files 不含 `web`，postpack（clean-vendor）删 `cli/vendor/` 并顺手清理历史遗留的
+  `cli/web/`，删完断言两者都不存在。
 - 前端导航：`Web/public/index.html` 的 `#nav-ext-section` + `navigation.js` `ExtNav` 经
   `/api/ext-registry` 动态渲染扩展入口（端点缺失/无扩展时静默隐藏，兼容旧版 `Web/server.js` 纯静态部署）。
 - 退出码：常驻服务，SIGINT→130 / SIGTERM→143（信号处理器必须在 createServer **之前**注册，

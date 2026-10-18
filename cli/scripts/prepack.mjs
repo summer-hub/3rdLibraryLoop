@@ -8,7 +8,8 @@
  * 保留它的理由已缩小为三条：
  *   - 单包形态（把核心副本塞进 CLI 包）的遗留回退；
  *   - 离线/本地调试：生成 cli/vendor 供四级解析的第③级命中（不依赖 npm i 核心包）；
- *   - 生成 cli/web（Web/public 的内置前端副本，files 白名单仍含 web）。
+ *   - 生成 vendor/Web/public（核心前端的副本），让第③级 vendor 态自洽——
+ *     核心前端已随核心包发布，`cli/web` 已退役，CLI 包内不再有任何前端副本。
  *
  * 作用：
  *   - 将仓库 Server/ 核心引擎复制到 cli/vendor/Server/（保持目录结构，
@@ -180,19 +181,29 @@ async function main() {
         `${version}\nbuilt=${new Date().toISOString()}\nsha=${hash}\n`
     );
 
-    // ── 3rdloop serve 内置核心前端（Web/public → cli/web）─────────────────
-    // 核心前端进包；tag/issue/prcheck 等二级功能以扩展形式留仓库 Web/ext/，
-    // 不进 npm 包（运行期经 install-ext 或仓库开发态自动挂载）。
+    // ── 核心前端（Web/public → vendor/Web/public）─────────────────────────
+    // 核心前端已随核心包 `@ohos-cpf/3rdloop_core` 发布（files 含 `Web/public`），安装态
+    // （第②级）与开发态（第④级）都能命中；CLI 不再自带副本（`cli/web` 已退役）。
+    // vendor 态（第③级）是核心树的完整副本，前端也放同一深度，使三级解析同构。
+    // tag/issue/prcheck 等二级功能仍以扩展形式留仓库 Web/ext/，不进 npm 包。
     const WEB_SRC = path.join(PROJECT_ROOT, 'Web', 'public');
-    const WEB_DST = path.join(CLI_ROOT, 'web');
+    const WEB_DST = path.join(VENDOR_DIR, 'Web', 'public');
     if (fs.existsSync(WEB_SRC)) {
         if (fs.existsSync(WEB_DST)) {
             fs.rmSync(WEB_DST, { recursive: true, force: true });
         }
         copyDir(WEB_SRC, WEB_DST);
-        console.log('[prepack] 复制 Web/public/ → cli/web/（3rdloop serve 内置核心前端）');
+        console.log('[prepack] 复制 Web/public/ → vendor/Web/public/（第③级 vendor 态的核心前端）');
     } else {
-        console.warn('[prepack] 警告: 未找到 Web/public/，3rdloop serve 将无内置前端');
+        console.warn('[prepack] 警告: 未找到 Web/public/，vendor 态将没有前端资产');
+    }
+
+    // 历史遗留：早期 prepack 把前端复制到 cli/web（CLI 包内副本，已退役）。
+    // 老 checkout 里可能残留，顺手清掉，避免旧副本被误当作资产来源。
+    const LEGACY_WEB = path.join(CLI_ROOT, 'web');
+    if (fs.existsSync(LEGACY_WEB)) {
+        fs.rmSync(LEGACY_WEB, { recursive: true, force: true });
+        console.log('[prepack] 清理历史遗留 cli/web/（前端已并入核心包）');
     }
 
     // ── 插件树：仓库根 plugins/ → vendor/plugins/ ─────────────────────────

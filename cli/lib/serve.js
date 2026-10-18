@@ -258,7 +258,7 @@ function _printServeHelp() {
 选项:
   --port <N>          后端端口（默认 3000，可用 3LIB_SERVER_PORT 覆盖）
   --web-port <N>      Web 前端端口（默认 8080，可用 3LIB_WEB_PORT 覆盖）
-  --web-root <dir>    核心前端资产目录覆盖（默认: 仓库 Web/public，发布包为内置 cli/web）
+  --web-root <dir>    核心前端资产目录覆盖（默认: 核心包 Web/public，开发态为仓库 Web/public）
   --ext-root <dir>    追加扩展根目录（可多次指定；目录下每个子目录是一个扩展）
   --ext <name,...>    白名单：仅挂载指定扩展（逗号分隔，可重复指定；未发现的名字打警告）
   --no-ext            禁用全部扩展（纯核心工作台模式；优先于 --ext）

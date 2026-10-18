@@ -34,6 +34,7 @@
         "MCP",
         "Archive",
         "BadCase",
+        "Web/public",
         "README.md",
         "!**/.env",
         "!**/.env.*",

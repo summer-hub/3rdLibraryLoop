@@ -4,7 +4,7 @@
 
 ```bash
 node cli/bin/3rdloop.mjs web            # 本地全功能：核心前端 + Web/ext/ 全部扩展（tag/issue/prcheck）
-3rdloop web                             # 发布态：npm 包内置核心前端（扩展需 install-ext 启用）
+3rdloop web                             # 发布态：核心包 @ohos-cpf/3rdloop_core 内置核心前端（扩展需 install-ext 启用）
 3rdloop web --no-ext                    # 纯后端操作模式：仅核心工作台，强制禁用全部扩展
 ```
 
@@ -14,7 +14,7 @@ node cli/bin/3rdloop.mjs web            # 本地全功能：核心前端 + Web/e
 Web/
 ├── AGENTS.md            # 本文档
 ├── server.js            # 纯静态托管 + /api 反代（简易部署用；无扩展挂载能力）
-├── public/              # 核心前端（进 npm 包，由 cli prepack 复制为 cli/web）
+├── public/              # 核心前端（随核心包 @ohos-cpf/3rdloop_core 发布，路径 <核心包根>/Web/public）
 │   ├── index.html       # 工作台单页（PR 检视 / 仓库检视 / loop / knowledge）
 │   ├── css/ js/         # 面板样式与脚本（每面板一个 js，懒加载初始化）
 │   ├── knowledge.html / loop.html   # 兼容入口（服务端 302 到 hash 路由）

@@ -12,6 +12,8 @@
  * `Server/ plugins/ core/ seams/ profiles/`（安装态即包根，vendor 态即 cli/vendor，
  * 仓库态即仓库根）。这样的同构让 `Server/**` 里上千条相对 import 与 21 条接缝路径
  * 在三种形态下完全一致，不需要任何搬家或路径改写。
+ * 核心前端资产 `Web/public` 也随核心包发布，因此同样由这里派生（`webRoot`），
+ * CLI 侧不再自带前端副本。
  *
  * 单独成模块（而不是写在 runner.js 里）的理由：config.js / mcp.js / serve.js / doctor.js
  * 都要定位同一棵树，而 runner.js 会牵出 config.js（`.env` 链）；放在这里可以双向避免循环依赖。
@@ -47,7 +49,7 @@ let _cache = null;
  * 把核心树根展开为各子根。
  * @param {string} coreRoot - 含 Server/ plugins/ core/ seams/ profiles/ 的目录
  * @param {number} level - 命中的级别（1..4）
- * @returns {{level: number, label: string, coreRoot: string, serverRoot: string, pluginsRoot: string, seamsRoot: string, profilesRoot: string}}
+ * @returns {{level: number, label: string, coreRoot: string, serverRoot: string, pluginsRoot: string, seamsRoot: string, profilesRoot: string, webRoot: string}}
  */
 function describeRoots(coreRoot, level) {
     return {
@@ -58,6 +60,9 @@ function describeRoots(coreRoot, level) {
         pluginsRoot: path.join(coreRoot, 'plugins'),
         seamsRoot: path.join(coreRoot, 'seams'),
         profilesRoot: path.join(coreRoot, 'profiles'),
+        // 核心前端资产（随核心包发布）：安装态=核心包根/Web/public，vendor 态=cli/vendor/Web/public，
+        // 仓库态=仓库根/Web/public。CLI 不再持有前端副本，因此这是唯一派生点。
+        webRoot: path.join(coreRoot, 'Web', 'public'),
     };
 }
 
@@ -111,7 +116,7 @@ function _probe(cliRoot) {
 /**
  * 解析核心树（四级，缓存）。
  * @param {string} [cliRoot] - CLI 包根，缺省为本模块所在的 cli/
- * @returns {{level: number, label: string, coreRoot: string, serverRoot: string, pluginsRoot: string, seamsRoot: string, profilesRoot: string}}
+ * @returns {{level: number, label: string, coreRoot: string, serverRoot: string, pluginsRoot: string, seamsRoot: string, profilesRoot: string, webRoot: string}}
  * @throws {Error} 四级全部落空（或 3LIB_CORE_DIR 指错）时，错误信息逐级列出实测结果与可照抄的修法
  */
 export function resolveCoreRoots(cliRoot = CLI_ROOT) {

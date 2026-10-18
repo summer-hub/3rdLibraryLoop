@@ -569,8 +569,8 @@ cd cli && npm publish
 
 | 阶段 | 钩子 | 动作 |
 |------|------|------|
-| 打包前 | `prepack` | 生成 `cli/vendor/`（核心副本，供四级解析第③级）+ `cli/web/`（`Web/public` 前端副本，files 白名单含 `web`） |
-| 打包后 | `postpack` | 删除本地 `cli/vendor/` 与 `cli/web/`，工作区回归一份源码 |
+| 打包前 | `prepack` | 生成 `cli/vendor/`（核心副本，供四级解析第③级，含 `vendor/Web/public` 前端副本） |
+| 打包后 | `postpack` | 删除本地 `cli/vendor/`，并清理历史遗留的 `cli/web/`（前端已并入核心包，该副本已退役），删完断言两者都不存在 |
 
 > `npm run verify-deps` 现在是**三模式**：① 已安装核心包（扫
 > `node_modules/@ohos-cpf/3rdloop_core/{Server,MCP/src,Archive/src,plugins,core,seams,profiles}`，

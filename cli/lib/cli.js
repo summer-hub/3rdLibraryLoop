@@ -152,7 +152,7 @@ export async function runCli(argv) {
             return cmdKnowledgeImpl({ rest, user3libHome, dataDir, jsonMode });
 
         case 'serve':
-            return cmdServe({ rest, jsonMode, dataDir, user3libHome });
+            return cmdServe({ flags, rest, jsonMode, dataDir, user3libHome });
 
         case 'update':
             return cmdUpdate({ flags, rest, jsonMode, out });

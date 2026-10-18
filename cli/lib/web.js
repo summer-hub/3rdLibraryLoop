@@ -2,7 +2,8 @@
  * web.js —— Web 前端服务库（由 3rdloop serve 内嵌启动）
  *
  * 架构（方案 A + D 组合）：
- *   - 核心前端资产：仓库 Web/public（开发态）/ cli/web（发布态，prepack 复制）
+ *   - 核心前端资产随**核心包**发布（`<核心树根>/Web/public`），由 core-paths.js 四级解析派生：
+ *     安装态=核心包、vendor 态=cli/vendor、开发态=仓库根；CLI 本身**不含**前端副本
  *   - 二级目录功能（tag/issue/prcheck 等）以"扩展"形式按需启用，不进 npm 包：
  *     * 开发态：自动挂载仓库 Web/ext/ 下全部扩展
  *     * 发布态：仅挂载 ~/.3lib/3rdloop/web-ext/ 下用户安装的扩展
@@ -37,6 +38,7 @@ import {
     removeExtension,
 } from './web-ext.js';
 import { EXIT } from './exit-codes.js';
+import { CORE_PACKAGE, resolveCoreRootsOrNull } from './core-paths.js';
 
 const CLI_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -81,7 +83,12 @@ export function resolveUserExtRoot(user3libHome) {
 
 /**
  * 核心前端资产目录。
- * 优先级：--web-root > 3LIB_WEB_ROOT > 仓库 Web/public（开发态）> cli/web（发布态内置）
+ * 优先级：`--web-root` > `3LIB_WEB_ROOT` > 核心树 `Web/public`（core-paths.js 四级解析派生，
+ * 覆盖安装态=核心包 / vendor 态=prepack 副本 / 开发态=仓库根）> 抛错。
+ *
+ * @param {string} [flagValue] - --web-root 的值
+ * @returns {string} 前端资产绝对目录
+ * @throws {Error} 三级来源全部落空时，错误信息列出每级的实测结果与可照抄的修法
  */
 export function resolveWebRoot(flagValue) {
     if (flagValue) {
@@ -94,16 +101,29 @@ export function resolveWebRoot(flagValue) {
         if (!fs.existsSync(dir)) throw new Error(`3LIB_WEB_ROOT 目录不存在: ${dir}`);
         return dir;
     }
-    // 开发态：cli 上一级的 Web/public（源码，始终优先于构建副本）
-    const repoWeb = path.resolve(CLI_ROOT, '..', 'Web', 'public');
-    if (fs.existsSync(repoWeb)) return repoWeb;
-    // 发布态：prepack 复制的内置前端
-    const bundled = path.join(CLI_ROOT, 'web');
-    if (fs.existsSync(bundled)) return bundled;
 
-    throw new Error(
-        '未找到前端资产目录：期望仓库 Web/public 或 cli/web。' +
-        '发布包缺资产请重新安装；本地开发请在仓库内运行，或用 --web-root 指定。'
+    // 核心树（安装态=核心包、vendor 态=prepack 副本、开发态=仓库根），webRoot = <coreRoot>/Web/public
+    const coreRoots = resolveCoreRootsOrNull();
+    if (coreRoots && fs.existsSync(coreRoots.webRoot)) return coreRoots.webRoot;
+
+    throw _webRootError(coreRoots);
+}
+
+/** 前端资产三级全落空时的错误（逐级实测 + 可照抄修法）。 */
+function _webRootError(coreRoots) {
+    const coreDetail = coreRoots
+        ? `第 ${coreRoots.level} 级「${coreRoots.label}」已命中核心树 ${coreRoots.coreRoot}，` +
+          `但其下没有 Web/public: ${coreRoots.webRoot}`
+        : `核心树四级解析失败（3LIB_CORE_DIR / 已安装核心包 / cli/vendor / 仓库根 全部落空）`;
+    return new Error(
+        '未找到 Web 前端资产目录。已依次尝试三级来源：\n' +
+        '  1. --web-root —— 未指定\n' +
+        '  2. 环境变量 3LIB_WEB_ROOT —— 未设置\n' +
+        `  3. 核心树 Web/public（<核心树根>/Web/public）—— ${coreDetail}\n` +
+        '修复（任选其一，照抄即可）：\n' +
+        `  npm i ${CORE_PACKAGE}          # 双包发布态：安装核心包（自带 Web/public）\n` +
+        '  3rdloop serve --web-root <dir>           # 指定任意前端资产目录\n' +
+        '  3LIB_WEB_ROOT=<dir> 3rdloop serve        # 或用环境变量指定'
     );
 }
 
