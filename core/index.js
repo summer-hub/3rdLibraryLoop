@@ -36,8 +36,9 @@ export {
     DISABLE_ENV,
     ROOTS_ENV,
     DEFAULT_PROFILE,
+    USER_PROFILES_DIR,
 } from './Profile.js';
-export { PluginHost, createDefaultHost, BUILTIN_PLUGINS_DIR, USER_PLUGINS_DIR } from './PluginHost.js';
+export { PluginHost, createDefaultHost, BUILTIN_PLUGINS_DIR, BUILTIN_PROFILES_DIR, USER_PLUGINS_DIR } from './PluginHost.js';
 export { nowCST } from './cstTime.js';
 export {
     setActiveHost,

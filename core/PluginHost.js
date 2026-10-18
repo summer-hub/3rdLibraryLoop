@@ -16,13 +16,27 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PluginContext } from './Context.js';
 import { loadPluginEntry, scanPluginRoots, topoSort } from './PluginLoader.js';
-import { loadProfile, mergePluginRoots, resolvePluginState } from './Profile.js';
+import { loadProfile, mergePluginRoots, resolvePluginState, USER_PROFILES_DIR } from './Profile.js';
 
 /** 仓库内置插件根目录（core/ 的上一级 plugins/） */
 const BUILTIN_PLUGINS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'plugins');
 
+/** 仓库内置 profile 目录（core/ 的上一级 profiles/） */
+const BUILTIN_PROFILES_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'profiles');
+
 /** 用户级插件根目录（与 3rdloop CLI 数据目录同源：~/.3lib） */
 const USER_PLUGINS_DIR = path.join(os.homedir(), '.3lib', 'plugins');
+
+/**
+ * 判断 dir 是否在 root 之下（用于标出插件来源：内置 / 用户）。
+ * 统一分隔符与大小写，避免 Windows 上大小写不同被误判成"用户插件"。
+ */
+function isUnder(dir, root) {
+    const norm = (p) => path.resolve(p).replace(/\\/g, '/').toLowerCase();
+    const d = norm(dir);
+    const r = norm(root);
+    return d === r || d.startsWith(`${r}/`);
+}
 
 export class PluginHost {
     /**
@@ -34,7 +48,9 @@ export class PluginHost {
      */
     constructor({ roots = null, profilesDir = null, env = process.env, logger = null } = {}) {
         this._roots = roots ?? [BUILTIN_PLUGINS_DIR, USER_PLUGINS_DIR];
-        this._profilesDir = profilesDir ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'profiles');
+        // profile 目录默认是「内置 + 用户 overlay」两级：用户级写在包外
+        // （`~/.3lib/3rdloop/profiles`），发布态可写、升级不丢，见 USER_PROFILES_DIR 的说明。
+        this._profilesDir = profilesDir ?? [BUILTIN_PROFILES_DIR, USER_PROFILES_DIR];
         this._env = env;
         this._log = logger ?? (() => {});
         this._rootContext = null;
@@ -46,6 +62,100 @@ export class PluginHost {
     get root() { return this._rootContext; }
     get profile() { return this._profile; }
     get loaded() { return this._plugins.map((p) => p.name); }
+    get profileDirs() { return Array.isArray(this._profilesDir) ? [...this._profilesDir] : [this._profilesDir]; }
+    get roots() { return mergePluginRoots(this._roots, this._env); }
+
+    /**
+     * 只读描述当前插件状况——**不装配**，不触发任何插件 setup。
+     *
+     * CLI（`3rdloop plugin list`）与 Web（`GET /api/plugins`）共用这一份数据，
+     * 避免两处各写一套判定逻辑而慢慢漂移。已 load 过时会额外标出实际加载结果。
+     *
+     * @returns {{
+     *   profile: string,
+     *   profileDirs: string[],
+     *   overlayDir: string,
+     *   roots: string[],
+     *   plugins: Array<object>,
+     *   seams: Record<string, {providers: string[], conflict: boolean, effective: string|null}>,
+     *   conflicts: Array<{name: string, kept: string, skipped: string}>,
+     * }}
+     */
+    describe() {
+        const profile = typeof this._profile === 'object' && this._profile
+            ? this._profile
+            : loadProfile({ profilesDir: this._profilesDir, env: this._env });
+        const roots = this.roots;
+        const { entries, conflicts } = scanPluginRoots(roots);
+        const scanned = new Map(entries.map((e) => [e.manifest.name, e]));
+        const loadedNow = new Set(this.loaded);
+
+        // profile 里提到但没装上的条目也要露出来（否则用户以为 profile 写错了而查不到原因）
+        const mentioned = Object.keys(profile.plugins ?? {});
+        const names = [...new Set([...scanned.keys(), ...mentioned])].sort();
+
+        const plugins = names.map((name) => {
+            const entry = scanned.get(name);
+            const state = resolvePluginState({
+                pluginName: name,
+                defaults: {},
+                profile,
+                env: this._env,
+                overrides: {},
+            });
+            const manifest = entry?.manifest ?? { name, version: null, seam: null, entry: null, dependencies: [] };
+            const dir = entry?.dir ?? null;
+            return {
+                name,
+                version: manifest.version ?? null,
+                seam: manifest.seam ?? null,
+                entry: manifest.entry ?? null,
+                dependencies: [...(manifest.dependencies ?? [])],
+                installed: Boolean(entry),
+                dir,
+                source: dir ? (isUnder(dir, BUILTIN_PLUGINS_DIR) ? 'builtin' : 'user') : 'missing',
+                enabled: Boolean(state.enabled) && Boolean(entry),
+                required: Boolean(state.required),
+                reason: state.reason ?? null,
+                options: state.options ?? {},
+                loaded: loadedNow.has(name),
+            };
+        });
+
+        // 反向依赖：谁声明依赖我（只在启用且已安装的插件之间算，避免误导）
+        const byName = new Map(plugins.map((p) => [p.name, p]));
+        for (const p of plugins) {
+            p.dependents = [];
+            p.dependencies = p.dependencies.filter((dep) => byName.has(dep) || scanned.has(dep));
+        }
+        for (const p of plugins) {
+            if (!p.enabled) continue;
+            for (const dep of p.dependencies) {
+                const target = byName.get(dep);
+                if (target) target.dependents.push(p.name);
+            }
+        }
+
+        // 接缝 → 提供方；同一接缝多个**启用**提供方即为冲突（谁生效靠限定名，不靠顺序）
+        const seams = {};
+        for (const p of plugins) {
+            if (!p.seam || !p.enabled) continue;
+            if (!seams[p.seam]) seams[p.seam] = { providers: [], conflict: false, effective: null };
+            seams[p.seam].providers.push(p.name);
+            seams[p.seam].conflict = seams[p.seam].providers.length > 1;
+            if (!seams[p.seam].effective) seams[p.seam].effective = p.name;
+        }
+
+        return {
+            profile: profile.name,
+            profileDirs: this.profileDirs,
+            overlayDir: USER_PROFILES_DIR,
+            roots,
+            plugins,
+            seams,
+            conflicts,
+        };
+    }
 
     /**
      * 扫描 + 加载全部启用插件。
@@ -260,4 +370,4 @@ export function createDefaultHost(opts = {}) {
     return new PluginHost(opts);
 }
 
-export { BUILTIN_PLUGINS_DIR, USER_PLUGINS_DIR };
+export { BUILTIN_PLUGINS_DIR, BUILTIN_PROFILES_DIR, USER_PLUGINS_DIR };

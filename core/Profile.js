@@ -30,6 +30,7 @@
  */
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 /** 选择 profile 名的环境变量 */
@@ -40,29 +41,92 @@ export const DISABLE_ENV = '3LIB_PLUGIN_DISABLE';
 export const ROOTS_ENV = '3LIB_PLUGINS_DIR';
 /** 默认 profile 名 */
 export const DEFAULT_PROFILE = 'default';
+/**
+ * 用户级 profile 目录（overlay）。
+ *
+ * 为什么必须有：发布态下内置 profile 在核心包里
+ * （`node_modules/@ohos-cpf/3rdloop_core/profiles/`），用户既不该改、改了也会在下次
+ * `3rdloop update` 时被覆盖。所以「开关插件」必须写到包外的用户目录，按 overlay 合并。
+ */
+export const USER_PROFILES_DIR = path.join(os.homedir(), '.3lib', '3rdloop', 'profiles');
+
+/** 把 profilesDir 归一成目录数组（单目录、数组、undefined 都接受）。 */
+function toDirList(profilesDir) {
+    if (!profilesDir) return [];
+    return Array.isArray(profilesDir) ? profilesDir.filter(Boolean) : [profilesDir];
+}
 
 /**
- * 读取 profile 文件。
+ * 去掉 UTF-8 BOM。
+ *
+ * Windows 用户用记事本/部分编辑器改 profile 时几乎必然带 BOM（`U+FEFF`），而
+ * `JSON.parse` 会把 BOM 当非法字符直接抛 `Unexpected token '﻿'`——用户看到的是
+ * "profile 解析失败"却找不到任何语法错误。BOM 没有语义，读入即剥掉。
+ */
+function stripBom(text) {
+    return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+}
+
+/**
+ * 深合并两个 profile：后者（overlay）覆盖前者（内置）。
+ *
+ * 合并粒度是**单个插件条目**：`plugins.brain = {...base, ...overlay}`，其中 `options`
+ * 再按 key 合并（用户只改一个选项时不必重复整份配置）。
+ */
+function mergeProfiles(base, overlay) {
+    const merged = { ...base, ...overlay };
+    const plugins = { ...(base.plugins ?? {}) };
+    for (const [name, entry] of Object.entries(overlay.plugins ?? {})) {
+        const prev = plugins[name];
+        plugins[name] = prev
+            ? { ...prev, ...entry, options: { ...(prev.options ?? {}), ...(entry.options ?? {}) } }
+            : entry;
+    }
+    merged.plugins = plugins;
+    return merged;
+}
+
+/**
+ * 读取 profile 文件（支持 overlay：目录数组按优先级从低到高，后者覆盖前者）。
  *
  * @param {object} opts
- * @param {string} opts.profilesDir - profile 目录（仓库 `profiles/`）
+ * @param {string|string[]} opts.profilesDir - profile 目录；数组时后者覆盖前者（用户目录放最后）
  * @param {string} [opts.name]      - profile 名，缺省取 env `3LIB_PLUGIN_PROFILE`，再缺省 `default`
  * @param {NodeJS.ProcessEnv} [opts.env]
  * @returns {{ name: string, plugins: Record<string, {enabled?: boolean, options?: object, required?: boolean}> }}
  */
 export function loadProfile({ profilesDir, name, env = process.env }) {
     const profileName = name ?? env[PROFILE_ENV] ?? DEFAULT_PROFILE;
-    const file = path.join(profilesDir, `${profileName}.json`);
-    if (!fs.existsSync(file)) {
-        if (profileName !== DEFAULT_PROFILE) {
-            throw new Error(`profile 不存在: ${file}（可用: ${listProfiles(profilesDir).join(', ') || '无'}）`);
-        }
-        // 缺省 profile 文件时返回空 profile（全部启用、无选项）——允许最小部署
-        return { name: profileName, plugins: {} };
+    const dirs = toDirList(profilesDir);
+
+    let merged = null;
+    for (const dir of dirs) {
+        const file = path.join(dir, `${profileName}.json`);
+        if (!fs.existsSync(file)) continue;
+        const one = readProfileFile(file, profileName, dirs);
+        merged = merged ? mergeProfiles(merged, one) : one;
     }
+    if (merged) return merged;
+
+    if (profileName !== DEFAULT_PROFILE) {
+        const tried = dirs.map((d) => path.join(d, `${profileName}.json`)).join('、') || '（无目录）';
+        throw new Error(`profile 不存在: ${tried}（可用: ${listProfiles(dirs).join(', ') || '无'}）`);
+    }
+    // 缺省 profile 文件时返回空 profile（全部启用、无选项）——允许最小部署
+    return { name: profileName, plugins: {} };
+}
+
+/**
+ * 读取并校验单个 profile 文件。
+ *
+ * @param {string} file - profile 文件绝对路径
+ * @param {string} profileName - profile 名（错误信息用）
+ * @param {string[]} dirs - profile 目录列表（错误信息里列出可选项）
+ */
+function readProfileFile(file, profileName, dirs = []) {
     let parsed;
     try {
-        parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+        parsed = JSON.parse(stripBom(fs.readFileSync(file, 'utf8')));
     } catch (err) {
         throw new Error(`profile 解析失败 ${file}: ${err.message}`);
     }
@@ -84,16 +148,21 @@ export function loadProfile({ profilesDir, name, env = process.env }) {
     // defaultEnabled 决定「profile 未提及某插件」时的默认值：
     //   undefined / true（默认）→ 未提及 = 启用（兼容既有 profile 与「空 profile 最小部署」）
     //   false                  → 未提及 = 禁用（白名单语义：装了什么 ≠ 启用什么）
+    void dirs;
     return { name: profileName, plugins, defaultEnabled: parsed.defaultEnabled };
 }
 
 /** 列出 profiles 目录下可用 profile 名 */
 export function listProfiles(profilesDir) {
-    if (!fs.existsSync(profilesDir)) return [];
-    return fs.readdirSync(profilesDir)
-        .filter((f) => f.endsWith('.json'))
-        .map((f) => f.slice(0, -'.json'.length))
-        .sort();
+    const dirs = toDirList(profilesDir);
+    const names = new Set();
+    for (const dir of dirs) {
+        if (!fs.existsSync(dir)) continue;
+        for (const f of fs.readdirSync(dir)) {
+            if (f.endsWith('.json')) names.add(f.slice(0, -'.json'.length));
+        }
+    }
+    return [...names].sort();
 }
 
 /**
