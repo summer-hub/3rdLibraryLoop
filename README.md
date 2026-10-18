@@ -241,7 +241,7 @@ cd 3rdLibraryLoop
 node Server/Routes/server.js --port 3000 --type opencode
 
 # 前端 Web 服务（默认 8080，自动代理 /api/* 到后端）
-node Web/server.js --port 8080 --backend http://127.0.0.1:3000
+node Web/server.js --port 8080 --backend http://127.0.0.1:3000   # 兼容入口，等价于 3rdloop serve
 ```
 
 ---

@@ -3,9 +3,9 @@
 本目录是 3rdLibraryLoop 的前端资产源码。**推荐用 CLI 启动**：
 
 ```bash
-node cli/bin/3rdloop.mjs web            # 本地全功能：核心前端 + Web/ext/ 全部扩展（tag/issue/prcheck）
-3rdloop web                             # 发布态：核心包 @ohos-cpf/3rdloop_core 内置核心前端 + Web/ext（扩展自动发现）
-3rdloop web --no-ext                    # 纯后端操作模式：仅核心工作台，强制禁用全部扩展
+node cli/bin/3rdloop.mjs serve          # 本地全功能：核心前端 + Web/ext/ 全部扩展（tag/issue/prcheck）
+3rdloop serve                             # 发布态：核心包 @ohos-cpf/3rdloop_core 内置核心前端 + Web/ext（扩展自动发现）
+3rdloop serve --no-ext                    # 纯后端操作模式：仅核心工作台，强制禁用全部扩展
 ```
 
 ## 目录结构
@@ -13,7 +13,7 @@ node cli/bin/3rdloop.mjs web            # 本地全功能：核心前端 + Web/e
 ```
 Web/
 ├── AGENTS.md            # 本文档
-├── server.js            # 纯静态托管 + /api 反代（简易部署用；无扩展挂载能力）
+├── server.js            # **兼容入口**：委托 cli/lib/web.js 的 startWebServer（与 3rdloop serve 同一实现）
 ├── public/              # 核心前端（随核心包 @ohos-cpf/3rdloop_core 发布，路径 <核心包根>/Web/public）
 │   ├── index.html       # 工作台单页（PR 检视 / 仓库检视 / loop / knowledge）
 │   ├── css/ js/         # 面板样式与脚本（每面板一个 js，懒加载初始化）
@@ -48,12 +48,12 @@ Web/ext/<name>/
 
 | 场景 | 方式 |
 |------|------|
-| 仓库开发态（全功能） | `node cli/bin/3rdloop.mjs web` 自动全量挂载 `Web/ext/` |
+| 仓库开发态（全功能） | `node cli/bin/3rdloop.mjs serve` 自动全量挂载 `Web/ext/` |
 | npm 安装态 | 扩展随核心包发布（`<核心包根>/Web/ext`），serve 自动发现，无需 `install-ext` |
-| **纯后端操作模式** | `3rdloop web --no-ext` 强制禁用全部扩展（仅核心工作台，不受已安装扩展影响） |
-| 白名单模式 | `3rdloop web --ext tag,issue` 仅挂载指定扩展（可重复指定，未发现的名字打警告） |
+| **纯后端操作模式** | `3rdloop serve --no-ext` 强制禁用全部扩展（仅核心工作台，不受已安装扩展影响） |
+| 白名单模式 | `3rdloop serve --ext tag,issue` 仅挂载指定扩展（可重复指定，未发现的名字打警告） |
 | 自定义扩展 | 放入 `~/.3lib/3rdloop/web-ext/<name>/`，或 `--ext-root <dir>` 追加 |
-| 临时实验 | `3rdloop web --web-root <自定义前端目录>` 整目录替换核心前端 |
+| 临时实验 | `3rdloop serve --web-root <自定义前端目录>` 整目录替换核心前端 |
 
 扩展开关优先级：`--no-ext` > `--ext <白名单>` > 默认全量（发现多少挂载多少）。
 扩展为 0 时前端导航"扩展功能"分区自动隐藏，`/<mount>` 路径返回 404。
@@ -66,7 +66,7 @@ Web/ext/<name>/
 1. 复制最简范本 `ext/tag/` 为 `ext/<name>/`，改 manifest（name/mount/title/order）。
 2. router.cjs 用 shim 支持的 API 写路由（勿用 `router.use`/中间件/第三方包）。
 3. 页面写 `public/index.html`，API 调用用根绝对路径 `fetch('/<mount>/xxx')`。
-4. 验收：`3rdloop web list-ext` 可见 → 启动后 `curl /<mount>` 与 `curl /<mount>/<api>` 通。
+4. 验收：`3rdloop serve list-ext` 可见 → 启动后 `curl /<mount>` 与 `curl /<mount>/<api>` 通。
 5. 敏感凭据一律走环境变量（.env 链），**不得**内置 token/密码到扩展源码。
 
 ## 已知差异（相对 AIWeb 原版）

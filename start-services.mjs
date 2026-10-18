@@ -6,6 +6,7 @@
  * 先执行环境检测（调用 check-env.mjs），全部通过后启动服务：
  *   ① Server 后端 API:  node Server/Routes/server.js --port 3000 --type <CLI_TYPE>
  *   ② Web 前端:         node Web/server.js --port 8080 --backend http://127.0.0.1:3000
+ *      （兼容入口，内部委托 cli/lib/web.js 的 startWebServer —— 与 3rdloop serve 同一实现）
  *   ③ CLI serve 服务:   按 CLI_TYPE 启动 opencode serve 或 deveco serve（统一默认 4096）
  *
  * CLI_TYPE 解析优先级（与 Server/CLI/cli.js 一致）：

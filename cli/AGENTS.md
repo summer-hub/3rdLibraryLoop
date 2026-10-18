@@ -412,7 +412,8 @@ node cli/bin/3rdloop.mjs run <name> --print-taskdef    # 缺必填
 - 实现：`lib/serve.js`（命令编排：后端 + 前端 + 扩展子命令）+ `lib/web.js`（Web 前端服务库）+
   `lib/web-ext.js`（扩展 manifest 加载 + 轻量 express 兼容 shim），分发：`cli.js` `case 'serve'`（惰性 import）。
   后端复用 `Server/Routes/server.js` 的 createServer；前端**进程内启动**（node:http 零新增依赖，
-  SSE 反代语义复刻 `Web/server.js`，不再 spawn Web/server.js 子进程）。
+  SSE 反代语义与 `Web/server.js` 一致——准确说现在**只有一份实现**：`Web/server.js` 是兼容入口，
+  直接委托本模块的 `startWebServer`；`3rdloop serve` 不再 spawn 任何子进程）。
 - 命令：`3rdloop serve [--port 3000] [--web-port 8080] [--web-root <dir>] [--ext-root <dir>]...
   [--ext <name,...>] [--no-ext] [--open]`；子命令 `install-ext <dir>` / `list-ext` / `remove-ext <name>`。
 - **Web 前端随 serve 默认启动**（原独立 `3rdloop web` 命令已移除；`-w/--web` 仅兼容接受并提示；
@@ -442,7 +443,7 @@ node cli/bin/3rdloop.mjs run <name> --print-taskdef    # 缺必填
   `cli/package.json` 的 files 不含 `web`，postpack（clean-vendor）删 `cli/vendor/` 并顺手清理历史遗留的
   `cli/web/`，删完断言两者都不存在。
 - 前端导航：`Web/public/index.html` 的 `#nav-ext-section` + `navigation.js` `ExtNav` 经
-  `/api/ext-registry` 动态渲染扩展入口（端点缺失/无扩展时静默隐藏，兼容旧版 `Web/server.js` 纯静态部署）。
+  `/api/ext-registry` 动态渲染扩展入口（端点缺失/无扩展时静默隐藏，兼容第三方纯静态托管部署）。
 - 退出码：常驻服务，SIGINT→130 / SIGTERM→143（信号处理器必须在 createServer **之前**注册，
   否则 Server 内部的退出码 0 处理器会抢先）；端口占用 EADDRINUSE→1。
 
@@ -544,10 +545,15 @@ registry 找旧版核心包）→ `npm root -g` 回读两个 `package.json` 版�
   幂等修复手段），只在 `upToDate` 里如实标注——这意味着它也能"降级"。
 - 已知取舍：中途 Ctrl+C 打断在"下载后、清理前"会留下一个 `3rdloop-release-*`（TEMP 内）；
   `--prefix` 会绕过用户 npm prefix 配置，bin shim 落在 `<prefix>` 而不在 PATH 里；
-  `--release-api/--release-repo/--prefix` 不支持 `--flag=value` 写法（与既有 `--registry` 一致）。
-- **默认 npm 路径行为未变**（连 `--help` 也只多了文档行）。注意默认路径有两个**既有**坑：
-  `update --registry <url>` 与 `update -y` 会被"未知参数"拒绝（旧 `unknowns` 过滤把任何非 `--`
-  token 当位置参数）——Release 路径已放行新 flag 的取值位置，默认路径待单独立项修。
+- **参数解析统一在 `parseUpdateArgs(rest)`**（导出、无 IO、可单测）：判据是「这个 token 是不是
+  已知开关 / 已知开关的取值」，不再按「是否以 `--` 开头」。由此：
+  - 值型开关支持 `--flag=value` 写法（如 `--registry=https://registry.npmjs.org/`）；
+  - 短开关 `-y` / `-h` 正常识别；
+  - 裸位置参数与未知开关仍被拒绝，错误信息会列出全部可用开关；
+  - update 解析的是 `flags.rest`（全局 flag 已被 `parseGlobalFlags` 消费），所以 `--json`、
+    `--data-dir <d>` 这类全局 flag 不会被误判成未知参数。
+  这三条曾长期错在旧实现里（`--registry <url>` 与 `-y` 都被当成位置参数拒绝）；
+  回归锁见 `test/m13-update-from-release` 的 J 组。
 
 - 易踩坑：
   - **不手动改 node_modules**：更新统一走 `npm install -g` 全量重装，保证依赖自洽。
