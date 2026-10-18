@@ -265,19 +265,26 @@ flowchart TD
 - 只装 Release 里的 **CLI tarball 会 E404**（npm 会去 registry 找核心包）；
 - 所以必须**两个 tarball 一起装**——下面的安装脚本就是干这个的：下载 → 校验 SHA256 → 一次装两个 → 自检 `3rdloop version`。
 
-安装脚本作为 **Release 附件**发布（`install.ps1` / `install.sh`），下载地址形如
-`https://gitcode.com/summor/3rdLibraryLoop/releases/download/<tag>/install.ps1`：
+安装脚本作为 **Release 附件**发布，GitHub 与 GitCode 两个 Release 都挂着同一套产物。
+
+**GitHub（主）**：
 
 ```powershell
-# Windows（把 <tag> 换成实际版本，如 v0.0.13）
-$u = 'https://gitcode.com/summor/3rdLibraryLoop/releases/download/<tag>/install.ps1'
-irm $u -OutFile "$env:TEMP\3l-install.ps1"; & "$env:TEMP\3l-install.ps1"
+# Windows —— 下载脚本再执行（GitHub 支持真 raw，也可直接 irm 管道）
+$u = 'https://github.com/summer-hub/3rdLibraryLoop/releases/download/v0.0.14/install.ps1'
+irm $u -OutFile "$env:TEMP\3l-install.ps1"
+& "$env:TEMP\3l-install.ps1" -Api https://api.github.com -Repo summer-hub/3rdLibraryLoop -Tag v0.0.14
 ```
 
 ```bash
 # Linux / macOS
-curl -fsSL https://gitcode.com/summor/3rdLibraryLoop/releases/download/<tag>/install.sh | bash
+curl -fsSL https://github.com/summer-hub/3rdLibraryLoop/releases/download/v0.0.14/install.sh \
+  | bash -s -- --api https://api.github.com --repo summer-hub/3rdLibraryLoop --tag v0.0.14
 ```
+
+**GitCode（镜像）**：把上面 URL 换成
+`https://gitcode.com/summor/3rdLibraryLoop/releases/download/v0.0.14/…`，
+并去掉 `-Api/-Repo`（脚本默认就指向 GitCode）。
 
 前置条件只有 **Node.js ≥ 22**。装完 `3rdloop version` 会打印 CLI 版本 + 核心包版本与来源
 （`node_modules（已安装核心包）` 说明走的是双包正路）。升级用 `3rdloop update --from-release --yes`。

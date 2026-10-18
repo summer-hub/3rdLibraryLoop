@@ -211,22 +211,28 @@ function renderNotes({ version, core, cli, outDir, hashes, generatedAt }) {
 
 校验文件：\`${SHA_FILE}\`（sha256sum 格式，两行）。
 
-## 新用户安装（一行命令）
+## 新用户安装
 
 本项目是双包发布，且核心包不在公共 npm registry 上 —— **只装 CLI 那个 tarball 会 E404**，
-必须两个 tarball 一起装。下面这两条脚本就是干这件事的（下载 → 校验 SHA256 → 一次装两个 → 自检）：
+必须两个 tarball 一起装。本 Release 的附件里带了安装脚本（下载 → 校验 SHA256 → 一次装两个 → 自检）：
 
 \`\`\`powershell
-# Windows
-irm https://raw.githubusercontent.com/summor/3rdLibraryLoop/master/scripts/install.ps1 | iex
+# Windows（GitHub）
+$u = "https://github.com/summer-hub/3rdLibraryLoop/releases/download/<tag>/install.ps1"
+irm $u -OutFile "$env:TEMP\\3l-install.ps1"
+& "$env:TEMP\\3l-install.ps1" -Api https://api.github.com -Repo summer-hub/3rdLibraryLoop -Tag <tag>
 \`\`\`
 
 \`\`\`bash
 # Linux / macOS
-curl -fsSL https://raw.githubusercontent.com/summor/3rdLibraryLoop/master/scripts/install.sh | bash
+curl -fsSL https://github.com/summer-hub/3rdLibraryLoop/releases/download/<tag>/install.sh \
+  | bash -s -- --api https://api.github.com --repo summer-hub/3rdLibraryLoop --tag <tag>
 \`\`\`
 
-指定版本：\`-Tag v0.0.14\`（PowerShell）/ \`--tag v0.0.14\`（bash）。
+GitCode 镜像：域名换成 \`https://gitcode.com/summor/3rdLibraryLoop/releases/download/<tag>/\`，
+并去掉 \`-Api/-Repo\`（脚本默认指向 GitCode）。
+
+指定版本：\`-Tag <tag>\`（PowerShell）/ \`--tag <tag>\`（bash）。
 离线或验证本次产物：\`-FromDir <本目录>\` / \`--from-dir <本目录>\`。
 
 ## 本地安装（验证用）
