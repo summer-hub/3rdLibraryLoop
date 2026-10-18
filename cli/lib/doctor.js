@@ -28,7 +28,7 @@ import { execSync } from 'node:child_process';
 import { C } from './ui.js';
 import { resolveCliType } from './config.js';
 import { resolveCliServeConfig } from './opencode.js';
-import { CORE_PACKAGE, describeCoreSource } from './core-paths.js';
+import { CORE_PACKAGE, describeCoreSource, resolveCoreRootsOrNull } from './core-paths.js';
 
 /**
  * 检查命令是否在 PATH 中。
@@ -183,7 +183,46 @@ async function collectChecks({ projectRoot, skillDir, dataDir, user3libHome = ''
         fix: `npm i ${CORE_PACKAGE}（双包发布态），或重装 CLI：npm i -g @ohos-cpf/3rdloop@latest`,
     });
 
+    // 10. SQLite 原生绑定（better-sqlite3）
+    //     TaskStep/TaskRegistry 都落在 SQLite 上，绑定不可用会让落盘与并发用例静默降级。
+    //     注意区分两件事：**运行时能不能用** 与 **安装时会不会报错**。
+    //     better-sqlite3 13.x 自带预编译二进制（`prebuilds/<platform>-<arch>.node`，运行时由
+    //     node-gyp-build 加载），所以即使 `npm ci` 在没有 Python/MSVC 的机器上因原生构建失败，
+    //     用 `--ignore-scripts` 装出来的包仍然完全可用 —— 这条检查只回答"现在能不能用"。
+    checks.push(await checkSqliteBinding());
+
     return checks;
+}
+
+/**
+ * 检查 SQLite 原生绑定是否真的可加载并执行查询。
+ *
+ * 从**核心树**解析（而不是 doctor 自己的 node_modules），因为 better-sqlite3 是核心包的依赖；
+ * 开发态与安装态都要指向同一棵树。
+ */
+async function checkSqliteBinding() {
+    const name = 'SQLite 原生绑定（better-sqlite3）';
+    try {
+        const { createRequire } = await import('node:module');
+        const roots = resolveCoreRootsOrNull();
+        const base = roots?.coreRoot ? path.join(roots.coreRoot, 'package.json') : import.meta.url;
+        const Database = createRequire(base)('better-sqlite3');
+        const db = new Database(':memory:');
+        db.prepare('select 1 as x').get();
+        db.close();
+        return { name, passed: true, detail: '可加载并执行查询（TaskStep / TaskRegistry 依赖它）' };
+    } catch (err) {
+        const first = String(err?.message ?? err).split('\n')[0];
+        return {
+            name,
+            passed: false,
+            detail: `不可用: ${first}`,
+            fix:
+                '安装报错但运行时可用是正常现象（该包自带预编译二进制）：' +
+                'npm ci --ignore-scripts（仓库/CI），或 npm i --ignore-scripts @ohos-cpf/3rdloop_core（安装态）；' +
+                '若确实要本地编译，需先装 Python + MSVC 构建工具后重试 npm ci',
+        };
+    }
 }
 
 /**

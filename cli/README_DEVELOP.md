@@ -6,6 +6,24 @@
 FlexRunner / TestCheck / Knowledge），无需启动 HTTP 服务，即可从终端完整跑一遍
 "任务拆解 → 编排执行 → 准出审核"的大循环。
 
+## 开发环境安装（含 better-sqlite3 原生绑定的坑）
+
+```bash
+npm ci --ignore-scripts      # 推荐：跳过原生构建，几秒装完
+npm test                     # 13 套件全绿即环境就绪
+```
+
+**为什么要 `--ignore-scripts`**：`better-sqlite3`（TaskStep / TaskRegistry 用）**自带预编译
+二进制**（`prebuilds/win32-x64.node`、`linux-x64.node` 等 8 个平台，运行时由 `node-gyp-build`
+直接加载）。但在没有 Python + MSVC 构建工具的机器上，`npm ci` 若走到它的原生构建路径会报
+`gyp ERR! find Python`，安装中断——**而运行期根本不缺任何东西**：跳过 scripts 之后
+`require('better-sqlite3')` 与真实查询都正常（已在干净 checkout 实测）。
+
+- 只想装完能用 → `npm ci --ignore-scripts`；
+- 确实要本地编译 → 先装 Python 3 + VS Build Tools，再 `npm ci`；
+- 判断"现在到底能不能用"，别看安装日志，跑 `3rdloop doctor`——它有专门的
+  「SQLite 原生绑定（better-sqlite3）」检查项，可加载并执行一次真实查询才算通过。
+
 ## 快速开始
 
 ```bash
