@@ -1,6 +1,6 @@
 {
     "name": "@ohos-cpf/3rdloop_core",
-    "version": "0.0.14",
+    "version": "0.3.0",
     "description": "3rdLibraryLoop 核心包：Server 引擎 + 插件内核（core/）+ 插件（plugins/）+ 能力契约（seams/）+ profile（profiles/）+ 配套资产（MCP/Archive/BadCase）",
     "type": "module",
     "private": false,
