@@ -26,6 +26,9 @@ function pluginsAttr(s) {
         .replace(/>/g, '&gt;');
 }
 
+/** 用户级插件根的展示写法（真实绝对路径以后端返回的 roots 为准） */
+const USER_PLUGIN_HINT = '~/.3lib/plugins';
+
 const Plugins = {
     _state: null,
     _busy: false,
@@ -37,7 +40,7 @@ const Plugins = {
         return this.reload();
     },
 
-    /** 表格里的开关走事件委托，面板重渲染不需要重新绑定 */
+    /** 表格里的开关与「卸载」都走事件委托，面板重渲染不需要重新绑定 */
     _bindOnce: function () {
         const host = $('plugins-table-wrap');
         if (this._bound || !host) return;
@@ -47,6 +50,26 @@ const Plugins = {
             if (!el || !el.classList || !el.classList.contains('pl-switch')) return;
             Plugins._toggle(el, el.dataset.plugin, el.checked);
         });
+        host.addEventListener('click', function (ev) {
+            const btn = ev.target && ev.target.closest ? ev.target.closest('.pl-remove') : null;
+            if (!btn) return;
+            Plugins._remove(btn.dataset.plugin);
+        });
+
+        // 安装：输入目录 + 按钮（回车等价于点按钮）
+        const input = $('plugins-install-dir');
+        const btnInstall = $('plugins-install-btn');
+        if (input && btnInstall) {
+            btnInstall.addEventListener('click', function () {
+                Plugins._install(input);
+            });
+            input.addEventListener('keydown', function (ev) {
+                if (ev.key === 'Enter') {
+                    ev.preventDefault();
+                    Plugins._install(input);
+                }
+            });
+        }
     },
 
     /**
@@ -159,17 +182,26 @@ const Plugins = {
 
             const source = p.source === 'builtin' ? '内置' : p.source === 'user' ? '用户' : '—';
 
+            // 用户级插件才给「卸载」：内置插件随核心包发布，卸载要走包管理器（CLI 同样拒绝）。
+            // 放在名字单元格内而不是最右列——最右列在窄窗口会被横向滚动挤出视野。
+            const removeBtn = p.source === 'user'
+                ? '<button type="button" class="pl-remove" data-plugin="' + pluginsAttr(p.name) +
+                  '" title="从 ' + pluginsAttr(USER_PLUGIN_HINT) + ' 删除该插件目录">卸载</button>'
+                : '';
+
             return (
                 '<tr>' +
                 '<td class="pl-name">' + escapeHtml(p.name) +
                 (p.required ? '<span class="pl-required" title="被标记 required，禁用会让启动 fail closed">required</span>' : '') +
+                removeBtn +
                 '</td>' +
                 '<td class="pl-seam">' + escapeHtml(p.seam || '—') + '</td>' +
                 '<td>' + status + '</td>' +
                 '<td>' + escapeHtml(source) + '</td>' +
-                '<td class="pl-deps">' + (dependents.length ? escapeHtml(dependents.join('、')) : '—') +
-                (dependents.length ? '<span class="pl-required">禁用前需确认</span>' : '') + '</td>' +
-                '<td>' + self._switchHtml(p, installed) + '</td>' +
+                '<td class="pl-deps">' + (dependents.length
+                    ? '<span title="这些插件依赖它；禁用前会要求确认">' + escapeHtml(dependents.join('、')) + '</span>'
+                    : '—') + '</td>' +
+                '<td class="pl-ops">' + self._switchHtml(p, installed) + '</td>' +
                 '</tr>'
             );
         });
@@ -254,6 +286,76 @@ const Plugins = {
             if (list[i].name === name) return list[i];
         }
         return null;
+    },
+
+    /**
+     * 安装插件：把**本机目录**装进用户插件根（与 CLI `plugin add` 同一实现）。
+     * 后端负责校验清单、复制、复查宿主可见性并在失败时回滚；这里只搬运结果。
+     * @param {HTMLInputElement} input - 目录输入框
+     */
+    _install: async function (input) {
+        const dir = ((input && input.value) || '').trim();
+        if (!dir) {
+            toast('warn', '请填写插件目录路径（该目录须包含 plugin.json）');
+            return;
+        }
+        if (this._busy) {
+            toast('info', '上一次写入尚未完成，请稍候');
+            return;
+        }
+
+        this._busy = true;
+        try {
+            const r = await apiFetch('POST', '/api/plugins/install', { dir: dir }, 30000);
+            const payload = r.data || {};
+            if (payload.success === true && payload.data) {
+                const d = payload.data;
+                if (input) input.value = '';
+                await this.reload();
+                this._notice('已安装 ' + d.name + ' → ' + d.dir + '，重启 `3rdloop serve` 生效');
+                return;
+            }
+            this._showError(payload.message || ('安装失败（HTTP ' + r.status + '）'));
+        } catch (e) {
+            this._showError('安装失败：' + e.message);
+        } finally {
+            this._busy = false;
+        }
+    },
+
+    /**
+     * 卸载用户级插件：先确认，再 POST；内置插件界面不给入口（后端同样拒绝）。
+     * @param {string} name
+     */
+    _remove: async function (name) {
+        const target = this._find(name);
+        if (!target) return;
+        const ok = window.confirm(
+            '确定卸载 ' + name + '？\n\n会删除目录：' + (target.dir || '（用户插件根下）') +
+            '\n删除后不可恢复；内置插件不受影响。'
+        );
+        if (!ok) return;
+
+        if (this._busy) {
+            toast('info', '上一次写入尚未完成，请稍候');
+            return;
+        }
+
+        this._busy = true;
+        try {
+            const r = await apiFetch('POST', '/api/plugins/remove', { name: name }, 30000);
+            const payload = r.data || {};
+            if (payload.success === true) {
+                await this.reload();
+                this._notice('已卸载 ' + name + '，重启 `3rdloop serve` 生效');
+                return;
+            }
+            this._showError(payload.message || ('卸载失败（HTTP ' + r.status + '）'));
+        } catch (e) {
+            this._showError('卸载失败：' + e.message);
+        } finally {
+            this._busy = false;
+        }
     },
 
     /** 顶部成功提示（写入位置 + 需要重启） */

@@ -15,7 +15,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { PluginHost, USER_PLUGINS_DIR, USER_PROFILES_DIR, loadProfile } from '../../core/index.js';
+import { PluginHost, USER_PLUGINS_DIR, USER_PROFILES_DIR, loadProfile, validateManifest } from '../../core/index.js';
 
 /** 用户级 overlay 目录（包外、可写、升级不丢） */
 export const OVERLAY_DIR = USER_PROFILES_DIR;
@@ -230,3 +230,132 @@ export function check({ profile, env = process.env } = {}) {
 }
 
 export { loadProfile, USER_PLUGINS_DIR };
+
+/** 判断 target 是否在 root 之下（统一分隔符与大小写，Windows 上大小写不同不算越界）。 */
+function isUnder(target, root) {
+    const norm = (p) => path.resolve(p).replace(/\\/g, '/').toLowerCase();
+    const t = norm(target);
+    const r = norm(root);
+    return t === r || t.startsWith(`${r}/`);
+}
+
+/** 去 UTF-8 BOM（手写/记事本保存的 plugin.json 会带，JSON.parse 会因此报非法字符）。 */
+function stripBom(text) {
+    return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+}
+
+/**
+ * 安装插件目录到 `~/.3lib/plugins/<name>/`（CLI `plugin add` 与前端「安装插件」共用）。
+ *
+ * 复制前校验清单（复用内核 `validateManifest`，与宿主扫描同一套判定），复制后用
+ * `readState()` **复查**——"命令说装好了"不算数，"宿主能看见且来源是 user"才算；
+ * 复查失败即回滚，不留幽灵目录。
+ *
+ * @param {object} opts
+ * @param {string} opts.dir - 源插件目录
+ * @param {NodeJS.ProcessEnv} [opts.env]
+ * @returns {{name: string, dir: string, version: string, seam: string, source: string, enabled: boolean, requiresRestart: true}}
+ * @throws {Error} 目录不存在 / 缺清单 / 清单非法 / 目标已存在 / 复查失败（已回滚）
+ */
+export function installPlugin({ dir, env = process.env }) {
+    if (!dir) throw new Error('缺少插件目录（安装需要插件目录路径）');
+
+    const source = path.resolve(dir);
+    if (!fs.existsSync(source) || !fs.statSync(source).isDirectory()) {
+        throw new Error(`插件目录不存在或不是目录: ${source}`);
+    }
+    const manifestFile = path.join(source, 'plugin.json');
+    if (!fs.existsSync(manifestFile)) throw new Error(`目录里没有 plugin.json: ${manifestFile}`);
+
+    let manifest;
+    try {
+        manifest = JSON.parse(stripBom(fs.readFileSync(manifestFile, 'utf8')));
+    } catch (err) {
+        throw new Error(`plugin.json 解析失败 ${manifestFile}: ${err.message}`);
+    }
+    try {
+        validateManifest(manifest, { source: manifestFile });
+    } catch (err) {
+        throw new Error(err.message);
+    }
+    // 安装要求四项齐全：缺字段的清单装了也无法被发现/装载
+    for (const key of ['name', 'version', 'seam', 'entry']) {
+        if (typeof manifest[key] !== 'string' || manifest[key] === '') {
+            throw new Error(`${manifestFile} 缺少 ${key}（安装要求 name/version/seam/entry 齐全）`);
+        }
+    }
+
+    const name = manifest.name;
+    const target = path.join(USER_PLUGINS_DIR, ...name.split('/'));
+    if (!isUnder(target, USER_PLUGINS_DIR)) throw new Error(`插件名非法（越出用户插件根）: ${name}`);
+    if (fs.existsSync(target)) throw new Error(`目标目录已存在: ${target}（先卸载旧版再装）`);
+
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.cpSync(source, target, { recursive: true });
+
+    const entry = readState({ env }).plugins.find((p) => p.name === name);
+    if (!entry || !entry.installed || entry.source !== 'user') {
+        fs.rmSync(target, { recursive: true, force: true });
+        const why = !entry
+            ? '宿主没有发现这个插件'
+            : entry.source === 'builtin'
+              ? '同名内置插件已存在（先到者胜，内置优先）'
+              : `宿主看到的是 ${entry.source} 来源`;
+        throw new Error(`安装复查失败（已回滚 ${target}）：${why}`);
+    }
+
+    return {
+        name,
+        dir: entry.dir,
+        version: manifest.version,
+        seam: manifest.seam,
+        source: entry.source,
+        enabled: entry.enabled,
+        requiresRestart: true,
+    };
+}
+
+/**
+ * 卸载用户级插件（只删 `~/.3lib/plugins/<name>`，内置插件拒绝）。
+ *
+ * @param {object} opts
+ * @param {string} opts.name
+ * @param {NodeJS.ProcessEnv} [opts.env]
+ * @returns {{name: string, dir: string, removed: true, requiresRestart: true}}
+ * @throws {Error} 未知插件 / 未安装 / 内置插件 / 越界路径 / 卸载未生效
+ */
+export function removePlugin({ name, env = process.env }) {
+    if (!name) throw new Error('缺少插件名（卸载需要插件名）');
+
+    const state = readState({ env });
+    const target = state.plugins.find((p) => p.name === name);
+    if (!target) {
+        const known = state.plugins.map((p) => p.name).join(', ');
+        throw new Error(`未知插件: ${name}（已发现: ${known || '无'}）`);
+    }
+    if (!target.installed) throw new Error(`插件 ${name} 未安装（profile 提到了它，但插件根里没有目录），无需卸载`);
+    if (target.source !== 'user') {
+        throw new Error(
+            `插件 ${name} 是内置插件（${target.dir}），不能卸载。\n` +
+                `        内置插件随核心包发布，卸载请走包管理器；只想起停用它：3rdloop plugin disable ${name}`
+        );
+    }
+
+    const dir = path.resolve(target.dir);
+    // 删除前二次确认：目录来自磁盘扫描结果，不该有任何越界余地
+    if (!isUnder(dir, USER_PLUGINS_DIR)) throw new Error(`拒绝删除用户插件根之外的路径: ${dir}`);
+
+    fs.rmSync(dir, { recursive: true, force: true });
+    // 顺手清掉空的组目录（如 demo/echo 卸载后留下空的 demo/）——否则用户插件根会积一堆空壳
+    let parent = path.dirname(dir);
+    while (isUnder(parent, USER_PLUGINS_DIR) && path.resolve(parent) !== path.resolve(USER_PLUGINS_DIR)) {
+        const rest = fs.readdirSync(parent);
+        if (rest.length > 0) break;
+        fs.rmdirSync(parent);
+        parent = path.dirname(parent);
+    }
+    const after = readState({ env }).plugins.find((p) => p.name === name);
+    if (after?.installed) throw new Error(`卸载未生效：${name} 仍被发现于 ${after.dir}`);
+
+    return { name, dir, removed: true, requiresRestart: true };
+}

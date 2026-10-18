@@ -17,11 +17,9 @@
  * `plugin add` 装进去的目录宿主根本看不见。
  */
 
-import fs from 'node:fs';
-import path from 'node:path';
-import { USER_PLUGINS_DIR, validateManifest } from '../../core/index.js';
+import { USER_PLUGINS_DIR } from '../../core/index.js';
 import { EXIT } from './exit-codes.js';
-import { check, readState, setEnabled } from './plugin-store.js';
+import { check, installPlugin, readState, removePlugin, setEnabled } from './plugin-store.js';
 
 /** 完整用法（`--help` 走 stdout 退出 0；参数错误走 stderr 退出 1） */
 const USAGE = `3rdloop plugin —— 插件管理（读写用户级 overlay，不改包内 profile）
@@ -309,115 +307,49 @@ function pluginPath({ jsonMode, emitJson }) {
 /**
  * add：把插件目录复制到 `~/.3lib/plugins/<name>/`。
  *
- * 复制前先校验清单（复用内核 `validateManifest`，与宿主扫描同一套判定），复制后再用
- * `readState()` 复查——「命令说装好了」不算数，「宿主能看见且来源是 user」才算。
- * 复查失败即回滚（删掉刚复制的目录），不留一个装了个寂寞的幽灵目录。
+ * 逻辑在 `plugin-store.installPlugin()`（前端「安装插件」共用同一实现）：
+ * 校验清单 → 复制 → 用 readState() 复查宿主是否真的看得见、来源是否 user → 失败回滚。
+ * 这里只负责 CLI 的输出契约（人读文案 / --json）。
  */
-function pluginAdd({ jsonMode, emitJson, usageError, fail }, dir) {
+function pluginAdd(ctx, dir) {
+    const { jsonMode, emitJson, usageError, fail } = ctx;
     if (!dir) return usageError('缺少插件目录: 3rdloop plugin add <dir>');
 
-    const source = path.resolve(dir);
-    if (!fs.existsSync(source) || !fs.statSync(source).isDirectory()) {
-        return fail(`插件目录不存在或不是目录: ${source}`);
-    }
-
-    const manifestFile = path.join(source, 'plugin.json');
-    if (!fs.existsSync(manifestFile)) return fail(`目录里没有 plugin.json: ${manifestFile}`);
-
-    let manifest;
+    let result;
     try {
-        manifest = JSON.parse(stripBom(fs.readFileSync(manifestFile, 'utf8')));
-    } catch (err) {
-        return fail(`plugin.json 解析失败 ${manifestFile}: ${err.message}`);
-    }
-    try {
-        validateManifest(manifest, { source: manifestFile });
+        result = installPlugin({ dir });
     } catch (err) {
         return fail(err.message);
     }
-    // 安装要求四项齐全：内置插件的清单都带齐，缺字段的清单装了也无法被发现/装载
-    for (const key of ['name', 'version', 'seam', 'entry']) {
-        if (typeof manifest[key] !== 'string' || manifest[key] === '') {
-            return fail(`${manifestFile} 缺少 ${key}（安装要求 name/version/seam/entry 齐全）`);
-        }
-    }
-
-    const name = manifest.name;
-    const target = path.join(USER_PLUGINS_DIR, ...name.split('/'));
-    if (!isUnder(target, USER_PLUGINS_DIR)) return fail(`插件名非法（越出用户插件根）: ${name}`);
-    if (fs.existsSync(target)) {
-        return fail(`目标目录已存在: ${target}\n        先卸载旧版：3rdloop plugin remove ${name}`);
-    }
-
-    fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.cpSync(source, target, { recursive: true });
-
-    const state = readState();
-    const entry = state.plugins.find((p) => p.name === name);
-    if (!entry || !entry.installed || entry.source !== 'user') {
-        fs.rmSync(target, { recursive: true, force: true });
-        const why = !entry
-            ? '宿主没有发现这个插件'
-            : entry.source === 'builtin'
-              ? '同名内置插件已存在（先到者胜，内置优先）'
-              : `宿主看到的是 ${entry.source} 来源`;
-        return fail(`安装复查失败（已回滚 ${target}）：${why}`);
-    }
 
     if (jsonMode) {
-        emitJson({
-            ok: true,
-            name,
-            dir: entry.dir,
-            version: manifest.version,
-            seam: manifest.seam,
-            entry: manifest.entry,
-            source: entry.source,
-            enabled: entry.enabled,
-            requiresRestart: true,
-        });
+        emitJson({ ok: true, ...result });
     } else {
-        process.stdout.write(`已安装 ${name} → ${entry.dir}\n`);
+        process.stdout.write(`已安装 ${result.name} → ${result.dir}\n`);
         process.stdout.write(`重启 3rdloop serve 后生效（宿主启动时扫描 ${USER_PLUGINS_DIR}）\n`);
-        if (!entry.enabled) {
-            process.stdout.write(`当前为禁用状态（${entry.reason ?? 'profile 禁用'}），启用：3rdloop plugin enable ${name}\n`);
+        if (!result.enabled) {
+            process.stdout.write(`当前为禁用状态，启用：3rdloop plugin enable ${result.name}\n`);
         }
     }
     return EXIT.OK;
 }
 
-/** remove：只删 `source === 'user'` 的插件目录（内置插件属包产物，不由本命令删） */
-function pluginRemove({ jsonMode, emitJson, usageError, fail }, name) {
+/** remove：只删 `source === 'user'` 的插件目录（逻辑在 `plugin-store.removePlugin()`） */
+function pluginRemove(ctx, name) {
+    const { jsonMode, emitJson, usageError, fail } = ctx;
     if (!name) return usageError('缺少插件名: 3rdloop plugin remove <name>');
 
-    const state = readState();
-    const target = state.plugins.find((p) => p.name === name);
-    if (!target) {
-        const known = state.plugins.map((p) => p.name).join(', ');
-        return fail(`未知插件: ${name}（已发现: ${known || '无'}）`);
-    }
-    if (!target.installed) return fail(`插件 ${name} 未安装（profile 提到了它，但插件根里没有目录），无需卸载`);
-    if (target.source !== 'user') {
-        return fail(
-            `插件 ${name} 是内置插件（${target.dir}），不能通过 plugin remove 删除。\n` +
-                `        内置插件随核心包发布，卸载请走包管理器；只想起停用它：3rdloop plugin disable ${name}`
-        );
-    }
-
-    const dir = path.resolve(target.dir);
-    // 删除前二次确认目标在用户插件根之内：目录来自磁盘扫描结果，不该有任何越界余地
-    if (!isUnder(dir, USER_PLUGINS_DIR)) return fail(`拒绝删除用户插件根之外的目录: ${dir}`);
-
-    fs.rmSync(dir, { recursive: true, force: true });
-    const after = readState().plugins.find((p) => p.name === name);
-    if (after?.installed) {
-        return fail(`卸载未生效：${name} 仍被发现于 ${after.dir}`);
+    let result;
+    try {
+        result = removePlugin({ name });
+    } catch (err) {
+        return fail(err.message);
     }
 
     if (jsonMode) {
-        emitJson({ ok: true, name, dir, removed: true });
+        emitJson({ ok: true, name: result.name, dir: result.dir, removed: true });
     } else {
-        process.stdout.write(`已卸载 ${name}（删除 ${dir}）\n`);
+        process.stdout.write(`已卸载 ${result.name}（删除 ${result.dir}）\n`);
     }
     return EXIT.OK;
 }
@@ -481,17 +413,8 @@ function disableImpact(p, state) {
 }
 
 /** 去掉 UTF-8 BOM（Windows 记事本保存的 plugin.json 常带），否则 JSON.parse 会报非法字符 */
-function stripBom(text) {
-    return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
-}
 
 /** dir 是否在 root 之下（统一分隔符与大小写，Windows 上大小写不同不该被判成越界） */
-function isUnder(dir, root) {
-    const norm = (p) => path.resolve(p).replace(/\\/g, '/').toLowerCase();
-    const d = norm(dir);
-    const r = norm(root);
-    return d === r || d.startsWith(`${r}/`);
-}
 
 /** 显示宽度：CJK 占 2 列，否则表格里中英混排必然错位 */
 function displayWidth(s) {

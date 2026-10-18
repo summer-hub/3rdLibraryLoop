@@ -267,6 +267,47 @@ try {
     const g3 = await request(guarded.port, 'POST', '/api/plugins/toggle', { body: { name: 'engines/brain', enabled: true } });
     check('G3 未携带令牌的 POST /api/plugins/toggle 同样 401（不写盘）',
         g3.status === 401 && g3.json?.success === false, `status=${g3.status} ${g3.text?.slice(0, 160)}`);
+
+    // ─── H 安装 / 卸载（POST /api/plugins/install|remove，与 CLI plugin add/remove 同一实现）──
+    const fixtureDir = path.join(tmp, 'fixture-plugin');
+    await fs.mkdir(fixtureDir, { recursive: true });
+    await fs.writeFile(
+        path.join(fixtureDir, 'plugin.json'),
+        JSON.stringify({ name: 'm16/demo', version: '1.0.0', seam: 'app-logger', entry: 'index.js', dependencies: [] }),
+        'utf8'
+    );
+    await fs.writeFile(path.join(fixtureDir, 'index.js'), 'export default { name: "m16/demo" };\n', 'utf8');
+
+    const h1 = await request(port, 'POST', '/api/plugins/install', { body: { dir: fixtureDir } });
+    check('H1 安装合法插件 → 200 + success=true + source=user',
+        h1.status === 200 && h1.json?.success === true && h1.json?.data?.source === 'user',
+        `status=${h1.status} ${h1.text?.slice(0, 200)}`);
+    check('H2 装到假 HOME 的用户插件根下（不碰真实 ~/.3lib）',
+        existsSync(path.join(fakeHome, '.3lib', 'plugins', 'm16', 'demo', 'plugin.json')));
+    const h3 = await request(port, 'GET', '/api/plugins');
+    const h3entry = (h3.json?.data?.plugins ?? []).find((p) => p.name === 'm16/demo');
+    check('H3 安装后快照里出现该插件且来源=user', h3entry?.source === 'user' && h3entry?.enabled === true);
+
+    const h4 = await request(port, 'POST', '/api/plugins/install', { body: { dir: fixtureDir } });
+    check('H4 重复安装 → 400（目标目录已存在）',
+        h4.status === 400 && h4.json?.success === false, `status=${h4.status} ${h4.text?.slice(0, 160)}`);
+    const h5 = await request(port, 'POST', '/api/plugins/install', { body: { dir: path.join(tmp, 'no-such-dir') } });
+    check('H5 目录不存在 → 400', h5.status === 400 && h5.json?.success === false, `status=${h5.status}`);
+    const h6 = await request(port, 'POST', '/api/plugins/install', { body: {} });
+    check('H6 缺 dir → 400', h6.status === 400 && /缺少插件目录/.test(h6.json?.message ?? ''), String(h6.json?.message));
+
+    const h7 = await request(port, 'POST', '/api/plugins/remove', { body: { name: 'm16/demo' } });
+    check('H7 卸载用户级插件 → 200 + removed=true',
+        h7.status === 200 && h7.json?.data?.removed === true, `status=${h7.status} ${h7.text?.slice(0, 160)}`);
+    check('H8 卸载后目录与其空的组目录都被清掉',
+        !existsSync(path.join(fakeHome, '.3lib', 'plugins', 'm16')));
+    const h9 = await request(port, 'POST', '/api/plugins/remove', { body: { name: 'storage/core' } });
+    check('H9 卸载内置插件 → 400 且点名"内置"',
+        h9.status === 400 && /内置/.test(h9.json?.message ?? ''), `status=${h9.status} ${h9.text?.slice(0, 160)}`);
+    const h10 = await request(port, 'POST', '/api/plugins/remove', { body: { name: 'no/such-plugin' } });
+    check('H10 卸载未知插件 → 400', h10.status === 400 && h10.json?.success === false, `status=${h10.status}`);
+    const h11 = await request(port, 'GET', '/api/plugins/remove');
+    check('H11 用 GET 访问 remove 端点 → 405', h11.status === 405, `status=${h11.status}`);
 } catch (err) {
     check('Z1 测试执行未抛异常', false, err?.message ?? String(err));
 } finally {

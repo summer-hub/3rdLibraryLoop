@@ -464,7 +464,9 @@ node cli/bin/3rdloop.mjs run <name> --print-taskdef    # 缺必填
   提供方。这条是补出来的——早先版本禁掉 `engines/brain` 后 `check` 仍报 ok，而 `buildApp`
   立刻 fail closed，静态检查与真实结论相反。
 - `add` 装到 `~/.3lib/plugins/<name>/`（内核 `USER_PLUGINS_DIR`）；`remove` 只删用户级插件，
-  内置插件拒绝。
+  内置插件拒绝，并顺手清掉因此变空的组目录（`demo/echo` 卸载后不留空 `demo/`）。
+- add/remove 的**逻辑在 `plugin-store.installPlugin/removePlugin`**，前端 `/api/plugins/install|remove`
+  调的是同一份实现；`plugin-cmd.js` 只负责 CLI 输出。改行为改 store，不要在两侧各写一遍。
 - **BOM 兼容**：`core/Profile.js` 与 `readOverlay` 都会剥 `U+FEFF`——Windows 记事本保存的 profile
   带 BOM 时 `JSON.parse` 会报"非法字符"，而用户看不出任何语法错误（实测踩到过）。
 - **生效语义**：overlay 在进程启动时读取，改完需重启 `3rdloop serve` / 下次命令才生效；

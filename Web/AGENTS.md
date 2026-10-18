@@ -68,6 +68,9 @@ Web/ext/<name>/
 - 数据源是 **`GET /api/plugins`**（由 `cli/lib/web.js` 在 `/api/*` 反代**之前**本地响应），
   背后是内核 `PluginHost.describe()` + `cli/lib/plugin-store.js` 的 `check()`——与
   `3rdloop plugin list/check` **同一份数据、同一套判定**，不存在"界面说能关、命令行说不能"。
+- 安装/卸载：**`POST /api/plugins/install`** `{dir}`（本机目录）与 **`POST /api/plugins/remove`** `{name}`，
+  与 CLI `plugin add` / `plugin remove` 共用 `plugin-store` 的同一实现（校验清单 → 复制 → 复查宿主可见性 → 失败回滚）。
+  「卸载」按钮只出现在 `source === 'user'` 的行上；内置插件后端同样拒绝。
 - 开关走 **`POST /api/plugins/toggle`** `{name, enabled, force?}`，成功返回
   `{success:true, data:{...,requiresRestart:true}}`；校验失败回 **HTTP 400**（不是 500），
   `message` 直接展示给用户。
@@ -76,7 +79,7 @@ Web/ext/<name>/
 - `required` 插件开关置灰并给出原因；被启用插件依赖的（`dependents.length > 0`）先
   `confirm()` 再带 `force:true` 提交，取消则不发请求。
 - 接缝冲突（同一接缝多个提供方，如 `ai-cli`）在页面上标出提供方与生效者。
-- 验收：`test/m16-plugin-web`（29 条断言）覆盖快照 / toggle / 400 拒绝 / 坏 body / 静态资源 / 令牌门禁。
+- 验收：`test/m16-plugin-web`（40 条断言）覆盖快照 / toggle / install / remove / 400 拒绝 / 坏 body / 静态资源 / 令牌门禁。
 
 ## 新增扩展步骤
 

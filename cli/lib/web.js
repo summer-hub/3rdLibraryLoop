@@ -403,6 +403,14 @@ async function _handleRequest(req, res, { webRoot, extensions, backend, accessTo
         await _handlePluginsToggle(req, res);
         return;
     }
+    if (lower === '/api/plugins/install') {
+        await _handlePluginsInstall(req, res);
+        return;
+    }
+    if (lower === '/api/plugins/remove') {
+        await _handlePluginsRemove(req, res);
+        return;
+    }
 
     // 2. 扩展挂载点（页面 / API / 静态资源）
     for (const ext of extensions) {
@@ -544,8 +552,87 @@ async function _handlePluginsToggle(req, res) {
     }
 }
 
-/** 扩展请求：子路径根 → 页面；其次 API 路由；最后 public/ 静态 */
-async function _handleExtRequest(ext, req, res, subpath, url) {
+/**
+ * POST /api/plugins/install —— 从**本机目录**安装插件到 `~/.3lib/plugins/<name>/`。
+ *
+ * 逻辑与 CLI `3rdloop plugin add` 同一个实现（`plugin-store.installPlugin`）：校验清单 →
+ * 复制 → 用 `readState()` 复查宿主是否真的看得见、来源是否 user → 失败自动回滚。
+ * 失败一律 400（目录不存在/清单非法/目标已存在都是用户输入问题）。
+ */
+async function _handlePluginsInstall(req, res) {
+    const method = (req.method || 'GET').toUpperCase();
+    if (method !== 'POST') {
+        _sendJson(res, 405, { success: false, message: 'method not allowed（POST /api/plugins/install）' });
+        return;
+    }
+    const parsed = await readJsonBody(req);
+    if (!parsed.ok) {
+        _sendJson(res, 400, { success: false, message: `请求体读取失败: ${parsed.error}` });
+        return;
+    }
+    const body = parsed.body && typeof parsed.body === 'object' ? parsed.body : {};
+    const dir = typeof body.dir === 'string' ? body.dir.trim() : '';
+    if (!dir) {
+        _sendJson(res, 400, { success: false, message: '缺少插件目录 dir（本机路径，如 D:/my-plugin）' });
+        return;
+    }
+
+    try {
+        const store = await _pluginStore();
+        const result = store.installPlugin({ dir });
+        _sendJson(res, 200, {
+            success: true,
+            data: {
+                name: result.name,
+                dir: result.dir,
+                version: result.version,
+                seam: result.seam,
+                source: result.source,
+                enabled: result.enabled,
+                requiresRestart: result.requiresRestart !== false,
+            },
+        });
+    } catch (err) {
+        _sendJson(res, 400, { success: false, message: err.message });
+    }
+}
+
+/**
+ * POST /api/plugins/remove —— 卸载用户级插件（内置插件拒绝）。
+ *
+ * 逻辑与 CLI `3rdloop plugin remove` 同一个实现（`plugin-store.removePlugin`）。
+ */
+async function _handlePluginsRemove(req, res) {
+    const method = (req.method || 'GET').toUpperCase();
+    if (method !== 'POST') {
+        _sendJson(res, 405, { success: false, message: 'method not allowed（POST /api/plugins/remove）' });
+        return;
+    }
+    const parsed = await readJsonBody(req);
+    if (!parsed.ok) {
+        _sendJson(res, 400, { success: false, message: `请求体读取失败: ${parsed.error}` });
+        return;
+    }
+    const body = parsed.body && typeof parsed.body === 'object' ? parsed.body : {};
+    const name = typeof body.name === 'string' ? body.name.trim() : '';
+    if (!name) {
+        _sendJson(res, 400, { success: false, message: '缺少插件名 name（如 demo/echo）' });
+        return;
+    }
+
+    try {
+        const store = await _pluginStore();
+        const result = store.removePlugin({ name });
+        _sendJson(res, 200, {
+            success: true,
+            data: { name: result.name, dir: result.dir, removed: true, requiresRestart: result.requiresRestart !== false },
+        });
+    } catch (err) {
+        _sendJson(res, 400, { success: false, message: err.message });
+    }
+}
+
+/** 扩展请求：子路径根 → 页面；其次 API 路由；最后 public/ 静态 */async function _handleExtRequest(ext, req, res, subpath, url) {
     const method = (req.method || 'GET').toUpperCase();
 
     // 子路径根 → 扩展页面

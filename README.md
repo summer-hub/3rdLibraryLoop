@@ -5,7 +5,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-≥22-green)](https://nodejs.org/)
 [![ESM](https://img.shields.io/badge/ESM-modules-orange)](https://nodejs.org/api/esm.html)
 [![License](https://img.shields.io/badge/license-MIT-blue)](#-license)
-[![Tests](https://img.shields.io/badge/tests-17%20suites%20%2F%201751%20assertions-brightgreen)](#-测试与质量门禁)
+[![Tests](https://img.shields.io/badge/tests-17%20suites%20%2F%201762%20assertions-brightgreen)](#-测试与质量门禁)
 
 ---
 
@@ -135,12 +135,15 @@ engine-brain · engine-knowledge · engine-loop · engine-orchestrator · engine
 3rdloop plugin enable engines/brain
 3rdloop plugin check                   # 静态检查：依赖闭合 + 必需接缝是否有提供方（有 error 退出码 1）
 3rdloop plugin path                    # overlay 路径与当前 profile
-3rdloop plugin add <dir>               # 装到 ~/.3lib/plugins/<name>/
+3rdloop plugin add <dir>               # 装到 ~/.3lib/plugins/<name>/（前端「插件」页同一个实现）
 3rdloop plugin remove <name>           # 仅卸载用户级插件（内置拒绝）
 ```
 
-前端：工作台左侧导航「插件」分区（`GET /api/plugins` + `POST /api/plugins/toggle`），
-能看状态/来源/被依赖、接缝冲突与生效者，开关写入同一份 overlay。
+前端：工作台左侧导航「插件」分区（`GET /api/plugins` + `POST /api/plugins/toggle|install|remove`），
+能看状态/来源/被依赖、接缝冲突与生效者；
+- **开关**写同一份 overlay；
+- **安装**填本机插件目录路径 → 装到 `~/.3lib/plugins/`；
+- **卸载**只对「来源=用户」的行出现（内置插件拒绝，需走包管理器）。
 
 两条约定值得记住：
 
@@ -375,7 +378,7 @@ npm run ci          # lint + test（CI 唯一入口，.github/workflows/ci.yml �
 npm run coverage    # V8 覆盖率（口径见下方「已知缺口」）
 ```
 
-当前状态（本分支实测）：**17 套件 / 1751 条断言全绿**。
+当前状态（本分支实测）：**17 套件 / 1762 条断言全绿**。
 
 | 套件 | 断言 | 覆盖什么 |
 |------|-----:|----------|
