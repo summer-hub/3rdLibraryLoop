@@ -27,7 +27,16 @@
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import {
+import { pathToFileURL } from 'node:url';
+import { resolveCoreRoots } from './core-paths.js';
+
+// 内核必须走**四级解析**（`3LIB_CORE_DIR` > 已安装核心包 > vendor > 仓库根），
+// 不能用 `../../core/index.js` 这种静态相对路径：仓库里它指向仓库根的 `core/`，
+// 但装成包之后 `<pkg>/lib/plugin-store.js` 的 `../../core` 会落到
+// `node_modules/@ohos-cpf/core/`（不存在）——所有 `plugin` 子命令在安装态直接崩
+// （实测：3rdloop plugin path → Cannot find module '@ohos-cpf/core/index.js'）。
+// 顶层 await 让对外 API 保持同步，调用方无需改签名。
+const {
     BUILTIN_PLUGINS_DIR,
     DEFAULT_PROFILE,
     PROFILE_ENV,
@@ -37,7 +46,7 @@ import {
     listProfiles,
     loadProfile,
     validateManifest,
-} from '../../core/index.js';
+} = await import(pathToFileURL(path.join(resolveCoreRoots().coreRoot, 'core', 'index.js')).href);
 
 /** 用户级 profile 根目录（包外、可写、升级不丢） */
 export const OVERLAY_DIR = USER_PROFILES_DIR;

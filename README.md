@@ -257,6 +257,35 @@ flowchart TD
 
 ## 🚀 快速开始
 
+### 新用户：先装 `3rdloop` 命令
+
+本项目**双包发布**，且核心包 `@ohos-cpf/3rdloop_core` **不在公共 npm registry 上**。由此产生三条硬事实：
+
+- `npm i -g @ohos-cpf/3rdloop` 装到的是**旧单包**（npm 上的 0.2.x，不是本仓库这份代码）；
+- 只装 Release 里的 **CLI tarball 会 E404**（npm 会去 registry 找核心包）；
+- 所以必须**两个 tarball 一起装**——下面的安装脚本就是干这个的：下载 → 校验 SHA256 → 一次装两个 → 自检 `3rdloop version`。
+
+安装脚本作为 **Release 附件**发布（`install.ps1` / `install.sh`），下载地址形如
+`https://gitcode.com/summor/3rdLibraryLoop/releases/download/<tag>/install.ps1`：
+
+```powershell
+# Windows（把 <tag> 换成实际版本，如 v0.0.13）
+$u = 'https://gitcode.com/summor/3rdLibraryLoop/releases/download/<tag>/install.ps1'
+irm $u -OutFile "$env:TEMP\3l-install.ps1"; & "$env:TEMP\3l-install.ps1"
+```
+
+```bash
+# Linux / macOS
+curl -fsSL https://gitcode.com/summor/3rdLibraryLoop/releases/download/<tag>/install.sh | bash
+```
+
+前置条件只有 **Node.js ≥ 22**。装完 `3rdloop version` 会打印 CLI 版本 + 核心包版本与来源
+（`node_modules（已安装核心包）` 说明走的是双包正路）。升级用 `3rdloop update --from-release --yes`。
+
+> 想装到独立前缀（不污染全局）：`install.ps1 -Prefix C:\tools\3rdloop` / `install.sh --prefix ~/.local`。
+> 想验证本地产物：`-FromDir .\dist` / `--from-dir ./dist`。
+
+
 ### 方式 A：装 CLI 来用（使用者）
 
 发布物是**挂在该仓库 Release 上的两个 tarball**（不在公共 npm registry）：

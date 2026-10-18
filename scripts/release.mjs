@@ -33,6 +33,8 @@ const OUT_ENV = '3LIB_RELEASE_OUT';
 /** 产物文件名（不含目录）：tarball 名由包名派生，与 npm pack 的命名规则一致。 */
 const SHA_FILE = 'SHA256SUMS';
 const NOTES_FILE = 'RELEASE.md';
+/** 随产物一起发布的安装脚本（清理时同样只认自己生成的文件）。 */
+const INSTALLER_FILES = Object.freeze(['install.ps1', 'install.sh']);
 
 /** 当前步骤（失败信息要能指出是哪一步）。 */
 let stepName = '';
@@ -209,6 +211,24 @@ function renderNotes({ version, core, cli, outDir, hashes, generatedAt }) {
 
 校验文件：\`${SHA_FILE}\`（sha256sum 格式，两行）。
 
+## 新用户安装（一行命令）
+
+本项目是双包发布，且核心包不在公共 npm registry 上 —— **只装 CLI 那个 tarball 会 E404**，
+必须两个 tarball 一起装。下面这两条脚本就是干这件事的（下载 → 校验 SHA256 → 一次装两个 → 自检）：
+
+\`\`\`powershell
+# Windows
+irm https://raw.githubusercontent.com/summor/3rdLibraryLoop/master/scripts/install.ps1 | iex
+\`\`\`
+
+\`\`\`bash
+# Linux / macOS
+curl -fsSL https://raw.githubusercontent.com/summor/3rdLibraryLoop/master/scripts/install.sh | bash
+\`\`\`
+
+指定版本：\`-Tag v0.0.13\`（PowerShell）/ \`--tag v0.0.13\`（bash）。
+离线或验证本次产物：\`-FromDir <本目录>\` / \`--from-dir <本目录>\`。
+
 ## 本地安装（验证用）
 
 在产物目录下执行，注意**两个 tarball 一起装**（CLI 通过 \`@ohos-cpf/3rdloop_core\` 依赖核心包，
@@ -321,6 +341,19 @@ function main() {
     const sums = [core.tarball, cli.tarball].map((n) => `${hashes[n]}  ${n}`).join('\n');
     fs.writeFileSync(path.join(outDir, SHA_FILE), `${sums}\n`, 'utf8');
     process.stderr.write(`[release]\n${sums}\n`);
+
+    // ⑤-b 把安装脚本随产物一起发（gitcode 的 raw 地址返回的是 HTML 页面，
+    // 新用户只能从 Release 附件拿到可执行的脚本字节；attach 后一行命令才成立）
+    step('⑤-b 复制安装脚本进产物');
+    for (const name of INSTALLER_FILES) {
+        const from = path.join(REPO_ROOT, 'scripts', name);
+        if (!fs.existsSync(from)) {
+            process.stderr.write(`[release] 跳过 ${name}（脚本不存在）\n`);
+            continue;
+        }
+        fs.copyFileSync(from, path.join(outDir, name));
+        process.stderr.write(`[release] ${name}（安装脚本，随附）\n`);
+    }
 
     step('⑥ 生成 RELEASE.md');
     const notes = renderNotes({
