@@ -145,6 +145,9 @@ export async function runCli(argv) {
         case 'config':
             return cmdConfig({ flags, rest, projectRoot, user3libHome, jsonMode, out });
 
+        case 'plugin':
+            return cmdPlugin({ flags, rest, jsonMode, out });
+
         case 'mcp':
             return cmdMcpImpl({ rest, user3libHome, jsonMode });
 
@@ -247,6 +250,20 @@ async function cmdWorkflows({ jsonMode, out }) {
 async function cmdConfig({ flags, rest, projectRoot, user3libHome, jsonMode, out }) {
     const { cmdConfigImpl } = await import('./config-cmd.js');
     return cmdConfigImpl({ projectRoot, user3libHome, jsonMode, out, rest });
+}
+
+// ─── plugin（插件管理）────────────────────────────────────────────
+
+/**
+ * 3rdloop plugin 命令二段分发（转发到 lib/plugin-cmd.js）。
+ *
+ * 与 update 同样的坑：传 `flags.rest` 而不是原始 rest。全局 flag（`--json` 等）已被
+ * parseGlobalFlags 认领，拿原始 argv 会让 `plugin list --json` 的子命令解析把
+ * `--json` 当成未知开关而拒绝。
+ */
+async function cmdPlugin({ flags, rest, jsonMode, out }) {
+    const { cmdPluginImpl } = await import('./plugin-cmd.js');
+    return cmdPluginImpl({ rest: flags?.rest ?? rest, jsonMode, out });
 }
 
 // ─── mcp（MCP Gateway 装配）────────────────────────────────────────
@@ -716,6 +733,8 @@ function printHelp() {
   3rdloop workflows                     列出已注册的固定编排工作流
   3rdloop run <工作流名> [--flag <值> ...]     以固定编排执行工作流（阻塞到终态）
   3rdloop config list|get|set|unset ...  配置 .env 配置项（默认读写 ~/.3lib/.env）
+  3rdloop plugin list|info|enable|disable|check|path|add|remove   插件管理（详见下方「plugin 子命令」）
+           开关写入用户级 overlay（~/.3lib/3rdloop/profiles/），重启 3rdloop serve 后生效
   3rdloop mcp install [--cli opencode|deveco|all]  装配 MCP Gateway（注册到 AI CLI +
           种子复制知识库数据/BadCase 到 ~/.3lib/3rdloop/，npm 安装态必需）
   3rdloop mcp uninstall|status            移除注册 / 查看装配状态
@@ -746,6 +765,17 @@ config 子命令:
   3rdloop config set <KEY> <VALUE>    设置某项（文件: ~/.3lib/.env，密钥不回显）
   3rdloop config unset <KEY>          删除用户级 .env 中的某项（恢复默认）
   优先级: 系统环境变量 > ~/.3lib/.env > 默认值
+
+plugin 子命令（插件管理，写用户级 overlay，不改包内 profiles/）:
+  3rdloop plugin list [--json]        列出全部条目（含 profile 提到但未安装的）
+  3rdloop plugin info <name>          单个插件全字段 + 禁用后果
+  3rdloop plugin enable <name>        启用插件
+  3rdloop plugin disable <name> [--force]  禁用插件（被启用中的插件依赖时默认拒绝）
+  3rdloop plugin check                静态一致性检查（required 被禁/依赖被禁/接缝冲突）
+  3rdloop plugin path                 overlay 路径与当前 profile 名
+  3rdloop plugin add <dir>            安装插件目录到 ~/.3lib/plugins/<name>/
+  3rdloop plugin remove <name>        卸载用户级插件（内置插件拒绝）
+  开关写入 ~/.3lib/3rdloop/profiles/<profile>.json，重启 3rdloop serve 后生效
 
 update 专用选项:
   --check          仅检查是否有新版本，不执行更新
