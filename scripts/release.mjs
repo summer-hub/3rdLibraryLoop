@@ -286,6 +286,23 @@ function main() {
         );
     }
 
+    // ②-b 守卫：版本一致还不够，CLI 对核心包的依赖范围也必须跟着走。
+    // 0.0.x 的 caret 等价于锁 patch（`^0.0.11` = `>=0.0.11 <0.0.12`），所以只 bump 版本、
+    // 不改范围，装出来的 CLI 会去找**上一个 patch 版**的核心包——本地能跑（仓库里就有源码），
+    // 装到发布态就会 404。这个坑真实发生过，必须由脚本拦，而不是靠记性。
+    step('②-b 校验 CLI 对核心包的依赖范围');
+    const declared = String((cliPkg.dependencies || {})[corePkg.name] || '');
+    const expectedRange = `^${corePkg.version}`;
+    if (declared !== expectedRange) {
+        fail(
+            `CLI 对核心包的依赖范围与版本不匹配：${corePkg.name} 声明为 ${declared || '(缺失)'}，` +
+                `但本次发布版本是 ${corePkg.version}（期望 ${expectedRange}）。\n` +
+                `        修法：把 cli/package.json 的 dependencies["${corePkg.name}"] 改成 "${expectedRange}" 后重跑。\n` +
+                `        （0.0.x 的 caret 锁 patch，不改范围会用上一个 patch 版的核心包。）`
+        );
+    }
+    process.stderr.write(`[release] ${corePkg.name} ← ${declared}\n`);
+
     step('③ 清理上次产物（只清自己生成的同名文件）');
     const removed = cleanOwnArtifacts(outDir, [corePkg.name, cliPkg.name]);
     process.stderr.write(removed.length ? `[release] 已清理: ${removed.join(', ')}\n` : '[release] 无历史产物需清理\n');

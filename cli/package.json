@@ -1,6 +1,6 @@
 {
     "name": "@ohos-cpf/3rdloop",
-    "version": "0.0.11",
+    "version": "0.0.12",
     "description": "3rdLibraryLoop 三方库自动化检视 CLI：嵌入式复用核心引擎，任务生命周期管理（submit/run/wait/progress/abort/list/result/doctor）",
     "type": "module",
     "license": "MIT",
@@ -41,7 +41,7 @@
         "test": "node --test test/*.mjs"
     },
     "dependencies": {
-        "@ohos-cpf/3rdloop_core": "^0.0.11",
+        "@ohos-cpf/3rdloop_core": "^0.0.12",
         "dotenv": "^17.0.0"
     }
 }
