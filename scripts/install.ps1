@@ -62,6 +62,21 @@ $ProgressPreference = 'SilentlyContinue'
 function Info($m) { Write-Host "[3l-install] $m" }
 function Fail($m) { Write-Host "[3l-install] FAILED: $m" -ForegroundColor Red; exit 1 }
 
+# Native commands (npm / node / 3rdloop) write ordinary progress text to stderr; under
+# $ErrorActionPreference = 'Stop' PowerShell 5.1 wraps that in NativeCommandError and aborts
+# the script -- npm's deprecation warning alone is enough to kill an otherwise fine install
+# (observed: 'npm warn deprecated node-domexception' terminated the run before "added N packages").
+# Run them with the preference relaxed and judge success by $LASTEXITCODE instead.
+function Invoke-Native($exe, [string[]]$Arguments) {
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        if ($Arguments) { & $exe @Arguments } else { & $exe }
+    } finally {
+        $ErrorActionPreference = $previous
+    }
+}
+
 function Invoke-Download($url, $out) {
     try {
         Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing -TimeoutSec 180
@@ -90,7 +105,7 @@ $nodeExe = Get-Command node -ErrorAction SilentlyContinue
 if (-not $nodeExe) { Fail 'node not found. Install Node.js >= 22 from https://nodejs.org/ first.' }
 $npmExe = Get-Command npm -ErrorAction SilentlyContinue
 if (-not $npmExe) { Fail 'npm not found. Install Node.js >= 22 from https://nodejs.org/ first.' }
-Info ("Node.js " + (& node --version).Trim())
+Info ("Node.js " + ((Invoke-Native node @('--version')) | Out-String).Trim())
 
 $work = Join-Path $env:TEMP ('3l-install-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
 New-Item -ItemType Directory -Path $work -Force | Out-Null
@@ -170,7 +185,7 @@ try {
     $npmArgs = @('install', '-g', $core.FullName, $cli.FullName, '--no-audit', '--no-fund')
     if ($Prefix) { $npmArgs += @('--prefix', $Prefix) }
     Info ("npm " + ($npmArgs -join ' '))
-    & npm @npmArgs
+    Invoke-Native npm $npmArgs
     if ($LASTEXITCODE -ne 0) { Fail "npm install exited with $LASTEXITCODE" }
 
     # --- 4. prove it runs ---------------------------------------------------
@@ -189,10 +204,10 @@ try {
             if ($found.Count -gt 0) { $bin = $found[0].FullName }
         }
         if (-not $bin) { Fail "no 3rdloop entry point found under $Prefix" }
-        & $bin version
+        Invoke-Native $bin @('version')
         $code = $LASTEXITCODE
     } else {
-        & 3rdloop version
+        Invoke-Native 3rdloop @('version')
         $code = $LASTEXITCODE
     }
     if ($code -ne 0) { Fail "3rdloop version exited with $code" }
