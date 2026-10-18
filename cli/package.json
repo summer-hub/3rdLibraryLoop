@@ -1,6 +1,6 @@
 {
     "name": "@summer-hub/3rdloop",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "description": "3rdLibraryLoop 三方库自动化检视 CLI：嵌入式复用核心引擎，任务生命周期管理（submit/run/wait/progress/abort/list/result/doctor）",
     "type": "module",
     "license": "MIT",
@@ -41,7 +41,7 @@
         "test": "node --test test/*.mjs"
     },
     "dependencies": {
-        "@summer-hub/3rdloop_core": "^0.3.0",
+        "@summer-hub/3rdloop_core": "^0.3.1",
         "dotenv": "^17.0.0"
     },
     "publishConfig": {
