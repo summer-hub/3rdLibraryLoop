@@ -167,7 +167,7 @@ npm i -g @ohos-cpf/3rdloop
 
 ### 场景六：MCP Gateway 装配（kb 检索 / 覆盖率脚本等 AI 工具）
 
-npm 包内置 MCP Gateway（`vendor/MCP`）、知识库检索引擎（`vendor/Archive`）与已知问题知识库种子（`vendor/BadCase`）。opencode / deveco-code serve 需要在**全局配置**注册 Gateway 才会在启动时自动 spawn：
+核心包内置 MCP Gateway（`MCP/`）、知识库检索引擎（`Archive/`）与已知问题知识库种子（`BadCase/`）；CLI 经**核心树四级解析**定位它们（`3LIB_CORE_DIR` > 已安装 `@ohos-cpf/3rdloop_core` > `cli/vendor` > 仓库根），所以安装态的路径是 `<核心包根>/MCP`，而不是 CLI 包内的副本（CLI 包不含 vendor）。opencode / deveco-code serve 需要在**全局配置**注册 Gateway 才会在启动时自动 spawn：
 
 ```bash
 3rdloop doctor              # 推荐：环境自检，检测到未装配时自动完成装配（幂等）
