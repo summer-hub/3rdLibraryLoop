@@ -409,7 +409,7 @@ export default {
 
 ## 自更新（3rdloop update）
 
-`3rdloop update` 检查 npm registry 上的发布时间，确认后自动重装到最新版：
+默认走 **npm registry**：`3rdloop update` 检查 npm registry 上的发布时间，确认后自动重装到最新版：
 
 ```bash
 # 检查 + 交互确认后更新到 latest
@@ -425,12 +425,39 @@ export default {
 3rdloop update --registry https://registry.npmjs.org/
 ```
 
+### 从 GitHub Release 升级（发布渠道是这个仓库的 Release 附件）
+
+本项目的正式发布物是**两个 tarball 挂在 GitHub Release 上**（见下文「打发布产物」），
+并不在公共 npm registry。所以从 Release 安装的用户要用这条路径升级：
+
+```bash
+# 看最新 release 与当前版本差异（不下载、不落盘）
+3rdloop update --from-release --check
+
+# 装最新 release（两个 tarball 一起装，避免 CLI 去 registry 找核心包）
+3rdloop update --from-release --yes
+
+# 装指定 tag（也可用于回滚到已知可用版本）
+3rdloop update --from-release v0.0.11 --yes
+```
+
+- 仓库信息默认从 CLI 包 / 核心包 manifest 的 `repository` 推导；推导不出时会报错并提示用
+  `--release-repo <owner/repo>` 显式指定。
+- 自建镜像或内网代理：`--release-api <base>`（只接受 http(s)）。
+- `--prefix <dir>` 把"全局安装"落到指定前缀（测试/多版本并存用；注意 bin shim 会落在该前缀，
+  不在 PATH 里）。
+- 升级过程是"先下载到临时目录、再一次性 `npm i -g` 两个 tarball"，临时目录的路径与清理结果
+  会出现在 `--json` 的 `download: { dir, cleaned }` 里——排障时直接看这一项。
+- 语义提醒：`--from-release` 是"装这个 release"的显式请求，**即使当前版本等于/高于 tag 也会装**
+  （可当作幂等修复或降级手段）。
+
 ### 更新姿势
 
 | 安装方式 | update 行为 |
 |----------|-------------|
 | 正式全局安装（`npm i -g @ohos-cpf/3rdloop`） | 检查发现新版本后 `npm install -g @ohos-cpf/3rdloop@latest` 重装 |
-| `--check` | 只查询与输出版本差异，不做任何修改 |
+| 从 GitHub Release 安装 | `3rdloop update --from-release`（走 Release API + 两个 tarball） |
+| `--check` | 只查询与输出版本差异，不做任何修改（可与 `--from-release` 组合） |
 
 ### 安全说明
 
@@ -566,6 +593,57 @@ cd cli && npm publish
 **排障入口**：`3rdloop version`、`3rdloop version --json`、`3rdloop doctor` 都打印
 解析到的核心包版本与来源（`核心引擎（@ohos-cpf/3rdloop_core）` 检查项），
 版本不匹配一眼可见。
+
+#### 打发布产物（`npm run release:pack`）
+
+只打包、不上传（脚本不联网、不调用 `git`/`gh`，发布动作一律人工执行）：
+
+```bash
+# 仓库根执行；产物默认落 dist/（可 --out <dir> 覆盖）
+npm run release:pack
+# 等价于 node scripts/release.mjs [--out <dir>]
+```
+
+脚本按顺序做六件事，任一步失败即非零退出并说明失败在哪个步骤：
+
+| 步骤 | 动作 |
+|------|------|
+| ① | 读两份 manifest 的 `name`/`version` |
+| ② | 断言两包版本一致（不一致直接失败——双包必须同版本发布） |
+| ③ | 清理上次自己生成的同名产物（两份 tarball + `SHA256SUMS` + `RELEASE.md`，**不清空** `--out` 目录） |
+| ④ | `npm pack` 核心包与 `cli/` 包到 `--out`（走 `prepack`/`postpack` 钩子，`cli/vendor/` 打包后自动清掉） |
+| ⑤ | 计算 sha256 写入 `<out>/SHA256SUMS`（两行，`sha256sum` 格式） |
+| ⑥ | 生成 `<out>/RELEASE.md`（版本、两个 tarball 的文件数/体积、本地安装示例、发布步骤） |
+
+产物（`dist/` 已被 `.gitignore` 忽略，不入库）：
+
+```
+dist/
+├── ohos-cpf-3rdloop_core-<v>.tgz
+├── ohos-cpf-3rdloop-<v>.tgz
+├── SHA256SUMS
+└── RELEASE.md
+```
+
+本地装验证（**两个 tarball 一起装**——只装 CLI 会从 registry 拉旧版核心包）：
+
+```bash
+cd dist
+npm i ./ohos-cpf-3rdloop_core-<v>.tgz ./ohos-cpf-3rdloop-<v>.tgz
+npx 3rdloop version      # 应报出安装态核心包版本与来源
+npx 3rdloop serve        # 前端扩展随核心包自动发现，无需 install-ext
+sha256sum -c SHA256SUMS  # 校验产物完整性
+```
+
+传 GitHub Release（`RELEASE.md` 里已生成这两条命令，可直接照抄）：
+
+```bash
+git tag v<v> && git push origin v<v>
+gh release create v<v> --title "v<v>" --notes-file dist/RELEASE.md
+gh release upload v<v> dist/ohos-cpf-3rdloop_core-<v>.tgz dist/ohos-cpf-3rdloop-<v>.tgz
+```
+
+脚本**幂等**：重复执行只会覆盖自己上次生成的同名文件，产物数量不堆积。
 
 #### 核心树四级解析（`cli/lib/core-paths.js`）
 

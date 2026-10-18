@@ -124,19 +124,32 @@ export function scanExtRoot(rootDir, warn = () => {}) {
 /**
  * 从多个扩展根目录合并加载扩展（同名去重：先注册者优先）。
  *
+ * 扩展现在**随核心包发布**（`<核心树根>/Web/ext`），而用户目录 `~/.3lib/3rdloop/web-ext`
+ * 排在它之后 —— 于是"以前用 install-ext 装过、现在被随包扩展遮蔽"的副本会静默失效。
+ * 这里把被遮蔽的副本记进 `shadowed`（供 `serve list-ext` 展示"未生效 + 被谁遮蔽"），
+ * 并在忽略用户目录副本时附上可执行的清理建议。
+ *
  * @param {string[]} extRoots - 扩展根目录列表（优先级从高到低）
  * @param {(msg: string) => void} [warn]
- * @returns {{ extensions: Array<object>, mounts: Map<string, object> }}
+ * @param {{ userExtRoot?: string|null }} [opts] - 传入用户目录用于识别"被遮蔽的是用户自己装的"
+ * @returns {{ extensions: Array<object>, mounts: Map<string, object>, shadowed: Array<object> }}
  */
-export function loadExtensions(extRoots, warn = () => {}) {
+export function loadExtensions(extRoots, warn = () => {}, { userExtRoot = null } = {}) {
     const extensions = [];
+    const shadowed = [];
     const byName = new Map();
     const byMount = new Map();
 
     for (const root of extRoots) {
         for (const ext of scanExtRoot(root, warn)) {
             if (byName.has(ext.name)) {
-                warn(`[web-ext] 扩展重名 "${ext.name}"，忽略来自 ${ext.dir} 的副本（保留 ${byName.get(ext.name).dir}）`);
+                const kept = byName.get(ext.name);
+                shadowed.push({ name: ext.name, dir: ext.dir, keptDir: kept.dir });
+                const fromUserDir = userExtRoot ? _isUnder(ext.dir, userExtRoot) : false;
+                const hint = fromUserDir
+                    ? ` —— 这是你本地安装的旧副本，已不再生效；不再需要可执行: 3rdloop serve remove-ext ${ext.name}`
+                    : '';
+                warn(`[web-ext] 扩展重名 "${ext.name}"，忽略来自 ${ext.dir} 的副本（保留 ${kept.dir}）${hint}`);
                 continue;
             }
             const mountOwner = byMount.get(ext.mount);
@@ -152,7 +165,26 @@ export function loadExtensions(extRoots, warn = () => {}) {
 
     // 排序：order 升序 → name 字典序（导航展示顺序稳定）
     extensions.sort((a, b) => (a.order - b.order) || a.name.localeCompare(b.name));
-    return { extensions, mounts: byMount };
+    return { extensions, mounts: byMount, shadowed };
+}
+
+/**
+ * `child` 是否位于 `parent` 下（按 realpath 比较；win32 折叠大小写）。
+ * 目录不存在时退回字面路径比较——这里只用于"给出更贴心的告警"，不值得因此抛错。
+ */
+function _isUnder(child, parent) {
+    const norm = (p) => {
+        try {
+            const real = fs.realpathSync(p);
+            return process.platform === 'win32' ? real.toLowerCase() : real;
+        } catch {
+            const abs = path.resolve(p);
+            return process.platform === 'win32' ? abs.toLowerCase() : abs;
+        }
+    };
+    const c = norm(child);
+    const p = norm(parent).replace(/[\\/]+$/, '');
+    return c === p || c.startsWith(`${p}${path.sep}`) || c.startsWith(`${p}/`);
 }
 
 // ═══════════════════════════════════════════════════════════════════

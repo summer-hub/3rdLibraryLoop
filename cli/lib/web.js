@@ -4,9 +4,10 @@
  * 架构（方案 A + D 组合）：
  *   - 核心前端资产随**核心包**发布（`<核心树根>/Web/public`），由 core-paths.js 四级解析派生：
  *     安装态=核心包、vendor 态=cli/vendor、开发态=仓库根；CLI 本身**不含**前端副本
- *   - 二级目录功能（tag/issue/prcheck 等）以"扩展"形式按需启用，不进 npm 包：
- *     * 开发态：自动挂载仓库 Web/ext/ 下全部扩展
- *     * 发布态：仅挂载 ~/.3lib/3rdloop/web-ext/ 下用户安装的扩展
+ *   - 二级目录功能（tag/issue/prcheck 等）以"扩展"形式随**核心包**发布（`<核心树根>/Web/ext`），
+ *     安装态自动发现，用户无需再手工 `install-ext`：
+ *     * 核心树 Web/ext：安装态=核心包、vendor 态=cli/vendor、开发态=仓库根（与仓库 Web/ext 同路径）
+ *     * 用户目录 ~/.3lib/3rdloop/web-ext：`install-ext` 的落点，优先级最低
  *     * 任意环境可用 --ext-root 追加自定义扩展根目录
  *   - --web-root 可整目录替换核心前端（跑自定义/实验版前端）
  *
@@ -129,22 +130,41 @@ function _webRootError(coreRoots) {
 
 /**
  * 扩展根目录列表（优先级从高到低，同名扩展先注册者生效）。
- * 顺序：--ext-root（可多个）> 3LIB_WEB_EXT_ROOT > 仓库 Web/ext（开发态）> 用户扩展目录。
+ * 顺序：--ext-root（可多个）> 3LIB_WEB_EXT_ROOT > 仓库 Web/ext（开发态）>
+ *       核心树 Web/ext（安装态=核心包，`coreRoots.webExtRoot`）> 用户扩展目录。
+ *
+ * 开发态的「仓库 Web/ext」与「核心树 Web/ext」是同一个绝对路径（第④级命中仓库根时），
+ * 因此按 realpath 去重——同一个目录只挂一次，同目录里每个扩展也只注册一次。
  */
 export function resolveExtRoots(extRootFlags, userExtRoot) {
     const roots = [];
+    const seen = new Set();
     const push = (p) => {
         const r = path.resolve(p);
-        if (fs.existsSync(r) && !roots.includes(r)) roots.push(r);
+        if (!fs.existsSync(r)) return;
+        // 以 realpath 作去重键：同一目录的不同写法（大小写、短路径、符号链接）只挂一次。
+        // Windows 文件系统大小写不敏感，realpath 会保留调用方给的大小写，因此键再折叠一次。
+        let key = r;
+        try {
+            key = fs.realpathSync(r);
+        } catch { /* realpath 失败（权限/竞态）时退回字面路径 */ }
+        if (process.platform === 'win32') key = key.toLowerCase();
+        if (seen.has(key)) return;
+        seen.add(key);
+        roots.push(r);
     };
 
     for (const f of extRootFlags) push(f);
     if (process.env['3LIB_WEB_EXT_ROOT']) push(process.env['3LIB_WEB_EXT_ROOT']);
 
     const repoExt = path.resolve(CLI_ROOT, '..', 'Web', 'ext');
-    if (fs.existsSync(repoExt)) push(repoExt);
+    push(repoExt);
 
-    if (fs.existsSync(userExtRoot)) push(userExtRoot);
+    // 核心树 Web/ext（随核心包发布）：安装态=核心包根，与仓库态同路径时被上面的 realpath 去重吃掉
+    const coreRoots = resolveCoreRootsOrNull();
+    if (coreRoots?.webExtRoot) push(coreRoots.webExtRoot);
+
+    if (userExtRoot) push(userExtRoot);
     return roots;
 }
 
@@ -217,7 +237,7 @@ export async function startWebServer({
 
     // 加载扩展 → 应用 --no-ext / --ext 开关 → 初始化路由
     const extRoots = resolveExtRoots(extRootFlags, userExtRoot);
-    const discovered = loadExtensions(extRoots, log).extensions;
+    const discovered = loadExtensions(extRoots, log, { userExtRoot }).extensions;
     const extensions = applyExtFilter(discovered, { noExt, extNames }, log);
     for (const ext of extensions) {
         ext.router = initExtRouter(ext, { cliRoot: CLI_ROOT, dataDir, logger: log });
@@ -561,7 +581,7 @@ export function webExtInstall(srcDir, { userExtRoot, jsonMode, out }) {
 export function webExtList({ userExtRoot, jsonMode, out }) {
     const warn = (msg) => process.stderr.write(`${msg}\n`);
     const extRoots = resolveExtRoots([], userExtRoot);
-    const { extensions } = loadExtensions(extRoots, warn);
+    const { extensions, shadowed } = loadExtensions(extRoots, warn, { userExtRoot });
 
     const items = extensions.map((e) => ({
         name: e.name,
@@ -574,7 +594,13 @@ export function webExtList({ userExtRoot, jsonMode, out }) {
     }));
 
     if (jsonMode) {
-        out({ total: items.length, extensions: items });
+        out({
+            total: items.length,
+            extensions: items,
+            // 被遮蔽的副本也列出来：否则"我明明装了却不在列表里"无法自查。
+            // effective=false 表示这份副本不会生效（同名扩展已被更靠前的根提供）。
+            shadowed: shadowed.map((s) => ({ name: s.name, source: s.dir, effective: false, shadowedBy: s.keptDir })),
+        });
         return EXIT.OK;
     }
 
@@ -589,6 +615,14 @@ export function webExtList({ userExtRoot, jsonMode, out }) {
     for (const it of items) {
         process.stdout.write(`  ${it.name.padEnd(10)} ${it.mount.padEnd(12)} ${it.title}\n`);
         process.stdout.write(`  ${' '.repeat(10)} 来源: ${it.source}\n`);
+    }
+    if (shadowed.length > 0) {
+        process.stdout.write(`\n未生效的副本（${shadowed.length} 个，被更靠前的扩展根遮蔽）:\n`);
+        for (const s of shadowed) {
+            process.stdout.write(`  ${s.name.padEnd(10)} 来源: ${s.dir}\n`);
+            process.stdout.write(`  ${' '.repeat(10)} 被遮蔽于: ${s.keptDir}\n`);
+            process.stdout.write(`  ${' '.repeat(10)} 不再需要可执行: 3rdloop serve remove-ext ${s.name}\n`);
+        }
     }
     return EXIT.OK;
 }

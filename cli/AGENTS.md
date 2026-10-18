@@ -135,7 +135,7 @@ storage(用户数据目录)
 
 | 包 | manifest | files 白名单 | dependencies |
 |----|----------|--------------|--------------|
-| `@ohos-cpf/3rdloop_core` | 仓库根 `package.json` | `Server plugins core seams profiles MCP Archive BadCase Web/public README.md` | 核心树 import 的全部运行时依赖 |
+| `@ohos-cpf/3rdloop_core` | 仓库根 `package.json` | `Server plugins core seams profiles MCP Archive BadCase Web/public Web/ext README.md` | 核心树 import 的全部运行时依赖 |
 | `@ohos-cpf/3rdloop` | `cli/package.json` | `bin lib workflows README.md`（**无 vendor、无前端副本**） | `@ohos-cpf/3rdloop_core` + CLI 自己直接 import 的（`dotenv`） |
 
 发版顺序：**先核心包，再 CLI 包**。CLI 的依赖写范围（`^0.0.11`）；`0.0.x` 的 caret 等价于锁 patch，
@@ -151,8 +151,9 @@ storage(用户数据目录)
 | ④ | 仓库根（`cli/` 的上一级） | 开发期直引源码 |
 
 四级都返回同构的「核心树根」，`resolveCoreRoots()` 给出
-`{ level, label, coreRoot, serverRoot, pluginsRoot, seamsRoot, profilesRoot, webRoot }`；
-其中 `webRoot = <coreRoot>/Web/public`（核心前端资产也随核心包发布，CLI 侧不再有副本）；
+`{ level, label, coreRoot, serverRoot, pluginsRoot, seamsRoot, profilesRoot, webRoot, webExtRoot }`；
+其中 `webRoot = <coreRoot>/Web/public`（核心前端资产也随核心包发布，CLI 侧不再有副本）、
+`webExtRoot = <coreRoot>/Web/ext`（可选前端扩展同样随核心包发布，两个派生点在同一处拼接）；
 四级全落空时错误信息逐级列出实测结果与可照抄的修法。
 `runner.js`（`_loadCore`）、`serve.js`（`Server/Routes/server.js` + `web.js` 的前端资产）、
 `mcp.js`（`resolveAssets`）、`config.js`（SKILL 目录 / env 标记）、`doctor.js`（核心包版本检查）
@@ -420,12 +421,17 @@ node cli/bin/3rdloop.mjs run <name> --print-taskdef    # 缺必填
   `3rdloop serve --no-ext` = 纯后端操作（仅核心工作台，`--no-ext` 优先于 `--ext`，不受已安装扩展影响）；
   `--ext tag,issue` = 白名单挂载（未发现的名字打 stderr 警告）。
 - **设计（方案 A+D）**：核心前端（PR/仓库检视 + loop/knowledge）**随核心包发布**；tag/issue/prcheck 等
-  二级目录功能以"扩展"形式留仓库 `Web/ext/`，**不进包、按需启用**：
+  二级目录功能以"扩展"形式**同样随核心包发布**（`<核心树根>/Web/ext`），安装态自动发现、无需 `install-ext`：
   - 前端资产解析：`--web-root` > `3LIB_WEB_ROOT` > 核心树 `Web/public`（`coreRoots.webRoot`：
     安装态=核心包 `<包根>/Web/public`、vendor 态=`cli/vendor/Web/public`、开发态=仓库 `Web/public`）> 抛错
     （错误信息列出三级实测结果与可照抄修法；`cli/web` 回退已退役）
-  - 扩展根解析：`--ext-root` > `3LIB_WEB_EXT_ROOT` > 仓库 `Web/ext`（开发态自动全量挂载）> `~/.3lib/3rdloop/web-ext`（用户安装）
-  - 扩展数据目录：`<dataDir>/web-ext/<name>`（跟随 `--data-dir`）；扩展同名时先注册者优先（开发态仓库源优先于用户安装）
+  - 扩展根解析：`--ext-root` > `3LIB_WEB_EXT_ROOT` > 仓库 `Web/ext`（开发态）> **核心树 `Web/ext`**
+    （`coreRoots.webExtRoot`：安装态=核心包 `<包根>/Web/ext`、vendor 态=`cli/vendor/Web/ext`、
+    开发态=仓库 `Web/ext`，存在才用）> `~/.3lib/3rdloop/web-ext`（用户安装）
+    ——开发态的「仓库 `Web/ext`」与「核心树 `Web/ext`」是**同一个绝对路径**，按 `realpath` 去重，
+    同一目录不会重复挂载同名扩展；`--no-ext` 一并关掉核心包里的扩展（`--ext <names>` 白名单语义不变）
+  - 扩展数据目录：`<dataDir>/web-ext/<name>`（跟随 `--data-dir`，**不随扩展来源变化**）；
+    扩展同名时先注册者优先（开发态仓库源 / 核心树源优先于用户安装）
 - 路由优先级：`/api/ext-registry`（本地响应）→ `/<mount>` 扩展（页面/API/静态）→ `/api/*`、`/stream*` 后端反代 → 核心前端静态。
 - 启动顺序：Web 前端先监听（端口冲突在后端启动前快速失败）→ 再起 Server 后端；两者端口相同直接报错。
 - 扩展协议：`Web/ext/<name>/manifest.json`（name/title/mount/order/server/page）+ `router.cjs`
@@ -506,6 +512,43 @@ node cli/bin/3rdloop.mjs run <name> --print-taskdef    # 缺必填
   失败回退 packument API）→ `compareVersions` 判断 → 交互确认 → 卸载旧版 + `npm install -g ...@latest` 重装。
 - registry 覆盖：`--registry` 追加到 `npm view`/`npm install`；默认用 `npm config get registry`
   （兼容 npmmirror 等镜像）。所有 npm 调用统一经 `runNpm(args, opts)` 封装。
+
+### 从 GitHub Release 升级（`--from-release`）
+
+发布渠道是**GitHub Release 附件**（见 `README_DEVELOP.md` 的「打发布产物」），包不在公共 npm
+registry 上 —— 因此从 Release 安装的用户跑默认路径必然失败（`npm view` 404）。这条路径补上它：
+
+```
+3rdloop update --from-release [<tag>] [--check] [--yes]
+               [--release-api <base>] [--release-repo <owner/repo>] [--prefix <dir>] [--registry <url>]
+```
+
+| 参数 | 说明 |
+|------|------|
+| `--from-release` | 开关；紧跟的非 flag token 视为 tag（给 = 该 tag，不给 = latest） |
+| `--release-api <base>` | 默认 `https://api.github.com`，只接受 http(s)（自建镜像/测试用） |
+| `--release-repo <owner/repo>` | 缺省从 **CLI 包 → 核心包** 的 `repository` 推导（认 `git+https://`、`https://`、`git@host:o/r.git`、含端口 URL）；两处都推不出就报错并列出试过的 manifest |
+| `--prefix <dir>` | 把"全局安装"落到该前缀（`npm root -g --prefix` 回读，另有 `<prefix>/[lib/]node_modules` 兜底） |
+| `--check` | 可与 `--from-release` 组合：只打印当前/release 版本、是否需要更新、两 asset 名与体积，**不下载不落盘** |
+
+流程：`GET {api}/repos/{repo}/releases/{latest|tags/<tag>}`（`user-agent` 必填、无 Authorization、
+15s 超时）→ 从 `assets` 只挑 `.tgz`（含 `3rdloop_core` = 核心包；含 `3rdloop` 且不含 `_core`
+= CLI 包；**缺任一即报错并列出实际名单** + `gh release upload/view` 命令）→ `os.tmpdir()` 下
+`mkdtemp` 下载（60s 超时）→ **一次** `npm i -g <core.tgz> <cli.tgz>`（一次装两个，避免 CLI 去
+registry 找旧版核心包）→ `npm root -g` 回读两个 `package.json` 版本，与 tag 不一致只告警
+（`versionMismatch:true`）。
+
+- **临时目录清理是可审计输出**：`--json` 结果里带 `download: { dir, cleaned }`；`try` / `catch` /
+  `finally` 三处都调幂等清理，`fs.rm` 带重试（Windows 上杀毒/索引器短暂占用刚写入的 tarball 是真事）。
+- **`--from-release` 是"装这个 release"的显式请求**：即使当前版本等于/高于 tag 也会装（可作为
+  幂等修复手段），只在 `upToDate` 里如实标注——这意味着它也能"降级"。
+- 已知取舍：中途 Ctrl+C 打断在"下载后、清理前"会留下一个 `3rdloop-release-*`（TEMP 内）；
+  `--prefix` 会绕过用户 npm prefix 配置，bin shim 落在 `<prefix>` 而不在 PATH 里；
+  `--release-api/--release-repo/--prefix` 不支持 `--flag=value` 写法（与既有 `--registry` 一致）。
+- **默认 npm 路径行为未变**（连 `--help` 也只多了文档行）。注意默认路径有两个**既有**坑：
+  `update --registry <url>` 与 `update -y` 会被"未知参数"拒绝（旧 `unknowns` 过滤把任何非 `--`
+  token 当位置参数）——Release 路径已放行新 flag 的取值位置，默认路径待单独立项修。
+
 - 易踩坑：
   - **不手动改 node_modules**：更新统一走 `npm install -g` 全量重装，保证依赖自洽。
   - **Windows 下 npm 是 `npm.cmd`**：`execFileSync('npm')` 的 CreateProcess 无法执行批处理 shim，

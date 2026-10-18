@@ -4,7 +4,7 @@
 
 ```bash
 node cli/bin/3rdloop.mjs web            # 本地全功能：核心前端 + Web/ext/ 全部扩展（tag/issue/prcheck）
-3rdloop web                             # 发布态：核心包 @ohos-cpf/3rdloop_core 内置核心前端（扩展需 install-ext 启用）
+3rdloop web                             # 发布态：核心包 @ohos-cpf/3rdloop_core 内置核心前端 + Web/ext（扩展自动发现）
 3rdloop web --no-ext                    # 纯后端操作模式：仅核心工作台，强制禁用全部扩展
 ```
 
@@ -18,7 +18,7 @@ Web/
 │   ├── index.html       # 工作台单页（PR 检视 / 仓库检视 / loop / knowledge）
 │   ├── css/ js/         # 面板样式与脚本（每面板一个 js，懒加载初始化）
 │   ├── knowledge.html / loop.html   # 兼容入口（服务端 302 到 hash 路由）
-└── ext/                 # 二级目录扩展（不进 npm 包，按需启用）
+└── ext/                 # 二级目录扩展（随核心包发布：<核心包根>/Web/ext，仓库开发态同路径；安装态自动发现）
     ├── tag/             # GitCode 打 TAG 系统（挂载 /tag）
     ├── prcheck/         # PR 检视意见批量解决（挂载 /prcheck）
     └── issue/           # GitCode Issue 查询系统（挂载 /issue）
@@ -49,7 +49,7 @@ Web/ext/<name>/
 | 场景 | 方式 |
 |------|------|
 | 仓库开发态（全功能） | `node cli/bin/3rdloop.mjs web` 自动全量挂载 `Web/ext/` |
-| npm 发布态（按需启用） | `3rdloop web install-ext <仓库>/Web/ext/tag`（可多个）→ `3rdloop web` |
+| npm 安装态 | 扩展随核心包发布（`<核心包根>/Web/ext`），serve 自动发现，无需 `install-ext` |
 | **纯后端操作模式** | `3rdloop web --no-ext` 强制禁用全部扩展（仅核心工作台，不受已安装扩展影响） |
 | 白名单模式 | `3rdloop web --ext tag,issue` 仅挂载指定扩展（可重复指定，未发现的名字打警告） |
 | 自定义扩展 | 放入 `~/.3lib/3rdloop/web-ext/<name>/`，或 `--ext-root <dir>` 追加 |
