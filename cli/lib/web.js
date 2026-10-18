@@ -13,6 +13,8 @@
  *
  * 路由优先级：
  *   1. GET /api/ext-registry            扩展注册表（本地响应）
+ *      GET /api/plugins                 插件状态快照（本地响应）
+ *      POST /api/plugins/toggle         插件开关写入（本地响应）
  *   2. /<mount> 与 /<mount>/...         扩展页面 / API / 静态资源
  *   3. /api/* 与 /stream*               反向代理到后端 Server（SSE 透传）
  *   4. 其余                             核心前端静态文件
@@ -391,6 +393,17 @@ async function _handleRequest(req, res, { webRoot, extensions, backend, accessTo
         return;
     }
 
+    // 1b. 插件管理（本地响应）。必须排在下面的 /api/* 反代**之前**，
+    //     否则请求会被转给后端 Server（那里没有这两个端点）。
+    if (lower === '/api/plugins') {
+        await _handlePluginsState(req, res);
+        return;
+    }
+    if (lower === '/api/plugins/toggle') {
+        await _handlePluginsToggle(req, res);
+        return;
+    }
+
     // 2. 扩展挂载点（页面 / API / 静态资源）
     for (const ext of extensions) {
         if (lower === ext.mount || lower.startsWith(ext.mount + '/')) {
@@ -420,6 +433,115 @@ async function _handleRequest(req, res, { webRoot, extensions, backend, accessTo
 
     // 5. 核心前端静态文件
     _serveStatic(webRoot, pathname, res);
+}
+
+// ─── 插件管理（读写语义全部在 plugin-store.js，本层只做 HTTP 包装） ─────────
+
+/**
+ * plugin-store 惰性加载。
+ * 它 import 了整棵 `core/`（PluginHost）才能 describe 状态，而静态文件与 `/api/*`
+ * 反代占了绝大多数请求——为这两个端点让全站启动时先拉起内核不值得。
+ * 首次命中插件端点时才 import，之后复用同一个 module promise（失败不缓存）。
+ */
+let _pluginStorePromise = null;
+function _pluginStore() {
+    if (!_pluginStorePromise) {
+        _pluginStorePromise = import('./plugin-store.js').catch((err) => {
+            _pluginStorePromise = null;
+            throw err;
+        });
+    }
+    return _pluginStorePromise;
+}
+
+/**
+ * GET /api/plugins —— 插件状态快照（只读，不装配内核）。
+ *
+ * `check()` 不通过时 `success` 仍为 true：errors 是**要展示给用户的数据**
+ * （"哪个插件依赖缺了"），不是"这个接口坏了"。回 false 会让前端整页报错，
+ * 反而看不到到底哪一条有问题。
+ */
+async function _handlePluginsState(req, res) {
+    const method = (req.method || 'GET').toUpperCase();
+    if (method !== 'GET' && method !== 'HEAD') {
+        _sendJson(res, 405, { success: false, message: 'method not allowed（GET /api/plugins）' });
+        return;
+    }
+
+    try {
+        const store = await _pluginStore();
+        const state = store.readState();
+        const verdict = store.check();
+        _sendJson(res, 200, {
+            success: true,
+            data: {
+                profile: state.profileName,
+                profileDirs: state.profileDirs ?? [],
+                overlay: {
+                    path: state.overlay?.path ?? '',
+                    exists: Boolean(state.overlay?.exists),
+                },
+                roots: state.roots ?? [],
+                plugins: state.plugins ?? [],
+                seams: state.seams ?? {},
+                conflicts: state.conflicts ?? [],
+                errors: verdict.errors,
+                warnings: verdict.warnings,
+            },
+        });
+    } catch (err) {
+        _sendJson(res, 500, { success: false, message: `读取插件状态失败: ${err.message}` });
+    }
+}
+
+/**
+ * POST /api/plugins/toggle —— 写一次开关到用户 overlay。
+ *
+ * 校验失败一律 **400**：未知插件 / required / 被别的插件依赖，都是**用户输入或选择**
+ * 的问题，不是服务端故障。回 500 会让前端把它当成"重试就能好"，也掩盖了真实原因，
+ * 所以这里只把 `err.message`（plugin-store 已经写成可直接展示的中文）交给前端。
+ *
+ * body 容错：空 body、非 JSON 都被 readJsonBody 退化成 `{}`，由字段校验给出可读的 400。
+ */
+async function _handlePluginsToggle(req, res) {
+    const method = (req.method || 'GET').toUpperCase();
+    if (method !== 'POST') {
+        _sendJson(res, 405, { success: false, message: 'method not allowed（POST /api/plugins/toggle）' });
+        return;
+    }
+
+    const parsed = await readJsonBody(req);
+    if (!parsed.ok) {
+        _sendJson(res, 400, { success: false, message: `请求体读取失败: ${parsed.error}` });
+        return;
+    }
+    const body = parsed.body && typeof parsed.body === 'object' ? parsed.body : {};
+    const name = typeof body.name === 'string' ? body.name.trim() : '';
+    if (!name) {
+        _sendJson(res, 400, { success: false, message: '缺少插件名 name（如 engines/brain）' });
+        return;
+    }
+    if (typeof body.enabled !== 'boolean') {
+        _sendJson(res, 400, { success: false, message: '缺少布尔字段 enabled（true=启用，false=禁用）' });
+        return;
+    }
+
+    try {
+        const store = await _pluginStore();
+        const result = store.setEnabled({ name, enabled: body.enabled, force: body.force === true });
+        _sendJson(res, 200, {
+            success: true,
+            data: {
+                name: result.name,
+                enabled: result.enabled,
+                requiresRestart: result.requiresRestart !== false,
+                file: result.file,
+                warnings: result.warnings ?? [],
+            },
+        });
+    } catch (err) {
+        _sendJson(res, 400, { success: false, message: err.message });
+    }
 }
 
 /** 扩展请求：子路径根 → 页面；其次 API 路由；最后 public/ 静态 */

@@ -5,7 +5,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-≥22-green)](https://nodejs.org/)
 [![ESM](https://img.shields.io/badge/ESM-modules-orange)](https://nodejs.org/api/esm.html)
 [![License](https://img.shields.io/badge/license-MIT-blue)](#-license)
-[![Tests](https://img.shields.io/badge/tests-15%20suites%20%2F%201668%20assertions-brightgreen)](#-测试与质量门禁)
+[![Tests](https://img.shields.io/badge/tests-17%20suites%20%2F%201751%20assertions-brightgreen)](#-测试与质量门禁)
 
 ---
 
@@ -120,6 +120,34 @@ engine-brain · engine-knowledge · engine-loop · engine-orchestrator · engine
 - 语义：**未提及 = 启用**（`defaultEnabled` 默认 `true`，向后兼容）；写 `defaultEnabled: false` 则变成白名单模式；显式 `enabled` 与 `overrides` 优先级最高。
 - 「拔插件」验收要求写 **显式 `enabled: false`**——省略不等于禁用。
 - 应急逃生阀：`3LIB_PLUGIN_MODE=off` 等价于不装宿主、走内置装配，**优先于任何构造参数**。
+
+#### 插件管理（CLI 与前端，用户可见的开关）
+
+开关**不需要手改 JSON**。读写只发生在一个地方：**用户级 overlay**
+`~/.3lib/3rdloop/profiles/<profile>.json`（合并后覆盖包内 `profiles/<profile>.json`）。
+放包外是因为发布态包内 profile 位于 `node_modules/@ohos-cpf/3rdloop_core/profiles/`，
+既不该改、改了也会在下次 `update` 时丢。**改完需重启 `3rdloop serve` 才生效**（overlay 在进程启动时读取）。
+
+```bash
+3rdloop plugin list                    # 名称/接缝/状态/来源/被依赖（含 profile 提到但未安装的条目）
+3rdloop plugin info engines/brain      # 全字段 + 依赖关系
+3rdloop plugin disable engines/brain   # 写 overlay；required 或"被启用插件依赖"时默认拒绝
+3rdloop plugin enable engines/brain
+3rdloop plugin check                   # 静态检查：依赖闭合 + 必需接缝是否有提供方（有 error 退出码 1）
+3rdloop plugin path                    # overlay 路径与当前 profile
+3rdloop plugin add <dir>               # 装到 ~/.3lib/plugins/<name>/
+3rdloop plugin remove <name>           # 仅卸载用户级插件（内置拒绝）
+```
+
+前端：工作台左侧导航「插件」分区（`GET /api/plugins` + `POST /api/plugins/toggle`），
+能看状态/来源/被依赖、接缝冲突与生效者，开关写入同一份 overlay。
+
+两条约定值得记住：
+
+- **`plugin check` 与真实装配同向**：它会校验五条 `engine-*` 必需接缝是否仍有启用中的提供方，
+  所以"check 通过"就不会在 `buildApp` 时突然 fail closed。
+- **关不掉的插件会说明原因**：`required` 插件直接拒绝；被启用插件依赖的会列出依赖者
+  （如 `storage/core ← cli/opencode`），确需强关才用 `--force`。
 
 ### 二、`Server/` 现在是什么
 
@@ -328,6 +356,7 @@ node Web/server.js --port 8080 --backend http://127.0.0.1:3000  # 仅前端（�
 | 固定编排 | `orch run` / `orch load` / `orch start` / `orch progress` / `orch control` / `orch tasks` |
 | 工作流 | `run <workflow>` / `workflows`（`cli/workflows/*.mjs` 自动注册） |
 | 服务与前端 | `serve`（子命令 `install-ext` / `list-ext` / `remove-ext`） |
+| **插件管理** | `plugin list/info/enable/disable/check/path/add/remove` |
 | 配置 | `config list/get/set/unset` |
 | MCP 装配 | `mcp install` / `mcp uninstall` / `mcp status` |
 | 知识回收 | `knowledge export` / `knowledge import` |
@@ -346,7 +375,7 @@ npm run ci          # lint + test（CI 唯一入口，.github/workflows/ci.yml �
 npm run coverage    # V8 覆盖率（口径见下方「已知缺口」）
 ```
 
-当前状态（本分支实测）：**15 套件 / 1668 条断言全绿**。
+当前状态（本分支实测）：**17 套件 / 1751 条断言全绿**。
 
 | 套件 | 断言 | 覆盖什么 |
 |------|-----:|----------|

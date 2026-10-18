@@ -61,6 +61,23 @@ Web/ext/<name>/
 前端导航：`public/index.html` 的 `#nav-ext-section` 由 `navigation.js` `ExtNav` 经
 `/api/ext-registry` 动态渲染（无扩展或端点缺失时静默隐藏）。
 
+## 插件管理页（`p-plugins`）
+
+工作台左侧导航的「插件」分区，脚本 `public/js/plugins.js`，走既有懒加载注册。
+
+- 数据源是 **`GET /api/plugins`**（由 `cli/lib/web.js` 在 `/api/*` 反代**之前**本地响应），
+  背后是内核 `PluginHost.describe()` + `cli/lib/plugin-store.js` 的 `check()`——与
+  `3rdloop plugin list/check` **同一份数据、同一套判定**，不存在"界面说能关、命令行说不能"。
+- 开关走 **`POST /api/plugins/toggle`** `{name, enabled, force?}`，成功返回
+  `{success:true, data:{...,requiresRestart:true}}`；校验失败回 **HTTP 400**（不是 500），
+  `message` 直接展示给用户。
+- 写入目标是用户级 overlay `~/.3lib/3rdloop/profiles/<profile>.json`，**不改包内 profile**；
+  成功后页面提示「重启 `3rdloop serve` 生效」。
+- `required` 插件开关置灰并给出原因；被启用插件依赖的（`dependents.length > 0`）先
+  `confirm()` 再带 `force:true` 提交，取消则不发请求。
+- 接缝冲突（同一接缝多个提供方，如 `ai-cli`）在页面上标出提供方与生效者。
+- 验收：`test/m16-plugin-web`（29 条断言）覆盖快照 / toggle / 400 拒绝 / 坏 body / 静态资源 / 令牌门禁。
+
 ## 新增扩展步骤
 
 1. 复制最简范本 `ext/tag/` 为 `ext/<name>/`，改 manifest（name/mount/title/order）。

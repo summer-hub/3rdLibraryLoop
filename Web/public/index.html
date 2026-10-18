@@ -12,6 +12,33 @@
     <link rel="stylesheet" href="css/flutterlibrarycheck.css">
     <link rel="stylesheet" href="css/arktslibrarycheck.css">
     <link rel="stylesheet" href="css/rnlibrarycheck.css">
+    <style>
+        /* 插件管理面板（js/plugins.js）。核心前端每个面板都有独立 css 文件，
+           这里不新增文件，样式就近声明，颜色全部复用 theme.css 的变量。 */
+        .plugins-meta { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; font-size: 12px; color: var(--text2); line-height: 1.9; }
+        .plugins-meta b { color: var(--text); font-weight: 600; }
+        .plugins-meta code { font-family: var(--mono); font-size: 11px; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; color: var(--text); word-break: break-all; }
+        .plugins-meta .plugins-warn { color: var(--badge-yellow-text); }
+        .plugins-meta .plugins-err { color: var(--badge-red-text); }
+        .plugins-meta .plugins-conflict { margin-top: 6px; padding: 6px 8px; border-left: 3px solid var(--orange); background: var(--orange-light); border-radius: 0 6px 6px 0; color: var(--text); }
+        .plugins-notice { margin-bottom: 10px; padding: 8px 12px; border-radius: 8px; background: var(--green-light); color: var(--badge-green-text); border: 1px solid var(--border-light); font-size: 12px; word-break: break-all; }
+        .plugins-error { margin-bottom: 10px; padding: 8px 12px; border-radius: 8px; background: var(--red-light); color: var(--badge-red-text); border: 1px solid var(--border-light); font-size: 12px; white-space: pre-wrap; }
+        .plugins-table { width: 100%; border-collapse: collapse; font-size: 12px; background: var(--card); border: 1px solid var(--border); }
+        .plugins-table th, .plugins-table td { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--border-light); vertical-align: middle; }
+        .plugins-table th { background: var(--sidebar); color: var(--text2); font-weight: 600; white-space: nowrap; }
+        .plugins-table tr:last-child td { border-bottom: none; }
+        .plugins-table td.pl-name { font-family: var(--mono); color: var(--text); white-space: nowrap; }
+        .plugins-table td.pl-seam { font-family: var(--mono); color: var(--text3); white-space: nowrap; }
+        .plugins-table td.pl-deps { color: var(--text2); word-break: break-all; }
+        .pl-tag { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 11px; white-space: nowrap; }
+        .pl-on { background: var(--green-light); color: var(--badge-green-text); }
+        .pl-off { background: var(--gray-light); color: var(--text2); }
+        .pl-missing { background: var(--yellow-light); color: var(--badge-yellow-text); }
+        .pl-required { color: var(--text3); font-size: 11px; margin-left: 4px; }
+        .pl-switch { cursor: pointer; }
+        .pl-switch:disabled { cursor: not-allowed; opacity: 0.45; }
+        .plugins-empty { padding: 20px; text-align: center; color: var(--text3); font-size: 12px; }
+    </style>
 </head>
 <body>
 <div class="layout" data-view="features">
@@ -69,6 +96,12 @@
             </div>
             <div class="nav-item nav-item-disabled" data-panel="p-kmplibrarycheck">
                 <span class="method m-post">KMP</span> KMP 仓库检视 <span class="nav-soon">即将支持</span>
+            </div>
+
+            <!-- 插件管理（读写 ~/.3lib/3rdloop/profiles/<profile>.json，重启 serve 生效） -->
+            <div class="nav-section">插件</div>
+            <div class="nav-item" data-panel="p-plugins">
+                <span class="method m-post">PLG</span> 插件管理
             </div>
 
             <!-- 扩展功能（由 3rdloop web 的 /api/ext-registry 动态渲染，见 navigation.js ExtNav） -->
@@ -373,6 +406,23 @@
                     </div>
                     <div id="rn-tasks-pager"></div>
                 </div>
+            </div>
+        </div>
+
+        <!-- ─── 插件管理面板（懒加载：由 js/plugins.js 经 Nav.register 注册） ── -->
+        <div class="panel" id="p-plugins">
+            <div class="panel-head">
+                <span class="method m-post">PLG</span>
+                <h2>插件管理</h2>
+                <span class="path">/api/plugins + /api/plugins/toggle</span>
+            </div>
+            <div class="panel-pad" style="flex:1; overflow-y:auto;">
+                <div id="plugins-meta" class="plugins-meta">
+                    <div class="plugins-empty">正在读取插件状态…</div>
+                </div>
+                <div id="plugins-notice" class="plugins-notice" style="display:none"></div>
+                <div id="plugins-error" class="plugins-error" style="display:none"></div>
+                <div id="plugins-table-wrap"></div>
             </div>
         </div>
 
@@ -710,5 +760,6 @@
 <script src="js/flutterlibrarycheck.js"></script>
 <script src="js/arktslibrarycheck.js"></script>
 <script src="js/rnlibrarycheck.js"></script>
+<script src="js/plugins.js"></script>
 </body>
 </html>

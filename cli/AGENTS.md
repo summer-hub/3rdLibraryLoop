@@ -447,6 +447,34 @@ node cli/bin/3rdloop.mjs run <name> --print-taskdef    # 缺必填
 - 退出码：常驻服务，SIGINT→130 / SIGTERM→143（信号处理器必须在 createServer **之前**注册，
   否则 Server 内部的退出码 0 处理器会抢先）；端口占用 EADDRINUSE→1。
 
+## plugin 命令（插件管理）
+
+- 实现：`lib/plugin-cmd.js`（命令层）+ **`lib/plugin-store.js`（唯一读写层，Web 侧共用）**，
+  分发：`cli.js` `case 'plugin'`（惰性 import）。
+- 命令：`plugin list [--json]` / `info <name>` / `enable <name>` / `disable <name> [--force]` /
+  `check [--json]` / `path` / `add <dir>` / `remove <name>`。
+- **数据来自内核 `PluginHost.describe()`**（只读、不装配、不触发任何插件 `setup()`）；命令层不自己
+  拼状态逻辑，因此 CLI 与前端 `/api/plugins` 永远同源。
+- **写入目标是用户级 overlay** `~/.3lib/3rdloop/profiles/<profile>.json`（原子写：`.tmp` + rename）。
+  **绝不写包内 `profiles/`**：发布态它在 `node_modules/@ohos-cpf/3rdloop_core/profiles/`，
+  改了会在下次 `update` 时丢。内核读取时按「内置 → 用户」两级合并，合并粒度是单个插件条目。
+- 拒绝规则：`required` 插件禁用必拒；被启用插件依赖的（`storage/core ← cli/opencode`）默认拒绝
+  并列出依赖者，`--force` 可越过（required 永不放行）；未知/未安装插件拒绝并给出装插件目录。
+- **`check` 必须与真实装配同向**：除依赖闭合外，还校验五条 `engine-*` 必需接缝是否仍有启用中的
+  提供方。这条是补出来的——早先版本禁掉 `engines/brain` 后 `check` 仍报 ok，而 `buildApp`
+  立刻 fail closed，静态检查与真实结论相反。
+- `add` 装到 `~/.3lib/plugins/<name>/`（内核 `USER_PLUGINS_DIR`）；`remove` 只删用户级插件，
+  内置插件拒绝。
+- **BOM 兼容**：`core/Profile.js` 与 `readOverlay` 都会剥 `U+FEFF`——Windows 记事本保存的 profile
+  带 BOM 时 `JSON.parse` 会报"非法字符"，而用户看不出任何语法错误（实测踩到过）。
+- **生效语义**：overlay 在进程启动时读取，改完需重启 `3rdloop serve` / 下次命令才生效；
+  命令输出明确写出"重启后生效"，不假装热更新。
+- 验收：`test/m15-plugin-management`（54 条断言，含「假 HOME 禁 `engines/brain` → 在子进程里
+  `buildApp` 抛 `缺失接缝: engine-brain` → 清 overlay 后同一调用成功」的对照组）。
+- 已知限制：profile 只能由 `3LIB_PLUGIN_PROFILE` 选择（无 `--profile` flag）；`add` 用
+  `fs.cpSync` 整目录复制、不排除源里的 `node_modules`，且对已存在目标目录选择拒绝而非覆盖；
+  `~/.3lib` 路径是模块加载期算出的常量，同一进程无法按调用重定向（测试靠子进程 + 假 HOME）。
+
 ## 环境预检（precheck，本期新增）
 
 - 实现：`lib/doctor.js`——`collectChecks()`（doctor 与预检共用的检查集，每项含 `fix` 修复提示，
@@ -472,6 +500,7 @@ node cli/bin/3rdloop.mjs run <name> --print-taskdef    # 缺必填
 | 单步直通 | `step run`/`status`/`result` | FlexRunner 直连 |
 | 固定编排 | `orch run`/`load`/`start`/`progress`/控制/`tasks` | Orchestrator |
 | **工作流** | `3rdloop run <wf>`/`3rdloop workflows` | Orchestrator + 注册表 |
+| **插件管理** | `plugin list/info/enable/disable/check/path/add/remove` | 用户级 overlay + 内核 `describe()`（内核 `core/PluginHost.js` / 共享层 `cli/lib/plugin-store.js`） |
 | 配置 | `config list/get/set/unset` | ~/.3lib/.env 白名单读写 |
 | **MCP 装配** | `mcp install/uninstall/status` | 注册 Gateway 到 AI CLI + 种子复制 kb/BadCase 数据 |
 | **知识回收** | `knowledge export/import` | 本地知识打包 zip（用户侧）/ 解包合入（维护者侧） |
