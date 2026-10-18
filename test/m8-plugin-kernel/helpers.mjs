@@ -5,7 +5,7 @@
  * 有失败则退出码非 0。
  *
  * 所有文件产物只写在 `os.tmpdir()` 下的 mkdtemp 目录，并由 finally 无条件删除——
- * 本套件**不向仓库内写任何路径**（仓库里有 .aoci/ 等用户资产）。
+ * 本套件**不向仓库内写任何路径**（仓库根可能还有用户本地资产，如 db/、logs/）。
  */
 import fs from 'node:fs/promises';
 import os from 'node:os';
