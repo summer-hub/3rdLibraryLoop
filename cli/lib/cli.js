@@ -273,7 +273,10 @@ async function cmdKnowledgeImpl({ rest, user3libHome, dataDir, jsonMode }) {
 
 async function cmdUpdate({ flags, rest, jsonMode, out }) {
     const { cmdUpdateImpl } = await import('./update.js');
-    const result = await cmdUpdateImpl({ jsonMode, rest });
+    // 传 `flags.rest` 而不是原始 rest：全局 flag（--json/--verbose/--quiet/--data-dir 等及其取值）
+    // 已被 parseGlobalFlags 消费，不该再让子命令把它们判成"未知参数"。`flags.rest` 恰好是
+    // "全局解析没有认领的剩余参数"，正是子命令该看的东西。
+    const result = await cmdUpdateImpl({ jsonMode, rest: flags?.rest ?? rest });
     if (jsonMode) {
         // cmdUpdateImpl 内部已输出 --json 结构化结果到 stdout
         return result.ok ? EXIT.OK : EXIT.ERROR;

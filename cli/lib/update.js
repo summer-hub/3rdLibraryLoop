@@ -212,15 +212,48 @@ const INSTALL_TIMEOUT_MS = 300000;
 const USER_AGENT = '3rdloop-update';
 
 /**
- * 解析 update 的参数。
+ * update 的已知开关。**值型** flag 的取值由 `valueIdx` 放行（见 parseUpdateArgs），
+ * 其余以 `-` 开头的 token 必须是这张表里的开关，否则算未知参数。
  *
- * 值型 flag 的取值位置记进 valueIdx：后面判「未知参数」时据此放行，
- * 避免把 `--prefix <dir>` 的目录当成多余位置参数。
- *
- * @param {string[]} rest
- * @returns {object}
+ * 这张表存在的原因：早先「未知参数」判定写成"不是 `--` 开头的都算位置参数"，于是
+ * `--registry <url>` 的取值与短开关 `-y` 都被误判成位置参数而拒绝（两个既有 bug）。
+ * 判据应当是"这个 token 是不是我认识的开关 / 已知开关的取值"，而不是"它长什么样"。
  */
-function _parseUpdateArgs(rest = []) {
+const KNOWN_FLAGS = new Set([
+    '--check',
+    '--yes',
+    '-y',
+    '--help',
+    '-h',
+    '--from-release',
+    '--release-api',
+    '--release-repo',
+    '--prefix',
+    '--registry',
+]);
+
+/**
+ * 把 `--flag=value` 展开成 `['--flag', 'value']`（其余 token 原样）。
+ * 展开后再解析，既支持 `=` 写法，又让"取值位置"的记账只有一套逻辑。
+ */
+function _expandEqualsForm(list = []) {
+    const out = [];
+    for (const token of list) {
+        const m = /^(--[a-z-]+)=([\s\S]*)$/.exec(token);
+        if (m && KNOWN_FLAGS.has(m[1])) out.push(m[1], m[2]);
+        else out.push(token);
+    }
+    return out;
+}
+
+/**
+ * 解析 update 的参数（纯函数，无 IO，便于单测）。
+ *
+ * @param {string[]} rest - 去掉命令名与全局 flag 之后的参数
+ * @returns {object} 解析结果，含 `unknowns`（未知选项 + 多余位置参数）
+ */
+export function parseUpdateArgs(rest = []) {
+    const argv = _expandEqualsForm(rest);
     const opts = {
         checkOnly: false,
         yes: false,
@@ -233,8 +266,8 @@ function _parseUpdateArgs(rest = []) {
         prefix: '',
         valueIdx: new Set(),
     };
-    for (let i = 0; i < rest.length; i++) {
-        const arg = rest[i];
+    for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i];
         switch (arg) {
             case '--check':
                 opts.checkOnly = true;
@@ -250,7 +283,7 @@ function _parseUpdateArgs(rest = []) {
             case '--from-release': {
                 opts.fromRelease = true;
                 // 可选 tag：下一个不是 flag 的 token 视为 tag（`--from-release --check` = latest）
-                const next = rest[i + 1];
+                const next = argv[i + 1];
                 if (next !== undefined && !next.startsWith('-')) {
                     opts.tag = next;
                     opts.valueIdx.add(i + 1);
@@ -259,29 +292,35 @@ function _parseUpdateArgs(rest = []) {
                 break;
             }
             case '--release-api':
-                opts.releaseApi = rest[i + 1] ?? '';
-                if (rest[i + 1] !== undefined) opts.valueIdx.add(i + 1);
+                opts.releaseApi = argv[i + 1] ?? '';
+                if (argv[i + 1] !== undefined) opts.valueIdx.add(i + 1);
                 i++;
                 break;
             case '--release-repo':
-                opts.releaseRepo = rest[i + 1] ?? '';
-                if (rest[i + 1] !== undefined) opts.valueIdx.add(i + 1);
+                opts.releaseRepo = argv[i + 1] ?? '';
+                if (argv[i + 1] !== undefined) opts.valueIdx.add(i + 1);
                 i++;
                 break;
             case '--prefix':
-                opts.prefix = rest[i + 1] ?? '';
-                if (rest[i + 1] !== undefined) opts.valueIdx.add(i + 1);
+                opts.prefix = argv[i + 1] ?? '';
+                if (argv[i + 1] !== undefined) opts.valueIdx.add(i + 1);
                 i++;
                 break;
             case '--registry':
-                opts.registry = rest[i + 1];
-                if (rest[i + 1] !== undefined) opts.valueIdx.add(i + 1);
+                opts.registry = argv[i + 1];
+                if (argv[i + 1] !== undefined) opts.valueIdx.add(i + 1);
                 i++;
                 break;
             default:
                 break;
         }
     }
+    // 未知项判定：已知开关的取值（valueIdx）放行；已知开关放行；其余一律算未知。
+    opts.unknowns = argv.filter((a, i) => {
+        if (opts.valueIdx.has(i)) return false;
+        if (a.startsWith('-')) return !KNOWN_FLAGS.has(a);
+        return true;
+    });
     return opts;
 }
 
@@ -557,7 +596,7 @@ async function _cleanupStaging(staging) {
 /**
  * --from-release 主流程：取 release → 挑 asset → （--check 到此为止）下载 → 安装 → 回读校验。
  * @param {object} opts
- * @param {object} opts.args      _parseUpdateArgs 结果
+ * @param {object} opts.args      parseUpdateArgs 结果
  * @param {boolean} opts.jsonMode
  * @param {string} opts.current   当前 CLI 版本
  * @returns {Promise<{ok: boolean, [key: string]: any}>}
@@ -686,7 +725,7 @@ async function _updateFromRelease({ args, jsonMode, current }) {
  * @returns {Promise<{ok: boolean, skipLink?: boolean, message?: string, current?: string, latest?: string}>}
  */
 export async function cmdUpdateImpl({ jsonMode = false, rest = [] } = {}) {
-    const args = _parseUpdateArgs(rest);
+    const args = parseUpdateArgs(rest);
     const checkOnly = args.checkOnly;
     const yes = args.yes;
     const registry = args.registry;
@@ -709,19 +748,19 @@ export async function cmdUpdateImpl({ jsonMode = false, rest = [] } = {}) {
             '  --release-repo <r>    仓库 owner/repo（默认从 CLI 包或核心包的 repository 字段推导）',
             '  --prefix <dir>        把「全局安装」落到指定前缀（测试用；正式使用不传 = 系统全局目录）',
             '  说明: --check 可与 --from-release 组合，只报告版本与附件，不下载不安装',
+            '  说明: 值型开关支持 `--flag=value` 写法（如 --registry=https://registry.npmjs.org/）',
             '  注意: 数据目录 ~/.3lib/3rdloop/db 与 SKILL 配置不受更新影响',
         ].join('\n');
         process.stdout.write(help + '\n');
         return { ok: true, helped: true };
     }
 
-    // 拒绝多余的位置参数（保持命令简单）。
-    // 默认（registry）路径沿用旧规则逐字不变；Release 路径额外放行新 flag 的取值位置。
-    const unknowns = args.fromRelease
-        ? rest.filter((a, i) => !a.startsWith('--') && !args.valueIdx.has(i))
-        : rest.filter((a) => !a.startsWith('--'));
+    // 拒绝未知选项与多余位置参数（保持命令简单）。
+    // 判据由 `parseUpdateArgs` 统一给出：已知开关与已知开关的取值放行，其余算未知。
+    // 早先这里按"是否以 -- 开头"判定，导致 `--registry <url>` 与 `-y` 被当成位置参数拒绝。
+    const unknowns = args.unknowns;
     if (unknowns.length > 0) {
-        process.stderr.write(`未知参数: ${unknowns.join(' ')}（update 不接受位置参数）\n`);
+        process.stderr.write(`未知参数: ${unknowns.join(' ')}（update 只接受下列开关：${[...KNOWN_FLAGS].join(' ')}）\n`);
         if (args.fromRelease) {
             process.stderr.write('提示: tag 必须紧跟 --from-release，例如 --from-release v0.0.12\n');
         }

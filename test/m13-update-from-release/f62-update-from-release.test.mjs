@@ -527,6 +527,45 @@ try {
     await fs.rm(tmp, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 }
 
+// ─── J 参数解析（默认 registry 路径两个既有 bug 的回归锁）─────────────────
+// 早先「未知参数」判定按"是否以 -- 开头"，于是 `--registry <url>` 的取值与短开关 `-y`
+// 都被当成位置参数拒绝；`--flag=value` 写法也不被接受。这组只跑纯函数，不联网不落盘。
+{
+    const { parseUpdateArgs } = await import(new URL('../../cli/lib/update.js', import.meta.url).href);
+
+    const r1 = parseUpdateArgs(['--check', '--registry', 'https://mirror.example.com/']);
+    check('J1 `--registry <url>` 的取值不再被当成位置参数',
+        r1.unknowns.length === 0 && r1.registry === 'https://mirror.example.com/',
+        JSON.stringify({ unknowns: r1.unknowns, registry: r1.registry }));
+
+    const r2 = parseUpdateArgs(['-y']);
+    check('J2 短开关 `-y` 被识别（不再报未知参数）',
+        r2.unknowns.length === 0 && r2.yes === true, JSON.stringify(r2.unknowns));
+
+    const r3 = parseUpdateArgs(['--registry=https://mirror.example.com/', '--yes']);
+    check('J3 支持 `--flag=value` 写法',
+        r3.unknowns.length === 0 && r3.registry === 'https://mirror.example.com/' && r3.yes === true,
+        JSON.stringify({ registry: r3.registry, unknowns: r3.unknowns }));
+
+    const r4 = parseUpdateArgs(['--from-release', 'v0.0.12', '--prefix', '/tmp/x']);
+    check('J4 Release 路径的 tag 与 `--prefix` 取值仍被放行',
+        r4.unknowns.length === 0 && r4.tag === 'v0.0.12' && r4.prefix === '/tmp/x', JSON.stringify(r4.unknowns));
+
+    check('J5 裸位置参数仍被拒绝', parseUpdateArgs(['something']).unknowns.length === 1);
+    check('J6 未知长选项被拒绝', parseUpdateArgs(['--bogus']).unknowns[0] === '--bogus');
+    check('J7 未知短选项被拒绝', parseUpdateArgs(['-x']).unknowns[0] === '-x');
+    check('J8 `--help` / `-h` 不算未知',
+        parseUpdateArgs(['-h']).unknowns.length === 0 && parseUpdateArgs(['--help']).help === true);
+
+    // J9 守的是"修复这一片时差点引入的回归"：update 必须解析 `flags.rest`（全局解析认领之后
+    // 的剩余参数），而不是原始 argv —— 否则 `--json` / `--data-dir <d>` 这类全局 flag 会被
+    // 子命令当成未知参数拒绝。
+    const cliSrc = await fs.readFile(path.join(CLI_ROOT, 'lib', 'cli.js'), 'utf8');
+    check('J9 cmdUpdate 把 `flags.rest` 交给 update.js（全局 flag 不在子命令参数里）',
+        /cmdUpdateImpl\(\{[^}]*rest:\s*flags\?\.rest\s*\?\?\s*rest/.test(cliSrc),
+        'cli.js 里的 cmdUpdate 未使用 flags.rest');
+}
+
 console.log(`\n${fail === 0 ? 'M13-A 全部通过' : 'M13-A 存在失败'}：${pass} 通过 / ${fail} 失败`);
 if (fail > 0) console.log(`失败断言: ${failures.join(' | ')}`);
 process.exit(fail === 0 ? 0 : 1);
