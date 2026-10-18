@@ -101,19 +101,61 @@ export function loadProfile({ profilesDir, name, env = process.env }) {
 
     let merged = null;
     for (const dir of dirs) {
-        const file = path.join(dir, `${profileName}.json`);
-        if (!fs.existsSync(file)) continue;
-        const one = readProfileFile(file, profileName, dirs);
+        // 目录式（DSH 布局）优先：<dir>/<name>/profile.json；其次旧式 <dir>/<name>.json
+        const one = readProfileDir(path.join(dir, profileName), profileName)
+            ?? readProfileFileIfExists(path.join(dir, `${profileName}.json`), profileName, dirs);
+        if (!one) continue;
         merged = merged ? mergeProfiles(merged, one) : one;
     }
     if (merged) return merged;
 
     if (profileName !== DEFAULT_PROFILE) {
-        const tried = dirs.map((d) => path.join(d, `${profileName}.json`)).join('、') || '（无目录）';
-        throw new Error(`profile 不存在: ${tried}（可用: ${listProfiles(dirs).join(', ') || '无'}）`);
+        const tried = dirs
+            .flatMap((d) => [path.join(d, profileName, 'profile.json'), path.join(d, `${profileName}.json`)])
+            .join('、');
+        throw new Error(`profile 不存在: ${tried || '（无目录）'}（可用: ${listProfiles(dirs).join(', ') || '无'}）`);
     }
     // 缺省 profile 文件时返回空 profile（全部启用、无选项）——允许最小部署
     return { name: profileName, plugins: {} };
+}
+
+/** 旧式单文件 profile：存在才读，不存在返回 null。 */
+function readProfileFileIfExists(file, profileName, dirs = []) {
+    if (!fs.existsSync(file)) return null;
+    return readProfileFile(file, profileName, dirs);
+}
+
+/** 目录式 profile（`<profileDir>/profile.json`）：存在才读，不存在返回 null。 */
+function readProfileDir(profileDir, profileName) {
+    const file = path.join(profileDir, 'profile.json');
+    if (!fs.existsSync(file)) return null;
+    return readProfileFile(file, profileName);
+}
+
+/**
+ * 解析某个 profile 的**目录**（DSH 式布局：一个 profile 一个目录）。
+ *
+ * 插件就是该目录 `node_modules/` 里的 npm 包（安装/卸载由包管理器完成，见
+ * `cli/lib/plugin-store.js`），启用状态记在该目录的 `profile.json`。
+ * 仍兼容旧布局 `<profilesRoot>/<name>.json`（单文件 overlay）。
+ *
+ * @param {object} opts
+ * @param {string|string[]} [opts.profilesDir] - profile 根目录列表（后者优先）
+ * @param {string} [opts.name] - profile 名，缺省取 env `3LIB_PLUGIN_PROFILE` → `default`
+ * @param {NodeJS.ProcessEnv} [opts.env]
+ * @returns {string} profile 目录绝对路径（可能尚不存在）
+ */
+export function resolveProfileDir({ profilesDir, name, env = process.env } = {}) {
+    const profileName = name ?? env[PROFILE_ENV] ?? DEFAULT_PROFILE;
+    const dirs = toDirList(profilesDir);
+    for (const dir of dirs) {
+        const candidate = path.join(dir, profileName);
+        if (fs.existsSync(path.join(candidate, 'profile.json'))) return candidate;
+    }
+    for (const dir of dirs) {
+        if (fs.existsSync(path.join(dir, `${profileName}.json`))) return path.join(dir, profileName);
+    }
+    return path.join(dirs.length ? dirs[dirs.length - 1] : USER_PROFILES_DIR, profileName);
 }
 
 /**
@@ -158,8 +200,14 @@ export function listProfiles(profilesDir) {
     const names = new Set();
     for (const dir of dirs) {
         if (!fs.existsSync(dir)) continue;
-        for (const f of fs.readdirSync(dir)) {
-            if (f.endsWith('.json')) names.add(f.slice(0, -'.json'.length));
+        for (const entry of fs.readdirSync(dir)) {
+            // 旧式单文件 <name>.json
+            if (entry.endsWith('.json')) {
+                names.add(entry.slice(0, -'.json'.length));
+                continue;
+            }
+            // 目录式 <name>/profile.json（DSH 布局）
+            if (fs.existsSync(path.join(dir, entry, 'profile.json'))) names.add(entry);
         }
     }
     return [...names].sort();

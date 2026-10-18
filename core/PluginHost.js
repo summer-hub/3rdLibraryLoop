@@ -11,12 +11,13 @@
  *   dispose() → 逆序执行各插件 disposer（可逆效果，热替换/关停不残留）
  */
 
+import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PluginContext } from './Context.js';
 import { loadPluginEntry, scanPluginRoots, topoSort } from './PluginLoader.js';
-import { loadProfile, mergePluginRoots, resolvePluginState, USER_PROFILES_DIR } from './Profile.js';
+import { loadProfile, mergePluginRoots, resolveProfileDir, resolvePluginState, USER_PROFILES_DIR } from './Profile.js';
 
 /** 仓库内置插件根目录（core/ 的上一级 plugins/） */
 const BUILTIN_PLUGINS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'plugins');
@@ -66,6 +67,26 @@ export class PluginHost {
     get roots() { return mergePluginRoots(this._roots, this._env); }
 
     /**
+     * 当前 profile 的目录（DSH 式：一个 profile 一个目录，插件装在其 node_modules 里）。
+     * @param {string} [profileName]
+     */
+    profileDirFor(profileName) {
+        return resolveProfileDir({ profilesDir: this._profilesDir, name: profileName, env: this._env });
+    }
+
+    /**
+     * 实际扫描的插件根：内置 → **当前 profile 的 node_modules**（模拟 DSH 的 profile 依赖）
+     * → 用户全局 → env 额外根。profile 的 node_modules 存在才加入，避免制造空根。
+     */
+    rootsFor(profileName) {
+        const dir = this.profileDirFor(profileName);
+        const profileModules = path.join(dir, 'node_modules');
+        const base = [...this._roots];
+        if (fs.existsSync(profileModules)) base.splice(1, 0, profileModules);
+        return mergePluginRoots(base, this._env);
+    }
+
+    /**
      * 只读描述当前插件状况——**不装配**，不触发任何插件 setup。
      *
      * CLI（`3rdloop plugin list`）与 Web（`GET /api/plugins`）共用这一份数据，
@@ -113,7 +134,13 @@ export class PluginHost {
                 dependencies: [...(manifest.dependencies ?? [])],
                 installed: Boolean(entry),
                 dir,
-                source: dir ? (isUnder(dir, BUILTIN_PLUGINS_DIR) ? 'builtin' : 'user') : 'missing',
+                source: dir
+                    ? isUnder(dir, BUILTIN_PLUGINS_DIR)
+                        ? 'builtin'
+                        : isUnder(dir, path.join(this.profileDirFor(profile.name), 'node_modules'))
+                          ? 'profile'
+                          : 'user'
+                    : 'missing',
                 enabled: Boolean(state.enabled) && Boolean(entry),
                 required: Boolean(state.required),
                 reason: state.reason ?? null,
@@ -174,7 +201,8 @@ export class PluginHost {
             ? loadProfile({ profilesDir: this._profilesDir, name: profile, env: this._env })
             : profile;
 
-        const roots = mergePluginRoots(this._roots, this._env);
+        const profileName = typeof profile === 'string' ? profile : this._profile?.name;
+        const roots = this.rootsFor(profileName);
         const { entries, conflicts } = scanPluginRoots(roots);
         for (const c of conflicts) {
             this._log(`[plugin-host] 同名插件 ${c.name}：采用 ${c.kept}，跳过 ${c.skipped}`);

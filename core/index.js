@@ -29,6 +29,7 @@ export { PluginContext, EventMode } from './Context.js';
 export { scanPluginRoots, topoSort, loadPluginEntry } from './PluginLoader.js';
 export {
     loadProfile,
+    resolveProfileDir,
     listProfiles,
     resolvePluginState,
     mergePluginRoots,
