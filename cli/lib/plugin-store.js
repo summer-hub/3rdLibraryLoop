@@ -149,7 +149,7 @@ function caretUpper([major, minor, patch]) {
     return [0, 0, patch + 1];
 }
 
-/** 单个比较符（`>=1.2.3` / `^0.0.13` / `~1.2` / `1.2.3`）是否命中版本。 */
+/** 单个比较符（`>=1.2.3` / `^0.0.14` / `~1.2` / `1.2.3`）是否命中版本。 */
 function matchComparator(version, token) {
     const m = /^(\^|~|>=|<=|>|<|=)?\s*(.+)$/.exec(String(token).trim());
     if (!m) return false;

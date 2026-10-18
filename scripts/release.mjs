@@ -226,7 +226,7 @@ irm https://raw.githubusercontent.com/summor/3rdLibraryLoop/master/scripts/insta
 curl -fsSL https://raw.githubusercontent.com/summor/3rdLibraryLoop/master/scripts/install.sh | bash
 \`\`\`
 
-指定版本：\`-Tag v0.0.13\`（PowerShell）/ \`--tag v0.0.13\`（bash）。
+指定版本：\`-Tag v0.0.14\`（PowerShell）/ \`--tag v0.0.14\`（bash）。
 离线或验证本次产物：\`-FromDir <本目录>\` / \`--from-dir <本目录>\`。
 
 ## 本地安装（验证用）

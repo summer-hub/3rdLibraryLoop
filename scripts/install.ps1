@@ -17,7 +17,7 @@
     script as ANSI, which mangles non-ASCII text and can break parsing.
 
 .PARAMETER Tag
-    Release tag, e.g. v0.0.13. Defaults to the latest release.
+    Release tag, e.g. v0.0.14. Defaults to the latest release.
 
 .PARAMETER Prefix
     Install into this prefix (npm i -g --prefix <dir>). The bin shim then lives under that
@@ -41,7 +41,7 @@
     irm https://raw.githubusercontent.com/summor/3rdLibraryLoop/master/scripts/install.ps1 | iex
 
 .EXAMPLE
-    .\scripts\install.ps1 -Tag v0.0.13 -Prefix C:\tools\3rdloop
+    .\scripts\install.ps1 -Tag v0.0.14 -Prefix C:\tools\3rdloop
 
 .EXAMPLE
     .\scripts\install.ps1 -FromDir .\dist -Prefix $env:TEMP\3l-probe
@@ -128,7 +128,7 @@ try {
                 $Tag = $rel.tag_name
             } catch {
                 $why = $_.Exception.Message.Split([char]10)[0]
-                Fail "cannot resolve latest release from $Api. Pass -Tag explicitly, e.g. -Tag v0.0.13`n        $why"
+                Fail "cannot resolve latest release from $Api. Pass -Tag explicitly, e.g. -Tag v0.0.14`n        $why"
             }
             if (-not $Tag) { Fail 'latest release response has no tag_name' }
         }

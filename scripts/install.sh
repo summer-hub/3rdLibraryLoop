@@ -8,7 +8,7 @@
 #
 # 用法：
 #   curl -fsSL https://raw.githubusercontent.com/summor/3rdLibraryLoop/master/scripts/install.sh | bash
-#   ./scripts/install.sh --tag v0.0.13 --prefix "$HOME/.local"
+#   ./scripts/install.sh --tag v0.0.14 --prefix "$HOME/.local"
 #   ./scripts/install.sh --from-dir ./dist            # 离线/本地验证
 #
 # 选项：
@@ -94,7 +94,7 @@ else
         say "查询 latest Release（$REPO）"
         LATEST_JSON="$WORK/latest.json"
         dl "$API/repos/$REPO/releases/latest" "$LATEST_JSON" \
-            || die "查询 latest 失败（$API）。请显式指定 --tag，例如 --tag v0.0.13"
+            || die "查询 latest 失败（$API）。请显式指定 --tag，例如 --tag v0.0.14"
         TAG=$(node -e 'const j=require(process.argv[1]);process.stdout.write(j.tag_name||j.name||"")' "$LATEST_JSON" 2>/dev/null || true)
         [ -n "$TAG" ] || die "latest Release 响应里没有 tag_name"
     fi
