@@ -5,7 +5,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-≥22-green)](https://nodejs.org/)
 [![ESM](https://img.shields.io/badge/ESM-modules-orange)](https://nodejs.org/api/esm.html)
 [![License](https://img.shields.io/badge/license-MIT-blue)](#-license)
-[![Tests](https://img.shields.io/badge/tests-17%20suites%20%2F%201762%20assertions-brightgreen)](#-测试与质量门禁)
+[![Tests](https://img.shields.io/badge/tests-18%20suites%20%2F%201896%20assertions-brightgreen)](#-测试与质量门禁)
 
 ---
 
@@ -121,36 +121,52 @@ engine-brain · engine-knowledge · engine-loop · engine-orchestrator · engine
 - 「拔插件」验收要求写 **显式 `enabled: false`**——省略不等于禁用。
 - 应急逃生阀：`3LIB_PLUGIN_MODE=off` 等价于不装宿主、走内置装配，**优先于任何构造参数**。
 
-#### 插件管理（CLI 与前端，用户可见的开关）
+#### 插件管理（CLI 与前端）
 
-开关**不需要手改 JSON**。读写只发生在一个地方：**用户级 overlay**
-`~/.3lib/3rdloop/profiles/<profile>.json`（合并后覆盖包内 `profiles/<profile>.json`）。
-放包外是因为发布态包内 profile 位于 `node_modules/@ohos-cpf/3rdloop_core/profiles/`，
-既不该改、改了也会在下次 `update` 时丢。**改完需重启 `3rdloop serve` 才生效**（overlay 在进程启动时读取）。
+插件模型对齐 DeepSeek Harness：**一个 profile 一个目录，插件就是该目录的 npm 依赖**，
+启用状态单独记录。三者都在包外：
 
-```bash
-3rdloop plugin list                    # 名称/接缝/状态/来源/被依赖（含 profile 提到但未安装的条目）
-3rdloop plugin info engines/brain      # 全字段 + 依赖关系
-3rdloop plugin disable engines/brain   # 写 overlay；required 或"被启用插件依赖"时默认拒绝
-3rdloop plugin enable engines/brain
-3rdloop plugin check                   # 静态检查：依赖闭合 + 必需接缝是否有提供方（有 error 退出码 1）
-3rdloop plugin path                    # overlay 路径与当前 profile
-3rdloop plugin add <dir>               # 装到 ~/.3lib/plugins/<name>/（前端「插件」页同一个实现）
-3rdloop plugin remove <name>           # 仅卸载用户级插件（内置拒绝）
+```
+~/.3lib/3rdloop/profiles/<profile>/
+├── package.json      # dependencies = 已安装的插件包（npm 管理）
+├── package-lock.json # 锁文件（安装失败会逐字节回滚）
+├── node_modules/     # 插件就装在这里，宿主直接从这儿扫描加载
+└── profile.json      # 启用/禁用与选项（overlay，合并覆盖包内 profiles/<profile>.json）
 ```
 
-前端：工作台左侧导航「插件」分区（`GET /api/plugins` + `POST /api/plugins/toggle|install|remove`），
-能看状态/来源/被依赖、接缝冲突与生效者；
-- **开关**写同一份 overlay；
-- **安装**填本机插件目录路径 → 装到 `~/.3lib/plugins/`；
-- **卸载**只对「来源=用户」的行出现（内置插件拒绝，需走包管理器）。
+`--profile <name>` 对所有子命令生效（优先于环境变量 `3LIB_PLUGIN_PROFILE`）；
+profile 目录不存在时 `add` 会按需创建（与 `dsh plugin --profile … add` 行为一致）。
 
-两条约定值得记住：
+```bash
+3rdloop plugin list  [--profile web]      # 名称/接缝/状态/来源/被依赖 + profile 目录
+3rdloop plugin info  <name>               # 全字段 + 依赖关系 + 禁用后果
+3rdloop plugin enable|disable <name>      # 写 <profileDir>/profile.json（required/被依赖默认拒绝）
+3rdloop plugin check                      # 依赖闭合 + 五条 engine-* 必需接缝（有 error 退出码 1）
+3rdloop plugin path                       # profile 目录、overlay 路径、可用 profile
+3rdloop plugin add <spec>                 # npm 能吃的 spec：包名 / 包名@版本 / git+https://… / x.tgz / file:<目录>
+3rdloop plugin remove <name>              # 从当前 profile 卸载（npm uninstall + 清 profile.json 条目）
+```
 
-- **`plugin check` 与真实装配同向**：它会校验五条 `engine-*` 必需接缝是否仍有启用中的提供方，
+`add` 的流程与 DSH 一致：**spec 分类 → `engines.3rdloop` 兼容预检（不通过则一步都不装）→
+`npm install --save-exact --install-links`（cwd = profile 目录）→ 复查宿主可见性 →
+写启用状态**；任一步失败把 `package.json` / `package-lock.json` **逐字节回滚**。
+
+前端：工作台左侧导航「插件」分区（`GET /api/plugins?profile=` +
+`POST /api/plugins/toggle|install|remove`），有 **profile 下拉**、来源列（内置 / profile / 用户）、
+「位置」列、接缝冲突与生效者；安装/卸载与 CLI 共用 `cli/lib/plugin-store.js` 的同一实现。
+
+五条约定值得记住：
+
+- **安装 ≠ 启用**：`add` 只把包装进 profile；能不能生效看 `profile.json` 里的 `enabled`。
+- **装前先查兼容**：插件包可在 `package.json` 里声明 `engines.3rdloop`；不满足当前 CLI 版本时
+  **不下载、不安装**（离线/镜像不可达同样在预检阶段就失败——宁可不装也不装坏）。
+- **失败回滚**：`package.json` 与锁文件恢复到安装前，不留半装状态。
+- **`plugin check` 与真实装配同向**：它校验五条 `engine-*` 必需接缝是否仍有启用中的提供方，
   所以"check 通过"就不会在 `buildApp` 时突然 fail closed。
-- **关不掉的插件会说明原因**：`required` 插件直接拒绝；被启用插件依赖的会列出依赖者
+- **关不掉的插件会说明原因**：`required` 直接拒绝；被启用插件依赖的列出依赖者
   （如 `storage/core ← cli/opencode`），确需强关才用 `--force`。
+
+> 改完需重启 `3rdloop serve` 才生效（profile 在进程启动时读取）。
 
 ### 二、`Server/` 现在是什么
 
@@ -189,7 +205,7 @@ engine-brain · engine-knowledge · engine-loop · engine-orchestrator · engine
 │   └── Brain|TestCheck|Orchestrator|LoopEngine|FlexRunner|Knowledge|DbUse|Distributed/  # 转发门面
 ├── cli/                           # 独立 CLI 包 @ohos-cpf/3rdloop（bin/ lib/ workflows/）
 ├── Web/                           # public/（核心前端）+ ext/（tag|prcheck|issue）+ server.js（兼容入口）
-├── test/                          # 验收套件 m1–m14（67 文件 ≈ 1.2 万行）
+├── test/                          # 验收套件 m1–m17（70+ 文件 ≈ 1.4 万行）
 ├── scripts/                       # arch-guard / ci / coverage / release
 ├── MCP/ Archive/ BadCase/         # 运行期资产（随核心包发布）
 ├── deploy/                        # Dockerfile + docker-compose.yml
@@ -378,7 +394,7 @@ npm run ci          # lint + test（CI 唯一入口，.github/workflows/ci.yml �
 npm run coverage    # V8 覆盖率（口径见下方「已知缺口」）
 ```
 
-当前状态（本分支实测）：**17 套件 / 1762 条断言全绿**。
+当前状态（本分支实测）：**18 套件 / 1896 条断言全绿**。
 
 | 套件 | 断言 | 覆盖什么 |
 |------|-----:|----------|
@@ -396,6 +412,9 @@ npm run coverage    # V8 覆盖率（口径见下方「已知缺口」）
 | `m12` CLI 上下文生命周期 | 22 | `RunContext` 出口收口（正常返回 / 抛错 / 信号三条路径） |
 | `m13` 从 Release 升级 | 77 | 本地假 GitHub API + **真 tarball**；含 `--check` 不落盘、404、坏包三条路径与临时目录清理 |
 | `m14` Web 扩展来源 | 12 | 扩展根解析与 realpath 去重、同名遮蔽可观测 |
+| `m15` CLI 插件管理 | 91 | `--profile` / list / info / 开关 / check / add（npm）/ remove / 回滚 / engines 预检 / `buildApp` fail-closed 对照 |
+| `m16` Web 插件管理 | 79 | `/api/plugins?profile=` / toggle / install(spec) / remove / 400 拒绝 / profile 隔离 / 令牌门禁 |
+| `m17` profile 插件语义 | 58 | overlayPath 落点 / 最小 semver / spec 分类 / npm 生命周期 / 两次回滚 / engines 预检 / profile 隔离 |
 | `test:unit` | — | SkillSelector 纯逻辑回归 |
 
 另有四道不在 `npm test` 里的门禁：

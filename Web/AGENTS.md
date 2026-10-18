@@ -65,21 +65,33 @@ Web/ext/<name>/
 
 工作台左侧导航的「插件」分区，脚本 `public/js/plugins.js`，走既有懒加载注册。
 
-- 数据源是 **`GET /api/plugins`**（由 `cli/lib/web.js` 在 `/api/*` 反代**之前**本地响应），
+插件模型是 **DSH 式：一个 profile 一个目录，插件就是该目录的 npm 依赖**（`<profileDir>/node_modules/`），
+安装/卸载走包管理器，启用状态单独记在 `profile.json`。页面上的一切都围绕这一点：
+
+- 数据源是 **`GET /api/plugins?profile=<name>`**（由 `cli/lib/web.js` 在 `/api/*` 反代**之前**本地响应），
   背后是内核 `PluginHost.describe()` + `cli/lib/plugin-store.js` 的 `check()`——与
   `3rdloop plugin list/check` **同一份数据、同一套判定**，不存在"界面说能关、命令行说不能"。
-- 安装/卸载：**`POST /api/plugins/install`** `{dir}`（本机目录）与 **`POST /api/plugins/remove`** `{name}`，
-  与 CLI `plugin add` / `plugin remove` 共用 `plugin-store` 的同一实现（校验清单 → 复制 → 复查宿主可见性 → 失败回滚）。
-  「卸载」按钮只出现在 `source === 'user'` 的行上；内置插件后端同样拒绝。
-- 开关走 **`POST /api/plugins/toggle`** `{name, enabled, force?}`，成功返回
-  `{success:true, data:{...,requiresRestart:true}}`；校验失败回 **HTTP 400**（不是 500），
-  `message` 直接展示给用户。
-- 写入目标是用户级 overlay `~/.3lib/3rdloop/profiles/<profile>.json`，**不改包内 profile**；
+  快照字段：`{profile, profileDir, profiles[], overlay{path,exists,dir}, overlayPath, roots, plugins[], seams, conflicts, errors, warnings}`。
+- **profile 选择器**（`#plugins-profile-select`）列出 `data.profiles`，切换后带 `?profile=` 重新拉取，
+  并用 `history.replaceState` 把 hash 同步成 `#p-plugins`（不引路由库）。当前 profile 与 `profileDir` 显示在信息条。
+- 安装：**`POST /api/plugins/install`** `{spec, profile?}`，`spec` 是 npm 能吃的写法
+  （包名 / git 地址 / tarball / `file:<本机目录>`）；旧参数 `{dir}` 仍兼容，服务端折成 `file:<绝对路径>`。
+  成功后提示「已安装 `<name>`（profile `<p>`，重启 `3rdloop serve` 生效）」。装卸与 CLI 共用 `plugin-store`
+  的同一实现（分类 → **engines 预检（不通过则不下载不安装）** → `npm install --install-links` → 复查宿主可见性 → 失败逐字节回滚）。
+- 卸载：**`POST /api/plugins/remove`** `{name, profile?}`。「卸载」按钮只出现在 `source === 'profile'` 或 `'user'`
+  的行上（内置插件后端同样拒绝），确认框写清「从 profile `<p>` 卸载」并附插件目录与 `package.json` 位置。
+- 开关走 **`POST /api/plugins/toggle`** `{name, enabled, force?, profile?}`，成功返回
+  `{success:true, data:{...,profile, requiresRestart:true}}`；校验失败回 **HTTP 400**（不是 500），
+  `message` 直接展示给用户。未知 profile 同样是 400（`GET` 时 message 带可用名单）。
+- 写入目标是 `~/.3lib/3rdloop/profiles/<profile>/profile.json`（目录式 overlay），**不改包内 profile**；
   成功后页面提示「重启 `3rdloop serve` 生效」。
+- 表格「来源」列：内置 / profile / 用户 / —；「位置」列显示插件落在哪（`profile` 来源显示「profile 依赖」，
+  完整路径进 `title`）。
 - `required` 插件开关置灰并给出原因；被启用插件依赖的（`dependents.length > 0`）先
   `confirm()` 再带 `force:true` 提交，取消则不发请求。
 - 接缝冲突（同一接缝多个提供方，如 `ai-cli`）在页面上标出提供方与生效者。
-- 验收：`test/m16-plugin-web`（40 条断言）覆盖快照 / toggle / install / remove / 400 拒绝 / 坏 body / 静态资源 / 令牌门禁。
+- 验收：`test/m16-plugin-web`（79 条断言）覆盖快照 / toggle / install / remove / 400 拒绝 / 坏 body /
+  静态资源 / 令牌门禁 / **profile 选择与隔离**（web 里装的插件不出现在 default）/ engines 坏包不落盘。
 
 ## 新增扩展步骤
 

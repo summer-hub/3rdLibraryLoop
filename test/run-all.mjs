@@ -34,6 +34,7 @@ const SUITES = [
     ['M14 Web 扩展来源验收', 'test/m14-web-ext-source/run-all.mjs', [], 300000],
     ['M15 CLI 插件管理验收', 'test/m15-plugin-management/run-all.mjs', [], 300000],
     ['M16 Web 插件管理验收', 'test/m16-plugin-web/run-all.mjs', [], 300000],
+    ['M17 profile 插件语义验收', 'test/m17-profile-plugins/run-all.mjs', [], 300000],
     ['SkillSelector 纯逻辑回归', 'Server/Agent/SkillSelector/__tests__/test-pure-logic.js', [], 180000],
 ];
 

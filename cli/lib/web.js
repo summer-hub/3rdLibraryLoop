@@ -13,8 +13,10 @@
  *
  * 路由优先级：
  *   1. GET /api/ext-registry            扩展注册表（本地响应）
- *      GET /api/plugins                 插件状态快照（本地响应）
+ *      GET /api/plugins?profile=        插件状态快照（本地响应）
  *      POST /api/plugins/toggle         插件开关写入（本地响应）
+ *      POST /api/plugins/install        按 npm spec 装进 profile 目录（本地响应）
+ *      POST /api/plugins/remove         从 profile 目录卸载（本地响应）
  *   2. /<mount> 与 /<mount>/...         扩展页面 / API / 静态资源
  *   3. /api/* 与 /stream*               反向代理到后端 Server（SSE 透传）
  *   4. 其余                             核心前端静态文件
@@ -394,9 +396,9 @@ async function _handleRequest(req, res, { webRoot, extensions, backend, accessTo
     }
 
     // 1b. 插件管理（本地响应）。必须排在下面的 /api/* 反代**之前**，
-    //     否则请求会被转给后端 Server（那里没有这两个端点）。
+    //     否则请求会被转给后端 Server（那里没有这几个端点）。
     if (lower === '/api/plugins') {
-        await _handlePluginsState(req, res);
+        await _handlePluginsState(req, res, url);
         return;
     }
     if (lower === '/api/plugins/toggle') {
@@ -463,41 +465,85 @@ function _pluginStore() {
 }
 
 /**
- * GET /api/plugins —— 插件状态快照（只读，不装配内核）。
+ * 从请求体里取 profile（缺省/空白 → undefined，表示"当前 profile"）。
+ * @param {object} body
+ * @returns {string|undefined}
+ */
+function _profileFromBody(body) {
+    const p = typeof body?.profile === 'string' ? body.profile.trim() : '';
+    return p || undefined;
+}
+
+/**
+ * 把安装请求体收敛成包管理器用的 npm spec。
+ *
+ *   新参数 `spec`：原样交给 store（包名 / file: / link: / git / tarball 都由它判定）
+ *   旧参数 `dir` ：本机目录 → `file:<绝对路径>`（等价语义，老前端/老脚本不至于立刻失效）
+ *
+ * @param {object} body
+ * @returns {string} 空串表示两个参数都没给
+ */
+function _installSpecOf(body) {
+    const spec = typeof body.spec === 'string' ? body.spec.trim() : '';
+    if (spec) return spec;
+    const dir = typeof body.dir === 'string' ? body.dir.trim() : '';
+    if (!dir) return '';
+    // 已经写成 `file:`/`link:` 等协议的（且不是 Windows 盘符 `D:\`）就不再加前缀
+    const alreadySpec = /^[a-z][a-z0-9+.-]*:/i.test(dir) && !/^[a-z]:[\\/]/i.test(dir);
+    return alreadySpec ? dir : `file:${path.resolve(dir)}`;
+}
+
+/**
+ * GET /api/plugins?profile=<name> —— 插件状态快照（只读，不装配内核）。
  *
  * `check()` 不通过时 `success` 仍为 true：errors 是**要展示给用户的数据**
  * （"哪个插件依赖缺了"），不是"这个接口坏了"。回 false 会让前端整页报错，
  * 反而看不到到底哪一条有问题。
+ *
+ * profile 语义（DSH 式）：一个 profile 一个目录，插件是那个目录 `node_modules/`
+ * 里的 npm 包。`?profile=` 缺省取当前 profile；选到不存在的 profile 属**用户输入**
+ * 问题 → 400（不是 500），message 由 store 给出（含可用名单）。
  */
-async function _handlePluginsState(req, res) {
+async function _handlePluginsState(req, res, url) {
     const method = (req.method || 'GET').toUpperCase();
     if (method !== 'GET' && method !== 'HEAD') {
         _sendJson(res, 405, { success: false, message: 'method not allowed（GET /api/plugins）' });
         return;
     }
 
+    const profile = (url?.searchParams.get('profile') ?? '').trim() || undefined;
     try {
         const store = await _pluginStore();
-        const state = store.readState();
-        const verdict = store.check();
+        const state = store.readState({ profile });
+        const verdict = store.check({ profile });
+        const overlay = state.overlay ?? {};
         _sendJson(res, 200, {
             success: true,
             data: {
                 profile: state.profileName,
-                profileDirs: state.profileDirs ?? [],
+                profileDir: state.profileDir ?? '',
+                profiles: state.profiles ?? [],
                 overlay: {
-                    path: state.overlay?.path ?? '',
-                    exists: Boolean(state.overlay?.exists),
+                    path: overlay.path ?? '',
+                    exists: Boolean(overlay.exists),
+                    dir: overlay.dir ?? '',
                 },
+                overlayPath: overlay.path ?? '',
                 roots: state.roots ?? [],
                 plugins: state.plugins ?? [],
                 seams: state.seams ?? {},
                 conflicts: state.conflicts ?? [],
-                errors: verdict.errors,
-                warnings: verdict.warnings,
+                errors: verdict.errors ?? [],
+                warnings: verdict.warnings ?? [],
             },
         });
     } catch (err) {
+        // 选错 profile / profile 文件读不出来 → 400（用户改一下就能好）；
+        // 其余（store 自身炸了）才是 500。
+        if (profile && /profile/i.test(String(err.message))) {
+            _sendJson(res, 400, { success: false, message: err.message });
+            return;
+        }
         _sendJson(res, 500, { success: false, message: `读取插件状态失败: ${err.message}` });
     }
 }
@@ -536,12 +582,18 @@ async function _handlePluginsToggle(req, res) {
 
     try {
         const store = await _pluginStore();
-        const result = store.setEnabled({ name, enabled: body.enabled, force: body.force === true });
+        const result = store.setEnabled({
+            name,
+            enabled: body.enabled,
+            force: body.force === true,
+            profile: _profileFromBody(body),
+        });
         _sendJson(res, 200, {
             success: true,
             data: {
                 name: result.name,
                 enabled: result.enabled,
+                profile: result.profile ?? '',
                 requiresRestart: result.requiresRestart !== false,
                 file: result.file,
                 warnings: result.warnings ?? [],
@@ -553,11 +605,12 @@ async function _handlePluginsToggle(req, res) {
 }
 
 /**
- * POST /api/plugins/install —— 从**本机目录**安装插件到 `~/.3lib/plugins/<name>/`。
+ * POST /api/plugins/install —— 把插件装进**指定 profile 目录**（npm spec）。
  *
- * 逻辑与 CLI `3rdloop plugin add` 同一个实现（`plugin-store.installPlugin`）：校验清单 →
- * 复制 → 用 `readState()` 复查宿主是否真的看得见、来源是否 user → 失败自动回滚。
- * 失败一律 400（目录不存在/清单非法/目标已存在都是用户输入问题）。
+ * 逻辑与 CLI 同一实现（`plugin-store.installPlugin`）：包管理器安装 → 复查宿主是否真的
+ * 看得见、来源是否 `profile` → 失败自动回滚。`spec` 支持包名 / `file:` / `link:` / git /
+ * tarball / 本机路径；旧参数 `dir` 在这里被折成 `file:<abs>`，老前端不至于立刻失效。
+ * 失败一律 400（地址写错、版本不满足、目录不存在都是用户输入问题）。
  */
 async function _handlePluginsInstall(req, res) {
     const method = (req.method || 'GET').toUpperCase();
@@ -571,24 +624,36 @@ async function _handlePluginsInstall(req, res) {
         return;
     }
     const body = parsed.body && typeof parsed.body === 'object' ? parsed.body : {};
-    const dir = typeof body.dir === 'string' ? body.dir.trim() : '';
-    if (!dir) {
-        _sendJson(res, 400, { success: false, message: '缺少插件目录 dir（本机路径，如 D:/my-plugin）' });
+    const spec = _installSpecOf(body);
+    if (!spec) {
+        _sendJson(res, 400, {
+            success: false,
+            message: '缺少 spec（npm 包名 / git 地址 / 本机目录，如 file:D:/my-plugin）',
+        });
         return;
     }
 
     try {
         const store = await _pluginStore();
-        const result = store.installPlugin({ dir });
+        const result = store.installPlugin({ spec, profile: _profileFromBody(body) });
+        // store 回传两个名字：`name` 是 npm 注册名（`file:` 装的包里叫 3rdloop-plugin-x），
+        // `pluginName` 是 plugin.json 里的插件名。界面上给人看的是后者。
+        const pluginName = result.pluginName ?? result.name ?? '';
         _sendJson(res, 200, {
             success: true,
             data: {
-                name: result.name,
-                dir: result.dir,
-                version: result.version,
-                seam: result.seam,
+                name: pluginName,
+                pluginName,
+                packageName: result.name ?? '',
+                spec: result.spec ?? spec,
+                dir: result.dir ?? '',
+                version: result.version ?? '',
+                seam: result.seam ?? '',
                 source: result.source,
-                enabled: result.enabled,
+                enabled: Boolean(result.enabled),
+                profile: result.profile ?? _profileFromBody(body) ?? '',
+                profileDir: result.profileDir ?? '',
+                warnings: result.warnings ?? [],
                 requiresRestart: result.requiresRestart !== false,
             },
         });
@@ -598,9 +663,9 @@ async function _handlePluginsInstall(req, res) {
 }
 
 /**
- * POST /api/plugins/remove —— 卸载用户级插件（内置插件拒绝）。
+ * POST /api/plugins/remove —— 从 profile 目录卸载该插件（内置插件拒绝）。
  *
- * 逻辑与 CLI `3rdloop plugin remove` 同一个实现（`plugin-store.removePlugin`）。
+ * 逻辑与 CLI 同一实现（`plugin-store.removePlugin`）。
  */
 async function _handlePluginsRemove(req, res) {
     const method = (req.method || 'GET').toUpperCase();
@@ -622,10 +687,17 @@ async function _handlePluginsRemove(req, res) {
 
     try {
         const store = await _pluginStore();
-        const result = store.removePlugin({ name });
+        const result = store.removePlugin({ name, profile: _profileFromBody(body) });
         _sendJson(res, 200, {
             success: true,
-            data: { name: result.name, dir: result.dir, removed: true, requiresRestart: result.requiresRestart !== false },
+            data: {
+                name: result.name,
+                packageName: result.packageName ?? '',
+                dir: result.dir ?? '',
+                profile: result.profile ?? _profileFromBody(body) ?? '',
+                removed: true,
+                requiresRestart: result.requiresRestart !== false,
+            },
         });
     } catch (err) {
         _sendJson(res, 400, { success: false, message: err.message });

@@ -60,6 +60,7 @@
         "test:m14": "node test/m14-web-ext-source/run-all.mjs",
         "test:m15": "node test/m15-plugin-management/run-all.mjs",
         "test:m16": "node test/m16-plugin-web/run-all.mjs",
+        "test:m17": "node test/m17-profile-plugins/run-all.mjs",
         "test:unit": "node Server/Agent/SkillSelector/__tests__/test-pure-logic.js",
         "lint": "biome lint",
         "lint:fix": "biome lint --write",

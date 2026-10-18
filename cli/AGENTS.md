@@ -449,33 +449,51 @@ node cli/bin/3rdloop.mjs run <name> --print-taskdef    # 缺必填
 
 ## plugin 命令（插件管理）
 
-- 实现：`lib/plugin-cmd.js`（命令层）+ **`lib/plugin-store.js`（唯一读写层，Web 侧共用）**，
-  分发：`cli.js` `case 'plugin'`（惰性 import）。
-- 命令：`plugin list [--json]` / `info <name>` / `enable <name>` / `disable <name> [--force]` /
-  `check [--json]` / `path` / `add <dir>` / `remove <name>`。
-- **数据来自内核 `PluginHost.describe()`**（只读、不装配、不触发任何插件 `setup()`）；命令层不自己
-  拼状态逻辑，因此 CLI 与前端 `/api/plugins` 永远同源。
-- **写入目标是用户级 overlay** `~/.3lib/3rdloop/profiles/<profile>.json`（原子写：`.tmp` + rename）。
-  **绝不写包内 `profiles/`**：发布态它在 `node_modules/@ohos-cpf/3rdloop_core/profiles/`，
-  改了会在下次 `update` 时丢。内核读取时按「内置 → 用户」两级合并，合并粒度是单个插件条目。
-- 拒绝规则：`required` 插件禁用必拒；被启用插件依赖的（`storage/core ← cli/opencode`）默认拒绝
-  并列出依赖者，`--force` 可越过（required 永不放行）；未知/未安装插件拒绝并给出装插件目录。
-- **`check` 必须与真实装配同向**：除依赖闭合外，还校验五条 `engine-*` 必需接缝是否仍有启用中的
-  提供方。这条是补出来的——早先版本禁掉 `engines/brain` 后 `check` 仍报 ok，而 `buildApp`
-  立刻 fail closed，静态检查与真实结论相反。
-- `add` 装到 `~/.3lib/plugins/<name>/`（内核 `USER_PLUGINS_DIR`）；`remove` 只删用户级插件，
-  内置插件拒绝，并顺手清掉因此变空的组目录（`demo/echo` 卸载后不留空 `demo/`）。
-- add/remove 的**逻辑在 `plugin-store.installPlugin/removePlugin`**，前端 `/api/plugins/install|remove`
-  调的是同一份实现；`plugin-cmd.js` 只负责 CLI 输出。改行为改 store，不要在两侧各写一遍。
-- **BOM 兼容**：`core/Profile.js` 与 `readOverlay` 都会剥 `U+FEFF`——Windows 记事本保存的 profile
-  带 BOM 时 `JSON.parse` 会报"非法字符"，而用户看不出任何语法错误（实测踩到过）。
-- **生效语义**：overlay 在进程启动时读取，改完需重启 `3rdloop serve` / 下次命令才生效；
-  命令输出明确写出"重启后生效"，不假装热更新。
-- 验收：`test/m15-plugin-management`（54 条断言，含「假 HOME 禁 `engines/brain` → 在子进程里
-  `buildApp` 抛 `缺失接缝: engine-brain` → 清 overlay 后同一调用成功」的对照组）。
-- 已知限制：profile 只能由 `3LIB_PLUGIN_PROFILE` 选择（无 `--profile` flag）；`add` 用
-  `fs.cpSync` 整目录复制、不排除源里的 `node_modules`，且对已存在目标目录选择拒绝而非覆盖；
-  `~/.3lib` 路径是模块加载期算出的常量，同一进程无法按调用重定向（测试靠子进程 + 假 HOME）。
+模型对齐 DeepSeek Harness（DSH）：**一个 profile 一个目录，插件就是该目录的 npm 依赖**，
+启用状态单独记。实现：`lib/plugin-cmd.js`（命令层）+ **`lib/plugin-store.js`（唯一读写层，
+Web 侧共用）**，分发 `cli.js` `case 'plugin'`（惰性 import）。
+
+```
+~/.3lib/3rdloop/profiles/<profile>/
+├── package.json      # dependencies = 已装插件包（npm 管）
+├── package-lock.json # 锁文件（失败逐字节回滚）
+├── node_modules/     # 插件装这里；内核 rootsFor(profile) 直接从这儿扫描
+└── profile.json      # 启用/禁用与选项（overlay，合并覆盖包内 profiles/<profile>.json）
+```
+
+- 命令：`list [--json]` / `info <name>` / `enable` / `disable [--force]` / `check [--json]` /
+  `path` / `add <spec>` / `remove <name>`；**所有子命令支持 `--profile <name>`（也支持
+  `--profile=<name>`），优先于 `3LIB_PLUGIN_PROFILE`**。
+- **数据来自内核 `PluginHost.describe()`**（只读、不装配）。注意 `describe()` 必须走
+  `rootsFor(profile.name)`——profile 的 `node_modules` 参与扫描；用 `this.roots` 会让 profile
+  插件永远显示 `missing`，而 `load()` 又能加载到，两者结论相反（这个坑真踩过）。
+- **`add <spec>` 走 npm（与 DSH 同构）**：spec 分类（本地/`file:`/`link:`/git/tarball/registry 名）
+  → **`engines.3rdloop` 兼容预检**（不满足则一步都不装、目录零改动）→
+  `npm install <spec> --save-exact --install-links`（cwd = profile 目录）→ dependencies 差集推出
+  注册名 → `readState` 复查 `source==='profile'` → 写 `profile.json` 的 `enabled:true`。
+  任一步失败：`package.json` / `package-lock.json` 逐字节回滚。
+  - **为什么必须 `--install-links`**：npm 默认把本地目录依赖装成 symlink/junction，而
+    `core/PluginLoader.js` 用 `dirent.isDirectory()` 过滤会跳过 symlink → 插件根本发现不了
+    （负向自测：去掉它 20 条断言红）。
+- **`remove <name>`**：`source==='profile'` → `npm uninstall` + 清 `profile.json` 条目 + 清空
+  `node_modules`；`builtin` 拒绝（随核心包发布，卸载走包管理器）；`user` 走旧的删目录 + 清空组目录。
+- **profile 目录按需创建**：`add --profile web` 在目录不存在时会建 `package.json`
+  （`private: true`）。这与 DSH 的 `dsh plugin --profile … add` 一致（它也是 `mkdir` + `initProfile`），
+  不是漏洞。只读命令遇到不存在的 profile 仍报「profile 不存在 …（可用: …）」。
+- 拒绝规则（不变）：`required` 禁用必拒；被启用插件依赖的默认拒绝并列出依赖者，`--force` 可越过
+  （required 永不放行）；未知/未安装插件拒绝。
+- **`check` 必须与真实装配同向**：依赖闭合 + 五条 `engine-*` 必需接缝是否仍有启用中的提供方
+  （早先 `check` 报 ok 而 `buildApp` fail closed，已修）。另对 profile 插件加版本一致性 warning。
+- **BOM 兼容**：`core/Profile.js` 与 `readOverlay` 都剥 `U+FEFF`（Windows 记事本会写 BOM，
+  否则 `JSON.parse` 报"非法字符"而用户看不出语法错误）。
+- **生效语义**：profile 在进程启动时读取，改完需重启 `3rdloop serve`；输出明确写"重启后生效"。
+- 验收：`test/m15-plugin-management`（91 条）+ `test/m17-profile-plugins`（58 条，含
+  overlayPath 落点、最小 semver、spec 分类、npm 生命周期、两次回滚、engines 预检、profile 隔离）。
+  Web 侧 `test/m16-plugin-web`（79 条）共用同一 store。
+- 已知限制：`git:`/tarball 来源无法在装前读清单 → 只给 warning（装完才发现不兼容要手动卸载）；
+  registry 预检需网络（离线装 registry 包会在预检阶段失败，属"宁可不装"的取舍）；
+  `npm install` 把 `file:` 写成相对路径，源目录一搬就断（未做装后改绝对路径）；
+  `~/.3lib` 路径是模块加载期常量，同进程无法按调用重定向（测试靠子进程 + 假 HOME）。
 
 ## 环境预检（precheck，本期新增）
 

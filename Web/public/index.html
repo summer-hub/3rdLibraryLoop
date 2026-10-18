@@ -31,11 +31,16 @@
         .plugins-table td.pl-name { font-family: var(--mono); color: var(--text); white-space: nowrap; }
         .plugins-table td.pl-seam { font-family: var(--mono); color: var(--text3); white-space: nowrap; }
         .plugins-table td.pl-deps { color: var(--text2); word-break: break-all; }
+        .plugins-table td.pl-where { color: var(--text3); font-family: var(--mono); font-size: 11px; white-space: nowrap; }
         .plugins-table td.pl-name .pl-remove { margin-left: 8px; padding: 1px 7px; font-size: 11px; border-radius: 5px; cursor: pointer; border: 1px solid var(--border); background: var(--card); color: var(--badge-red-text); vertical-align: middle; }
         .plugins-table td.pl-name .pl-remove:hover { background: var(--red-light); }
         .plugins-table td.pl-ops { white-space: nowrap; width: 72px; }
         .plugins-table th:last-child { width: 72px; }
         .plugins-install { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+        .plugins-profile { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; font-size: 12px; color: var(--text2); }
+        .plugins-profile label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: .05em; }
+        .plugins-profile select { padding: 6px 10px; font-size: 12px; font-family: var(--mono); border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--text); min-width: 160px; }
+        .plugins-profile select:disabled { opacity: 0.6; }
         .plugins-install input { flex: 1 1 420px; min-width: 260px; padding: 7px 10px; font-size: 12px; font-family: var(--mono); border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--text); }
         .plugins-install button { padding: 7px 14px; font-size: 12px; border-radius: 6px; cursor: pointer; border: 1px solid var(--border); }
         .plugins-install-hint { font-size: 11px; color: var(--text3); }
@@ -424,14 +429,21 @@
             <div class="panel-head">
                 <span class="method m-post">PLG</span>
                 <h2>插件管理</h2>
-                <span class="path">/api/plugins + toggle / install / remove</span>
+                <span class="path">/api/plugins?profile= + toggle / install / remove</span>
             </div>
             <div class="panel-pad" style="flex:1; overflow-y:auto;">
+                <div class="plugins-profile">
+                    <label for="plugins-profile-select">profile</label>
+                    <select id="plugins-profile-select" title="一个 profile 一个目录，插件是该目录的 npm 依赖">
+                        <option value="">（正在读取…）</option>
+                    </select>
+                    <span class="plugins-install-hint">切换 profile 只看该 profile 的插件；插件装在其 <code>node_modules/</code></span>
+                </div>
                 <div class="plugins-install">
-                    <input id="plugins-install-dir" type="text"
-                           placeholder="本机插件目录路径（该目录须含 plugin.json），如 D:/my-plugin">
-                    <button type="button" id="plugins-install-btn" class="btn-primary">安装插件</button>
-                    <span class="plugins-install-hint">装到 <code>~/.3lib/plugins/</code>，重启生效；内置插件不可卸载</span>
+                    <input id="plugins-install-spec" type="text"
+                           placeholder="npm 包名 / git 地址 / 本机目录（如 file:D:/my-plugin）">
+                    <button type="button" id="plugins-install-btn" class="btn-primary">安装</button>
+                    <span class="plugins-install-hint">作为 npm 依赖装进当前 profile，重启生效；内置插件不可卸载</span>
                 </div>
                 <div id="plugins-meta" class="plugins-meta">
                     <div class="plugins-empty">正在读取插件状态…</div>

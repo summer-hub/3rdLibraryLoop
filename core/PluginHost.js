@@ -106,7 +106,10 @@ export class PluginHost {
         const profile = typeof this._profile === 'object' && this._profile
             ? this._profile
             : loadProfile({ profilesDir: this._profilesDir, env: this._env });
-        const roots = this.roots;
+        // 必须用 rootsFor(profile)：profile 目录的 node_modules 里装的是 npm 插件包，
+        // 用 this.roots（不含它）会让 describe() 把它们永远报成 missing——
+        // 而 load() 又明明能加载到，两者结论会相反（下拉/CLI 显示"未安装"、实际在跑）。
+        const roots = this.rootsFor(profile.name);
         const { entries, conflicts } = scanPluginRoots(roots);
         const scanned = new Map(entries.map((e) => [e.manifest.name, e]));
         const loadedNow = new Set(this.loaded);
