@@ -243,8 +243,8 @@ flowchart TD
 发布物是**挂在该仓库 Release 上的两个 tarball**（不在公共 npm registry）：
 
 ```
-ohos-cpf-3rdloop_core-0.0.12.tgz   核心包（引擎 + 插件 + 前端 + 资产）
-ohos-cpf-3rdloop-0.0.12.tgz        CLI 包（3rdloop 命令）
+ohos-cpf-3rdloop_core-0.0.13.tgz   核心包（引擎 + 插件 + 前端 + 资产）
+ohos-cpf-3rdloop-0.0.13.tgz        CLI 包（3rdloop 命令）
 SHA256SUMS                          sha256sum 格式的校验清单
 RELEASE.md                          产物清单与本文件
 ```
@@ -252,7 +252,7 @@ RELEASE.md                          产物清单与本文件
 ```bash
 # 两个 tarball 必须一起装：CLI 通过 @ohos-cpf/3rdloop_core 依赖核心包，
 # 只装 CLI 会去 registry 找旧版核心包
-npm i ./ohos-cpf-3rdloop_core-0.0.12.tgz ./ohos-cpf-3rdloop-0.0.12.tgz
+npm i ./ohos-cpf-3rdloop_core-0.0.13.tgz ./ohos-cpf-3rdloop-0.0.13.tgz
 
 npx 3rdloop version        # 打印 CLI 与核心包版本 / 核心树来源
 npx 3rdloop doctor         # 环境体检（含 SQLite 原生绑定实测）
@@ -264,7 +264,7 @@ npx 3rdloop serve          # 后端 + 前端 + 扩展一体启动
 ```bash
 3rdloop update --from-release --check     # 只看：当前版本 vs 最新 Release
 3rdloop update --from-release --yes       # 下载该 Release 的两个 tarball 并安装
-3rdloop update --from-release v0.0.12     # 指定 tag（也可用于回滚）
+3rdloop update --from-release v0.0.13     # 指定 tag（也可用于回滚）
 ```
 
 > `--from-release` 是「装这个 release」的显式请求：即使当前版本等于/高于 tag 也会装。
@@ -437,7 +437,7 @@ CLI 定位核心树时按四级解析（`cli/lib/core-paths.js`，唯一真源�
 
 ```bash
 npm run release:pack        # → dist/{两个 tgz, SHA256SUMS, RELEASE.md}（不联网、不调 git/gh）
-git tag v0.0.12 && git push origin v0.0.12
+git tag v0.0.13 && git push origin v0.0.13
 # 然后在仓库的 Release 页上传四个附件；已安装用户用
 #   3rdloop update --from-release
 ```

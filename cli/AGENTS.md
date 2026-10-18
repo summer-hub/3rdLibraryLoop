@@ -138,8 +138,8 @@ storage(用户数据目录)
 | `@ohos-cpf/3rdloop_core` | 仓库根 `package.json` | `Server plugins core seams profiles MCP Archive BadCase Web/public Web/ext README.md` | 核心树 import 的全部运行时依赖 |
 | `@ohos-cpf/3rdloop` | `cli/package.json` | `bin lib workflows README.md`（**无 vendor、无前端副本**） | `@ohos-cpf/3rdloop_core` + CLI 自己直接 import 的（`dotenv`） |
 
-发版顺序：**先核心包，再 CLI 包**。CLI 的依赖写范围（`^0.0.12`）；`0.0.x` 的 caret 等价于锁 patch，
-升核心包 patch 版要同步改 CLI 范围（或放宽成 `>=0.0.12 <0.1.0`）。
+发版顺序：**先核心包，再 CLI 包**。CLI 的依赖写范围（`^0.0.13`）；`0.0.x` 的 caret 等价于锁 patch，
+升核心包 patch 版要同步改 CLI 范围（或放宽成 `>=0.0.13 <0.1.0`）。
 
 ### 核心树四级解析（`lib/core-paths.js`，唯一真源）
 

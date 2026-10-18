@@ -438,7 +438,7 @@ export default {
 3rdloop update --from-release --yes
 
 # 装指定 tag（也可用于回滚到已知可用版本）
-3rdloop update --from-release v0.0.12 --yes
+3rdloop update --from-release v0.0.13 --yes
 ```
 
 - 仓库信息默认从 CLI 包 / 核心包 manifest 的 `repository` 推导；推导不出时会报错并提示用
@@ -581,13 +581,13 @@ cd cli && npm publish
 
 | 包 | 位置 | 内容 | 示例版本 |
 |----|------|------|----------|
-| `@ohos-cpf/3rdloop_core` | 仓库根 | 引擎 + 插件内核 + 插件 + 契约 + profile + `MCP/Archive/BadCase` | `0.0.12` |
-| `@ohos-cpf/3rdloop` | `cli/` | CLI（`bin/lib/web/workflows`），`dependencies` 声明核心包 | `0.0.12` |
+| `@ohos-cpf/3rdloop_core` | 仓库根 | 引擎 + 插件内核 + 插件 + 契约 + profile + `MCP/Archive/BadCase` | `0.0.13` |
+| `@ohos-cpf/3rdloop` | `cli/` | CLI（`bin/lib/web/workflows`），`dependencies` 声明核心包 | `0.0.13` |
 
-**版本联动**：两者各自独立发版，但 CLI 必须以范围声明核心包（当前 `^0.0.12`）。
-注意 `0.0.x` 的 caret 等价于锁 patch（`^0.0.12` = `>=0.0.12 <0.0.12`）：核心包升 patch
+**版本联动**：两者各自独立发版，但 CLI 必须以范围声明核心包（当前 `^0.0.13`）。
+注意 `0.0.x` 的 caret 等价于锁 patch（`^0.0.13` = `>=0.0.13 <0.0.13`）：核心包升 patch
 后必须同步改 CLI 的依赖范围并重发 CLI；若希望少一次联动，可把范围放宽成
-`>=0.0.12 <0.1.0`（代价是允许不兼容的小版本混装）。发完核心包，CLI 侧跑
+`>=0.0.13 <0.1.0`（代价是允许不兼容的小版本混装）。发完核心包，CLI 侧跑
 `npm i && npm test` 再 `npm publish`。
 
 **排障入口**：`3rdloop version`、`3rdloop version --json`、`3rdloop doctor` 都打印
